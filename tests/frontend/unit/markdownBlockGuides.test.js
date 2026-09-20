@@ -1,6 +1,6 @@
-import { EditorState } from '@codemirror/state';
+import { EditorState, StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { foldEffect } from '@codemirror/language';
+import { ensureSyntaxTree, foldEffect } from '@codemirror/language';
 import { markdownLanguage } from '@codemirror/lang-markdown';
 import {
     fencedCodeGuideLabel,
@@ -23,6 +23,23 @@ function guidePlan(source) {
 }
 
 describe('Markdown block guide model', () => {
+    test('scrolling and folding reuse document guides while edits invalidate their source ranges', () => {
+        let { state, guides } = guidePlan('# Heading\nBody\n## Child\nText');
+        const read = jest.spyOn(state.doc, 'toString');
+        for (let i = 0; i < 30; i++) {
+            state = state.update({ selection: { anchor: i % 10 } }).state;
+            expect(buildMarkdownBlockGuides(state)).toBe(guides);
+        }
+        expect(read).not.toHaveBeenCalled();
+        read.mockRestore();
+        state = state.update({ changes: { from: 2, to: 9, insert: 'Changed' } }).state;
+        expect(buildMarkdownBlockGuides(state)).not.toBe(guides);
+        expect(buildMarkdownBlockGuides(state)[0].title).toBe('Changed');
+        const sameDocument = state.doc;
+        state = state.update({ effects: StateEffect.reconfigure.of([]) }).state;
+        expect(state.doc).toBe(sameDocument);
+        expect(buildMarkdownBlockGuides(state)).toEqual([]);
+    });
     test('helper reservation covers actual document labels and image actions without a hypothetical longest fence', () => {
         expect(markdownBlockGuideSpacerLength([])).toBe(6);
         const { guides } = guidePlan('# Heading\n```mermaid\ngraph LR\n```');
@@ -222,4 +239,77 @@ describe('Markdown block guide model', () => {
             currentReserve: 110,
         })).toEqual({ scrollTop: 360, reserve: 0 });
     });
+});
+
+test('a prose edit maps complete guides without reading the note, while structural edits still rebuild', () => {
+    const { ensureSyntaxTree } = require('@codemirror/language');
+    const { mapMarkdownBlockGuides } = require('../../../frontend/js/markdownBlockGuides.js');
+    for (const count of [10, 1000]) {
+        const source = 'Ordinary prose here.\n\n' + Array(count).fill('## Heading\n\nBody text.\n\n').join('');
+        let state = EditorState.create({ doc: source, extensions: [markdownLanguage] });
+        ensureSyntaxTree(state, state.doc.length, 10000); state = state.update({}).state;
+        const initial = buildMarkdownBlockGuides(state);
+        for (let index = 0; index < 20; index++) {
+            const transaction = state.update({ changes: index % 2 ? { from: 2, to: 3 } : { from: 2, insert: 'x' } });
+            const full = jest.spyOn(transaction.state.doc, 'toString');
+            expect(mapMarkdownBlockGuides(transaction)).toBe(true);
+            const current = buildMarkdownBlockGuides(transaction.state);
+            expect(full).not.toHaveBeenCalled(); full.mockRestore();
+            expect(current[0].from).toBe(initial[0].from + (index % 2 ? 0 : 1));
+            expect(current.at(-1).foldTo).toBe(transaction.state.doc.length);
+            state = transaction.state;
+        }
+        const structural = state.update({ changes: { from: 0, insert: '# ' } });
+        expect(mapMarkdownBlockGuides(structural)).toBe(false);
+        expect(buildMarkdownBlockGuides(structural.state)[0].title).toBe('Ordinary prose here.');
+    }
+});
+
+test('guide construction never copies the remaining block list for each heading', () => {
+    const { ensureSyntaxTree } = require('@codemirror/language');
+    const source = Array(1000).fill('## Heading\n\nParagraph.\n\n').join('');
+    let state = EditorState.create({ doc: source, extensions: [markdownLanguage] });
+    ensureSyntaxTree(state, state.doc.length, 10000); state = state.update({}).state;
+    const slice = Array.prototype.slice;
+    let copiedEntries = 0;
+    const spy = jest.spyOn(Array.prototype, 'slice').mockImplementation(function (...args) {
+        const result = slice.apply(this, args);
+        if (this[0] && Object.hasOwn(this[0], 'info') && Object.hasOwn(this[0], 'name')) copiedEntries += result.length;
+        return result;
+    });
+    try {
+        expect(buildMarkdownBlockGuides(state)).toHaveLength(1000);
+        expect(copiedEntries).toBe(0);
+    } finally { spy.mockRestore(); }
+});
+
+
+test('helper rail caches spacer labels across 20 cursor moves in a thousand-heading note', () => {
+    const source = 'Ordinary prose.\n\n' + Array(1000).fill('## Heading\n\nProse.\n\n').join('');
+    let state = EditorState.create({ doc: source, extensions: [markdownLanguage,
+        createMarkdownBlockGuidesExtension()] });
+    ensureSyntaxTree(state, source.length, 10000); state = state.update({}).state;
+    const view = new EditorView({ state, parent: document.body });
+    try {
+        const guides = buildMarkdownBlockGuides(view.state);
+        let reads = 0;
+        for (const guide of guides) {
+            const label = guide.label;
+            Object.defineProperty(guide, 'label', { configurable: true, get() { reads++; return label; } });
+        }
+        for (let index = 0; index < 20; index++) view.dispatch({ selection: { anchor: 2 + index % 5 } });
+        expect(reads).toBe(0);
+        view.dispatch({ changes: { from: 2, insert: 'extra ' } });
+        expect(buildMarkdownBlockGuides(view.state).at(-1).from).toBe(guides.at(-1).from + 6);
+    } finally { view.destroy(); }
+});
+
+test('widget guide lookup tests only overlapping candidates near the end of a large note', () => {
+    let reads = 0;
+    const guides = Array.from({ length: 1000 }, (_, index) => ({
+        from: index * 10, to: index * 10 + 8,
+        get type() { reads++; return 'code'; },
+    }));
+    for (let index = 0; index < 20; index++) expect(markdownGuideForBlockWidget(guides, { from: 9990, to: 9998 })).toBe(guides[999]);
+    expect(reads).toBe(20);
 });

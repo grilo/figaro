@@ -15,6 +15,7 @@ import { focusEditor, getEditorView, insertTextAtCursor } from './editor.js';
 import {
     directoryPathsForReveal,
     dirtyFilePaths,
+    fileTreeTabMarkersChanged,
     fileTreeActionPaths,
     fileTreeFilePresentation,
     fileTreeKeyCommand,
@@ -434,8 +435,10 @@ export function initFileTree() {
             : null;
         setState('selectedFilePath', activePath);
         syncFileTreeTabMarkers();
-    });
-    subscribe('openTabs', syncFileTreeTabMarkers);
+    }, 'file-tree');
+    subscribe('tabPresentation', (tabs, previous) => {
+        if (fileTreeTabMarkersChanged(previous, tabs)) syncFileTreeTabMarkers();
+    }, 'file-tree');
     subscribe('fileIssues', renderFileTree);
 }
 
@@ -2450,20 +2453,23 @@ async function renameTreePath(path, type) {
         });
         if (nameReview !== 'proceed') return;
     }
-    statusBar.set(`Renaming “${oldName}”…`);
+    statusBar.set(`Saving open files before renaming “${oldName}”…`);
     let finishActivity = beginFileTreeActivity();
     try {
         const saveState = await prepareTabsForPathMove(path);
         if (!saveState.success) {
             finishActivity();
+            statusBar.set('Rename failed');
             await errorDialog(`Couldn’t rename ${kind}`, saveState.error, `Save open files before renaming this ${kind}.`);
             return;
         }
         let updateLinks = true;
         if (type === 'file') {
+            statusBar.set(`Checking references to “${oldName}”…`);
             const preview = await backend().PreviewRenamePath(path, newPath);
             if (!preview?.success) {
                 finishActivity();
+                statusBar.set('Rename failed');
                 await errorDialog(
                     `Couldn’t inspect ${kind} references`,
                     preview?.error,
@@ -2491,15 +2497,19 @@ async function renameTreePath(path, type) {
                     return;
                 }
                 updateLinks = choice.updateLinks;
-                statusBar.set(`Renaming “${oldName}”…`);
                 finishActivity = beginFileTreeActivity();
             }
         }
-        const result = await moveWritingPaths(() => type === 'file'
-            ? backend().RenamePathWithLinkUpdates(path, newPath, updateLinks)
-            : backend().RenamePath(path, newPath));
+        statusBar.set(`Waiting for writing data before renaming “${oldName}”…`);
+        const result = await moveWritingPaths(() => {
+            statusBar.set(`Renaming “${oldName}”…`);
+            return type === 'file'
+                ? backend().RenamePathWithLinkUpdates(path, newPath, updateLinks)
+                : backend().RenamePath(path, newPath);
+        });
         if (!result.success) {
             finishActivity();
+            statusBar.set('Rename failed');
             await errorDialog(`Couldn’t rename ${kind}`, result.error, `The ${kind} could not be renamed.`);
             return;
         }
@@ -2511,6 +2521,7 @@ async function renameTreePath(path, type) {
             detail: { oldPath: movedFrom, newPath: movedTo },
         }));
         await refreshFileTree();
+        statusBar.set(`Refreshing open files after renaming “${oldName}”…`);
         updateTabsForMovedPath(movedFrom, movedTo);
         await refreshTabsForUpdatedLinks(result.updated_links);
         const linkCount = Array.isArray(result.updated_links) ? result.updated_links.length : 0;

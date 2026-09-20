@@ -100,6 +100,8 @@ func (a *App) GetRecentlyDeleted() ([]RecentlyDeletedItem, error) {
 // and published with one rename, so extraction failure cannot expose a partial
 // restored directory.
 func (a *App) RestoreRecentlyDeleted(id string) (*SaveFileResult, error) {
+	a.vaultPathMu.Lock()
+	defer a.vaultPathMu.Unlock()
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 

@@ -397,3 +397,22 @@ describe('actionable Draw.io Markdown images', () => {
         view.destroy();
     });
 });
+
+test('image descriptors reuse syntax during cursor motion and invalidate edited source', () => {
+    const { editorDiagnostics } = require('../../../frontend/js/editorDiagnostics.js');
+    const { view } = createView({ documentSource: 'Some plain prose\n\n![One](one.png)\n\nTail' });
+    const read = jest.spyOn(view.state.doc, 'toString');
+    editorDiagnostics.start();
+    try {
+        editorDiagnostics.interaction('selection', ['selection'], () => {
+            for (let index = 0; index < 30; index++) view.dispatch({ selection: { anchor: 1 + index % 10 } });
+            view.dispatch({ selection: { anchor: 21 } });
+            view.dispatch({ selection: { anchor: 22 } });
+            view.dispatch({ selection: { anchor: 1 } });
+        });
+        expect(read).not.toHaveBeenCalled();
+        expect(editorDiagnostics.snapshot()[0].counters['parse.images'] || 0).toBe(0);
+        editorDiagnostics.interaction('edit', ['document'], () => view.dispatch({ changes: { from: 20, to: 23, insert: 'New' } }));
+        expect(editorDiagnostics.snapshot()[1].counters['parse.images']).toBe(1);
+    } finally { editorDiagnostics.stop(); read.mockRestore(); view.destroy(); }
+});

@@ -26,7 +26,7 @@ func TestEmbeddedWritingAssetsExcludeExecutablePayloads(t *testing.T) {
 		if entry.IsDir() {
 			return nil
 		}
-		if path.Base(name) != "LICENSE" && path.Base(name) != "SOURCE.json" && path.Ext(name) != ".yml" && path.Ext(name) != ".ini" {
+		if name != "styles/config/dictionaries/harper.dict" && path.Base(name) != "LICENSE" && path.Base(name) != "SOURCE.json" && path.Ext(name) != ".yml" && path.Ext(name) != ".ini" {
 			t.Errorf("unexpected writing asset (only rules, config, provenance and notices are allowed): %s", name)
 		}
 		return nil
@@ -285,10 +285,18 @@ func TestEmbeddedMatchesPinnedCLIAlertsAcrossEditorialAndUnicodeFixtures(t *test
 	if err := json.Unmarshal(data, &fixtures); err != nil {
 		t.Fatal(err)
 	}
-	e, err := Open()
+	// This fixture was captured from the Vale CLI and proves the embedded
+	// Vale adapter's output. The pure Figaro grammar pass has its own corpus
+	// through Open(), and now intentionally adds findings on these sentences.
+	rules, err := fs.Sub(bundled, "styles")
 	if err != nil {
 		t.Fatal(err)
 	}
+	worker, err := embedded.New(rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := newEngine(worker)
 	defer e.Close()
 	for repeat := 0; repeat < 2; repeat++ {
 		for _, sample := range fixtures {

@@ -53,7 +53,7 @@ type Definition struct {
 
 var defaultStyles = []string{"Vale"}
 var extensionPoints = []string{
-	"conditional", "consistency", "existence", "occurrence", "repetition", "substitution",
+	"conditional", "consistency", "existence", "occurrence", "repetition", "substitution", "sequence",
 }
 var defaultRules = map[string]map[string]interface{}{
 	"Avoid": {
@@ -133,6 +133,8 @@ func buildRule(cfg *core.Config, generic baseCheck) (Rule, error) {
 	// `vale test`, not the compiler.
 	delete(generic, "tests")
 	switch name {
+	case "sequence":
+		return NewSequence(cfg, generic, path)
 	case "existence":
 		return NewExistence(cfg, generic, path)
 	case "substitution":

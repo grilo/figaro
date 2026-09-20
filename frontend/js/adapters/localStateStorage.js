@@ -1,3 +1,4 @@
+import { countEditorWork } from '../editorDiagnostics.js';
 export function createLocalStateStorage(storage = null) {
     const current = () => storage || globalThis.localStorage;
     return {
@@ -15,6 +16,7 @@ export function createLocalStateStorage(storage = null) {
             return current().getItem(key);
         },
         write(key, value) {
+            countEditorWork('io.localStorageWrite');
             current().setItem(key, String(value));
         },
         remove(key) {

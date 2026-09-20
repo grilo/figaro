@@ -22,6 +22,7 @@ import {
     kanbanCardsForBuffer,
     overlayDirtyKanbanBuffers,
     renderKanbanBoard,
+    refreshKanbanData,
     initKanbanPresentationSettings,
     truncateKanbanCardText,
 } from '../frontend/js/kanban.js';
@@ -166,6 +167,39 @@ describe('live Kanban buffers and compact cards', () => {
         expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
         expect(window.go.desktop.App.GetKanbanBoard).not.toHaveBeenCalled();
         expect(window.go.desktop.App.GetKanbanColumns).not.toHaveBeenCalled();
+    });
+
+    test('prose-only typing retains the board, cards, and published snapshot; task edits still update', async () => {
+        const tab = { id: 'note.md', type: 'file', path: 'note.md', dirty: true, _content: 'Task #todo\nProse' };
+        setState('openTabs', [tab]);
+        initKanban();
+        await testUtils.waitFor(30);
+        const card = document.querySelector('.kanban-card');
+        expect(card).not.toBeNull();
+        const snapshot = getState('kanbanBoardData');
+        setState('openTabs', [{ ...tab, _content: 'Task #todo\nEdited prose' }]);
+        document.dispatchEvent(new CustomEvent('file-content-changed'));
+        await testUtils.waitFor(30);
+        expect(document.querySelector('.kanban-card')).toBe(card);
+        expect(getState('kanbanBoardData')).toBe(snapshot);
+        setState('openTabs', [{ ...tab, _content: 'Changed task #wip\nEdited prose' }]);
+        document.dispatchEvent(new CustomEvent('file-content-changed'));
+        await testUtils.waitFor(30);
+        expect(getState('kanbanBoardData').wip[0].text).toBe('Changed task');
+        expect(getState('kanbanBoardData').todo).toHaveLength(0);
+    });
+
+    test('an authoritative board refresh invalidates typing reuse even if its adapter reuses the board object', async () => {
+        const card = { file: 'note.md', file_name: 'note.md', line: 1, text: 'Move me', source: 'Move me #todo', tag: 'todo' };
+        const board = { todo: [card], wip: [], done: [] };
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue(board);
+        await refreshKanbanData();
+        board.todo = [];
+        board.wip = [{ ...card, tag: 'wip', source: 'Move me #wip' }];
+        await refreshKanbanData();
+        expect(getState('kanbanBoardData').todo).toHaveLength(0);
+        expect(getState('kanbanBoardData').wip[0].text).toBe('Move me');
+        expect(document.querySelector('.kanban-column[data-column="wip"] .kanban-card')).not.toBeNull();
     });
 
     test('projects a Figaro-saved note into Kanban without refetching the complete board', async () => {

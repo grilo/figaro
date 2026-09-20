@@ -5,7 +5,7 @@ export const writingChecks = Object.freeze([
     { id: 'direct', label: 'Directness', description: 'Review possible passive constructions, indirect openings, modifiers, hedging, and emphatic punctuation.' },
     { id: 'repetition', label: 'Repetition', description: 'Review possible adjacent repeated words.' },
     { id: 'consistency', label: 'Consistency', description: 'Technical names, term forms, capitalization, quotation styles, sentence spacing, and optional accents.' },
-    { id: 'grammar', label: 'Grammar & punctuation', description: 'Selected article, apostrophe, opening-mark, and punctuation checks. Does not check subject–verb agreement or contextual homophones.' },
+    { id: 'grammar', label: 'Grammar & punctuation', description: 'Selected agreement, verb, noun, homophone, phrase, word-boundary, number, capitalization, and punctuation checks. Review each correction in context.' },
     { id: 'readability', label: 'Readability', description: 'Long or complex sentences that may benefit from simpler wording or splitting an idea.' },
     { id: 'inclusive', label: 'Inclusive language', description: 'Generic roles, exclusionary expressions, and accessibility descriptions. Personal pronouns and identity remain the author’s choice.' },
     { id: 'formulaic', label: 'Formulaic writing', description: 'Optional review of stock framing, rhetorical patterns, wordiness, repeated words, layered qualifications, unspaced em dashes, and curly quotes/apostrophes. These patterns do not identify AI authorship.' },

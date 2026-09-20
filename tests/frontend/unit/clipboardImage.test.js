@@ -96,6 +96,7 @@ describe('clipboard image paste', () => {
         Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { read } });
         const preventDefault = jest.fn();
         const view = testView();
+        const pasted = new Promise(resolve => view.dispatch.mockImplementation(resolve));
 
         try {
             expect(handleClipboardImagePaste({
@@ -105,7 +106,7 @@ describe('clipboard image paste', () => {
                 },
                 preventDefault,
             }, view)).toBe(true);
-            await new Promise(resolve => setTimeout(resolve, 20));
+            await pasted;
 
             expect(preventDefault).toHaveBeenCalledTimes(1);
             expect(read).toHaveBeenCalledTimes(1);

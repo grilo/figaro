@@ -2,16 +2,16 @@
 
 This contract follows the eight-document pattern audit. It covers correctness
 and review safety; it does not establish general writing quality or complete
-grammar coverage. Mapping version 11, editorial policy 4, local-rule version 3
-and spelling vocabulary version 1 invalidate older analysis snapshots. Provider
-versions, registered rules, independent lens memberships and saved review data
-are unchanged.
+grammar coverage. Mapping version 20 (including the later grammar-context and quality updates), editorial policy 5, local-rule version 3
+and spelling vocabulary version 3 invalidate older analysis snapshots. This corpus-safety work preserves provider versions, independent lens memberships,
+and saved review data. The later [curated grammar expansion](WRITING_HARPER.md)
+adds separately reviewed rules.
 
 ## Corrected behavior
 
 | Audit pattern | Current behavior | Regression boundary |
 | --- | --- | --- |
-| Unsafe dictionary bulk guesses | English technical vocabulary and acronym plurals are recognized. Unreviewed capitalized-word alternatives require an adjacent transposition. Spelling bulk actions require an explicit reviewed correction, not one candidate. Dictionary alternatives cannot invent possession; reviewed contractions remain supported. | Real dictionaries, pure bulk planner, suggestion-card actions |
+| Unsafe dictionary bulk guesses | English technical vocabulary and acronym plurals are recognized. Ordinary capitalized prose gets case-matched alternatives; uncertain mixed-case/name-only alternatives still require an adjacent transposition. Spelling bulk actions require an explicit reviewed correction, not one candidate. Dictionary alternatives cannot invent possession; reviewed contractions remain supported. | Real dictionaries, pure bulk planner, suggestion-card actions |
 | Closing quotes and numeric compounds | Quotation delimiters stay outside lexical edits. Valid possessives retain their suffixes. Forms such as `base-10` and `8.1Mib` remain intact. | Source tokenization and dictionary adapter |
 | Underscore emphasis | Parsed emphasis delimiters are masked before identifier detection. Underscore and asterisk forms check the same prose without truncating suffixes. | All four emphasis forms, multiword possessives, protected paths/code |
 | Short fragments called long sentences | Native anchors must identify an eligible mapped sentence containing more than 30 words. The local check uses the same threshold and retains coverage when native boundaries differ. | Native-output conversion, local threshold, soft wraps and block boundaries |
@@ -32,6 +32,31 @@ lens. Sentence-length advice now uses one above-30-word threshold; the earlier
 local-only 35-word threshold is retired to avoid losing valid native coverage
 when Markdown block boundaries disagree.
 
+## September quality follow-up
+
+The six-document follow-up identified 25 unsafe spelling alternatives at 17
+occurrences. Recognition-only vocabulary now includes `async`, `dotfile(s)`,
+`etag(s)`, `fallback(s)`, middleware, npm, backpressure, fallthrough and pathname(s).
+Lower-camel-case identifiers are opaque source tokens; ordinary capitals and
+ambiguous slash/dot prose remain eligible. Generated English suggestions cannot
+simply remove a final `s` from a dictionary-unknown word. Forward/reverse acronym
+definitions in visible spelling prose also suppress spelling alarms for that
+note, without entering the cross-document suggestion cache.
+
+The shared advice policy recognizes technical options, numeric limits, forwarding
+and web addresses, as well as “look forward to.” It withholds actor advice for
+“unexpected” and agentless “disappointed,” and cliché advice for a literal
+end-of-day instruction. Unmatched-pair warnings are checked against visible,
+properly nested pairs in the same block. Equivalent “there is/are” observations
+merge across Plain language and Directness, retaining both sources, independent
+lens selection and prior occurrence Ignore decisions. Other concerns stay distinct.
+
+Grammar policy 7 broadens existing families; see
+[the context contract](WRITING_HARPER.md#broader-contexts-and-quality-follow-up).
+The [quality report](benchmarks/writing-quality-2026-09-20.md) replays the known
+six documents and evaluates a separately frozen eight-document sample after
+tuning. It reports retained errors and advice as well as improvements.
+
 ## Verification and evaluation limits
 
 `writingCorpusSafety.test.js` names the exact regressions and retains positive
@@ -43,7 +68,7 @@ profile covers 10k, 25k and 50k words. None of these checks is native
 input-to-paint evidence, and this change adds no input-handler scans or editor
 geometry changes.
 
-The evaluation keeps three kinds of evidence separate:
+The original September 7 evaluation kept three kinds of evidence separate:
 
 1. The unchanged eight-document source snapshot permits before/after comparisons.
 2. Clean extraction removes website code-language headers and figure-download
@@ -51,8 +76,10 @@ The evaluation keeps three kinds of evidence separate:
 3. Additional documents probe unseen wording. Once such a document informs a
    correction it becomes a regression source, not an independent holdout.
 
-Full diagnostics remain local, with source/license hashes and provider evidence
-in the owned evaluation directory. Public source texts are not committed here.
+For that original evaluation, full diagnostics and public source text remain
+local, with source/license hashes and provider evidence in the owned directory.
+The later September 20 evaluations commit licensed frozen source fixtures and
+review ledgers, including the [fresh quality sample](benchmarks/writing-quality-2026-09-20.md).
 Document counts and fewer findings do not establish precision or recall. Agent
 judgments and a small technical/instructional corpus cannot replace the
 independent human labels and broader genres in [WRITING_CORPUS.md](WRITING_CORPUS.md).

@@ -61,7 +61,7 @@ func OpenWithTimings(begin func(string) func(error)) (*Engine, error) {
 		finish(err)
 		return nil, err
 	}
-	worker, err := embedded.New(rules)
+	worker, err := newGrammarAnalyzer(rules)
 	finish(err)
 	if err != nil {
 		return nil, fmt.Errorf("writing engine could not initialize: %w", err)

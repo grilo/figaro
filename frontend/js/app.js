@@ -1,3 +1,4 @@
+import { editorDiagnostics } from './editorDiagnostics.js';
 import { startupTimings } from './startupDiagnostics.js';
 import { backend, waitForBackend } from './backend.js';
 /**
@@ -395,8 +396,8 @@ export function initTopBar() {
         settingsBtn?.classList.toggle('active', activeTabId === 'settings');
         homeBtn?.classList.toggle('active', activeTabId === null);
     };
-    subscribe('openTabs', syncNavigationState);
-    subscribe('activeTabId', syncNavigationState);
+    subscribe('tabPresentation', syncNavigationState, 'workspace-navigation');
+    subscribe('activeTabId', syncNavigationState, 'workspace-navigation');
     syncNavigationState();
 
     // ── Sidebar search ──
@@ -730,6 +731,7 @@ export async function initApp() {
         log.warn('Writing lenses could not finish startup:', error);
     });
     initEditorPreviewLaunchers({
+        getEditorView,
         getActiveTab,
         getEditorContent,
         getEditorDocumentTabId,
@@ -789,6 +791,7 @@ export async function initApp() {
 
     // Expose API for debugging
     window.app = {
+        editorDiagnostics,
         state,
         openTab,
         closeTab,

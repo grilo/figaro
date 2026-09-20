@@ -64,3 +64,37 @@ func TestSpellingDictionaryPreservesInvalidFileAndRejectsOutsideSymlinks(t *test
 		t.Fatal("outside file changed")
 	}
 }
+
+func TestSpellingDictionaryReopensPossessivesAndNormalizesAccentsWithoutRewritingOnLoad(t *testing.T) {
+	dir := t.TempDir()
+	app := NewApp(dir)
+	before := `{"version":1,"words":["café"],"future":{"keep":true}}`
+	writeTestFile(t, dir, spellingDictionaryPath, before)
+	if err := os.Chmod(filepath.Join(dir, spellingDictionaryPath), 0600); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, dir, "Memo.md", "café glinter’s glinters’")
+	words, err := app.SpellingDictionaryLoad()
+	if err != nil || !reflect.DeepEqual(words, []string{"café"}) {
+		t.Fatalf("load = %v, %v", words, err)
+	}
+	if readTestFile(t, dir, spellingDictionaryPath) != before {
+		t.Fatal("load rewrote the original dictionary")
+	}
+	for _, word := range []string{"CAFÉ", "glinter’s", "glinters’"} {
+		if _, err := app.SpellingDictionaryAdd(word); err != nil {
+			t.Fatal(err)
+		}
+	}
+	words, err = NewApp(dir).SpellingDictionaryLoad()
+	if err != nil || !reflect.DeepEqual(words, []string{"café", "glinter's", "glinters'"}) {
+		t.Fatalf("reopen = %v, %v", words, err)
+	}
+	if readTestFile(t, dir, "Memo.md") != "café glinter’s glinters’" {
+		t.Fatal("note text was normalized or changed")
+	}
+	info, err := os.Stat(filepath.Join(dir, spellingDictionaryPath))
+	if err != nil || runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0 {
+		t.Fatalf("dictionary permissions = %v %v", info, err)
+	}
+}

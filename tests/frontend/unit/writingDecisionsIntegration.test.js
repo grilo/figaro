@@ -1,3 +1,4 @@
+import { publishEditorUpdate } from '../frontend/js/editorUpdates.js';
 import { writingTestPorts } from '../support/writingPorts.js';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -13,9 +14,9 @@ function mount(store, source = 'We utilize words. The SLO is ready.', beforeSave
     document.body.innerHTML = '<div id="app"><button id="writing-lenses-toggle"></button><button id="writing-lenses-quick-toggle"></button><aside id="right-sidebar"><span id="right-sidebar-title"></span><div id="right-sidebar-content"></div></aside></div>';
     let tab = { type: 'file', path: 'Memo.md', id: 'memo' };
     const view = new EditorView({ state: EditorState.create({ doc: source, extensions: [history(), EditorView.updateListener.of(update => {
-        if (update.docChanged) document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: {
+        if (update.docChanged) publishEditorUpdate({
             documentTabId: tab.id, writingChanges: writingChangedRanges(update.changes),
-        } }));
+        });
     })] }), parent: document.body });
     const controller = initWritingLenses({ getActiveTab: () => tab, getEditorDocumentTabId: () => tab.id, getView: () => view,
         loadPreferences: async () => ({ lenses: ['plain'], language: 'en-US' }), savePreferences: async () => {},
@@ -151,7 +152,7 @@ test.each(['edit around', 'delete'])('an Ignore pending storage follows actual e
 });
 
 
-test('async saved-decision refresh keeps the current note context and says Analyzing while typing', async () => {
+test('async saved-decision refresh keeps the current note context and retains disabled suggestions while typing', async () => {
     jest.useFakeTimers(); let delay = false, finish;
     const store = new Map([['Memo.md', [{ id: 'accepted', type: 'acronym', acronym: 'SLO', language: 'en-US' }]]]);
     const track = input => delay ? new Promise(resolve => { finish = () => resolve(writingTestPorts.trackDecisions(input)); }) : writingTestPorts.trackDecisions(input);
@@ -159,8 +160,8 @@ test('async saved-decision refresh keeps the current note context and says Analy
     try {
         await app.controller.ready; await settle(); delay = true;
         app.view.dispatch({ changes: { from: 0, insert: 'Today ' } }); await jest.advanceTimersByTimeAsync(100);
-        expect(pane().querySelector('.writing-results [role=status]').textContent).toBe('Analyzing…');
-        expect(button('Ignore Simpler word')).toBeNull();
+        expect(pane().querySelector('.writing-results [role=status]').textContent).toContain('Refreshing suggestions');
+        expect(button('Ignore Simpler word').disabled).toBe(true);
         delay = false; finish(); await jest.advanceTimersByTimeAsync(600);
         expect(button('Ignore Simpler word')).not.toBeNull();
     } finally { app.destroy(); jest.useRealTimers(); }

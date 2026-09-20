@@ -161,3 +161,28 @@ regressions and a separately cleaned snapshot for editorial evaluation. An
 initial holdout that informs a fix becomes a regression set; it is no longer
 independent evidence. Small document samples and agent judgments do not replace
 the independent human labels and held-out precision/recall proposed above.
+
+## September whole-document snapshot
+
+The [20 September review](benchmarks/writing-documents-2026-09-20.md) adds six
+frozen complete Markdown documents, including two MIT-licensed manuals and
+four original agent-authored notes. Its reproducible runner combines production
+JS, native Go, spelling dictionaries and the review resolver. The manifest
+records source/license hashes and seeded errors; a separate ledger records
+every finding and offered edit with agent judgments. It exposes remaining
+unsafe alternatives, duplicate advice and grammar misses. This exploratory
+snapshot does not fulfill the independently annotated pilot above.
+
+## Fresh quality evaluation
+
+The [later quality report](benchmarks/writing-quality-2026-09-20.md) uses the six
+earlier documents as regressions and freezes eight fresh documents before
+quality tuning. The fresh manifest is in
+[`tests/fixtures/writing-quality-documents`](../tests/fixtures/writing-quality-documents/README.md).
+Four licensed/public-domain publications cover technical, practical and
+educational prose; four original documents cover narrative and practical drafts
+and intended acceptable narrative/educational prose. Two technical publications
+share the earlier p-map author/package family. The original drafts contain six
+pre-annotated errors. Agent judgments cover every visible finding and offered
+edit, and manual review records retained unflagged errors. This is exploratory
+evaluation, not independent human accuracy evidence or a completed pilot.

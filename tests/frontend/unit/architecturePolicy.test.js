@@ -3,6 +3,8 @@ import path from 'node:path';
 import { BACKEND_METHODS } from '../../../frontend/js/backendContract.js';
 
 const JS_ROOT = path.resolve('frontend/js');
+// Follow reviewed adapter imports through their real eager application edge.
+const ADAPTER_IMPORTS = new Map([['codemirror-live-markdown', path.resolve('frontend/vendored/codemirror-live-markdown/index.js')]]);
 
 function sourceFiles(directory, extension = '.js') {
     if (!fs.existsSync(directory)) return [];
@@ -25,14 +27,14 @@ function importsIn(source) {
 }
 
 function firstPartyImportGraph() {
-    const files = sourceFiles(JS_ROOT).map(file => path.resolve(file));
+    const files = [...sourceFiles(JS_ROOT).map(file => path.resolve(file)), ...ADAPTER_IMPORTS.values()];
     const fileSet = new Set(files);
     return new Map(files.map(file => {
         const imports = importsIn(fs.readFileSync(file, 'utf8'))
-            .filter(specifier => specifier.startsWith('.') || specifier.startsWith('/js/'))
-            .map(specifier => specifier.startsWith('/js/')
+            .filter(specifier => ADAPTER_IMPORTS.has(specifier) || specifier.startsWith('.') || specifier.startsWith('/js/'))
+            .map(specifier => ADAPTER_IMPORTS.get(specifier) || (specifier.startsWith('/js/')
                 ? path.join(JS_ROOT, specifier.slice('/js/'.length))
-                : path.resolve(path.dirname(file), specifier))
+                : path.resolve(path.dirname(file), specifier)))
             .map(imported => path.extname(imported) ? imported : `${imported}.js`)
             .filter(imported => fileSet.has(imported));
         return [file, imports];
@@ -69,6 +71,16 @@ function circularImportPaths(graph) {
 }
 
 describe('frontend architecture policy', () => {
+    test('editor observers use declared dependencies and tab presentation never subscribes to raw records', () => {
+        const violations = sourceFiles(JS_ROOT).flatMap(file => {
+            const source = fs.readFileSync(file, 'utf8');
+            const broad = /subscribe\(\s*['"]openTabs['"]/.test(source)
+                || /['"]editor-view-updated['"]/.test(source);
+            return broad ? [path.relative(JS_ROOT, file)] : [];
+        });
+        expect(violations).toEqual([]);
+    });
+
     test('pure core modules depend only on other core modules or pure packages', () => {
         const violations = [];
         for (const file of sourceFiles(path.join(JS_ROOT, 'core'))) {
@@ -190,6 +202,17 @@ describe('frontend architecture policy', () => {
             .map(file => path.relative(JS_ROOT, file));
 
         expect(violations).toEqual([]);
+    });
+
+    test('the reviewed Markdown adapter connects through its eager import and depends only on pure core helpers', () => {
+        const graph = firstPartyImportGraph();
+        const adapter = ADAPTER_IMPORTS.get('codemirror-live-markdown');
+        expect(graph.get(path.join(JS_ROOT, 'editor.js'))).toContain(adapter);
+        expect(graph.get(adapter)).toEqual(expect.arrayContaining([
+            path.join(JS_ROOT, 'core/markdownFormattingModel.js'),
+            path.join(JS_ROOT, 'core/selectionRangeIndex.js'),
+        ]));
+        expect(graph.get(adapter).every(file => file.startsWith(path.join(JS_ROOT, 'core/')))).toBe(true);
     });
 
     test('every first-party module is reachable from an application or renderer-build entry point', () => {

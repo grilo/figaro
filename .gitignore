@@ -31,6 +31,7 @@ Thumbs.db
 /frontend/favicon.ico
 /figaro
 /test-results/
+/test-logs/
 /playwright-report/
 /coverage/
 /stress-vault/

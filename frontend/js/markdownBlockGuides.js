@@ -1,3 +1,4 @@
+import { countEditorWork, readEditorDocument } from './editorDiagnostics.js';
 import { RangeSet, RangeSetBuilder, Transaction } from '@codemirror/state';
 import { GutterMarker, ViewPlugin, gutter, keymap } from '@codemirror/view';
 import {
@@ -21,9 +22,37 @@ import { markdownFoldAnchorPlan } from './core/markdownFoldAnchorModel.js';
 import { markdownTableMetadataEnd } from './core/markdownTableEditorModel.js';
 import { taskItemActionPlan } from './core/taskItemActionModel.js';
 import { isFigaroVegaLiteChartSource } from './core/vegaLiteChartEditorModel.js';
+import { outlineHeadingStructure } from './core/outlineModel.js';
+import { createSelectionRangeIndex, selectedRangeIndices } from './core/selectionRangeIndex.js';
+import { markdownGuidesInViewport } from './core/markdownBlockGuideModel.js';
+import { mapMarkdownBlockDescriptors } from './core/markdownProjectionModel.js';
+import { canMapMarkdownProseEdit } from 'codemirror-live-markdown';
 import { calendarIcon, kanbanIcon } from './icons.js';
 
 const foldAnchorReserveProperty = '--markdown-fold-anchor-reserve';
+const documentGuides = new WeakMap();
+const guideWidths = new WeakMap();
+const guideRanges = new WeakMap();
+
+function cachedGuideSpacerLength(guides, showImageReset) {
+    let widths = guideWidths.get(guides);
+    if (!widths) {
+        widths = [markdownBlockGuideSpacerLength(guides),
+            markdownBlockGuideSpacerLength(guides, { showImageReset: true })];
+        guideWidths.set(guides, widths);
+    }
+    return widths[Number(showImageReset)];
+}
+
+/** Preserve guide policy and payloads through a proven nonstructural prose edit. */
+export function mapMarkdownBlockGuides(update) {
+    const cached = documentGuides.get(update.startState.doc);
+    if (!cached || cached.tree !== syntaxTree(update.startState) || !canMapMarkdownProseEdit(update)) return false;
+    const guides = mapMarkdownBlockDescriptors(cached.guides, position => update.changes.mapPos(position));
+    if (guideWidths.has(cached.guides)) guideWidths.set(guides, guideWidths.get(cached.guides));
+    documentGuides.set(update.state.doc, { tree: syntaxTree(update.state), guides });
+    return true;
+}
 
 function codeInfo(node, state) {
     for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -66,19 +95,26 @@ function fencedBlockBody(source) {
 
 /** Build stable, DOM-free guide descriptors from the current Markdown tree. */
 export function buildMarkdownBlockGuides(state) {
-    const source = state.doc.toString();
+    const tree = syntaxTree(state);
+    const cached = documentGuides.get(state.doc);
+    if (cached?.tree === tree) return cached.guides;
+    countEditorWork('parse.guides');
+    const source = readEditorDocument(state.doc, 'guides');
     const blocks = topLevelBlocks(state, source);
+    const headings = blocks.flatMap((block, index) => {
+        const level = markdownHeadingLevel(block.name);
+        return level ? [{ level, index }] : [];
+    });
+    const structure = outlineHeadingStructure(headings);
+    const boundaries = new Map(headings.map((heading, index) => [heading.index,
+        structure.next[index] < 0 ? blocks.length : headings[structure.next[index]].index]));
     const guides = [];
     blocks.forEach((block, index) => {
         const plan = markdownBlockGuidePlan(block);
         if (!plan) return;
         let range = { from: block.from, to: block.to };
         if (plan.rangeStrategy === 'heading-section') {
-            const relativeBoundaryIndex = blocks.slice(index + 1).findIndex(candidate => {
-                const nextLevel = markdownHeadingLevel(candidate.name);
-                return nextLevel && nextLevel <= plan.level;
-            });
-            const boundaryIndex = relativeBoundaryIndex < 0 ? blocks.length : index + 1 + relativeBoundaryIndex;
+            const boundaryIndex = boundaries.get(index);
             range = {
                 from: block.to,
                 to: boundaryIndex < blocks.length ? blocks[boundaryIndex - 1].to : state.doc.length,
@@ -111,7 +147,6 @@ export function buildMarkdownBlockGuides(state) {
     // Paragraph node. Build its guide from the exact Image node rather than
     // requiring blank lines around the authored image.
     const frontmatterEnd = leadingFrontmatterEnd(source);
-    const tree = syntaxTree(state);
     tree.iterate({
         enter(node) {
             if (node.name !== 'Image' || node.from < frontmatterEnd) return;
@@ -139,7 +174,9 @@ export function buildMarkdownBlockGuides(state) {
             });
         },
     });
-    return guides.sort((left, right) => left.from - right.from || left.to - right.to);
+    guides.sort((left, right) => left.from - right.from || left.to - right.to);
+    documentGuides.set(state.doc, { tree, guides });
+    return guides;
 }
 
 /** Find syntax-backed unfinished task items without matching fence/frontmatter text. */
@@ -432,16 +469,19 @@ class TaskItemActionMarker extends GutterMarker {
 }
 
 function guideOnLine(state, lineFrom) {
-    return buildMarkdownBlockGuides(state).find(guide => guide.lineFrom === lineFrom) || null;
+    return markdownGuidesInViewport(buildMarkdownBlockGuides(state), lineFrom, lineFrom)[0] || null;
 }
 
 /** Match only a real overlapping replacement block, never an adjacent point widget. */
 export function markdownGuideForBlockWidget(guides, block) {
     if (!block || block.to <= block.from) return null;
-    return guides.find(candidate => candidate.type !== 'heading' && (
-        (candidate.from === block.from && candidate.to === block.to)
-        || (block.from < candidate.to && block.to > candidate.from)
-    )) || null;
+    if (!guideRanges.has(guides)) guideRanges.set(guides, createSelectionRangeIndex(guides));
+    const { indices } = selectedRangeIndices(guideRanges.get(guides), [block]);
+    for (const index of [...indices].sort((left, right) => left - right)) {
+        const candidate = guides[index];
+        if (candidate.type !== 'heading' && block.from < candidate.to && block.to > candidate.from) return candidate;
+    }
+    return null;
 }
 
 function guideControl(view, guide) {
@@ -529,7 +569,10 @@ export function createMarkdownBlockGuidesExtension({
 
         update(update) {
             if (update.geometryChanged) synchronizeEditorBlockActionLayout(update.view);
-            if (update.docChanged) clearFoldAnchorReserve(update.view);
+            if (update.docChanged) {
+                clearFoldAnchorReserve(update.view);
+                if (!update.transactions.some(transaction => transaction.reconfigured)) mapMarkdownBlockGuides(update);
+            }
             if (update.docChanged
                 || update.viewportChanged
                 || update.transactions.some(transaction => transaction.reconfigured)
@@ -553,8 +596,7 @@ export function createMarkdownBlockGuidesExtension({
                 : [];
             const builder = new RangeSetBuilder();
             const entries = [];
-            for (const guide of this.guides) {
-                if (guide.lineFrom < view.viewport.from || guide.lineFrom > view.viewport.to) continue;
+            for (const guide of markdownGuidesInViewport(this.guides, view.viewport.from, view.viewport.to)) {
                 entries.push({
                     from: guide.lineFrom,
                     marker: new MarkdownBlockGuideMarker(
@@ -610,13 +652,13 @@ export function createMarkdownBlockGuidesExtension({
                 return view.plugin(markerPlugin)?.markers || RangeSet.empty;
             },
             initialSpacer(view) {
-                return new MarkdownBlockGuideSpacer(markdownBlockGuideSpacerLength(
-                    view.plugin(markerPlugin)?.guides || [], { showImageReset },
+                return new MarkdownBlockGuideSpacer(cachedGuideSpacerLength(
+                    view.plugin(markerPlugin)?.guides || [], showImageReset,
                 ));
             },
             updateSpacer(spacer, update) {
-                const length = markdownBlockGuideSpacerLength(
-                    update.view.plugin(markerPlugin)?.guides || [], { showImageReset },
+                const length = cachedGuideSpacerLength(
+                    update.view.plugin(markerPlugin)?.guides || [], showImageReset,
                 );
                 return spacer.length === length ? spacer : new MarkdownBlockGuideSpacer(length);
             },

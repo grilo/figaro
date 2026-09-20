@@ -381,6 +381,60 @@ test('moves Vim Normal-mode j/k and arrows by visual rows without changing opera
     await content.press('ArrowUp');
     await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.selection.main.head)).toBe(start);
 
+    // Browser-only boundary: a wrapped paragraph directly touches a rendered
+    // diagram. Entry must wait for the first/last visual row, from both sides.
+    const prose = 'A wrapped paragraph with ordinary words for cursor geometry. '.repeat(5);
+    const diagramSource = `${prose}\n\`\`\`mermaid\nflowchart TD\nA --> B\n\`\`\`\n${prose}`;
+    await setEditorSource(page, diagramSource, diagramSource.length - 100);
+    await page.evaluate(async () => (await import('/js/editor.js')).setVimRevealBlocks(true));
+    await expect(page.locator('.cm-live-diagram svg')).toBeVisible();
+    for (const forward of [false, true]) {
+        const placed = await page.evaluate(forward => {
+            const view = window.__vimVisualRowsView;
+            const line = view.state.doc.line(forward ? 1 : 6);
+            const head = line.from + Math.floor(line.length / 2);
+            view.dispatch({ selection: { anchor: head }, scrollIntoView: true }); view.focus();
+            return { head, line: line.number };
+        }, forward);
+        const beforeRow = await page.evaluate(() => window.__vimVisualRowsView.coordsAtPos(window.__vimVisualRowsView.state.selection.main.head).top);
+        await content.press(forward ? 'ArrowDown' : 'ArrowUp');
+        const moved = await page.evaluate(() => {
+            const view = window.__vimVisualRowsView, head = view.state.selection.main.head;
+            return { head, line: view.state.doc.lineAt(head).number, top: view.coordsAtPos(head).top };
+        });
+        expect(moved.line).toBe(placed.line);
+        expect(forward ? moved.head > placed.head : moved.head < placed.head).toBe(true);
+        expect(forward ? moved.top > beforeRow : moved.top < beforeRow).toBe(true);
+        // Continue to the diagram boundary without changing source.
+        for (let i = 0; i < 15; i++) {
+            const line = await page.evaluate(() => { const view = window.__vimVisualRowsView; return view.state.doc.lineAt(view.state.selection.main.head).number; });
+            if (line !== placed.line) break;
+            await content.press(forward ? 'j' : 'k');
+        }
+        expect(await page.evaluate(() => { const view = window.__vimVisualRowsView; return view.state.doc.lineAt(view.state.selection.main.head).number; }))
+            .toBe(forward ? 2 : 5);
+    }
+    // Mouse placement and bidirectional drag across the replaced fence.
+    await page.evaluate(async () => {
+        await (await import('/js/editor.js')).toggleVim(false);
+        const view = window.__vimVisualRowsView; view.dispatch({ selection: { anchor: 0 }, scrollIntoView: true });
+    });
+    await expect(page.locator('.cm-live-diagram svg')).toBeVisible();
+    for (const reverse of [false, true]) {
+        const points = await page.evaluate(() => {
+            const view = window.__vimVisualRowsView;
+            return [view.state.doc.line(1).to - 2, view.state.doc.line(6).from + 2].map(pos => {
+                const r = view.coordsAtPos(pos); return { x: r.left + 1, y: (r.top + r.bottom) / 2 };
+            });
+        });
+        if (reverse) points.reverse();
+        await page.mouse.move(points[0].x, points[0].y); await page.mouse.down();
+        await page.mouse.move(points[1].x, points[1].y, { steps: 8 }); await page.mouse.up();
+        expect(await page.evaluate(() => window.__vimVisualRowsView.state.selection.main.empty)).toBe(false);
+        expect(await page.evaluate(() => window.__vimVisualRowsView.state.doc.toString())).toBe(diagramSource);
+    }
+    await page.evaluate(async () => (await import('/js/editor.js')).toggleVim(true));
+
     const twoSourceLines = `${paragraph}\nsecond source line\nremaining line`;
     await setEditorSource(page, twoSourceLines);
     await content.press('d');

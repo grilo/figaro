@@ -67,6 +67,51 @@ Do not commit generated vaults, build outputs, personal notes, tokens, or other
 local credentials. Preserve unrelated changes when working in an existing
 checkout.
 
+## Focused change workflow
+
+Start with `npm run context` for a compact route list, then use
+`npm run context -- editor-links` for that area's repository-relative paths,
+named source symbols, documentation sections, and explicit frontend tests.
+The CLI prints each source path once. Skip the list when the route is known;
+read only the relevant symbols and sections before widening to callers or shared
+contracts. The full [feature index](docs/FEATURE_INDEX.md) remains a browsable
+reference rather than required context for every change.
+
+Backlinks, graph, outline, raw preview, and charts have their own routes. Writing
+is split into analysis/scheduling, spelling/source protection, retained results,
+inline advice, and durable decisions. Select multiple route IDs when work spans
+those boundaries; the map is not an exhaustive dependency graph.
+
+During iteration, run `npm run test:focus -- editor-links` (multiple route IDs are
+accepted). It runs test integrity and architecture coverage with the selected
+frontend tests, prints a concise result, and saves complete output and Jest JSON
+in a unique ignored `test-logs/focused/` directory. On failure it returns a
+nonzero exit status and displays failed assertions (or the log tail if no report
+exists). Consult the full log when abbreviated output is insufficient. Go,
+coverage, browser, native, and release checks remain required where the testing contract calls for them; the command prints
+additional boundaries to assess rather than claiming they passed.
+
+Keep `docs/feature-map.json` synchronized when adding, moving, renaming, splitting,
+or removing modules, named entry-point symbols, tests, documentation sections, or
+commands, and when their ownership changes. Add an area for a new feature; list
+useful entry points rather than every helper. The optional `symbols` object maps a listed JavaScript source
+path to its entry-point names; names are parsed as declarations, not matched in
+comments or strings. Run `npm run context:generate` after editing the map, then
+`npm run context:check`. The check rejects missing files, headings, top-level
+JavaScript declarations, and stale generated output; human review must still
+catch routes pointing to an existing but wrong owner. The root [AGENTS.md](AGENTS.md) explicitly requires this maintenance and
+routes specialized editor, testing, and UI requirements to `.agents/guidance/`.
+
+Search symbols and relevant document headings before reading entire files.
+Preserve the source-of-truth behavior specification and the linked detailed
+contracts. Keep general rules in the central guides and feature-specific testing
+requirements under `docs/testing/`; avoid copying the same behavior into the index.
+Refactor large modules along pure-decision and injected-effect boundaries when
+touching them, with eager imports and local tests. File size alone is not a reason
+to split a module. The [context-size baseline](docs/benchmarks/feature-context-2026-09-13.md)
+records representative discovery output; it is not a measurement of total tokens
+per completed change.
+
 ## Repository skills
 
 Both skills live under `.agents/skills/` for repository discovery:
@@ -121,6 +166,13 @@ a narrow configuration port and let `app.js` supply it during eager startup;
 they do not import `app.js` or `tabManager.js` to recover those operations.
 Keep the first-party import graph acyclic—the architecture policy suite checks
 both the graph and this ownership rule.
+
+Right-pane launchers share `rightPaneLauncher.js`, with an injected editor-view
+getter. Prevent primary mouse-down focus transfer only when the editor owns
+focus; preserve keyboard entry and explicit sidebar clicks. Do not restore
+editor focus after asynchronous pane work. Cover activation intent and cleanup
+in component tests, and immediate continued typing in the existing Outline
+browser scenario and a native webview with keyboard focus available.
 
 Use this structure for future features whenever a workflow combines
 deterministic decisions with I/O. Extract the smallest useful pure seam and
@@ -239,7 +291,43 @@ The themed shell and restored active buffer may become interactive while eager
 vault indexing, writing engines and their dictionary, tree construction, and
 parser warming continue. Install the close guard and restore Auto-Save before
 revealing the editor. Disk-save acknowledgements release subsequent writes;
-Git and index follow-up work must not own that queue. Initial vault scans build
+Git and index follow-up work must not own that queue. Preserve the backend
+lock order: path identity, repository, then short content capture. Path mutations
+take the path write lock before the content lock; ordinary saves take only the
+content lock. Keep single-file history free of whole-worktree scans, and test
+held/failed Git writes with real temporary repositories and rooted atomic saves.
+Start cursor/typing performance work with [the editor update contract](docs/EDITOR_UPDATES.md).
+Declare external observer dependencies in `core/editorUpdateContract.js`; shell
+observers use `tabPresentation`, never raw `openTabs` notifications. Keep tab
+records immutable; use `getTabCursorState`/`setTabCursorState` for live cursor
+ownership, not a tab record's seed. Enumerate cursors only for explicit snapshots.
+Use opt-in traces and the assembled work-limit regression
+before adding feature-local caches. Jest must use the shipped vendored Markdown
+implementation, including its downstream cursor/viewport patches.
+
+For cursor-only updates, invalidate each consumer from the fields it actually
+uses: dirty paths for tree markers, document identity for Outline parsing,
+block/document identity for phrase segmentation, and source visibility for
+image/diagram/table/math decorations. Use the shared selection range index to
+bound visibility checks to old/new overlaps and patch only changed blocks.
+Use the conservative prose-edit adapter to map cached positions and decorations;
+check changed text and parsed paragraph/list/quote boundaries, while uncertain
+syntax must reparse. Resolve retained preview interactions from their current
+mounted positions. Cache guide widths and normalized phrase ranges; index widget,
+viewport and phrase lookups. Use model-owned single-record buffer transitions to
+avoid unrelated tab classification/cursor reconciliation, preserving immutable
+snapshots and structural publication handling. Share the heading parent/next-boundary index, and cache
+Find match lists independently from active-result lookup. Assert decoration identity and
+actual block/DOM access at both small and large fixture sizes; a zero parse
+counter alone does not establish bounded navigation work. Gate native-title and shell DOM writes by their
+derived presentation. Map ordinary prose edits through Outline positions while
+preserving row identity; structural edits must use its complete parser. Cache
+guide structure independently of viewport markers and dirty task projections
+independently of board paint. Batch source-ruler writes/reads without delaying
+the pre-paint height contract. Keep both native viewport-repair checks and verify real
+Up/Down reversal, source entry, pointer mapping, and drag selection when changing
+their scheduling. Session metadata may replace its waiting snapshot; note-content saves retain
+their durability and revision acknowledgement contract. Initial vault scans build
 private snapshots without holding the lock needed by saves, and reconcile
 concurrent changes before publication. Saved
 interaction and geometry preferences are different: start their independent
@@ -564,11 +652,16 @@ assets or remove their notices without auditing the upstream dictionary terms.
 Personal spelling words are separate vault data in
 `.config/spelling-dictionary.json`; the application validates and atomically
 adds words without modifying bundled Hunspell resources or note contents.
+English personal-word matching uses the noun-only S/M affix subset in
+`core/spellingDictionaryModel.js`; real-dictionary regressions compare its forms
+with both pinned English dictionaries. Review this subset when upgrading them.
 
 Writing review preparation runs `scripts/vendor-writing.mjs` for the pinned
 remark/retext runtime and notices, then bundles the writing and activity workers.
 Vale's adapted source is vendored in `third_party/vale` and compiled by Go; its
-27 YAML rules are embedded from `internal/writing/styles`. Native and cross builds
+42 YAML rules and the pinned grammar dictionary are embedded from
+`internal/writing/styles`; 160 pure Go grammar checks are compiled from
+`internal/writing/grammar`. Native and cross builds
 need no Vale executable download or target preparation. Generated browser workers
 remain ignored; obsolete local CLI `.gz` files are ignored but never bundled.
 See `third_party/vale/README.md` for source provenance, update checks, and limits.
@@ -623,6 +716,15 @@ for `<br/>` line breaks and anchored `^` row spans plus the editor model's
 adjacent rectangular-merge metadata. Live preview, PDF Preview, and generated
 PDFs must share focused renderer/model tests. Do not put table structural
 commands back into the ordinary editor context menu.
+The live-Markdown adapter is a checked-in downstream artifact; its
+[maintenance note](frontend/vendored/codemirror-live-markdown/README.md) describes
+its source and diagnostic boundaries. Treat active vendor extensions as part of
+the editor contract. Count actual syntax visits, source slices and decoration
+identity independently of diagnostic counters. Formatting follows visible ranges;
+block replacement fields keep complete cached geometry and indexed reveal checks.
+Do not use the retained upstream source map to identify modified implementation
+lines. No interaction-triggered module loading is introduced.
+
 The vendored `codemirror-live-markdown` package still contains optional
 table helpers, but Figaro does not activate them; do not reintroduce a
 second table decoration provider without an explicit architecture decision.
@@ -896,7 +998,11 @@ rebuild the chevron when only the selected count changes.
 ### Writing corpus safety
 
 Preserve parsed emphasis, quote/possessive boundaries and numeric compounds in
-spelling. Mask technical identifiers only after separating Markdown delimiters.
+spelling. Mask technical identifiers only after separating Markdown delimiters;
+ambiguous slash/dot prose stays eligible, while explicit paths and recognized
+filename extensions remain protected. Check all-caps prose and keep ordinary
+capitalized suggestions case-matched. Normalize spelling lookup/storage keys
+to NFC without normalizing note text or source coordinates.
 Keep URL-enclosing punctuation in the prose projection. Review new vocabulary
 entries separately from correction confidence; recognition never authorizes a
 replacement. Context guards must have positive controls and remain independent
@@ -904,6 +1010,15 @@ per lens. Both sentence-length paths check the mapped sentence above 30 words.
 Keep reverse/plural acronym recognition syntactic and within eligible prose.
 See [the corpus correction contract](docs/WRITING_CORPUS_FIXES.md); changes need
 real dictionary/package regressions plus pure policy and bulk-planner coverage.
+
+Defined-acronym spelling recognition belongs to the current note, outside the
+shared suggestion cache. Test adding/removing definitions and protected text.
+When merging equivalent advice across lenses, preserve every source, independent
+lens selection, and saved Ignore identities, including partial-provider output.
+Pair verification must remain inside one visible block and preserve warnings for
+mismatched, hidden and cross-paragraph closers. Evaluate fresh documents only
+after tuning is settled; report all remaining findings and offered edits with
+separate agent judgments and pre-result expectations.
 
 ### Writing continuity, performance and editorial evaluation
 
@@ -938,9 +1053,18 @@ race-tested lifecycle checks, and independent native platform validation.
 
 Catalogue generation normalizes trailing whitespace only inside parsed JavaScript comments; literal contents remain byte-for-byte unchanged. The build and its exact-output check share that formatter.
 
-Pinned Vale rules under `internal/writing/styles/` retain their exact source bytes
-on every platform through `.gitattributes`; their `SOURCE.json` hashes remain
-mandatory. The upstream Microsoft `SentenceLength.yml` ends in a blank line,
+Pinned Vale rules under `internal/writing/styles/` retain their reviewed source bytes
+on every platform through `.gitattributes`; adapted Harper rules record both
+upstream and bundled hashes plus the reason for each change. Follow the
+[curated grammar contract](docs/WRITING_HARPER.md) before adding a rule or native
+replacement: independent correct-sentence coverage, protected-context checks,
+and a reviewed bridge fixture are required. Their `SOURCE.json` hashes remain
+mandatory. Run `node scripts/evaluate-writing-documents.mjs --output /tmp/writing-review.json`
+for the frozen whole-document combined-provider evaluation. Keep source/license
+hashes, deliberate errors and negative controls unchanged; record new editorial
+judgments separately from raw output. The [evaluation report](docs/benchmarks/writing-documents-2026-09-20.md)
+explains the limits of these agent-reviewed fixtures.
+The upstream Microsoft `SentenceLength.yml` ends in a blank line,
 so only that file permits `blank-at-eof`; other whitespace checks still apply.
 
 CI's authored Chromium PDF fixture sets `FIGARO_BROWSER_PDF_ARGUMENTS=--no-sandbox`
@@ -949,3 +1073,19 @@ accommodates the runner's AppArmor policy; do not add it to packaged browser
 arguments or use it as a global workflow environment setting. Desktop tests
 canonicalize temporary roots so macOS filesystem aliases do not skew file URLs
 or synthetic watcher events.
+
+Footnote identifiers are protected by shared
+pure ranges in `core/writingFootnoteModel.js`; cover unresolved references and
+definition-body prose in both runtime and spelling tests. Rebuild the writing
+bundle after projection changes and bump its mapping configuration version.
+
+For retained writing review, keep range invalidation and remapping in
+`core/writingRetentionModel.js`. The CodeMirror adapter may read touched paragraphs
+and change fragments, never serialize the full note on each key. Retained results
+must be read-only and keep their old analysis identity; a partial spelling reply
+must not blank the previous prose review before the other engines settle. Exercise
+source edits, split/merge/delete, Undo, structural Markdown edits, global advice,
+late replies, retries and note/configuration changes at the component/use-case layer.
+For adjacent rendered-block Vim entry, visual movement within the current source
+line must precede source reveal. Keep the focused Chromium and packaged native
+Up/Down, mouse and drag checks in sync.

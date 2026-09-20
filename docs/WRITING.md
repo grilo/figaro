@@ -7,6 +7,9 @@
 Figaro renders the surrounding document while keeping the active source
 editable. Use headings, lists, links, tables, callouts, footnotes, math, and code
 blocks. The help button (**?**) opens Markdown syntax and Figaro macros.
+Writing lenses ignore footnote identifiers such as `[^reference]`, including
+undefined references. They still review the actual footnote text; an identifier
+is not a spelling or style suggestion.
 
 | Shortcut | Action |
 | --- | --- |
@@ -102,6 +105,27 @@ then select any combination of lenses:
 | Inclusive language | Generic roles, exclusionary expressions, and accessibility wording |
 | Formulaic writing | Stock phrasing, rhetorical patterns, repetition, and optional typography preferences |
 
+Proofreading includes selected English verb agreement, infinitive, auxiliary,
+possessive, number, homophone, and phrase checks: for example, “She go” →
+“She goes,” “your welcome” → “you’re welcome,” and “an advice” → “a piece of
+advice.” It also checks “I belief,” compound subjects such as “my mother and
+me went,” and questions such as “Has we finished?” and “Do I ready yet?”
+Selected prepositions and word choices also cover “good in swimming,” “a friend
+of me,” and “safe the file.” Noun-subject and amount checks catch “The chairs
+is ready” and “fewer time,” while preserving “fewer time slots.”
+These include 15 reviewed Harper-port rules and 160 Figaro checks. Apply checks the exact current text and can
+be undone; Ignore remembers only that rule at that occurrence. Uncertain cases
+and paragraphs with masked quoted/code context are left alone. See the
+[curated grammar scope](WRITING_HARPER.md) for examples and limits.
+
+Further context checks catch “What dose this sign mean?” and “We all seam to
+agree,” while preserving “beware in the forest” and “a software rendered game.”
+Common technical words such as async, dotfiles and etag, lower-camel-case
+identifiers and acronyms defined in your note avoid misleading spelling advice.
+Balanced multiline parentheses and literal end-of-day instructions receive
+fewer false warnings. Equivalent “there is/are” advice appears once even when
+both Clarity and Directness are selected; saved Ignore decisions still apply.
+
 English US and UK support spelling and prose checks. Spanish supports spelling
 only under Proofreading. Changing the language clears unsupported checks.
 They stay off until you select them again. Hover a disabled lens for an
@@ -128,7 +152,14 @@ available actions. Escape returns to editing.
 - **Apply** offers a reviewed replacement when available. Other hints give
   examples for manual revision, such as naming the actor in a passive sentence.
 - **Ignore this occurrence** remembers that suggestion at that place in the note.
-- **Add to dictionary** accepts a spelling across this vault.
+- **Add to dictionary** accepts a spelling across this vault. English US/UK
+  also accept its regular plural and singular/plural possessives, with straight
+  or curly apostrophes. This works for previously saved words too; verb endings
+  and irregular plurals are not inferred. Adding a singular possessive also
+  accepts its base and regular plural. Adding a terminal-apostrophe possessive
+  accepts the unpossessed s-ending word without guessing its singular. Spanish
+  keeps exact-word acceptance. Equivalent Unicode accent encodings match in
+  both built-in and personal dictionaries without rewriting your text.
 - **Accept an acronym in this document** accepts that acronym for the note's
   analysis language, including future occurrences.
 - **Details** explains the rule and when keeping your wording may be appropriate.
@@ -158,8 +189,9 @@ the vault's `.config/` folder, separately from the Markdown.
 
 ## Use judgment
 
-These checks offer advice, not a quality score. Grammar coverage does not include
-subject–verb agreement or contextual homophones such as "their/there." Passive
+These checks offer advice, not a quality score. Grammar checks cover selected
+constructions, simple pronoun agreement, and contextual homophones. Complex
+subjects, domain-specific usage, and ambiguous meanings still need your review. Passive
 voice and qualifying language can be appropriate. Inclusive suggestions need
 context, and personal pronouns remain the author's choice.
 

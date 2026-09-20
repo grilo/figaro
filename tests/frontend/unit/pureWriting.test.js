@@ -1,11 +1,12 @@
 import { EditorState, Transaction } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { Decoration, EditorView } from '@codemirror/view';
 import { cursorLineDown, cursorLineUp } from '@codemirror/commands';
 import { markdownLanguage } from '@codemirror/lang-markdown';
 import { createPureWritingExtension, refreshPureWriting } from '../frontend/js/pureWriting.js';
 
 describe('Pure writing CodeMirror presentation', () => {
     let view;
+    let pureExtension;
     let pureActive;
     let typewriterEnabled;
     let focusScope;
@@ -19,6 +20,15 @@ describe('Pure writing CodeMirror presentation', () => {
         focusScope = 'paragraph';
         searchOpen = false;
         pointerSelecting = false;
+        pureExtension = createPureWritingExtension({
+            isPureActive: () => pureActive,
+            isMarkdown: () => true,
+            typewriterEnabled: () => typewriterEnabled,
+            focusScope: () => focusScope,
+            adaptiveTypographyEnabled: () => false,
+            pointerSelecting: () => pointerSelecting,
+            searchOpen: () => searchOpen,
+        });
         view = new EditorView({
             parent: document.getElementById('editor'),
             state: EditorState.create({
@@ -27,15 +37,7 @@ describe('Pure writing CodeMirror presentation', () => {
                 extensions: [
                     markdownLanguage,
                     EditorView.lineWrapping,
-                    createPureWritingExtension({
-                        isPureActive: () => pureActive,
-                        isMarkdown: () => true,
-                        typewriterEnabled: () => typewriterEnabled,
-                        focusScope: () => focusScope,
-                        adaptiveTypographyEnabled: () => false,
-                        pointerSelecting: () => pointerSelecting,
-                        searchOpen: () => searchOpen,
-                    }),
+                    pureExtension,
                 ],
             }),
         });
@@ -87,4 +89,75 @@ describe('Pure writing CodeMirror presentation', () => {
         expect(view.dom.classList.contains('cm-pure-writing')).toBe(true);
         expect(view.dom.classList.contains('cm-pure-typewriter')).toBe(false);
     });
+    test('cursor motion reuses focus and avoids whole-document conversion and presentation writes', () => {
+        focusScope = 'phrase';
+        refreshPureWriting(view);
+        const plugin = view.plugin(pureExtension);
+        const decorations = plugin.decorations;
+        const phrases = plugin.focusCache.phrases;
+        const stringRead = jest.spyOn(view.state.doc, 'toString');
+        const styleWrite = jest.spyOn(view.dom.style, 'setProperty');
+        try {
+            for (const head of [44, 45, 46, 47, 46, 45, 44]) view.dispatch({ selection: { anchor: head } });
+            expect(plugin.decorations).toBe(decorations);
+            expect(plugin.focusCache.phrases).toBe(phrases);
+            expect(stringRead).not.toHaveBeenCalled();
+            expect(styleWrite.mock.calls.filter(([name]) => name.startsWith('--pure-'))).toEqual([]);
+            view.dispatch({ selection: { anchor: 60 } });
+            expect(plugin.focusCache.phrases).toBe(phrases);
+            expect(plugin.decorations).not.toBe(decorations);
+            expect(plugin.focusRange.from).toBeGreaterThan(43);
+        } finally {
+            stringRead.mockRestore(); styleWrite.mockRestore();
+        }
+        view.dispatch({ changes: { from: 40, insert: 'new ' } });
+        expect(plugin.focusCache.phrases).not.toBe(phrases);
+    });
+
+    test('Pure cursor motion queries cached phrases without reading every sentence', () => {
+        focusScope = 'phrase';
+        const source = Array(1000).fill('One ordinary sentence. ').join('');
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source }, selection: { anchor: 2 } });
+        refreshPureWriting(view);
+        const plugin = view.plugin(pureExtension), phrases = plugin.focusCache.phrases;
+        expect(phrases.ranges.length).toBe(1000);
+        let reads = 0;
+        for (const range of phrases.ranges) for (const key of ['from', 'to']) {
+            const value = range[key];
+            Object.defineProperty(range, key, { get() { reads++; return value; } });
+        }
+        for (let index = 0; index < 20; index++) view.dispatch({ selection: { anchor: 2 + index % 5 } });
+        expect(plugin.focusCache.phrases).toBe(phrases);
+        expect(reads).toBeLessThan(500);
+        expect(plugin.focusRange).toEqual({ from: 0, to: 23 });
+    });
+
+    test('focus follows nested list structure and removes dimming during pointer selection', () => {
+        const source = '- Parent text\n  - Child text\n\nOutside';
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source }, selection: { anchor: 4 } });
+        const plugin = view.plugin(pureExtension);
+        const parent = plugin.focusRange;
+        view.dispatch({ selection: { anchor: source.indexOf('Child') + 2 } });
+        expect(plugin.focusRange.from).toBeGreaterThan(parent.from);
+        pointerSelecting = true;
+        refreshPureWriting(view);
+        expect(plugin.decorations).toBe(Decoration.none);
+        pointerSelecting = false;
+        refreshPureWriting(view);
+        expect(plugin.focusRange).not.toBeNull();
+    });
+
+    test('caret-start styling still follows navigation and resize refreshes typewriter padding', () => {
+        view.dispatch({ selection: { anchor: 1 } });
+        expect(view.dom.classList.contains('cm-pure-caret-at-start')).toBe(true);
+        view.dispatch({ selection: { anchor: 43 } });
+        expect(view.dom.classList.contains('cm-pure-caret-at-start')).toBe(false);
+        Object.defineProperty(view.scrollDOM, 'clientHeight', { configurable: true, value: 800 });
+        refreshPureWriting(view);
+        expect(parseFloat(view.dom.style.getPropertyValue('--pure-typewriter-top-space'))).toBeGreaterThan(300);
+        Object.defineProperty(view.scrollDOM, 'clientHeight', { configurable: true, value: 400 });
+        view.plugin(pureExtension).syncGeometry();
+        expect(parseFloat(view.dom.style.getPropertyValue('--pure-typewriter-top-space'))).toBeLessThan(170);
+    });
+
 });

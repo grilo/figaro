@@ -3,12 +3,12 @@ import { writingLensGroups, writingLensGroupState, writingLensDisabledReason, wr
 // Editorial illustrations, not replacement candidates for the current note.
 const help = {
     proofreading: {
-        coverage: 'Checks dictionary spelling, adjacent repeated words, reviewed term and quotation conventions, and selected grammar and punctuation patterns.',
-        limits: 'This is not a complete grammar check: subject–verb agreement and contextual homophones such as “their/there” are not checked. Names and dictionary alternatives need your judgment; spelling Apply to all is limited to reviewed corrections.',
+        coverage: 'Checks dictionary spelling, adjacent repeated words, reviewed term and quotation conventions, and selected agreement, verb, noun, homophone, phrase, word-boundary, number, capitalization, and punctuation patterns.',
+        limits: 'Grammar and homophone checks use selected context patterns. Complex subjects, ambiguous meanings, and dialect differences need your judgment. Spelling Apply to all is limited to reviewed corrections.',
         examples: [
             { label: 'Spelling', before: 'teh', after: 'the' },
-            { label: 'Repeated word', before: 'the the draft', after: 'the draft' },
-            { label: 'Article', before: 'a apple', after: 'an apple' },
+            { label: 'Verb agreement', before: 'She go to school.', after: 'She goes to school.' },
+            { label: 'Homophone', before: 'Your welcome.', after: 'You’re welcome.' },
             { label: 'Technical name', before: 'Javascript', after: 'JavaScript' },
         ],
     },

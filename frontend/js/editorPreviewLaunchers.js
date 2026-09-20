@@ -1,4 +1,7 @@
+import { countEditorWork } from './editorDiagnostics.js';
+import { subscribeEditorUpdates } from './editorUpdates.js';
 import { closeActiveRightPane } from './rightPaneCoordinator.js';
+import { bindRightPaneLauncher } from './rightPaneLauncher.js';
 
 const markdownPath = /\.(?:md|markdown|mdown|mkdn)$/iu;
 
@@ -11,6 +14,7 @@ export function initEditorPreviewLaunchers({
     getActiveTab,
     getEditorContent,
     getEditorDocumentTabId,
+    getEditorView,
     openRawTextPreview,
     openPDFPreview,
     onError = () => {},
@@ -34,10 +38,17 @@ export function initEditorPreviewLaunchers({
         const open = sidebar.classList.contains('open');
         for (const [button, mode] of [[raw, 'raw-text-preview'], [pdf, 'pdf-preview']]) {
             const expanded = open && sidebar.dataset.mode === mode;
-            button.hidden = !available;
+            if (button.hidden !== !available) {
+                countEditorWork('dom.previewControls');
+                button.hidden = !available;
+            }
             button.classList.toggle('is-open', expanded);
-            button.setAttribute('aria-expanded', String(expanded));
-            button.setAttribute('aria-pressed', String(expanded));
+            for (const attribute of ['aria-expanded', 'aria-pressed']) {
+                if (button.getAttribute(attribute) !== String(expanded)) {
+                    countEditorWork('dom.previewControls');
+                    button.setAttribute(attribute, String(expanded));
+                }
+            }
         }
     };
 
@@ -71,12 +82,22 @@ export function initEditorPreviewLaunchers({
 
     const onRaw = () => void toggle('raw', raw);
     const onPDF = () => void toggle('pdf', pdf);
-    const onWorkspaceChange = () => queueMicrotask(refresh);
-    raw.addEventListener('click', onRaw);
-    pdf.addEventListener('click', onPDF);
-    for (const event of ['tab-switched', 'active-tab-changed', 'editor-view-updated']) {
+    let scheduled = false;
+    let disposed = false;
+    const onWorkspaceChange = () => {
+        if (scheduled || disposed) return;
+        scheduled = true;
+        queueMicrotask(() => {
+            scheduled = false;
+            if (!disposed) refresh();
+        });
+    };
+    const unbindRaw = bindRightPaneLauncher(raw, { getEditorView, activate: onRaw });
+    const unbindPDF = bindRightPaneLauncher(pdf, { getEditorView, activate: onPDF });
+    for (const event of ['tab-switched', 'active-tab-changed']) {
         document.addEventListener(event, onWorkspaceChange);
     }
+    const stopEditorUpdates = subscribeEditorUpdates('previews', refresh);
     const observer = new MutationObserver(refresh);
     observer.observe(sidebar, { attributes: true, attributeFilter: ['class', 'data-mode'] });
     refresh();
@@ -84,10 +105,12 @@ export function initEditorPreviewLaunchers({
     return {
         refresh,
         destroy() {
+            disposed = true;
+            stopEditorUpdates();
             observer.disconnect();
-            raw.removeEventListener('click', onRaw);
-            pdf.removeEventListener('click', onPDF);
-            for (const event of ['tab-switched', 'active-tab-changed', 'editor-view-updated']) {
+            unbindRaw();
+            unbindPDF();
+            for (const event of ['tab-switched', 'active-tab-changed']) {
                 document.removeEventListener(event, onWorkspaceChange);
             }
         },

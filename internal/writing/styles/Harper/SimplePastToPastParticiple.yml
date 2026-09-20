@@ -1,0 +1,79 @@
+---
+# Figaro adaptation: perfect tenses only; omit ambiguous noun forms and capitalized name-like targets.
+# Hand-written from Harper's SimplePastToPastParticiple: a perfect tense takes
+# the participle, not the simple past -- "I've gone", not "I've went".
+#
+# The generated rule came from its tests and covered a handful of sentences
+# verbatim. 14 missed findings, on ordinary text: "you'd wrote a terminal
+# emulator", "I've went thru all the steps".
+#
+# Only irregular verbs are listed, because only they differ: for a regular verb
+# the two forms are the same word, so there is nothing to correct. The auxiliary
+# has to be there -- a bare "I went" is right, and it is the perfect that makes
+# the participle obligatory.
+#
+# Harper is Copyright (c) Automattic, Inc. and contributors,
+# licensed under the Apache License 2.0.
+# https://github.com/Automattic/harper
+# A bare `'s` was reading possessives as `has`: "that guy's bit" is a noun,
+# and Harper skips it because its tagger says so. A substitution cannot ask for
+# a tag, so the `'s` has to follow a pronoun -- "he's bit" still lints, "guy's
+# bit" no longer does.
+#
+#
+# The auxiliary set also carries the `be` forms and the unapostrophed
+# contractions. Only the `have` forms were here, and every one of this rule's
+# twelve missed findings was one of the others: "were gave", "are broke",
+# "can be saw", "was began", "being took", "youve ran", "its broke".
+# A modal comes free -- "can be saw" has `be` directly before the verb.
+#
+# `woke` is deliberately not among the pairs. It is the one simple past that
+# is also an ordinary adjective after `be`, and with the `be` forms in the
+# lookbehind it flagged "being woke to gender discrimination" and "the path
+# to becoming woke".
+extends: substitution
+message: "Use the past participle after a form of `have` or `be`."
+level: warning
+ignorecase: false
+matchcase: true
+nonword: true
+action:
+  name: replace
+swap:
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))ate\b': "eaten"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))became\b': "become"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))began\b': "begun"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))blew\b': "blown"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))broke\b': "broken"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))came\b': "come"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))chose\b': "chosen"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))did\b': "done"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))drank\b': "drunk"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))drew\b': "drawn"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))drove\b': "driven"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))fell\b': "fallen"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))flew\b': "flown"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))forgot\b': "forgotten"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))froze\b': "frozen"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))gave\b': "given"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))grew\b': "grown"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))hid\b': "hidden"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))knew\b': "known"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))mistook\b': "mistaken"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))ran\b': "run"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))rang\b': "rung"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))rode\b': "ridden"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))sang\b': "sung"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))sank\b': "sunk"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))shook\b': "shaken"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))shrank\b': "shrunk"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))sprang\b': "sprung"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))swam\b': "swum"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))swore\b': "sworn"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))threw\b': "thrown"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))took\b': "taken"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))tore\b': "torn"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))went\b': "gone"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))wore\b': "worn"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))wove\b': "woven"
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))wrote\b': "written"

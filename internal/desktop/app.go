@@ -38,6 +38,7 @@ type App struct {
 	vaultPath           string
 	devInspectorAddress string
 	vaultMu             sync.RWMutex
+	vaultPathMu         sync.RWMutex
 	fileTreeBuildMu     sync.Mutex
 	sessionMu           sync.RWMutex
 	mu                  sync.RWMutex
@@ -243,7 +244,7 @@ func openApp(vaultPath string, trace *startup.Trace, bundledAssets ...AssetFS) *
 			Guidance: guidance,
 		})
 	} else {
-		hs.SetVaultReadLocker(&a.vaultMu)
+		hs.SetVaultLocks(&a.vaultPathMu, &a.vaultMu)
 		hs.SetCommitCallback(func() { a.emitRuntimeEvent("vault:history-changed") })
 		a.history = hs
 	}

@@ -2,10 +2,14 @@
 
 Writing lenses analyze the owned unsaved Markdown snapshot and review suggestions
 in the shared pane and on dotted inline marks, including in Pure mode. The
+footnote identifiers themselves never receive writing or spelling marks, even
+without definitions; actual footnote prose remains eligible. The
 marks decorate only visible existing text without added padding; they add no replacement or block widgets. Writing popups stay within the visible editor/viewport intersection so the
 sidebar cannot cover examples or actions. Hover opens the shared menu/button composition for Apply, Ignore, and spelling-only
 Add to dictionary. Ctrl/Cmd+. opens it from the caret, Tab/Shift+Tab navigate,
-and Escape returns focus. Source edits immediately clear old marks and popups.
+and Escape returns focus. Source edits close popups and clear marks in edited paragraphs; unaffected
+paragraph marks remain visible with disabled actions until refreshed. Structural
+Markdown changes clear all marks, and document-wide advice is not retained.
 Explicit finding navigation focuses its
 mapped source range. Apply validates owner/revision/configuration/exact source
 and makes one isolated undoable phrase transaction; result arrival never moves
@@ -24,7 +28,7 @@ renderers. Writing review adds no Markdown syntax or PDF styling.
 ## 1. High-Level Core Philosophy
 Implement a CodeMirror 6 (CM6) extension that creates an inline "Live Preview" experience for Markdown. The system operates on a binary visibility rule driven by the user's cursor/selection state:
 
-* **Active/Editing State (Cursor INSIDE):** When the cursor or selection overlaps with a Markdown syntax node or resides on its containing line, the raw syntax delimiters (e.g., `**`, `#`, `[ ]`) must be completely visible and editable as raw text.
+* **Active/Editing State (Cursor INSIDE):** Block formatting markers (`#`, list and quote markers) reveal on selected lines. Inline emphasis/code markers reveal when the selection overlaps the marker itself, including its boundary. Links and rendered blocks use their element-specific source ranges below; entering those ranges restores editable source.
 * **Preview State (Cursor OUTSIDE):** When the cursor/selection leaves the node or line, the raw syntax delimiters must be visually masked (hidden), and the block/inline elements must render as their rich visual equivalent.
 
 ---
@@ -114,8 +118,8 @@ Your implementation must accurately transition states for the following elements
 
 When writing the TypeScript extension, you must adhere to the following CodeMirror 6 structural constraints to prevent common errors:
 
-1.  **View Optimization:** All syntax tree iterations and decoration evaluations must be bound strictly to the current viewport ranges (`view.visibleRanges`). Do not compute decorations for the entire document.
-2.  **State Triggers:** Recompute the decoration set dynamically if and only if: the document changes (`update.docChanged`), the selection changes (`update.selectionSet`), or the view scrolls (`update.viewportChanged`).
+1.  **View Optimization:** Inline view-plugin projections visit only the current `view.visibleRanges`, deduplicating descriptors across disjoint ranges. State fields that supply block replacements must preserve complete document geometry: retain parsed descriptors and consult indexed reveal ranges during cursor motion instead of rescanning syntax or rereading every block.
+2.  **State Triggers:** Declare each provider's actual dependencies. Document/parser/configuration changes may invalidate structure; viewport changes refresh visible projections; selection changes refresh only changed reveal state. Folding and drag settlement retain explicit invalidation. An unchanged projection keeps its existing decoration set.
 3.  **Coordinate Sorting Rule:** You must collect all decorations in a mutable array, ensure they are strictly sorted by their incremental document positions, and then construct the final set using `Decoration.set(builder, true)`. Overlapping or unsorted ranges will crash the editor.
 4.  **Stable Metrics:** Ensure inline styles retain their typographic metrics (font-size, line-height) across both states. Revealing exact source may legitimately wrap or reflow a line because it adds the hidden Markdown characters; do not introduce an additional style-driven size jump.
 
@@ -160,6 +164,29 @@ deletion ranges and the affected list siblings; the pure number plan does not
 rewrite item bodies, nested lists, or custom numbering after a text-only edit.
 The deletion and marker replacements share one transaction and Undo step.
 
+Editor update dependencies and diagnostics are documented in
+[Editor updates](EDITOR_UPDATES.md). Cursor-only publication does not wake the
+workspace shell; image source descriptors follow immutable document/parser
+identity without flattening source during navigation. Image decoration identity
+also survives movement within an unchanged reveal region. The shared interval
+index bounds image/table/diagram/math visibility checks to old/new selection
+overlaps, including source boundaries and multi-selection; math retains its
+primary-head policy. Source entry/exit patches only changed blocks' decorations.
+Proven prose edits, including formatted text and list/quote paragraphs, map
+code/image/table/guide positions and existing decorations while retaining source
+payloads; changed delimiters, newlines, image-bearing paragraphs and uncertain
+structure reparse. Code/table clicks resolve current mounted positions, including
+after scroll remounting. Heading parents and section ends are indexed in one pass
+for sticky headings and guides. Guide widths are cached and viewport/widget
+lookup is indexed. Reveal indexes refresh only when descriptors move or reparse, and
+folding, drag settlement and configuration changes still refresh decorations.
+Source reveal, geometry, resizing and pointer selection retain the contracts
+below. The bundled formatting/style/code providers are covered by the
+same contract: visible syntax for inline marks, cached complete code descriptors
+for block geometry, and `markdownWorkFacet` counters supplied by the editor.
+Source-type checks precede list-widget text reads, preventing a visited syntax
+root from materializing the whole note.
+
 ## 4. Block Widget Geometry Contract
 
 CodeMirror's vertical cursor movement, click mapping, selections, and scrolling
@@ -197,6 +224,16 @@ dim decoration. Adaptive typography, when requested, changes active font size
 and writing width together across three hysteretic bands, then requests the
 normal CodeMirror/source-footprint measurements. Normal mode, source text,
 temporary buffer-scale ownership, and print rendering remain unchanged.
+
+Cursor-only Pure updates retain their decorations while the focus range and
+visible document are unchanged; paragraph/phrase lookup does not flatten the
+whole note. Geometry is refreshed independently on resize, settings, or explicit
+presentation refresh. Nested block entry, source edits, non-empty selections,
+Find, and pointer drag still recompute or remove focus as appropriate.
+Diagram navigation retains parsed fences and changes only which blocks reveal
+source; motion inside an already revealed fence keeps its placeholder nodes.
+The vertical-motion adapter retains its pre/post-paint native recovery checks
+and shares requests within a frame, followed by ordinary CodeMirror measurement.
 
 Every decoration created with `block: true` must follow these rules:
 
@@ -312,6 +349,15 @@ still receives a temporary application palette from Figaro tokens. Its widget
 and focused canvas use `--editor-surface`; explicit source styling remains
 authoritative. Printable consumers retain authored appearance and separate cache
 identity.
+
+Wrapping rulers for newly mounted or changed source are inserted together, read
+together, and removed before footprint height writes. Overflow checks follow
+all height writes. Unchanged source/metrics reuse their measured heights;
+explicit typography refresh invalidates that cache. Plain prose and authored
+chart heights need no wrapping rulers. Table/math source navigation reuses
+parsed descriptors until content or source visibility changes. Block-guide
+structure is cached by document/parser identity independently of visible
+markers, so viewport changes do not repeat the complete structural scan.
 
 This generalized source-footprint policy is editor-only. Successfully loaded
 images use the separate authored-geometry/source-placeholder contract above;
@@ -447,7 +493,10 @@ source is exactly covered by a folded range. A fold is one intentional visual
 row: downward movement reaches the next visible line, while upward movement
 normalizes the hidden range endpoint back to its visible heading. Vim `j`/`k`
 and Up/Down share these invariants in both source-line and optional visual-row
-mode. A backwards native geometry result keeps the exact Vim cursor position
+mode. Optional rendered-block entry first consults visual movement: a candidate
+still inside the current source line takes precedence over source reveal, from
+both directions, including immediately adjacent Mermaid fences.
+A backwards native geometry result keeps the exact Vim cursor position
 at the first or last row, and viewport scrolling remains at the corresponding
 boundary. Wraparound is never enabled by a preference.
 
@@ -551,7 +600,11 @@ in the browser and packaged native webview.
 Right-pane changes share one 240px minimum and requested session width across
 Outline, History, Raw, PDF, and Writing lenses. Responsive overlay placement
 retains the existing editor floor and exposed strip. Tab activation restores a
-note's pane only after its editor buffer owns the view. Launcher visibility,
+note's pane only after its editor buffer owns the view. Mouse activation of
+those launchers while typing preserves editor focus and selection, including
+pane switches and closes. Keyboard entry and explicit sidebar clicks retain
+their normal focus behavior; deferred pane work must not restore stale focus.
+Launcher visibility,
 selected paint, and Settings/planning round trips must not disturb Arrow Up/Down,
 mouse placement, or drag selection in the editor. The status bar’s buffer region
 ends at the visible pane edge using that same width, including in overlay mode.
@@ -581,8 +634,8 @@ so GTK does not substitute its emoji picker.
 
 Writing result resolution and saved-decision matching now execute in workers.
 The editor update callback queues a source reader plus actual changed ranges;
-it never materializes or scans the document for review. Stale marks still clear
-synchronously, and async results must pass the current owner/revision/configuration
+it never materializes or scans the document for review. Touched-paragraph and document-dependent marks clear synchronously; unaffected
+marks map through edits as display-only ranges. Async results must pass the current owner/revision/configuration
 guard. Saved and pending Ignore anchors follow those ranges off the UI thread.
 The decision list consumes computed active IDs rather than searching source.
 Wiki destinations/fragments and embeds are excluded from every lens; explicit
@@ -657,7 +710,9 @@ changes rather than every edit. Existing rail values are not rewritten unchanged
 Writing analysis reuses exact paragraph results and word lookups in workers.
 Full Markdown protection and document-wide policy remain current. Snapshot and
 saved-decision bookkeeping waits through a 100 ms typing burst, followed by the
-existing 500 ms analysis debounce. Closed panes defer card rendering. Marks
-still clear on edits, and stale actions remain rejected. Verify Up/Down, mouse
+existing 500 ms analysis debounce. Closed panes defer card rendering. Previous cards stay visible with disabled actions until replacement engines
+settle. Unchanged-paragraph marks remain visible at mapped positions; edited
+paragraphs, document-dependent advice, and structural Markdown edits invalidate
+the relevant marks. Stale actions remain rejected. Verify Up/Down, mouse
 placement, bidirectional drag, hovered controls during typing, and date/guide
 alignment through resize, folds and settings changes in browser/native checks.

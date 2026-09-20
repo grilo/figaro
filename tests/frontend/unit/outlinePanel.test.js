@@ -1,10 +1,11 @@
 import { testUtils } from './test_setup.js';
 
 let mockSource;
+let mockContentReads = 0;
 let mockView;
 let mockTab;
 jest.mock('../frontend/js/editor.js', () => ({
-    getEditorContent: () => mockSource,
+    getEditorContent: () => { mockContentReads++; return mockSource; },
     getEditorDocumentTabId: () => mockTab.id,
     getEditorView: () => mockView,
 }));
@@ -13,7 +14,7 @@ jest.mock('../frontend/js/state.js', () => ({
 }));
 
 describe('outline focus and unavailable launcher', () => {
-    let outline;
+    let outline, publishEditorUpdate;
     let listeners;
     let listenSpy;
     beforeEach(() => {
@@ -32,13 +33,28 @@ describe('outline focus and unavailable launcher', () => {
             listeners.push(args);
             original(...args);
         });
-        jest.isolateModules(() => { outline = require('../frontend/js/outline.js'); });
+        jest.isolateModules(() => {
+            outline = require('../frontend/js/outline.js');
+            ({ publishEditorUpdate } = require('../frontend/js/editorUpdates.js'));
+        });
         outline.initOutlinePanel();
     });
     afterEach(() => {
         mockView.isDestroyed = true;
         for (const args of listeners) document.removeEventListener(...args);
         listenSpy.mockRestore();
+    });
+
+    test('mouse-opened Outline preserves editor focus and selection instead of focusing a heading', () => {
+        const typing = document.body.appendChild(document.createElement('textarea'));
+        typing.focus(); mockView.hasFocus = true;
+        const button = document.getElementById('outline-toggle');
+        button.dispatchEvent(new MouseEvent('mousedown', { button: 0, cancelable: true }));
+        button.dispatchEvent(new MouseEvent('click', { detail: 1 }));
+        expect(document.querySelector('.outline-item')).not.toBeNull();
+        expect(document.activeElement).toBe(typing);
+        expect(mockView.dispatch).not.toHaveBeenCalled();
+        outline.closeOutlinePanel({ restoreFocus: false });
     });
 
     test('explicit outline open focuses the current heading and close restores its launcher', () => {
@@ -60,15 +76,70 @@ describe('outline focus and unavailable launcher', () => {
         outline.openOutlinePanel();
         expect(document.activeElement).toBe(outside);
         mockSource += '\nMore text';
-        document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true } }));
+        publishEditorUpdate({ docChanged: true });
         expect(document.activeElement).toBe(outside);
         document.querySelector('.outline-item').focus();
         mockSource += '\n## Third';
-        document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true } }));
+        publishEditorUpdate({ docChanged: true });
         expect(document.activeElement.textContent).toContain('First');
         outside.focus();
         outline.closeOutlinePanel({ keepSidebarOpen: true });
         expect(document.activeElement).toBe(outside);
+    });
+
+    test('cursor and viewport changes reuse the immutable document while active headings and edited headings refresh', () => {
+        const { EditorState } = require('@codemirror/state');
+        mockView.state.doc = EditorState.create({ doc: mockSource }).doc;
+        publishEditorUpdate({ docChanged: true });
+        outline.openOutlinePanel();
+        mockContentReads = 0;
+        for (let index = 0; index < 100; index++) {
+            mockView.state.selection.main.head = index % 2 ? 1 : 20;
+            publishEditorUpdate({ selectionSet: true, viewportChanged: index % 3 === 0 });
+        }
+        expect(mockContentReads).toBe(0);
+        expect(document.querySelector('.outline-item[aria-current="location"]').textContent).toContain('First');
+        mockView.state.selection.main.head = 20;
+        publishEditorUpdate({ selectionSet: true });
+        expect(document.querySelector('.outline-item[aria-current="location"]').textContent).toContain('Second');
+        mockSource = '# Changed\nText\n## Second\nMore';
+        mockView.state.doc = EditorState.create({ doc: mockSource }).doc;
+        publishEditorUpdate({ docChanged: true });
+        expect(mockContentReads).toBe(1);
+        expect(document.querySelector('.outline-item').textContent).toContain('Changed');
+    });
+
+    test('a thousand-heading Outline touches only the old and new active rows and resets on remount', () => {
+        const { EditorState } = require('@codemirror/state');
+        mockSource = 'Intro\n\n' + Array.from({ length: 1000 }, (_, i) => `## Section ${i}\nParagraph text here\n\n`).join('');
+        mockView.state = EditorState.create({ doc: mockSource, selection: { anchor: mockSource.indexOf('Paragraph') } });
+        publishEditorUpdate({ docChanged: true });
+        outline.openOutlinePanel();
+        const rows = [...document.querySelectorAll('.outline-item')];
+        const observer = new MutationObserver(() => {});
+        observer.observe(document.getElementById('right-sidebar-content'), { subtree: true, attributes: true,
+            attributeFilter: ['class', 'aria-current'] });
+        const move = anchor => {
+            mockView.state = mockView.state.update({ selection: { anchor } }).state;
+            publishEditorUpdate({ selectionSet: true });
+        };
+        try {
+            for (let i = 0; i < 100; i++) move(mockSource.indexOf('Paragraph') + i % 5);
+            expect(observer.takeRecords()).toEqual([]);
+            move(mockSource.lastIndexOf('Paragraph'));
+            const mutations = observer.takeRecords();
+            expect(new Set(mutations.map(record => record.target))).toEqual(new Set([rows[0], rows[999]]));
+            expect(mutations).toHaveLength(4);
+            expect(rows[999].getAttribute('aria-current')).toBe('location');
+            move(0);
+            expect(new Set(observer.takeRecords().map(record => record.target))).toEqual(new Set([rows[999]]));
+            expect(document.querySelector('.outline-item[aria-current]')).toBeNull();
+            move(mockSource.indexOf('Paragraph'));
+            outline.closeOutlinePanel({ restoreFocus: false });
+            outline.openOutlinePanel();
+            expect(document.querySelector('.outline-item[aria-current]')).not.toBe(rows[0]);
+            expect(document.querySelector('.outline-item[aria-current]').textContent).toContain('Section 0');
+        } finally { observer.disconnect(); }
     });
 
     test('outline heading activation requests top alignment and editor focus without editing source', () => {
@@ -80,6 +151,43 @@ describe('outline focus and unavailable launcher', () => {
         expect(transaction.effects.value).toMatchObject({ y: 'start', range: { anchor: mockSource.indexOf('## Second') } });
         expect(transaction.changes).toBeUndefined();
         expect(mockView.focus).toHaveBeenCalledTimes(1);
+    });
+
+    test('typing prose maps headings without full reads or replacing rows and navigation uses the mapped offset', () => {
+        const { EditorState } = require('@codemirror/state');
+        let state = EditorState.create({ doc: mockSource });
+        mockView.state = state;
+        publishEditorUpdate({ docChanged: true });
+        outline.openOutlinePanel();
+        const row = document.querySelectorAll('.outline-item')[1];
+        // The assembled tooltip adapter consumes native title attributes.
+        // Row reuse must compare the visible heading, not that mutable hint.
+        document.querySelectorAll('.outline-item').forEach(item => item.removeAttribute('title'));
+        row.focus();
+        mockContentReads = 0;
+        for (let i = 0; i < 20; i++) {
+            const previousDocument = state.doc;
+            const transaction = state.update({ changes: { from: state.doc.line(2).to, insert: 'x' } });
+            state = transaction.state;
+            mockView.state = state;
+            mockSource = state.doc.toString();
+            publishEditorUpdate({
+                docChanged: true, previousDocument, changes: transaction.changes,
+            });
+        }
+        expect(mockContentReads).toBe(0);
+        expect(document.querySelectorAll('.outline-item')[1]).toBe(row);
+        expect(document.activeElement).toBe(row);
+        row.click();
+        expect(mockView.dispatch.mock.calls.at(-1)[0].selection.anchor).toBe(mockSource.indexOf('## Second'));
+        const previousDocument = state.doc;
+        const transaction = state.update({ changes: { from: state.doc.line(2).from, insert: '# ' } });
+        mockView.state = transaction.state; mockSource = transaction.state.doc.toString();
+        publishEditorUpdate({
+            docChanged: true, previousDocument, changes: transaction.changes,
+        });
+        expect(mockContentReads).toBe(1);
+        expect(document.querySelectorAll('.outline-item')).toHaveLength(3);
     });
 
     test.each(['settle', 'wheel', 'touchstart', 'pointerdown', 'keydown', 'source change', 'cursor change', 'destroy'])('outline top alignment respects sticky height and stops on %s', action => {
@@ -124,7 +232,7 @@ describe('outline focus and unavailable launcher', () => {
 
     test('unavailable outline stays focusable and explained without accepting activation', () => {
         mockSource = 'No headings';
-        document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true } }));
+        publishEditorUpdate({ docChanged: true });
         const toggle = document.getElementById('outline-toggle');
         expect(toggle.hidden).toBe(false);
         expect(toggle.disabled).toBe(false);
@@ -137,7 +245,7 @@ describe('outline focus and unavailable launcher', () => {
         expect(document.querySelector('.outline-panel')).toBeNull();
         expect(outline.openOutlinePanel()).toBe(false);
         mockSource = '# Available';
-        document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true } }));
+        publishEditorUpdate({ docChanged: true });
         expect(toggle.getAttribute('aria-disabled')).toBe('false');
         toggle.click();
         expect(document.activeElement.textContent).toContain('Available');

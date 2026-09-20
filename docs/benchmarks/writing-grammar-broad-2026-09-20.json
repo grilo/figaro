@@ -1,0 +1,2977 @@
+{
+  "date": "2026-09-20",
+  "referenceVersion": "Harper 2.10.0",
+  "scope": "60 additional selected rules, 54 to 114 total IDs; policy 5 / mapping 18",
+  "reviewedCorpus": {
+    "rules": 114,
+    "positive": 355,
+    "valid": 683
+  },
+  "comparison": {
+    "reviewed-positive": {
+      "cases": 149,
+      "baseline": 30,
+      "expanded": 149,
+      "harper": 141
+    },
+    "reviewed-negative": {
+      "cases": 280,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 75
+    },
+    "upstream-positive": {
+      "cases": 373,
+      "baseline": 40,
+      "expanded": 210,
+      "harper": 365
+    },
+    "upstream-negative": {
+      "cases": 92,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 5
+    }
+  },
+  "byRule": [
+    {
+      "rule": "AMeansToAnEnd",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "AdNauseam",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "AdjectiveDoubleDegree",
+      "cases": 8,
+      "baseline": 0,
+      "expanded": 4,
+      "harper": 8
+    },
+    {
+      "rule": "Ado",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 2
+    },
+    {
+      "rule": "Albeit",
+      "cases": 5,
+      "baseline": 0,
+      "expanded": 5,
+      "harper": 5
+    },
+    {
+      "rule": "AllIntentsAndPurposes",
+      "cases": 20,
+      "baseline": 0,
+      "expanded": 3,
+      "harper": 20
+    },
+    {
+      "rule": "AllOfASudden",
+      "cases": 10,
+      "baseline": 0,
+      "expanded": 4,
+      "harper": 10
+    },
+    {
+      "rule": "AsFollows",
+      "cases": 10,
+      "baseline": 0,
+      "expanded": 10,
+      "harper": 10
+    },
+    {
+      "rule": "AtAllCosts",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "BackhandedCompliment",
+      "cases": 7,
+      "baseline": 0,
+      "expanded": 5,
+      "harper": 7
+    },
+    {
+      "rule": "BareInMind",
+      "cases": 0,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 0
+    },
+    {
+      "rule": "BatedBreath",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "BeckAndCall",
+      "cases": 0,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 0
+    },
+    {
+      "rule": "CapitalizePersonalPronouns",
+      "cases": 13,
+      "baseline": 0,
+      "expanded": 9,
+      "harper": 13
+    },
+    {
+      "rule": "CaseInPoint",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "CommaFixes",
+      "cases": 12,
+      "baseline": 0,
+      "expanded": 3,
+      "harper": 12
+    },
+    {
+      "rule": "CorrectNumberSuffix",
+      "cases": 3,
+      "baseline": 0,
+      "expanded": 3,
+      "harper": 3
+    },
+    {
+      "rule": "DigestiveTract",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "DoubleEdgedSword",
+      "cases": 5,
+      "baseline": 0,
+      "expanded": 4,
+      "harper": 5
+    },
+    {
+      "rule": "ExplanationMark",
+      "cases": 6,
+      "baseline": 0,
+      "expanded": 6,
+      "harper": 6
+    },
+    {
+      "rule": "ExtendOrExtent",
+      "cases": 4,
+      "baseline": 0,
+      "expanded": 4,
+      "harper": 4
+    },
+    {
+      "rule": "FreeRein",
+      "cases": 0,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 0
+    },
+    {
+      "rule": "Furthermore",
+      "cases": 0,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 0
+    },
+    {
+      "rule": "GetRidOf",
+      "cases": 11,
+      "baseline": 0,
+      "expanded": 10,
+      "harper": 11
+    },
+    {
+      "rule": "GetUsedTo",
+      "cases": 5,
+      "baseline": 0,
+      "expanded": 5,
+      "harper": 5
+    },
+    {
+      "rule": "GrindToAHalt",
+      "cases": 5,
+      "baseline": 0,
+      "expanded": 4,
+      "harper": 5
+    },
+    {
+      "rule": "HyphenateNumberDay",
+      "cases": 7,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 7
+    },
+    {
+      "rule": "IfWouldve",
+      "cases": 7,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 5
+    },
+    {
+      "rule": "InAnIdealWorld",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "InLieuOf",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "InOfItself",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "InThisThatRegard",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "InflectionPoint",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "InterestedIn",
+      "cases": 7,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 6
+    },
+    {
+      "rule": "Itself",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "LookForwardTo",
+      "cases": 4,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 4
+    },
+    {
+      "rule": "LookingForwardTo",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "MakeDoWith",
+      "cases": 4,
+      "baseline": 0,
+      "expanded": 4,
+      "harper": 4
+    },
+    {
+      "rule": "Meanwhile",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "Misunderstand",
+      "cases": 0,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 0
+    },
+    {
+      "rule": "Misunderstood",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "Misused",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "MootPoint",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "NounVerbConfusion",
+      "cases": 100,
+      "baseline": 40,
+      "expanded": 40,
+      "harper": 97
+    },
+    {
+      "rule": "OnTheSpurOfTheMoment",
+      "cases": 3,
+      "baseline": 0,
+      "expanded": 3,
+      "harper": 3
+    },
+    {
+      "rule": "OutOfSync",
+      "cases": 2,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 2
+    },
+    {
+      "rule": "PeaceOfMind",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "PerSe",
+      "cases": 3,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 3
+    },
+    {
+      "rule": "ResponsibilityFor",
+      "cases": 13,
+      "baseline": 0,
+      "expanded": 3,
+      "harper": 13
+    },
+    {
+      "rule": "SinceDuration",
+      "cases": 22,
+      "baseline": 0,
+      "expanded": 15,
+      "harper": 20
+    },
+    {
+      "rule": "SneakPeekPreview",
+      "cases": 11,
+      "baseline": 0,
+      "expanded": 11,
+      "harper": 11
+    },
+    {
+      "rule": "StatuteOfLimitations",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "ThanksALot",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "TheWhetherWeather",
+      "cases": 9,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 9
+    },
+    {
+      "rule": "Therefore",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "TrialAndError",
+      "cases": 1,
+      "baseline": 0,
+      "expanded": 1,
+      "harper": 1
+    },
+    {
+      "rule": "UseToUsedTo",
+      "cases": 3,
+      "baseline": 0,
+      "expanded": 3,
+      "harper": 3
+    },
+    {
+      "rule": "WaistWaste",
+      "cases": 10,
+      "baseline": 0,
+      "expanded": 8,
+      "harper": 10
+    },
+    {
+      "rule": "WhetYourAppetite",
+      "cases": 0,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 0
+    },
+    {
+      "rule": "WreakHavoc",
+      "cases": 4,
+      "baseline": 0,
+      "expanded": 4,
+      "harper": 4
+    },
+    {
+      "rule": "WroteToRote",
+      "cases": 8,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 8
+    }
+  ],
+  "wholeDocuments": [
+    {
+      "id": "serve-static",
+      "sha256": "a42b827162e00dd9abdd60ff9d6ff91de232fc542390fd269a9526d5dc751c8c",
+      "beforeCounts": {
+        "jsRaw": 27,
+        "spellingRaw": 30,
+        "nativeRaw": 44,
+        "visible": 63,
+        "cards": 44,
+        "suppressed": 8
+      },
+      "afterCounts": {
+        "jsRaw": 27,
+        "spellingRaw": 30,
+        "nativeRaw": 44,
+        "visible": 63,
+        "cards": 44,
+        "suppressed": 8
+      },
+      "beforeSeedsFound": 0,
+      "afterSeedsFound": 0,
+      "seedCount": 0,
+      "added": [],
+      "removed": []
+    },
+    {
+      "id": "p-map",
+      "sha256": "df3cabe97595f6460012ab9afe236473d5089100b638b835cb6fc1753568b0f8",
+      "beforeCounts": {
+        "jsRaw": 13,
+        "spellingRaw": 12,
+        "nativeRaw": 27,
+        "visible": 33,
+        "cards": 26,
+        "suppressed": 2
+      },
+      "afterCounts": {
+        "jsRaw": 13,
+        "spellingRaw": 12,
+        "nativeRaw": 27,
+        "visible": 33,
+        "cards": 26,
+        "suppressed": 2
+      },
+      "beforeSeedsFound": 0,
+      "afterSeedsFound": 0,
+      "seedCount": 0,
+      "added": [],
+      "removed": []
+    },
+    {
+      "id": "workshop",
+      "sha256": "3a7e15126b940b55b65f597a96c321df9bb2c797ca05a92fc81baaf816e516f4",
+      "beforeCounts": {
+        "jsRaw": 7,
+        "spellingRaw": 2,
+        "nativeRaw": 19,
+        "visible": 17,
+        "cards": 17,
+        "suppressed": 2
+      },
+      "afterCounts": {
+        "jsRaw": 7,
+        "spellingRaw": 2,
+        "nativeRaw": 19,
+        "visible": 17,
+        "cards": 17,
+        "suppressed": 2
+      },
+      "beforeSeedsFound": 7,
+      "afterSeedsFound": 7,
+      "seedCount": 8,
+      "added": [],
+      "removed": []
+    },
+    {
+      "id": "garden",
+      "sha256": "41120fa864261bafe90ae2356b4edcb755530ee2994cf1dc93661eff77a32637",
+      "beforeCounts": {
+        "jsRaw": 9,
+        "spellingRaw": 2,
+        "nativeRaw": 14,
+        "visible": 15,
+        "cards": 14,
+        "suppressed": 4
+      },
+      "afterCounts": {
+        "jsRaw": 9,
+        "spellingRaw": 2,
+        "nativeRaw": 14,
+        "visible": 15,
+        "cards": 14,
+        "suppressed": 4
+      },
+      "beforeSeedsFound": 0,
+      "afterSeedsFound": 0,
+      "seedCount": 0,
+      "added": [],
+      "removed": []
+    },
+    {
+      "id": "service-note",
+      "sha256": "5f4e9486e45cbae7b31f5637dad9f584a0b61f12c4e50a1995028f29657c89ad",
+      "beforeCounts": {
+        "jsRaw": 8,
+        "spellingRaw": 0,
+        "nativeRaw": 7,
+        "visible": 10,
+        "cards": 9,
+        "suppressed": 3
+      },
+      "afterCounts": {
+        "jsRaw": 8,
+        "spellingRaw": 0,
+        "nativeRaw": 9,
+        "visible": 12,
+        "cards": 11,
+        "suppressed": 3
+      },
+      "beforeSeedsFound": 5,
+      "afterSeedsFound": 7,
+      "seedCount": 8,
+      "added": [
+        {
+          "index": 11,
+          "kind": "grammar.figarogrammar.adjectivedoubledegree",
+          "lens": "grammar",
+          "actual": "more cheaper",
+          "from": 1416,
+          "to": 1428,
+          "message": "This adjective already expresses the comparison; remove the extra degree word.",
+          "context": "\nDo not make a purchase on the basis of this note alone. The prices in the old folder are more cheaper than last week's quote, but the delivery terms may differ. Check the current offer, then ",
+          "sources": [
+            {
+              "engine": "vale",
+              "version": "3.20.0",
+              "rule": "FigaroGrammar.AdjectiveDoubleDegree",
+              "from": 1243,
+              "to": 1255,
+              "intent": "FigaroGrammar.AdjectiveDoubleDegree",
+              "package": "FigaroGrammar",
+              "packageVersion": "harper-0.1.0-curated-1+figaro-5",
+              "evidenceFamily": "unknown",
+              "actual": "more cheaper",
+              "message": "This adjective already expresses the comparison; remove the extra degree word.",
+              "severity": "warning",
+              "replacements": [
+                "cheaper"
+              ],
+              "native": {
+                "Action": {
+                  "Name": "replace",
+                  "Params": [
+                    "cheaper"
+                  ]
+                },
+                "Span": [
+                  90,
+                  101
+                ],
+                "Check": "FigaroGrammar.AdjectiveDoubleDegree",
+                "Description": "",
+                "Link": "",
+                "Message": "This adjective already expresses the comparison; remove the extra degree word.",
+                "Severity": "warning",
+                "Match": "more cheaper",
+                "Line": 17
+              }
+            }
+          ],
+          "fixes": [
+            {
+              "from": 1416,
+              "to": 1428,
+              "expected": "more cheaper",
+              "replacement": "cheaper",
+              "valid": true,
+              "contextAfter": "\nDo not make a purchase on the basis of this note alone. The prices in the old folder are cheaper than last week's quote, but the delivery terms may differ. Check the current offer, then "
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "kind": "grammar.figarogrammar.lookingforwardto",
+          "lens": "grammar",
+          "actual": "meet",
+          "from": 1145,
+          "to": 1149,
+          "message": "Use the -ing verb form after “look forward to”.",
+          "context": "'\n```\n\n## Outstanding work\n\nWe should of ordered another roll of paper. I look forward to meet the new volunteer, who knows the printer well. Please let her to inspect it before buying",
+          "sources": [
+            {
+              "engine": "vale",
+              "version": "3.20.0",
+              "rule": "FigaroGrammar.LookingForwardTo",
+              "from": 972,
+              "to": 976,
+              "intent": "FigaroGrammar.LookingForwardTo",
+              "package": "FigaroGrammar",
+              "packageVersion": "harper-0.1.0-curated-1+figaro-5",
+              "evidenceFamily": "unknown",
+              "actual": "meet",
+              "message": "Use the -ing verb form after “look forward to”.",
+              "severity": "warning",
+              "replacements": [
+                "meeting"
+              ],
+              "native": {
+                "Action": {
+                  "Name": "replace",
+                  "Params": [
+                    "meeting"
+                  ]
+                },
+                "Span": [
+                  63,
+                  66
+                ],
+                "Check": "FigaroGrammar.LookingForwardTo",
+                "Description": "",
+                "Link": "",
+                "Message": "Use the -ing verb form after “look forward to”.",
+                "Severity": "warning",
+                "Match": "meet",
+                "Line": 15
+              }
+            }
+          ],
+          "fixes": [
+            {
+              "from": 1145,
+              "to": 1149,
+              "expected": "meet",
+              "replacement": "meeting",
+              "valid": true,
+              "contextAfter": "'\n```\n\n## Outstanding work\n\nWe should of ordered another roll of paper. I look forward to meeting the new volunteer, who knows the printer well. Please let her to inspect it before buying"
+            }
+          ]
+        }
+      ],
+      "removed": []
+    },
+    {
+      "id": "walk",
+      "sha256": "24d75510ca3e821af0bfc32c488847411e9682ba5c048f0939529d146a2526e6",
+      "beforeCounts": {
+        "jsRaw": 6,
+        "spellingRaw": 1,
+        "nativeRaw": 12,
+        "visible": 12,
+        "cards": 12,
+        "suppressed": 0
+      },
+      "afterCounts": {
+        "jsRaw": 6,
+        "spellingRaw": 1,
+        "nativeRaw": 12,
+        "visible": 12,
+        "cards": 12,
+        "suppressed": 0
+      },
+      "beforeSeedsFound": 3,
+      "afterSeedsFound": 3,
+      "seedCount": 4,
+      "added": [],
+      "removed": []
+    }
+  ],
+  "nativeStats": {
+    "baseline": {
+      "readyMedianMs": 2162.764356,
+      "readyRangeMs": [
+        1815.418742,
+        2712.192039
+      ],
+      "initializationMedianMs": 259,
+      "review": {
+        "1001": {
+          "medianMs": 98.5,
+          "rangeMs": [
+            57,
+            133
+          ]
+        },
+        "10010": {
+          "medianMs": 560.5000000000005,
+          "rangeMs": [
+            395,
+            709
+          ]
+        }
+      }
+    },
+    "grammar": {
+      "readyMedianMs": 2339.157747,
+      "readyRangeMs": [
+        1993.135956,
+        2526.042731
+      ],
+      "initializationMedianMs": 258,
+      "review": {
+        "1001": {
+          "medianMs": 97.0,
+          "rangeMs": [
+            73,
+            115.99999999999955
+          ]
+        },
+        "10010": {
+          "medianMs": 597.0,
+          "rangeMs": [
+            477,
+            814
+          ]
+        }
+      }
+    }
+  },
+  "sizes": {
+    "baseline": {
+      "bytes": 59573576,
+      "gzip9Bytes": 20386899,
+      "sha256": "6d1bc12eb71462fde87159df0c86f07582b62e2f0512d5b482e2f96dcd9af5ed"
+    },
+    "grammar": {
+      "bytes": 59631944,
+      "gzip9Bytes": 20416062,
+      "sha256": "4fe6f129eb3a9eda8b9be201a3eced58f2d0b205ecba79b1379077492d13def9"
+    }
+  },
+  "nativeRuns": {
+    "baseline": [
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 1384.0000000000002,
+        "initializationMs": 210,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 16,
+                "findings": 53
+              },
+              {
+                "ms": 15,
+                "findings": 53
+              },
+              {
+                "ms": 17.000000000000227,
+                "findings": 53
+              },
+              {
+                "ms": 15.000000000000227,
+                "findings": 53
+              },
+              {
+                "ms": 16.999999999999773,
+                "findings": 53
+              },
+              {
+                "ms": 17,
+                "findings": 53
+              },
+              {
+                "ms": 19,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 84,
+                "proseMs": 54,
+                "nativeMs": 15,
+                "resolveMs": 9,
+                "renderFrameMs": 6,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 66,
+                "proseMs": 34,
+                "nativeMs": 16,
+                "resolveMs": 12,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 57,
+                "proseMs": 32,
+                "nativeMs": 14,
+                "resolveMs": 7,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 61.000000000000455,
+                "proseMs": 35,
+                "nativeMs": 16,
+                "resolveMs": 6.000000000000455,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 244,
+                "findings": 555
+              },
+              {
+                "ms": 250,
+                "findings": 555
+              },
+              {
+                "ms": 234.99999999999955,
+                "findings": 555
+              },
+              {
+                "ms": 256,
+                "findings": 555
+              },
+              {
+                "ms": 244,
+                "findings": 555
+              },
+              {
+                "ms": 241,
+                "findings": 555
+              },
+              {
+                "ms": 259,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 453.0000000000009,
+                "proseMs": 110.00000000000091,
+                "nativeMs": 274,
+                "resolveMs": 57.99999999999909,
+                "renderFrameMs": 11.00000000000091,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 415,
+                "proseMs": 106.99999999999909,
+                "nativeMs": 245,
+                "resolveMs": 52,
+                "renderFrameMs": 11.00000000000091,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 408.9999999999991,
+                "proseMs": 93.99999999999909,
+                "nativeMs": 262,
+                "resolveMs": 43.00000000000091,
+                "renderFrameMs": 9.99999999999909,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 395,
+                "proseMs": 98,
+                "nativeMs": 245,
+                "resolveMs": 41,
+                "renderFrameMs": 11,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789865710097818400,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            9,
+            19,
+            14,
+            12,
+            15.00000000000091,
+            16.99999999999909,
+            16,
+            17,
+            17,
+            16,
+            16,
+            17
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 20,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789865708282399658,
+        "processToReadyMs": 1815.418742,
+        "reportToExitMs": 65.901973
+      },
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 2070,
+        "initializationMs": 305.9999999999998,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 26.999999999999545,
+                "findings": 53
+              },
+              {
+                "ms": 20.999999999999545,
+                "findings": 53
+              },
+              {
+                "ms": 23,
+                "findings": 53
+              },
+              {
+                "ms": 27,
+                "findings": 53
+              },
+              {
+                "ms": 23,
+                "findings": 53
+              },
+              {
+                "ms": 20,
+                "findings": 53
+              },
+              {
+                "ms": 22,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 133,
+                "proseMs": 84,
+                "nativeMs": 23,
+                "resolveMs": 17,
+                "renderFrameMs": 9,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 102,
+                "proseMs": 57,
+                "nativeMs": 26,
+                "resolveMs": 12,
+                "renderFrameMs": 7,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 106,
+                "proseMs": 63,
+                "nativeMs": 25,
+                "resolveMs": 10,
+                "renderFrameMs": 8,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 106,
+                "proseMs": 57.000000000000455,
+                "nativeMs": 32.999999999999545,
+                "resolveMs": 7.000000000000455,
+                "renderFrameMs": 8.999999999999545,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 348.0000000000009,
+                "findings": 555
+              },
+              {
+                "ms": 345.9999999999991,
+                "findings": 555
+              },
+              {
+                "ms": 337,
+                "findings": 555
+              },
+              {
+                "ms": 330,
+                "findings": 555
+              },
+              {
+                "ms": 311.9999999999991,
+                "findings": 555
+              },
+              {
+                "ms": 349,
+                "findings": 555
+              },
+              {
+                "ms": 324,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 557.9999999999991,
+                "proseMs": 202.9999999999991,
+                "nativeMs": 284,
+                "resolveMs": 59,
+                "renderFrameMs": 12,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 608,
+                "proseMs": 150,
+                "nativeMs": 378,
+                "resolveMs": 64,
+                "renderFrameMs": 16,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 549,
+                "proseMs": 141.0000000000009,
+                "nativeMs": 295.9999999999991,
+                "resolveMs": 77,
+                "renderFrameMs": 35,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 563.0000000000018,
+                "proseMs": 158,
+                "nativeMs": 304,
+                "resolveMs": 89,
+                "renderFrameMs": 12.000000000001819,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789865749934873300,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            9,
+            31.00000000000182,
+            20.99999999999818,
+            14,
+            14,
+            16,
+            17,
+            16,
+            17,
+            18,
+            15,
+            17
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 6,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789865747222681261,
+        "processToReadyMs": 2712.192039,
+        "reportToExitMs": 1.7977
+      },
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 1696,
+        "initializationMs": 259,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 23,
+                "findings": 53
+              },
+              {
+                "ms": 19.999999999999773,
+                "findings": 53
+              },
+              {
+                "ms": 27,
+                "findings": 53
+              },
+              {
+                "ms": 20,
+                "findings": 53
+              },
+              {
+                "ms": 22.000000000000455,
+                "findings": 53
+              },
+              {
+                "ms": 20,
+                "findings": 53
+              },
+              {
+                "ms": 21,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 109,
+                "proseMs": 62.000000000000455,
+                "nativeMs": 20.999999999999545,
+                "resolveMs": 19,
+                "renderFrameMs": 7,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 79,
+                "proseMs": 41,
+                "nativeMs": 21.000000000000455,
+                "resolveMs": 9.999999999999545,
+                "renderFrameMs": 7,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 95,
+                "proseMs": 53,
+                "nativeMs": 25,
+                "resolveMs": 11,
+                "renderFrameMs": 6,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 110,
+                "proseMs": 68,
+                "nativeMs": 26,
+                "resolveMs": 7,
+                "renderFrameMs": 9,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 326,
+                "findings": 555
+              },
+              {
+                "ms": 416.00000000000045,
+                "findings": 555
+              },
+              {
+                "ms": 420,
+                "findings": 555
+              },
+              {
+                "ms": 355,
+                "findings": 555
+              },
+              {
+                "ms": 350,
+                "findings": 555
+              },
+              {
+                "ms": 374,
+                "findings": 555
+              },
+              {
+                "ms": 403,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 657,
+                "proseMs": 204,
+                "nativeMs": 371,
+                "resolveMs": 66,
+                "renderFrameMs": 16,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 593,
+                "proseMs": 150,
+                "nativeMs": 340,
+                "resolveMs": 83,
+                "renderFrameMs": 20,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 566,
+                "proseMs": 158,
+                "nativeMs": 317,
+                "resolveMs": 72.00000000000182,
+                "renderFrameMs": 18.99999999999818,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 709,
+                "proseMs": 211,
+                "nativeMs": 405,
+                "resolveMs": 77,
+                "renderFrameMs": 16,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789865762691416600,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            15.000000000001819,
+            39.99999999999818,
+            23,
+            25,
+            17,
+            18,
+            25,
+            19,
+            21,
+            17,
+            23,
+            21
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 10,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789865760528652244,
+        "processToReadyMs": 2162.764356,
+        "reportToExitMs": 34.006402
+      }
+    ],
+    "grammar": [
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 1577,
+        "initializationMs": 254,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 19,
+                "findings": 53
+              },
+              {
+                "ms": 17,
+                "findings": 53
+              },
+              {
+                "ms": 17,
+                "findings": 53
+              },
+              {
+                "ms": 17,
+                "findings": 53
+              },
+              {
+                "ms": 20,
+                "findings": 53
+              },
+              {
+                "ms": 18,
+                "findings": 53
+              },
+              {
+                "ms": 19,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 99.00000000000045,
+                "proseMs": 63,
+                "nativeMs": 18,
+                "resolveMs": 11,
+                "renderFrameMs": 7.000000000000455,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 100.99999999999955,
+                "proseMs": 47.999999999999545,
+                "nativeMs": 20,
+                "resolveMs": 17,
+                "renderFrameMs": 16,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 73,
+                "proseMs": 43,
+                "nativeMs": 17.000000000000455,
+                "resolveMs": 6.999999999999545,
+                "renderFrameMs": 6,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 81,
+                "proseMs": 49,
+                "nativeMs": 19.000000000000455,
+                "resolveMs": 8,
+                "renderFrameMs": 4.999999999999545,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 358,
+                "findings": 555
+              },
+              {
+                "ms": 398,
+                "findings": 555
+              },
+              {
+                "ms": 395,
+                "findings": 555
+              },
+              {
+                "ms": 417,
+                "findings": 555
+              },
+              {
+                "ms": 434,
+                "findings": 555
+              },
+              {
+                "ms": 410,
+                "findings": 555
+              },
+              {
+                "ms": 423,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 551,
+                "proseMs": 127,
+                "nativeMs": 350,
+                "resolveMs": 55,
+                "renderFrameMs": 19,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 589,
+                "proseMs": 154,
+                "nativeMs": 353,
+                "resolveMs": 58,
+                "renderFrameMs": 24,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 532,
+                "proseMs": 119,
+                "nativeMs": 352,
+                "resolveMs": 48,
+                "renderFrameMs": 13,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 477,
+                "proseMs": 102,
+                "nativeMs": 325,
+                "resolveMs": 40,
+                "renderFrameMs": 10,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789865720595230200,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            16,
+            23,
+            17,
+            15,
+            14,
+            14,
+            17,
+            16,
+            16,
+            17,
+            17,
+            22
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 6.999999999998181,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789865718602094244,
+        "processToReadyMs": 1993.135956,
+        "reportToExitMs": 33.135659
+      },
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 1829,
+        "initializationMs": 274,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 20,
+                "findings": 53
+              },
+              {
+                "ms": 24,
+                "findings": 53
+              },
+              {
+                "ms": 21,
+                "findings": 53
+              },
+              {
+                "ms": 20,
+                "findings": 53
+              },
+              {
+                "ms": 19,
+                "findings": 53
+              },
+              {
+                "ms": 20,
+                "findings": 53
+              },
+              {
+                "ms": 19.000000000000455,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 113,
+                "proseMs": 61,
+                "nativeMs": 26,
+                "resolveMs": 14,
+                "renderFrameMs": 12,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 90,
+                "proseMs": 47,
+                "nativeMs": 23,
+                "resolveMs": 11,
+                "renderFrameMs": 9,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 99,
+                "proseMs": 65,
+                "nativeMs": 21,
+                "resolveMs": 7,
+                "renderFrameMs": 6,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 94,
+                "proseMs": 57,
+                "nativeMs": 21,
+                "resolveMs": 9,
+                "renderFrameMs": 7,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 377,
+                "findings": 555
+              },
+              {
+                "ms": 378.0000000000009,
+                "findings": 555
+              },
+              {
+                "ms": 416,
+                "findings": 555
+              },
+              {
+                "ms": 414,
+                "findings": 555
+              },
+              {
+                "ms": 374,
+                "findings": 555
+              },
+              {
+                "ms": 361.0000000000009,
+                "findings": 555
+              },
+              {
+                "ms": 373,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 614,
+                "proseMs": 127,
+                "nativeMs": 412,
+                "resolveMs": 59,
+                "renderFrameMs": 16,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 582,
+                "proseMs": 117,
+                "nativeMs": 392.0000000000009,
+                "resolveMs": 58.99999999999909,
+                "renderFrameMs": 14,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 596,
+                "proseMs": 154.0000000000009,
+                "nativeMs": 362.9999999999991,
+                "resolveMs": 67,
+                "renderFrameMs": 12,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 598,
+                "proseMs": 143,
+                "nativeMs": 382,
+                "resolveMs": 61,
+                "renderFrameMs": 12,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789865734566780200,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            16,
+            29.00000000000182,
+            20.99999999999818,
+            16,
+            16,
+            16,
+            16,
+            17,
+            18,
+            32,
+            16,
+            16
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 7.000000000001819,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789865732227622453,
+        "processToReadyMs": 2339.157747,
+        "reportToExitMs": 17.090687
+      },
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 1980,
+        "initializationMs": 258,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 19,
+                "findings": 53
+              },
+              {
+                "ms": 19,
+                "findings": 53
+              },
+              {
+                "ms": 21,
+                "findings": 53
+              },
+              {
+                "ms": 19.000000000000455,
+                "findings": 53
+              },
+              {
+                "ms": 20.999999999999545,
+                "findings": 53
+              },
+              {
+                "ms": 22,
+                "findings": 53
+              },
+              {
+                "ms": 22,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 115.99999999999955,
+                "proseMs": 53.999999999999545,
+                "nativeMs": 40,
+                "resolveMs": 15.000000000000455,
+                "renderFrameMs": 6.999999999999545,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 92,
+                "proseMs": 50,
+                "nativeMs": 25,
+                "resolveMs": 11,
+                "renderFrameMs": 6,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 95,
+                "proseMs": 50.000000000000455,
+                "nativeMs": 24.999999999999545,
+                "resolveMs": 12,
+                "renderFrameMs": 8,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 115,
+                "proseMs": 69,
+                "nativeMs": 26,
+                "resolveMs": 12,
+                "renderFrameMs": 8,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 403,
+                "findings": 555
+              },
+              {
+                "ms": 442.99999999999955,
+                "findings": 555
+              },
+              {
+                "ms": 452,
+                "findings": 555
+              },
+              {
+                "ms": 419,
+                "findings": 555
+              },
+              {
+                "ms": 444,
+                "findings": 555
+              },
+              {
+                "ms": 528,
+                "findings": 555
+              },
+              {
+                "ms": 497,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 779.9999999999991,
+                "proseMs": 166.9999999999991,
+                "nativeMs": 521,
+                "resolveMs": 75,
+                "renderFrameMs": 17,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 749,
+                "proseMs": 161,
+                "nativeMs": 487,
+                "resolveMs": 77,
+                "renderFrameMs": 24,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 690,
+                "proseMs": 138,
+                "nativeMs": 477,
+                "resolveMs": 57,
+                "renderFrameMs": 18,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 814,
+                "proseMs": 209,
+                "nativeMs": 514,
+                "resolveMs": 52,
+                "renderFrameMs": 39,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789865777153001700,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            30.99999999999818,
+            62.00000000000182,
+            19.99999999999818,
+            18,
+            17,
+            22,
+            16.00000000000182,
+            16,
+            16.99999999999818,
+            18.00000000000182,
+            16.99999999999818,
+            14
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 7,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789865774626958969,
+        "processToReadyMs": 2526.042731,
+        "reportToExitMs": 65.652252
+      }
+    ]
+  },
+  "runtimeSourceSHA256": {
+    "main.go": "b8538e40627619cc29419be952e182fc4ec79ec5614ea379839214bd2704655c",
+    "assets_production.go": "86a09e3d360a9d614dbe31cff9999ddea1f37647ddd6ceb4e1ba70132b5130bf",
+    "cmd/writing-profile/main.go": "a9007161e93730fb83166712bb23ef3baa41aa0321467abc0685aeb0993b4f7f",
+    "cmd/devserver/main.go": "14b594de59c8867dd559065b042694b020a55fb5174e80f5aa1e095b40f22770",
+    "third_party/vale/embedded/engine.go": "9e0618979190b5044e0f88bc0051fc9a3333370204e054258fc3f585c7e9abeb",
+    "third_party/vale/internal/lint/lint.go": "846f58253d009e04b85f3b247afa7cd733dcf7e51128a2dfbc9e5764b04e9c47",
+    "third_party/vale/internal/lint/figaro_context.go": "e88285ca7fc5ede020b32814ddf7005e8beba8926b677d1360b57bfb2200257b",
+    "third_party/vale/internal/core/markup.go": "c975e20f79ebffe38cb9bd53778c09e4c42ea13792bef602056e52342ed4aad9",
+    "third_party/vale/internal/core/execution.go": "5eb646e7cfbf98259c040c98ebd372784c8438f8b57d21872be7eb4b28cb2e25",
+    "third_party/vale/internal/core/doc.go": "5e046cb9bfdc2af05b627b516c3fdea45c691939bb750b7e4a39b228f91fa424",
+    "third_party/vale/internal/core/alert.go": "a756619e1cd32f5a7c63bc5a4264dffdc11c1fce431e560b82ca2597ddbd4031",
+    "third_party/vale/internal/core/location.go": "ae7855df35e9f429fcb0532f940379a851ab8f2366a8126790dab7de70148a91",
+    "third_party/vale/internal/core/config.go": "84abf32c1517b4e8b9669101653487b72657744dbc1409dd8c4fe94705666eae",
+    "third_party/vale/internal/core/format.go": "9847cc820767aef0ff149763bf514878120e12d060affc4dabf3a918c02c7942",
+    "third_party/vale/internal/core/error.go": "275d735ff8dbb149702437efaf4745301b14bd912f888b0125322eb588d3d1a3",
+    "third_party/vale/internal/core/util.go": "80da659cdff79b8df91c14f0670b1a2d9b5cca3768cf2e7ef9450e81d8c4a41a",
+    "third_party/vale/internal/core/file.go": "4d0c8970541c51a4823c65009a819e6a20e92bfe6d8666a3d5d9dcd601dabf64",
+    "third_party/vale/internal/regex/prefilter.go": "035e018a95912ef956355626481f5956e32807272bc3e5db590d6839a9273647",
+    "third_party/vale/internal/regex/regex.go": "2438a0c77fb8504c2aecf2652ac0453626bd01df0391cd041f9713a6490700ca",
+    "third_party/vale/internal/glob/glob.go": "3f4ca256bb3c84a18953d8c949d4558f9392d83d8653affc3186cc8fa9300bf9",
+    "third_party/vale/internal/system/dir.go": "a1639c199ea4ff7b72e561f61f82ed716d0a40c92aa8bcca528d6df184fbbbde",
+    "third_party/vale/internal/system/cmd.go": "d16b51547a980b5ba8953202762516590fab033714ce32d0be2d57c7f5fb1dab",
+    "third_party/vale/internal/system/zip.go": "eddfee7dd32125d2cc36d0d636961680fcdb046affb0e588c3c603ac9dd01f58",
+    "third_party/vale/internal/system/system.go": "4cd1edd5ba656cb2b2d9612cdb16a4b062fab81aab1de794af621dc936597efe",
+    "third_party/vale/internal/system/walk.go": "8e46a04908ef686e0777124c1acbe1265e557eb2a17d20397e4254dae6d4f4da",
+    "third_party/vale/internal/system/path.go": "26b24f733f545cfc319c06259055968b519149d5ce9a46e054a9d3e64ffc9745",
+    "third_party/vale/internal/system/file.go": "1423598d839f69ff1cc23921a53e4697d86d91cd200e883afb492740960c8d05",
+    "third_party/vale/internal/nlp/provider.go": "bc360a7ed7e51c0e11e606f73d6baf3024c575fba131edc5820f86f5db1298e2",
+    "third_party/vale/internal/nlp/http.go": "52d72a35b66d4a34fc3bc18ccbe9a5fea2ef7fb5b5bf4f19878cac6a6cf6efc0",
+    "third_party/vale/internal/nlp/doc.go": "5730fdb809b3dda5cdb1310c6297f0da8c80446b000c06d7ff83a0927f25dc9f",
+    "third_party/vale/internal/nlp/var.go": "033f99c87a8851ad81ed1295f7a1e3c8da60a7ea54d575eefc287c5096c1150a",
+    "third_party/vale/internal/nlp/prose.go": "c23121ec5a8eee2ae00d684ccbb9c11883921257efa93ae82cbdbb9c3bed7f99",
+    "third_party/vale/internal/nlp/tokenize.go": "ff470cb4946596a02e9bfa7109619109258fe7803e65dd1cb43f8c6a0f500df2",
+    "third_party/vale/internal/nlp/util.go": "489611b991c56f1ff5826b33d9a1545bdb23b63a24c38acde0bc582312404c0c",
+    "third_party/vale/internal/check/matchcase.go": "f5e4205e5846a9e65845e5a9cfb89f2baffea2bfeb4ba8f5ee63538d074ecca1",
+    "third_party/vale/internal/check/figaro_memory.go": "c1978506076320ed7a1e178cb562623235ffeea81dfd290ea32d290d257ad13c",
+    "third_party/vale/internal/check/action.go": "c419c34e3b373ae5b9836e85282b4733ad2d5549a443989da9b7bda8cc2af1a1",
+    "third_party/vale/internal/check/upos.go": "4788cbdf91aef0facb87efcf2f7698a0f3b5d428e650c2b1c1c469474fb6b773",
+    "third_party/vale/internal/check/consistency.go": "ac65fe97bfa64f782f5dbd6411a5108ce122cf7aa6c2e9998c05753f60288c31",
+    "third_party/vale/internal/check/manager.go": "f700e5a3a85dff44407075a8681de2347486feffd37818bfdf34a259d5ac2a7b",
+    "third_party/vale/internal/check/scope.go": "6471aa943175a0aed0bb53410e59a0ed7ecf768417aee9dfbebd5649ad1cfd9d",
+    "third_party/vale/internal/check/doc.go": "7a55a0cae6653adf950a716c452580782beba2a93ba520d309b26057eccc535a",
+    "third_party/vale/internal/check/anchor.go": "969d06270ec0002e27b13e7cb350a723af4cb45107b05bb29a9d8390ef524dde",
+    "third_party/vale/internal/check/existence.go": "81e687540e0dc374712cd78090ddb51d784061a67c7693c4367e38ddd89c0adc",
+    "third_party/vale/internal/check/substitution.go": "1ac5ca241fc4e6bfc3495d527a8daea5d29bce93b9bd893c91f438d611474524",
+    "third_party/vale/internal/check/occurrence.go": "7b77383cfe7215d4864020db63c9184673f9ae6502d47c4ad31dcd7b62070734",
+    "third_party/vale/internal/check/repetition.go": "a8e90a997c9e373e54ba61e75c119cd1ec1f0398b29c19d2e7bdfd5ce335625a",
+    "third_party/vale/internal/check/variables.go": "7001a67b1d6fc09260782b2036559a82bc47a95aa3ed9a536afb2a5cb33efd49",
+    "third_party/vale/internal/check/sequence.go": "76ac40ca517dcf87f5cb5f29e81ddb58053722464513f0c789ac8b09b100d359",
+    "third_party/vale/internal/check/definition.go": "46999d4b82bdab32b1259861252f497d17b1a6296cb59218792445029511a0a8",
+    "third_party/vale/internal/check/conditional.go": "55c33ca95f14f495f723ef85002cebc581c74923a950b1eda6a7789b4e48b12c",
+    "frontend/js/printMarkdownRenderer.js": "3a36278510396a3a193be0ff2fd481a7efaa84463bd6491b902786da942868e6",
+    "frontend/js/historyDiff.js": "df4bf14c465f13936f6ed3fc68e8bdfc8cd07614bc1c36594eed4a7bd68ea596",
+    "frontend/js/state.js": "41ccae73b75d51d3763b41bf54e84bae843d914a2b87de3bd5d5982bdcd59d04",
+    "frontend/js/rightSidebarState.js": "6ddf8ca036a640508369382f5b6ba688c738ac7d979845c5349f83f273b92d35",
+    "frontend/js/session.js": "e679d84f51aa5e4846ed2340d7423ff4945ba7015bbff6dfeb5c3a5cd84324a1",
+    "frontend/js/searchMatchStatus.js": "0170175b5d61ac00d8744aa7deff618ef8bd4ad5fa08af3855ccd07a238e220b",
+    "frontend/js/backendContract.js": "eef42158589ccd295e4cbb4d3b8b7883d497af9e0b74f61ed6bccd3e0f60894b",
+    "frontend/js/pdfPreview.js": "e832e59a08f20e12dc03fa72afad6b7302bb0ec905c01b4ba9c834cb1f878006",
+    "frontend/js/calendarTimeline.js": "9f187e9cb1c8b18bbee9365e38b60fb226bc11a68b3931f2533b414b7b3ca792",
+    "frontend/js/dateShortcutCompletions.js": "a3d237244529241720575389ffa50cc31dd2d99b092306417771d071d8615210",
+    "frontend/js/pureWriting.js": "0919dadbc455ae4636cdb2a56b3defe363f84df2e0dd568668073a7f78ee45b4",
+    "frontend/js/writingParagraphRule.js": "8073fb2ac63cb9c5b9fd775ed2f17ebc4397501b50c6516a53487995cdf2f06b",
+    "frontend/js/richPaste.js": "b57074f3cccb958e38a1077b614b37e4aa3f9f2caa7b8f0f5a29c8a41fe34b8e",
+    "frontend/js/liveDiagramPlugin.js": "eb5aa11c3ea3de4308964d17efcaeae8a465712f9281953c953becd5cea8d1fe",
+    "frontend/js/writingWorkerCheckpoint.js": "c758b771fc1b5ddcbd3ca17a838554770bc5c3503a60f43045933a7e1be7714d",
+    "frontend/js/diagramRenderer.js": "fe7873580d68ed5194d273260e782da7609d8142f07bea9cdaede0b9920194d4",
+    "frontend/js/floatingMenu.js": "c193106a33d8a94062afc7fe282c0a98ffc84261923041447ec325abeddd0c7c",
+    "frontend/js/frontmatterCompletions.js": "21c29ebe5a55832c5b3b599f99aa3e3be8639908acf7ea0d2b09aac7cccee121",
+    "frontend/js/writingWorker.js": "06aaee310f2093c02a086f0057b1f1318bac84328dba3fe4eb87c1af8f58cb5a",
+    "frontend/js/writingLenses.js": "b4b50b35f104bdd1e4cd5d736d5e396394ae1a299e6d883699237ed417165ec2",
+    "frontend/js/externalFiles.js": "fa96c837aaaf2f4f3670d80d83471593358392354a3159193a5bf6959123bf23",
+    "frontend/js/backend.js": "bd6f74e88b556d83775f15e7e35d6c0b60cbf2ccbea89834edb8be531024fde2",
+    "frontend/js/writingWorkerClient.js": "2e2baf1a90c00b47036aacef57cf3d5de54666221341efc0b653de12034d1750",
+    "frontend/js/debugThemeAssets.js": "2755f8e390fd2a9c838e1363561492847c2e52a84ec753ec80bf231563788e12",
+    "frontend/js/editorNavigationPreferences.js": "f91ac98fd10b0f836776f72f326445fb3644f6aa785a1e5b3bdbcb4d1fdfc954",
+    "frontend/js/windowChrome.js": "c434451fb304985eb9a53796c91506370896432c58293af127fee6a1bec06503",
+    "frontend/js/writingTextlintRuntime.js": "089fa0f56ee831b61e908c4f68d88d99a1ef14790c514dfe75abe06d34ac9051",
+    "frontend/js/editorModalResize.js": "0c50a978c81b35ba819c90a791fd27010288b74f0d2da9cde1dd085283b190fc",
+    "frontend/js/tabManager.js": "7f59b5213f916985e4eae18e42ea28044fdd9a16d3781a0472d0d4378b3f06e7",
+    "frontend/js/markdownTableRenderer.js": "e56ab88dda3efb9cef208bbd6cb66541c6122ebb21dbc9b26c8fecaf68e9ba6f",
+    "frontend/js/clipboardPaste.js": "32075e99eedec786a0f276dd453bd904782c7bcbca26ceabc1f0b1612cf450d1",
+    "frontend/js/authoringMacroCompletions.js": "29a858352f2fab7b28d0a533a0c474f85b93c746ce712e3ec50b55abd25124fa",
+    "frontend/js/mathPlugin.js": "f7ea592ec452b7429a2e7ed1e77071106666a9c9654249b938d0c427984305f5",
+    "frontend/js/calendarLocale.js": "ad129dbc2d28e046a1ed54ef47d5fd60fc563d7ebb0d853d161576638d623eee",
+    "frontend/js/vaultEvents.js": "02e3744a88c62b87678f590ddfcb290ddb86e6f4483ce636a70c042321e700b9",
+    "frontend/js/languageSupport.js": "d3021da325520e0df39ef9281abb1dca226513c63910bad326a77e80d4bead22",
+    "frontend/js/fileIssues.js": "4f5a0166be84dedc906e1b2f29522ee682b534c5e1bde6b3db9322052b03ae7a",
+    "frontend/js/lucideIcons.js": "6b7dc0e5f79b400aab95db6abea61998963e8b42ea753ea406a6b42e4b88ea51",
+    "frontend/js/writingAdapters.js": "dd1e1c9b40ab14ece712354f9e581bd567dd8e2811c221e1e594059786a4c567",
+    "frontend/js/writingDecisionWorker.js": "048817a91e7d591349fa9746fd994e65f4d4b482007633e1efe47be69732d1ae",
+    "frontend/js/rightPaneLauncher.js": "f9cb5ce68de3410a633c9cb937fab5992f4c939360f3f5f787a5284cb5a2ed43",
+    "frontend/js/linkStyle.js": "6ad23f6363d84a7fbe1e7ed1be63ae7cff62e8766327430d4a671acd3fa6c681",
+    "frontend/js/editorBreadcrumb.js": "658fca6069b803773c9d66b99a0ab3942b5a7cfcbd778491874549ceaecf55d7",
+    "frontend/js/timelineViewport.js": "9b80cf6b8945a8c362c4a8780f41f4fbe0085af56dc23b5711b245378e9a78c6",
+    "frontend/js/calendarDayTooltip.js": "eb041ff724da1204081087ab61db0d52f46fdbae517c7b62b56495cb4297f125",
+    "frontend/js/codeBlockInteraction.js": "b0a6e6a695be0dd2ef79e78680799d77887e56fe6918d274b89c77a401da0fc6",
+    "frontend/js/markdownImagePlugin.js": "2ab2a9488570afd0cd362f7d7ebcf20fbf6a77cf3b53adfec8a3b5102aed3ea7",
+    "frontend/js/home.js": "14b7d5f63dac2a58233901317c7670aa6a04db094c60d5ae497d0c368b845ef0",
+    "frontend/js/kanbanGantt.js": "c8847bf56d78d8558acae91a69fea58fb6a4dfb3bffb438b2dfd76bdcbd9836a",
+    "frontend/js/tooltip.js": "fbab5f4b1afa74998fe13f79bde385385d23d2d0c32716e182fb7e2cd89863f2",
+    "frontend/js/kanban.js": "3b41e9a082b866a3efbf99745556e7af36e4daf0f68a3a6e37e0f388db280782",
+    "frontend/js/editorUpdates.js": "0ba287b7f71710fb90230563ecd5b15ba8fe6a837e26ba1ea104344b0b8b998c",
+    "frontend/js/activityWorker.js": "2e1910e17d7cb3bfb9bd33c719428ad4c7731be75f2da1a2b489a9511bf5285c",
+    "frontend/js/codeMirrorProfiles.js": "b8fb8665d392f8695c77c0d1759524979a886fbf31d66683e01a54bd2a015112",
+    "frontend/js/settingsPicker.js": "924f75c83de536c246cbad278d3b92a43bf44874d12abd39b941c61ce0ae739a",
+    "frontend/js/colorPalettePicker.js": "73acc705c8d5988c60f91fad2de9aa6674734f1269c338108308a4bacd144966",
+    "frontend/js/katexRuntime.js": "502604633deee44f317c8a3f05f89b9dfcb73be72f26009c08e84a6be260f92a",
+    "frontend/js/contextMenu.js": "5a9c1d09f77f7fe2b5d80e59ab4f1efb4c0734ab9bce763cb02c6630cf09d594",
+    "frontend/js/drawio.js": "7b27dc135359573c8470935d7188c9e8143849ab2be72a95d1394604c4665cf1",
+    "frontend/js/pdfExport.js": "fb32bd1bed4dda83cba605c581667a359a1a8fe563bf0fc01971a8fed4162199",
+    "frontend/js/historyPaneTabs.js": "5d6d1473c27e4748f58909844795ef114b37858d45194b6ffe6c20fe7d75a50e",
+    "frontend/js/writingSpellingWorker.js": "3e8fed8d3cdb5c98f047dec82a27548548422562d3f00cc0dbf8292b9d009b06",
+    "frontend/js/sourceFootprint.js": "d52ccc773d36871799699b58586a80c6feb7cb086d89bbf14e09df9e6b2b7270",
+    "frontend/js/dialogs.js": "43f2bb819a5c37bc630494a51ab0cd8602f80f711f47a7af346728ef4167ad8d",
+    "frontend/js/rawTextPreview.js": "4251f21fa13758dacbdb6a2317d1d5439b386b94b78cf3836912c28b6baa908d",
+    "frontend/js/writingInline.js": "c1b4b5b3b9393b054f0012992a30499c2a1150d46e1d91e1262ddd84fecf0501",
+    "frontend/js/bootstrap.js": "2661f0f6e43d40e0a37670081542120dee6c0797b65b2742266028d697d9a6a5",
+    "frontend/js/activityWorkerClient.js": "538afc37ae47edd804a10c1654bbaecfbd6c82180af81b0656db6702854d6273",
+    "frontend/js/historyPanel.js": "1583e465b40f16145b86842392e4ec730baaa7cbc875076439e5c9bdb8bcec18",
+    "frontend/js/frontmatter.js": "f5d5fcce5a5f0c614c7a894f2ff97ec29b71eb39c0a6d5a627aa1163e490653f",
+    "frontend/js/editorPreviewLaunchers.js": "9e5a8603d16336f4dbcf1a8e041e8edfcc65a07162df910d89c274f429341e1d",
+    "frontend/js/blockControlVisibility.js": "ee6dfca7c41a815efabe095ead378251c132423e85a1bdf421063634fee1bd7f",
+    "frontend/js/startupDiagnostics.js": "6ebdb722e9be3c3a5aebde3b01b0b7b9663482668538238b1b6716d82f11f666",
+    "frontend/js/calendar.js": "c0c3c341d3c75b92072ca1ea8c1e1b4fb9221b1d6067493068b2426f784b4500",
+    "frontend/js/motion.js": "001fa2400b8090660c8c372d354ef7a56cd46801513815c2a0d0be76c8f32f41",
+    "frontend/js/selectCombobox.js": "64ec4971c5d5a39ad525755865a1c157b0be7da54bfd16c3b46babc10c1c1443",
+    "frontend/js/app.js": "d70e48253742d89d75bed6c0712848f3f8a88b85f89cfde79b7a3e3d471fef47",
+    "frontend/js/mermaidEditor.js": "2e581eb5e98c5de7241aa972ad52a07b53b6f2f71335437934fbea3e90d3c42f",
+    "frontend/js/tabSizePreference.js": "ba50f21b7f19da605652604869173732ba13da999952d87eab58e2bc839d8834",
+    "frontend/js/taskItemActionCompletions.js": "e5f52de788a253ca93212d35b6e4ffa797adbebfd6806b4cbf7c40272fb5789d",
+    "frontend/js/clipboardImage.js": "a2da4fab90cc8a3062ff69b7fc5edbab11f36d79d1675c0e2d4f12fe4c64e49b",
+    "frontend/js/settingsNavigation.js": "23cdb00ef2c462654dbd28d1e7343615354f6b8cd5f7ef89532dadc777c77856",
+    "frontend/js/editorBlockActionLayout.js": "ca0a09fe9e61b43c92a962693a61c39898f17c41e26c284eb9ee8c190b6b5c67",
+    "frontend/js/disclosure.js": "1bfcedb27c175236acb46f3af3b515023a413b5526724bebec40aca6ea5edd97",
+    "frontend/js/pureEditingChrome.js": "af53caeb884fcb6bbd85b925d6302c8938999b278d5928071c9fe01cf32d5a89",
+    "frontend/js/taskDueMetadata.js": "d627fc8b0802db3c0add0c01ea6aab6203ae0a3f92864d122c9a47b4ca94b795",
+    "frontend/js/markdownTableConversion.js": "ba44e1ee2e9b9a12fd0031686b1f1afb2c04d90bcc6390b5d978b34e19a4985f",
+    "frontend/js/pdfRenderWorker.js": "2e637c3d26df0092dc28b8162bf1db1f19645c6ca8e8add12199eecb7883864a",
+    "frontend/js/taskDueDateCompletions.js": "617186cd27fb0707e3f05649d85b5c24c08cc77c1e70813c9d08dc07da0c4619",
+    "frontend/js/sourceReveal.js": "7d97bd99e9cc9e2c3ac7b65225e29822e3cbdde734b3f517a0debded8ab623ab",
+    "frontend/js/liveMarkdownTablePlugin.js": "502eb7171ef17b5e96e54a9f427dcbab6b0c253af77a603132bf0327a8067609",
+    "frontend/js/graphView.js": "d9268ea221e345a069ac2c94599b0eaf160c36f73b2a15fb5a2324d9999938e0",
+    "frontend/js/editorLinkCompletions.js": "a720efb95c36a5dcdd1334fd8bba8a63c34e022cba1eddd1405f58bb832dfa82",
+    "frontend/js/search.js": "02c99a148055c540095df9442e7a8ad0abf26986c9cb4ba667c7642197d1d800",
+    "frontend/js/markdownHeadingFolding.js": "70e84f3273670a4fcbc3cb80a76f2b6b083dd6c493d9cfe367402d70964ec993",
+    "frontend/js/theme.js": "35f8bcf3d4c38b8dcf6d329de46deb98c6efa27b6ff508f5af6dfd9efe0e80aa",
+    "frontend/js/statusBar.js": "69367cb73ab84a1b47a223fd60b76ba806ce143733027401ffa3b9e1e52402c7",
+    "frontend/js/icons.js": "345e3133d0e966e16bad854e24f39d6244fc7585be811dd3dbf3ad87f3c73216",
+    "frontend/js/footnotes.js": "c9e6524b997817a2617f49c91b524c2ae88f6e7f90c6f3744a87d7caf3491651",
+    "frontend/js/recentlyDeleted.js": "1a258bce0667eaeb2ccfef9088aa1f00fe8f99d6b14dc3bccf6f0429f9c81982",
+    "frontend/js/backlinks.js": "c304cbd88a77229602600f62ac66baa544942c58393cbadbda9fc707b21a287b",
+    "frontend/js/linkCompletions.js": "088b7353e10722a4252a6877b6cb17b7ef5e21ff8c9c3d3d58f967428cfdac26",
+    "frontend/js/clipboardTable.js": "2117522568849cb5ff66188ef4ad0d3290f8d9d8f5997fcbe909948235085a9c",
+    "frontend/js/fileTree.js": "c06eb1543d824b05971820b488307ad9bf0ef63d933d974ad1ed1acb0b037dba",
+    "frontend/js/activityGutter.js": "4de63add54133019bf50b6d0688c3954afa1c12447271309475b8a2c90f2256c",
+    "frontend/js/log.js": "2c1c904a816a77bf3a4990b8e034135fc89873bcbb3351d52eaa9fc7a4f32085",
+    "frontend/js/markdownTableEditor.js": "584b47072d5563e12dd045f7b639d59f3aff8764b3d8d6fdd0172a150555da8e",
+    "frontend/js/activity.js": "3073112b4a8974041580bdb56c3fd7336937de4d724a9166db51841c466f0d3f",
+    "frontend/js/relativeLineNumbers.js": "bb06d8db002c4bf26bdc418ecaf8e9e1be329e8828079de9b77f7a6d7101448f",
+    "frontend/js/helpPopup.js": "7e40498b868de07c2226645ecf4ae6ecb94dfe9081b52c85da6f46f144193ec1",
+    "frontend/js/vegaLiteChartEditor.js": "ec6e9bc1c4f10708816410912a1cb4d91c8f5fc1561665afd24c781c6512d3d7",
+    "frontend/js/spellcheck.js": "d33ee7a386ee0ca25886c5eb8b7c8f6d3bb2999d53349f3f1dde3aadb013127c",
+    "frontend/js/outline.js": "6a131dbf4f72332775dc8aa7594dcc589ce41131f53e13208a6df6e6ea7e059c",
+    "frontend/js/blockWidget.js": "b1cd9583f2630d18131db0e69bf9045d47ff387e6a15c87bad29ddec790c6c07",
+    "frontend/js/frontmatterPlugin.js": "b6615651678f442ffc47683a2bae8f63ead1a85cd2b8a74bdef29a58c81c8c52",
+    "frontend/js/vaultHealth.js": "46f9eb5fd6fd2986ef5966f9f46a086df765291a3bb2c74061538384a95f90b4",
+    "frontend/js/automation.js": "3e780342049477359952642c007f7b04e4361219e80e5b105a899969d51b1651",
+    "frontend/js/markdownBlockGuides.js": "e6f911e782c41bdc280c025139d1d9e086cefb91c9bc8d15ff38ad4589c5a473",
+    "frontend/js/editor.js": "f055029ba612dc924f354c34f6019ef08caf686ef40791dd78587b6f6f7e1ff9",
+    "frontend/js/spellcheckPreference.js": "4ee68594f17bca82596ccc71dbda5bc205a48130a6f24d6f6de9261033884794",
+    "frontend/js/colorPalette.js": "2fc55779a3c58bee754db462f897740e51200e84aeadaa2b0bcec602e794585d",
+    "frontend/js/hexColorPlugin.js": "f717cf17319bf6a6ea31c904568c48e880b16c32fb3cc128ccf94c5df544c971",
+    "frontend/js/writingSloplessCache.js": "d680a85e80662812d7dba3b512f87188954fa442e2398de0d9cc8eda52c45a69",
+    "frontend/js/rightPaneCoordinator.js": "8f9f2f6ea1bb5fbb22d65bb138c11398a89d12e1ef54a2500964fb3da18a8034",
+    "frontend/js/writingRuntime.js": "780564792ba3474bd1accd2c691542aa1c0c1d7b6263664657f781201f1a15a0",
+    "frontend/js/datePicker.js": "da9d91c2abd58e0e2b1f6ebc3864aaad3ffafe9251839f66ff60c075c16976e2",
+    "frontend/js/orderedListRenumber.js": "5cd7aff20f22504080f658e42db90ba8a0d80ac746956a27716557d0c8913ee9",
+    "frontend/js/writingSloplessRuntime.js": "08d5a8f5369cbce00caac29c7e7f2819518154aa5e558e26bb0922664b7d0f71",
+    "frontend/js/mermaidPreviewNavigation.js": "15ac6af2e33a866855b38adac0e6e5a626e7b6a17e8dccb450a20d38d522d265",
+    "frontend/js/writingLinkHints.js": "af27328d6db3387296d3a6085a63ee385bfba116c9621dea4acb75332a59cc6c",
+    "frontend/js/markdownItRuntime.js": "c69ff8d495a303de455800f2659779d0d172a613912973e71a69f105c3c64aba",
+    "frontend/js/sidebarResizer.js": "efb0f5505cb0cb31523eca9eec124ebeae0165a9e81374928fbc81312898b60f",
+    "frontend/js/editorTextScale.js": "f2370d35ae4f9c3ea87b1ef28f8c9619aa434cb44d9c8bec7bbb98e5ed51f866",
+    "frontend/js/editorGutterAccessibility.js": "744013ace198d84e8b4d2ba835c4b3d04471580ecdc1cf3846e382f9fe734abc",
+    "frontend/js/editorDiagnostics.js": "eef8e757fdf813f80c27ee72fcbcaf06735ea61a5af36380888862e772dd2648",
+    "frontend/js/sessionTabs.js": "c6061d493f54c2e13a744bd7f376b429813602fd0b038488749c0e741aba228a",
+    "frontend/js/views/writingLensesView.js": "e7a3004ea8780985fa051109431b569bf7a5af2e6a83e2863a599c823314fe93",
+    "frontend/js/views/writingDetailsView.js": "5f626a043dc4eb26175179a867fb815352d8831fabbc945233ec597028516c8a",
+    "frontend/js/views/writingResultsView.js": "f23beaca76a732af01d3419b6e1d52f4adfb428cd7d9ec641051934a9eecac09",
+    "frontend/js/views/writingInlineView.js": "92ff43ad2e7bc802d0887f9b09abfef342a265e228c539f66b4c4bac24a6d5f8",
+    "frontend/js/views/writingDecisionsView.js": "9caf1a13b943f8173362bf2d2abcac79229b04ddb0d2b45e56944029b102ef74",
+    "frontend/js/views/writingExamplesView.js": "a436415bd6e58aede79ed37248789c75e61c97be7c73d4e73fc37563c6a1d209",
+    "frontend/js/views/vaultLoadingView.js": "18b1a2d498151263b04bb030d11d41d246243a8c98b8e3977398b129b4688965",
+    "frontend/js/views/searchView.js": "b91a088091e1f9fbd063dbfac09534d6ac343a8a86ab4da7e918a839fe82d06b",
+    "frontend/js/views/writingAlternativesView.js": "72120188fc8e3b8214c235e3c13a3b6f591a6c5b20083d0b1ffd7c35ca88c9f0",
+    "frontend/js/views/writingLensHelpView.js": "1a15687dc608f8757dd1daa14e1aa35c72c1e41a9f5cc47084d0985feebea7ee",
+    "frontend/js/views/activityView.js": "1930d8f538eaa17ee3a8a8e5602dbdecd67828e7babb81d05ecaa6ad08b95f57",
+    "frontend/js/views/startupLogsSettings.js": "1f710a7dd05b0fba80fa3b338ebcfb4fb02e2f9661a43a66e5d95581128f7433",
+    "frontend/js/views/startupView.js": "5e0b65027eadc9f040d731e83619c6ba9bac9dbf024e93af2a26997bc45bff6e",
+    "frontend/js/adapters/localStateStorage.js": "616359fc11a42bafd0ea8bc2780a4f2b2697d5ded5bccb52c94436f99cc9735f",
+    "frontend/js/core/writingPackagePolicy.js": "156a6cc835a3fe34f730de32323c2103c2aa6447d5927dc9d0c8417a15ea1543",
+    "frontend/js/core/writingIncrementalModel.js": "38722bec7f74ee03f4247dc4decd52aa363734579b45996eeb7cf15dfba60a99",
+    "frontend/js/core/pickerModel.js": "60ba3a08643215ca7fb7591b9f726e372b8dc2a3f3742a61c9c730a6b86b4116",
+    "frontend/js/core/writingReviewWork.js": "be645cc6637d891a3ea3436964471284f68ce848dc845bf824d7c25d6ad0970a",
+    "frontend/js/core/relativeLineNumberModel.js": "269b81186527ea6c8ce33fda703993c35853dffa757e5f25110c374b8b5a04c8",
+    "frontend/js/core/sourceFootprintModel.js": "bf1040e13a809bc46acb595e6dd5f3474ce71097241bfa4faf2d2039169446a3",
+    "frontend/js/core/tabWheelModel.js": "a62481aaef53c026b1b6f9dd338f6cef020b55ecfe4b95aa39387970c47c3a8e",
+    "frontend/js/core/diagramSecurityModel.js": "b0501a88d9e1a4dc75df7d8e1dd37db0844d7e21f63bc521a5966c1c7a267200",
+    "frontend/js/core/relationshipModel.js": "872d95a408e20eb7a6b554056a393f0249b4f95be1d60c947ae925f1e84ddedf",
+    "frontend/js/core/writingGrammarModel.js": "a3da3c7ab4f5d65bdf6757a27ed1db34d549ec907594d83cb43ef25c6e165f69",
+    "frontend/js/core/markdownFoldAnchorModel.js": "0e51dc4a6822d3370542d2f639162f0a22f034d5827b2814a7fecb0ff3eda37c",
+    "frontend/js/core/markdownInlineFormatting.js": "9f4d99b76db7c90b1afd4a2d8f90248baaee5d36f5c1593e79ac1a16f8759076",
+    "frontend/js/core/writingAnalysisModel.js": "78c6e17ace97e47e583780010ce3fcc280ca96cd2c0fbd249f9cf4c254412f82",
+    "frontend/js/core/printableTableModel.js": "a1d553f0133fd48decec9d446f6c9aff80e1906b08d33ccc50f2b13301678019",
+    "frontend/js/core/writingRetentionModel.js": "413590eab8ca327224b17b4daa8e0d856a030c3b26732e2255ceee0751085699",
+    "frontend/js/core/globalShortcutModel.js": "8ea13b306fb7e128b13c491f3f2680693a50873f258797f62389137c97142425",
+    "frontend/js/core/spellingModel.js": "77a458f73a14bd223773b140c669f25410752619169fde561d19a0dd1855fbe0",
+    "frontend/js/core/ganttModel.js": "e8be6035fd5ab29ba7cf6c6ebd6be311705e260b80e5d5ce8c2d0573cff2f726",
+    "frontend/js/core/rightPaneState.js": "f2efd5775e54a8eed1c24caba1a7bd7d663acab5542a929ec77ae34d42cfb46d",
+    "frontend/js/core/externalFileModel.js": "e977acb1a6cf6baa366f7ef7e9e0b9d3f20ef027288c77204417604445c0829a",
+    "frontend/js/core/workspaceTabModel.js": "401537c54822f444fb6fe519df28412bf66c0278886f81af7aa36606dfa1d398",
+    "frontend/js/core/editorBreadcrumbModel.js": "aae74193ffb81807ce299b0e4dc2d310753730389fd2d695fc5436885bd7fb11",
+    "frontend/js/core/editorUpdateContract.js": "f1cf76fad691c526784c55dcfa8f21089a230ffe77498397d1a4ef80ba44b56e",
+    "frontend/js/core/markdownFormattingModel.js": "fdff2113b227a8d54cbaa331058c696727e757b62ad65c565a3fd2e6a2f26b15",
+    "frontend/js/core/rawTextPreviewModel.js": "364849d78a00761ef809819f350618657bf41e89e30ee68d3f7e7e0b29f7cadc",
+    "frontend/js/core/mermaidLintModel.js": "3db31dc6a71c844c5a104617cfc1e2f5507c3919256f86dc2c58cfce3511ac88",
+    "frontend/js/core/applicationVersionModel.js": "5ec3ae9073f72e3180affcec38fa6d8a865c22dfca9ce4e9aa5cf06b2921b77f",
+    "frontend/js/core/graphModel.js": "77e241a7893f39c02cb3c753dc211b16b42d18399d128921bf4e422b4f88c62f",
+    "frontend/js/core/statusBarPresentationModel.js": "da5779820646bbe02d59ba0f5c78b5c1c66df6f0295a42ceb9967798ac0fdac9",
+    "frontend/js/core/vaultLoadingModel.js": "93b885a8b08a6dbdacc7696cd610ff422b5d91360f8e22591e8085c0debe7adc",
+    "frontend/js/core/sessionModel.js": "49b68a7310a3c42e7b7d48375d80263bced00ae991689c69def5062508a12940",
+    "frontend/js/core/writingInlineModel.js": "276ef27bd9040f7744e22aaf88a2d51098d24d308e21a413dad9a580904ed9b7",
+    "frontend/js/core/noteLinks.js": "4a0d111ea38772bd9083d3093381a4935e4b2f1ec810e6a35aeea8d5488a4c40",
+    "frontend/js/core/frontmatterRegionModel.js": "b29d667822739de48c1a0d3d509ff1d70f7334298c8a094b0f3f9ac58e6829a2",
+    "frontend/js/core/writingAdditionalRules.js": "25832ab0f99b8e82f018400f9acc3a38d156825d2576c1bf01dc642edefe203b",
+    "frontend/js/core/writingPathModel.js": "8843f0564f0f2ccca1fd94b4156ba38925e19b2c11f592d3a19711c6a8337cb8",
+    "frontend/js/core/printableCodeHighlight.js": "b9e9b497a4e380a3674c89ae7ef1f1555215bbf563003ea99407243fb612bed1",
+    "frontend/js/core/taskDueDateCompletionModel.js": "62a0faad5e630f0c759d310c5a2211063891c1d03b4cdb4c575c989745a20fdf",
+    "frontend/js/core/outlineModel.js": "abcbe50194ded345479713a2fc92013990626df9a6dee48d2e79c3de23b3c204",
+    "frontend/js/core/writingTechnicalModel.js": "c9c66a804bd94e1a39582945c8a55b4a0dd292044ca0721310829a6ea41b7423",
+    "frontend/js/core/markdownImageModel.js": "b315865fc3ab30a262b29dcff8e8fc05ad5dfefe646015066ec5651825ca3380",
+    "frontend/js/core/colorPaletteModel.js": "06ef36264e40534c146d65c2e3b9d21834ee9e53c400798c93da60d6fa3abca6",
+    "frontend/js/core/similarNotes.js": "018605c7c6fa63bff3adc9e80c861b825cb6e1a579e0cc36dd0be8659b9f94dc",
+    "frontend/js/core/markdownStructuralEditing.js": "dcd6c0742025c907fb198c4c02743443013a2cc20e824b658b98cbc1a50bfad0",
+    "frontend/js/core/mathPreviewModel.js": "34f28dd38787b28898bc8c78b1de939e4e6e6fa936a887a23ff9e83d53d28194",
+    "frontend/js/core/frontmatterPresentationModel.js": "ce9c5392bf28d6bffb065b11d96ff525aed141b1815d6dcb3fc5ea22f66311c3",
+    "frontend/js/core/taskItemActionModel.js": "9fe6f71267794133086bdf935e060d0ccf43860493322df4c916caae566b6384",
+    "frontend/js/core/mermaidDiagramModel.js": "b9a3065899d06ba99fae2662d8a4b3d392a0165266a68ef8221e80a57343d582",
+    "frontend/js/core/richPasteModel.js": "2085ee1e12c56550fa49578f2c6717b91c16e648bf53a61fd9aed02d22f90875",
+    "frontend/js/core/markdownTableEditing.js": "d2b598c48411720b8bb8380b17dd11e683db30e68beb0d7c9551bd98d7704e34",
+    "frontend/js/core/tooltipModel.js": "02e38e56a4fc64296e27c17dd9e67ede70678789d8ba3b256b3ed9cf6845340b",
+    "frontend/js/core/writingParagraphModel.js": "b48e01e48c1d671acf1543ae218415ff1794db1b6f6f9079c91e47eabab9e6a0",
+    "frontend/js/core/saveModel.js": "90e636e0c022d33925795ddd04513b700913f88dd5a90bca14aa1ba7b9fb68ff",
+    "frontend/js/core/contextMenuModel.js": "21be7a2d1700e122f2d549f8c0efb712250c04a2e907467e8da295d3ac6f4d17",
+    "frontend/js/core/linkedNoteNavigationModel.js": "b63630d3961bb77520571bf27f7fc1f8dd820dcf2a88ceef16affa31b2eccaa7",
+    "frontend/js/core/vimClipboardModel.js": "4aaa9ca4ecda8bedd4913a4b00eaf84b364542eb6f95f068e0c0809393ab53ae",
+    "frontend/js/core/drawioImageCreationModel.js": "7ca44dfc2794da736d066b90b680b46332a418f981088f8238f066b2f18ac3cf",
+    "frontend/js/core/writingTokenCache.js": "1a5c89291b6020140eb9e78f104a6aecb15721d339a88bde2c6dd4a2cfaf4646",
+    "frontend/js/core/writingFootnoteModel.js": "d6cf006356a9a76a71e43b21fe6d857cf2d71d84856ee639c86e866a5cf50879",
+    "frontend/js/core/editorDocumentMountModel.js": "fa09dd4e2ca690063bde0d0510365b743068b5d471c7baef0f57a31e30136188",
+    "frontend/js/core/tabOverflowModel.js": "eeac0dc1387fb49472685fdb427fca72a9237bdb9a019d351ce192c9709cbf23",
+    "frontend/js/core/bootstrapModel.js": "61de9f7fb08f89e03892ca1715ee3446307978c372b4e7f8ff736d6e47791556",
+    "frontend/js/core/writingDecisionsModel.js": "b4bc8081771a7c964652d7d2415fe7b1e931e5073676bfc47be1997be56044f3",
+    "frontend/js/core/pureWritingModel.js": "f071bc4719683cb327fce65933ac4af99732b1edb625b89a60039ba4d8cdf5e0",
+    "frontend/js/core/taskCheckboxModel.js": "517dcaf2822727a0659a2b98a04d097ffd0dd62704664a2be272d2a5d2c9cf4c",
+    "frontend/js/core/editorNavigationModel.js": "c73018e3091599139c992bddce716c2b279df39f42b1578c58fda033537047f0",
+    "frontend/js/core/searchModel.js": "44106ff2a50480f33419595c0a030fb5ac17f7e12d070d4b37180f9e5aba84e0",
+    "frontend/js/core/fileTreeModel.js": "a753cd0298e78127f8e591c04e762bd411794c34bcd021035c83023000967d7c",
+    "frontend/js/core/spellingSuggestionsModel.js": "57d559a0afc260547d7cc298f394334a5b5ac2697920e2cd7e170b1d5806adde",
+    "frontend/js/core/vegaLiteChartEditorModel.js": "c57a333f4561619c8e26ed639bd0ee63bbac9b9abc5bdffd605da05a21cb47c3",
+    "frontend/js/core/spellingDictionaryModel.js": "54e3887a912c3d09842f455e49d2665c1eec7656b473fcff6b91893f46ca09a0",
+    "frontend/js/core/writingSuggestionModel.js": "d17481c9972cbe0ac531e6992676846a41bd43ea6b2427d2f4f6d94c6bf72ef7",
+    "frontend/js/core/diagramRenderCacheModel.js": "807ffed701ecb1e2dbfcb9bf5f2b5d1b1d6e2ede8e4d7898fe750d78826f54a5",
+    "frontend/js/core/writingReviewModel.js": "53996fb01675f819fdf59d4c4ef933121234ecbf40561e2a3ea5b32837781187",
+    "frontend/js/core/spellingVocabulary.js": "631050df7d26583b3764deed94d1ec416f5f04de328ca8a75a209ab09a57fb02",
+    "frontend/js/core/pureEditingChromeModel.js": "00a56c14dc1616ca993aee8cdf68949e4f3ac2d3e238d8e84f692484686636b0",
+    "frontend/js/core/codeBlockInteractionModel.js": "59f138cebff40863e3af8441700b3ff19095571263c7609a98e7326f608baf76",
+    "frontend/js/core/writingSloplessModel.js": "d6a36d54016e0e8fe0474c1a92d880bbea962e35db27f9de4fb9edff455feaa7",
+    "frontend/js/core/kanbanKeyboardModel.js": "c2a6df1dd88b8db7fcc9f6f4d370d16d08a62422a54c9f48baac09a7a8f118e2",
+    "frontend/js/core/tablePreviewInteractionModel.js": "d1377a579d9231e3ab3de6a6b63f1326d38b2c783bf16f2aba4e7fba32182b60",
+    "frontend/js/core/orderedListRenumberModel.js": "440bfc06c6f3720f9fbde16743d72cf1bd48d156babb1ec7b5c6f0204d93a2bc",
+    "frontend/js/core/blockControlVisibilityModel.js": "213a3fcf1808bb616e746c664239bc515017f7e0ba59fa17c42fbab5ab7b1842",
+    "frontend/js/core/tabNavigationModel.js": "3b2a1846d3b46b0c580051456786e643481172171244d601e7e9355b122b4b27",
+    "frontend/js/core/mermaidStyleEditorModel.js": "80549a7b21f3327103ce6324892c0a6a63cdfb9d4f77f3c9692f8a0ee0c16e2a",
+    "frontend/js/core/windowTitleModel.js": "0ed47b22c1319a6a4fb4b5f5eb8f935e8609255fcd705c8f1cedd9dbf3fddd8a",
+    "frontend/js/core/writingContextModel.js": "24839e37ea5a13704ba959a21d543207f6d16b2ea0ea4e73743d9c873fa857aa",
+    "frontend/js/core/rightSidebarLayout.js": "381544653a15fcab68a99cdae53d832a76f3441f2d9a1f6a1d3b9535e8a081a0",
+    "frontend/js/core/tabSizeModel.js": "daabe6078ea342252a7cd3b91030f2b55ffcfcb22aa484a0abc5b6ff6214dfc4",
+    "frontend/js/core/kanbanBufferModel.js": "28bc9a72f2c753c02cb9b69a0f0abac270a6bef5b0fbeee5dbe94e7e74dd270f",
+    "frontend/js/core/calendarModel.js": "70d58f18005080e97d752f14bd065a2f18d5862acfab758075cceb6d83086ba1",
+    "frontend/js/core/floatingMenuModel.js": "89bbbe4a26bd5b44b44df20cb1eec93fe3930a2a53c98ddf2b9cfef1e9278d69",
+    "frontend/js/core/editorTextScaleModel.js": "8b3e364018130dc2a4d376e18098fe3f5783e3a0a8335eb41b97a5a5ff2e9cc1",
+    "frontend/js/core/paneSeparatorModel.js": "337886587d87ae9c0e9a4347bb1992780ad557076c0f99810978c78d75bc45ea",
+    "frontend/js/core/authoringMacroModel.js": "021e03477b908868655de8da0d54eb12e0fcada1382445ede37234527f9b2569",
+    "frontend/js/core/writingLensHelpModel.js": "c18ea6aa1940b46b6b8366a4fa6eca39ab06c32dc39ab2ca8f459ed5df8b1736",
+    "frontend/js/core/writingTextlintModel.js": "ed546ea3f90224d7ed7b5ced8aa6425d75f417efb274985f9fb31f618a08c70b",
+    "frontend/js/core/markdownLintModel.js": "aaf8cee5c0677c313b8efa9acae30227e15d1f0cbf393904060c47e042493956",
+    "frontend/js/core/markdownBlockGuideModel.js": "15fc3be3cd039a5f4bf5302513e2a9c031af5d8ae972109345ac8e0e4b0211d0",
+    "frontend/js/core/fileIssueModel.js": "49bca1a4dcf6012a8e2181a32da837269fef423bbbaef314f4639240aac52898",
+    "frontend/js/core/verticalCursorModel.js": "cc9e78c2ac7b5fa08a6eaf2a9eb920cd2ad6744f436a0b162670ac6c60f014a0",
+    "frontend/js/core/pdfPreviewImageModel.js": "9a6eb4bb15d4046653e5fcfdf5aedea8107e9ea623e53d83e5ea2ae4f4ab81b8",
+    "frontend/js/core/taskLineTokens.js": "cf31c8db6a4588e56995ea8dfb3aa653d053a115e1a0bba78f8f050f391eb062",
+    "frontend/js/core/markdownTableEditorModel.js": "d790a116b134859ff9f56199c4c695ca6f1151f817f9f57aad1dca8c7b26998c",
+    "frontend/js/core/helpSearchModel.js": "f82c458f9f7ff5e18e83dea21c9cfaf628e42b3af338432d03e37ba5c7115c5f",
+    "frontend/js/core/editorBlockActionLayoutModel.js": "1a70c1a296076e9f2ee4afb0ed6f3679a093dd047f3ef5b78475cc3cd604179f",
+    "frontend/js/core/sidebarLayoutModel.js": "5bba62fdc4988278e7e4eae34e972260cb439da840d9d0b9d838401e998fc45c",
+    "frontend/js/core/searchMatchModel.js": "96361fbc8c940e4ee0cfa7149f2bceb05d2b3397051cbf1bfa0fcd03efe64906",
+    "frontend/js/core/mermaidEditorModel.js": "35d68819ddfdcee18dc0d185839f11098479910eca7c72696e91017dd0f46195",
+    "frontend/js/core/tabReorderModel.js": "3f3c1c21aa820fb53b9814c73304ee10472207b4f6312ec79f68fe7a73c0982a",
+    "frontend/js/core/writingWorkBudget.js": "1230653887bbd2abb7c24adb1b8213176b4ce035e91d5584e493e07d6d1bca2f",
+    "frontend/js/core/dueDateModel.js": "eda810a094d56ff735644e3b24a64f366a5eb9678efe58982589d597c77455dc",
+    "frontend/js/core/tabPresentationModel.js": "babb2185cc7d5166b5e441c620a8829b3869fd2a5a91179829ebda8eba1c2d2b",
+    "frontend/js/core/workspaceTabChanges.js": "628a9b30b0c8f68db0c2cfc6bd5f4f62a64ed7bc30ad43ad5e42829c830d05e7",
+    "frontend/js/core/calendarTimelineModel.js": "77b74270885cea4636d72b1f04afbc618fcbf909dce45c18b2452f5f9b399716",
+    "frontend/js/core/writingLensesModel.js": "82c38db4b8bcc246478c6c0cb7fb8f82d9d914f86e6a7bcadee0fbd38cba6fd6",
+    "frontend/js/core/writingTypographyModel.js": "00297d16daadbde057255d12933abf582c6ca852cc376df5f4b93d00401ee664",
+    "frontend/js/core/homeModel.js": "2c54f4fd1a8c3aa706112f8891ce905fd8543fd7a4a5f7a36296cbb0d746ad5f",
+    "frontend/js/core/pathRenameReferenceModel.js": "ec9fc4fc2545eccc1858ccf2f9a4c084291dda61060204f6be645f3193c0ecec",
+    "frontend/js/core/fileTreeTransferModel.js": "1c11b7c8615a11db111b6da2d45dbd8214976a9476445286d267eee0353d45b5",
+    "frontend/js/core/selectionRangeIndex.js": "75c8d571cebcaee8e5e80a4ab62f495e24a7b0f03a7971e262479d865cd4a8c0",
+    "frontend/js/core/taskDueMetadataModel.js": "72a2e06b2adc695c30e2b4b163dc7f53bbdb274f7325d818e0cdaa8712eb98b5",
+    "frontend/js/core/editorModalResizeModel.js": "42cf2a80eec78aa55f9c338be6ce4fa8ae590cee581be2bace293853e85eddc0",
+    "frontend/js/core/timelineModel.js": "a6e9039aed6ccfac1e774e9d0f16390db1faec454adfe4bf982fc782452f21bd",
+    "frontend/js/core/activityModel.js": "4d7787b57c7924833246d40228b01a72cab6545e805b99d387f419068b25f4cf",
+    "frontend/js/core/writingLinkModel.js": "2d3f6a8b089b55c8008e685930c8a19164caa8f47778fef434a6cf15dbd25481",
+    "frontend/js/core/calendarWheelModel.js": "7a21000eff1f8eddd97a7cdea7bfd972122ca34a9fdbaab621d111fe9c9e2c80",
+    "frontend/js/core/markdownLinkPasteModel.js": "8f0f02eb110cd5e73185bfe1b3ec6a15b2609c42dee3880be4f56dd68eb6cf4c",
+    "frontend/js/controllers/searchController.js": "85062dc17f81a7aa507a1e7f05d843f6ea1846d9f192e427d8085109567c88fd",
+    "frontend/js/usecases/sessionPersistence.js": "e8ab135fc95a29b1616c139f9cfeeb1c18a280dfcbd41cd9fdb6717498810197",
+    "frontend/js/usecases/latestPreviewSession.js": "7eb2c477ee27a2f7f68632cef2855023487d544c17ad1a7ba3825872f506511e",
+    "frontend/js/usecases/fileTreeTransfer.js": "422d2dd3afd1f32c953af233ca2158b510cbff8a02468f4f2e811b1ae04f784e",
+    "frontend/js/usecases/documentSave.js": "eb7bf573de9d3d3171af7dce83a316edc7813caf1fe7d2b5b55ec387da8ca35d",
+    "frontend/js/usecases/editorDocumentSession.js": "7616c95d0f549a1f1600296b700826d0d1e65d2cedf9679b6ba0044c88924b50",
+    "frontend/js/usecases/editorSaveProtection.js": "0b3d3bdb0556d17234cb7edd77310bcffdd1f0cabab75ea06d347d1c74298b7a",
+    "frontend/js/usecases/activityReview.js": "05c72aff06e6efe6b4d4e9cd9c33680fefa64b68a2e48b5b96241e93662998af",
+    "frontend/js/usecases/workspaceSearch.js": "db5a591bc657d464312c93092cef7918ac56fd57744b20ed16585a5426236249",
+    "frontend/js/usecases/openTodayNote.js": "6265eb7c2d4e338b8e6e2575d1732df7757ff5614355bcaa3c7f09af99e72b0a",
+    "frontend/js/usecases/loadApplicationVersion.js": "3be3d25b5aeb57a752bf724464f88d479aaacc5cfddaa8fc1cb80efad2f1e84c",
+    "frontend/js/usecases/linkedNoteNavigation.js": "4cdbcf6e95409a9b04e3f7ddd680ba7df714bd060e8f566eadd70157ac9c1aee",
+    "frontend/js/usecases/writingParagraphChecks.js": "480ad9cfc25dfc436f3e53497acddd50080353f10775dcfd1f4c3e1c565526c0",
+    "frontend/js/usecases/diagramQuietScheduler.js": "b69732f707f253f1a6d6e39a867fd1c0d640a1cf0425ef5e31212328f50ac28c",
+    "frontend/js/usecases/diagramRenderQueue.js": "d3bb9fd970cc9545acb1bc28906e97cfb88da2b3a0ecf0fb6e01ae930277cdf7",
+    "frontend/js/usecases/spellingDictionary.js": "e5e546e7f75915aeb8d2b4569c18b85605a119673b015032fa45970ce81e687c",
+    "frontend/js/usecases/interactionTrace.js": "ad8d2249af5eab13bce7507dcd07353a9be76cd9fdfd96df79858e44f67ded4f",
+    "frontend/js/usecases/vaultLoading.js": "b67f50965ebb8870b0c10044c19a2ad05e53bc9fd3e39ab12b440b88e118577e",
+    "frontend/js/usecases/writingLensesPreferences.js": "645253e23040d8fdd4c25e06e6737a2443a660c062b1d0a281e2024ae03e8b20",
+    "frontend/js/usecases/createDrawioImage.js": "09714327b50f87a526033cb916320616693307c090b6580fe0e397675dd440b3",
+    "frontend/js/usecases/markdownDocumentLint.js": "8cfa6e6be4ba815b3b3df4ceee1083f3dd1e24c67d54e7b75249b4e4c66ba699",
+    "frontend/js/usecases/createLinkedNoteFromCompletion.js": "e64c7600817813b709cf08bd4a9be10a60d41a21fc8a6500b4d7c61dc468858b",
+    "frontend/js/usecases/similarNoteReview.js": "0896c5a89d09c417cd1ace062fa1a675b05e9dbbaa88706e33be44489d6b9711",
+    "frontend/js/usecases/mermaidPreviewSession.js": "f4ffa41b975db25569c1816df3047b9cf385039b2dc7642a6e95a6420ccaa731",
+    "frontend/js/usecases/startupTimings.js": "715fe7d4249ffd7064c4890fcfbc8274845d5c37a1029306e1e5a1a67b7b03fe",
+    "frontend/js/usecases/writingDecisions.js": "18fb8d5318adb2c0fbdc3c634e510ce6ee93023d45215c1f83a7bd1e88156fbd",
+    "frontend/js/usecases/writingProse.js": "85a7315601501d6e62fc8751f86f18b7b007e3bea00d5e457bc4183fdf8bf013",
+    "frontend/js/usecases/writingPathContinuity.js": "98662cd1067a1e213ffa807751bf6cfdef71070a709fa65eefdfd0fb863f1534",
+    "frontend/js/usecases/startupHydration.js": "40663a30691e4b29ffdbc5af9670a74a9ed8cef184b77fdfecafc5708eb2f216",
+    "frontend/js/usecases/writingAnalysis.js": "1d1583f2223c701ac6563c9076b7d17ea6ef5280b5439b7929286fb24d54fd65",
+    "frontend/js/usecases/diagramOutputReuse.js": "4072513a114f514e9de146f6bb9f5e835328bb9895df624404bc2d0a4c2d4813",
+    "frontend/js/usecases/windowClose.js": "8232fc6b84d5ac02aa2689310affe6c1afe09bb411b4ff9673fb1f4c262f622b",
+    "frontend/js/usecases/fileTreeRefresh.js": "95463cb5e83d493e280646c0938853b24638762d1b740e08da9002c5385112b1",
+    "frontend/js/usecases/writingLensesApplyAll.js": "1d0508668f5c58d97ce7cfa04d0b020fed3ac1f081cdc18a55b422323cc86cf0",
+    "internal/taskschedule/date_edits.go": "6a5c3a4624e494621f5fb81f3fbfd2e24fa1fe63bc0574c90286590f6379670c",
+    "internal/taskschedule/transitions.go": "99bfdc04754bada01e79bc5a4e3eb5e2a27d10ed025431b5729e84506e9fe281",
+    "internal/taskschedule/commit.go": "3cef8f6b3c4a4c2b7d736a53529d9bf52d5431b468e10fc474cc3de7d0eadcc3",
+    "internal/taskschedule/model.go": "65ec2372c3c55a5e251cc1dca0de251fd3b1b15378ba5290d435be4bc686378c",
+    "internal/pdfexport/toc_pages.go": "dccdae479e138d39f82d49eb5d09da3e863c9b133c4cf864358f02674e375717",
+    "internal/pdfexport/browser.go": "f93e443717b2b74631e2b7ebf54d024cc9891a09aec00267beafff298445ccef",
+    "internal/pdfexport/cdp.go": "00553ae4fb7e78010a888a3f438a01a9516db1287f03640ac740d3121e579949",
+    "internal/appinfo/version.go": "d2e58b7333e561f4411d92d5ccdd2fcc306be30b4ef8f8629bd1927ae8d7187c",
+    "internal/notenames/notenames.go": "273ce761cb095b199cfcf91f1800bb381d7915c2dae9abd4d2db4de2cab3c65c",
+    "internal/mutations/plan.go": "490b8094f7775b7b571919974fa2ee6a501d2fbd2df3339e3b4c8f2b1de954d8",
+    "internal/settings/spelling_words.go": "5360579f05b6649a6ef0813691de25a117786d3a40fa67dd62a116ac20fdd0a7",
+    "internal/settings/writing_relocation.go": "bb4fbd83616e7b1b3102119242583750a7f2fe4484b807520be71f3d8d0a9144",
+    "internal/settings/writing_decisions.go": "830981a93ac9e1f2781b5a49dca7b1d01e81b45b60425541420dba7df546cf03",
+    "internal/settings/model.go": "fcc28ea2e2932aecc791e3184285f000f0c1b791d26d00bc85531ac2ad5bf5a7",
+    "internal/settings/writing_lenses.go": "caacd2735b70bed47118bd36637207809b5a5510ca960df0326770e0bc6f8dac",
+    "internal/links/convert.go": "863b03ec7f29eb2fac0a8866368e3109cb41c8f0845a20962f48d4e9743d2da8",
+    "internal/links/rewrite.go": "e63c003b6ebae96a50c0f19c6aaa3c2a45a2a6fa900da55f9e655bf17a8e332c",
+    "internal/vault/root.go": "68cf291340f72a9bb071b98fe5da68d7b7116b16bc33faefef411376a32a4706",
+    "internal/activity/paths.go": "adc63cfc872ac0875b5f850f3831f8b543f0647fcba91bb9a0d51dda7fa62c66",
+    "internal/activity/model.go": "8217f60ce3cdba852bb958e223cb0416f6ce3d881ab7a1c39718378b459530fa",
+    "internal/startup/timing.go": "1bd165e0e45d77a4a84f1cf5cfd4d58b56c4d6ab02a3b72addbdc587d9de7967",
+    "internal/startup/sink.go": "ff1c8cf4d8aec7a5fb28d1fa554b7880bc99a96e80743072eb5e5e3f9558f994",
+    "internal/recovery/model.go": "b28e4bdd4389bffe3622c3fb9e5d397aa45697cb7e44d9e88007d511191cc710",
+    "internal/search/model.go": "09393bcf4b433b548df09ba02808f886fa13d15fffdf2c9a5c7b306b90db5470",
+    "internal/writing/grammar_alerts.go": "69f6b6db284d1cf77e843d7f48ef1f9819aa8943583c160008aea57b12132b20",
+    "internal/writing/grammar_adapter.go": "25c4a63bd0ed5ecc2b7221512a338b82c3977312df2bce11387f219134a05344",
+    "internal/writing/relocation.go": "a2c00f01dccc334d9aa4a22a374d89df4a57bb2e2aa6e30c175772bd2a457143",
+    "internal/writing/budget.go": "7592d65b339e02573c92b46fc4067e66618bd878948304a927944a676204a4b0",
+    "internal/writing/vale.go": "7adae592711bfc99663dc854f5b0daef9e825a1de3d5b7f6ecb9e8a9b682f687",
+    "internal/desktop/vault_watcher_index.go": "203f6ab7b5286640c2c01208578dd03734474f7a10bd298b829334c5d392d935",
+    "internal/desktop/app_print.go": "d809866873003ffc388f8c316cb1e6ebd3b99fa2201caebfcab3b24602fcb7bf",
+    "internal/desktop/app_writing_lenses.go": "b4cf24afe95d8b5b1a58272f92983776e0dff0e0e290d057b61aff3ac3366537",
+    "internal/desktop/desktop_other.go": "0235803cfd120438a75fac0684ef30c5169032d19086fef0f2cb3a4684dcd9e2",
+    "internal/desktop/task_schedule_projection.go": "f1480cf8833f8cf2aef4772f093b51ba589794db16752129300be61a9aed8d6d",
+    "internal/desktop/task_schedule_changes.go": "33db9c1b61f5ea6788a41c60fcf9c6452083201cbf5e598c0fb07b5f63836017",
+    "internal/desktop/vault_index_startup.go": "05ebe0f0c6dcef9c93808dd889c63060eedc1675bbf66f56aa05207f22b6882d",
+    "internal/desktop/pdf_safari_darwin.go": "029516f42ae33306d8195bfa4a6731466571eed7c2ae25c35f0928f02db0a250",
+    "internal/desktop/app_writing_analysis.go": "5ff301612841b5e61585a564d3341ac43c417094f686114b41aa0ff7ce1a4615",
+    "internal/desktop/app.go": "00181f6b134a02b6f623150d17abe367599d7f1ebdd171b06499e2d985de38ac",
+    "internal/desktop/kanban_due.go": "064757bee31ee6f81da2e7536c972eb7c2f64ff41e7235f961a72e38318c94e7",
+    "internal/desktop/app_graph.go": "d41127cdd505ed978ddaa7e6f4eec00ff6243a8e9207bb29b0769cdcbd84f435",
+    "internal/desktop/window_resize.go": "92273560d8e43343766007228e6323053cc01ba4e27db1f6ec532ccd8be948ff",
+    "internal/desktop/file_issues.go": "bf38a772b70a55997735bfdd2a489ccb80ebf3fa7d2cb37d71bb70ceed1b6e61",
+    "internal/desktop/desktop_linux.go": "628319f76ff98feb80197db9f1ddcaf2cdad33524196694e0dcda9c661399a8c",
+    "internal/desktop/history_service.go": "43786acc851906ad796eab6eb27d60b2ab017c667c1454fce81c5f7adc140c1a",
+    "internal/desktop/pdf_safari_darwin_nocgo.go": "9d1f6a72f0264723c5379d31b7d8165b5259f172968991b26ed9a8deab939886",
+    "internal/desktop/pdf_viewer_darwin.go": "86dff26d471c6b1d1041a003fd72a8d561096ffb4f8b7239653d3f0d372add53",
+    "internal/desktop/runtime_bridge.go": "e66e810b1251a41a5e528527e4408c7d95f7414430a93b1c9aa42453477d8750",
+    "internal/desktop/app_documents.go": "7e763e748b471806e94376a6ba6de6a26bb5e6bd044313f25918a4629c5ebf34",
+    "internal/desktop/pdf_viewer_other.go": "44d669a9c9313754abe7526af00e044938b544341a3b16d3a1b9e70538e6e608",
+    "internal/desktop/external_file_registry.go": "dcd583d7f1f6e7baf66b7d1f4ad9f535de8b9fea2b6ff631ef8040034d789a4c",
+    "internal/desktop/vaultfs.go": "5d8a1cfbf22e3580d119d6d5304f3a034df8aa0a197e377f9d961428291b0456",
+    "internal/desktop/startup_logs.go": "04a28bc6b8932076fdce7f4c00892b88ddf555e4223a53eedf16ce27b40a806d",
+    "internal/desktop/app_window.go": "d5fb73bcbdd62628e7999308878637b2337ac4cd3465a9a93f0869508ed4df79",
+    "internal/desktop/relationship_paths.go": "d5cfc2e74a0bf0b38abaab9831dc19241d0fc5111dc0bc2645a0bb6aec381ed6",
+    "internal/desktop/window_runtime.go": "b9b6f2b6d25dd0777927610febeae35bd9022792c3a054b75e4510a1f6086cd4",
+    "internal/desktop/app_preferences.go": "ef7858f4548b0d47d66fc431e6988005833b174dea05f73c0af4b046f82ec3b0",
+    "internal/desktop/app_file_tree.go": "8967a25a7cd4874218a6cbbeaaf28856f7ca4fa3cc221bde4d1a2ac9b8493c77",
+    "internal/desktop/pdf_viewer_start.go": "2c36b2dbc2995f1517f18a5d257f48a3bf07863c4bd46018bcf425c44cee58dc",
+    "internal/desktop/app_vault_mutations.go": "07eb9f739d253224565c6fa302f89e4a86ab63520fff18e8bf711ddd873b6983",
+    "internal/desktop/vault_index.go": "e973e2c645d80d4a568de76adc04a680b28ad7aeafda69b779a1301c4f482e72",
+    "internal/desktop/window_state.go": "a1b1c4033e19f1a6506b49fc05b91cb82afbcee5107a361da0cd642dd822802b",
+    "internal/desktop/app_merge.go": "46bb3af4ddccdb4cbf4382e08fd81223f629cee6c9bf98316f4ea0ac871a4a7d",
+    "internal/desktop/app_session.go": "174cec7f373a25ce5e8f3b013cf0ab9bd96d01e47b5aab5b8a52af40dd850d05",
+    "internal/desktop/writing_relocation.go": "511e7009e7b5bbb49e0572c90e826bde90ab3a88d7d155e15153e64dcf49cc80",
+    "internal/desktop/calendar_index.go": "de5672953a2d858c32afc6753ec9c44a381a04897405cf2b7009a67ad41a14d2",
+    "internal/desktop/app_spelling_dictionary.go": "06140842eefb432c876b97b897daa3790ac4e8481a620bc11b9dada0f1f805df",
+    "internal/desktop/pdf_viewer_windows.go": "4797684eb20ce201c736be8e1f10c41d27a1ae3fd58cc922bc6383bbfcddc97b",
+    "internal/desktop/drawio.go": "3627f649e24021c70b80462047e3f0d8511757b97d86c3924e606307f5d567bc",
+    "internal/desktop/file_save_followup.go": "14b3a551ebbf729e69a39bbe4338857f500cbf4dd4f4ca2ac84a35b3639a8526",
+    "internal/desktop/app_writing_decisions.go": "fed40bba42db9ccf6c93109f223faf7e0469eb6b30999de27418178f8839edc6",
+    "internal/desktop/vault_health.go": "9012a8ac3fdd3d35cab36bd45b1920b7b080be8b0ac9f558a9589f91a803cf98",
+    "internal/desktop/app_search.go": "31d8f54d8b47a9669a3d1f400303c6e318b5fa93a438d339780fc0dce1b507da",
+    "internal/desktop/app_kanban.go": "9ece9373db6cf41c16335fab4a2dcc6973744d2551c58af6bd745947fa24966f",
+    "internal/desktop/backlink_rewrite.go": "c8d0df40b2f5215e59b450bd5b3694c86eec6cdc42b1389aea4ebb0da75e3c19",
+    "internal/desktop/vault_watcher.go": "8e977dd5b8ca4763d539679bf31733cc17b50396614fce0dbdea9c906945fe81",
+    "internal/desktop/activity_relocation.go": "b0218f3c7d3ad5b70eae24c1a34f31444dd0b14a1d086dafee552a8fe3a1e856",
+    "internal/desktop/link_style.go": "7b0ff490a0f23e1c7aaa5918757603a9d129c76ba432c5e447d699a3e2a94292",
+    "internal/desktop/run.go": "587301a316df178d6992fe064f630fe2c043da57aab5d8b830de7aabbca6c646",
+    "internal/desktop/app_calendar.go": "36487b141948ce1e37ad3fb5bc113fa29b184876951e0c238641ebed628197d1",
+    "internal/desktop/relationships.go": "68104f8b933fb6df35c93677891cfb76af65b385a3f1533e816724e931e8a74f",
+    "internal/desktop/app_external_import.go": "02bb562054f018da5fce1570e3187a43a00cb5a137802e575d81c358b8edadd0",
+    "internal/desktop/app_reveal.go": "4d8f79925eea4e81cddaddb1e186b5f049463b18dde055b6c251db75f6c3ac79",
+    "internal/desktop/pdf_safari_stub.go": "75e88b4bb2d830d814e8dcc4bef50add6641544a852dd2e85c8ecea6bbc1cda5",
+    "internal/desktop/pdf_export.go": "82f7d422b42933d967e2bafa67ada099e422db4e82b57659d6d320fdc65b3a76",
+    "internal/desktop/recently_deleted.go": "e68f0f6b9a59d941f8603dff3835378ad7b74099ba0c5a5b517bbeb85e4b2676",
+    "internal/desktop/machine_settings.go": "7f405e01537affe7c5a3a30dadcb449d56c66da9a3abaed6a919b4b7808d360e",
+    "internal/desktop/file_tree_styles.go": "9cd74b704cd46e4ab19f783b0c86462ad5201c3ac8eb552f2c1414f830e28a58",
+    "internal/desktop/vault_loading.go": "07a1cd0acecfcfb5aa8503bdd1f65ea90fc87e7022bb17a0793b4925813c283c",
+    "internal/desktop/app_settings.go": "7cef5ebb21fcf45d6cc3d4e21feb798b3285f41d65d5f1804a4fc7c025e98c47",
+    "internal/desktop/task_schedules.go": "3ad09328abf658eeae878346ab5a7b4405a5f3f3c0661e8fa3ea44ab30de7128",
+    "internal/desktop/kanban_order.go": "f4a7b44406503f2ed45a84d00acd303ab315fe4716481e311e6b89955c759385",
+    "internal/desktop/pdf_viewer_linux.go": "3ffc53403f7ed6d65c03e39a18226dda88186c7e05742277261ea76ad18551b0",
+    "internal/notes/save.go": "f7ff5cf02c5e05260241731672b502dfc9e2fc434083c1a3a99eddf0eff29314",
+    "internal/history/commit_file.go": "7713076f598b9244aa99294a6d577544a1aaf897b3c03a2d121e05faca6a9151",
+    "internal/history/activity_paths.go": "d035b4b230ec1843e18e33de1bb38a3ad71140dfb2ec1cf283dc5ed246de82d8",
+    "internal/history/ignore_plan.go": "777851c30cb6fc5be11a6c4d325c0b5e455a09fe0a636229b33340750dcdab90",
+    "internal/history/path_status.go": "1148320879a0d803df758d46b28081afad3f16c970a745566687a43d8fb548b9",
+    "internal/history/activity.go": "c52ef2350d2ce6160401cbb3a8a966e03bf9f7c62b19633c2cd3712546798123",
+    "internal/history/commit_plan.go": "b259049e5533f482060ebd79efa0a3eb6736ee3a638d5050a0f0058e95b19800",
+    "internal/history/service.go": "d32b4ea48262f66fb0ec1c62ba53a495c95544879e0e5ea22a0b5919c82b3f5f",
+    "internal/writing/grammar/noun_verb.go": "6f07b2813e15ed922edb8da648728e6d005f47ffd2d3769451711264f25d14b5",
+    "internal/writing/grammar/grammar.go": "699e9d984835f3e4558b57a18ca8ef23dc3c636b680fac35ae712a73bab2d31a",
+    "internal/writing/grammar/pronouns.go": "c35bee3264df73b473a01bc75aa9a2fcdf631bdbc94e24152dbb93fc673216bb",
+    "internal/writing/grammar/homophone_context.go": "cb2cfbcdbe164076825da41d26a7db8ef8eefb7930bc45b86c327708db8bfe53",
+    "internal/writing/grammar/constructions.go": "7e7bd51ad2c088c0019c8d93888dbbe63d71accbd5244dc35883cf92e7357dc4",
+    "internal/writing/grammar/word_choice.go": "a80f5e0979d61af49fd6737a0db5c98b22d016e29c87e04fb0a5a7e75c3f8732",
+    "internal/writing/grammar/nouns.go": "133d46bb07a530737912e62f25f5d07a38b0a49f11372663645c298cc96f653e",
+    "internal/writing/grammar/context.go": "f084bf3d6a8091303ee32c4e7fe92bdf5b1f409a031ae1fa48487daf909c93f0",
+    "internal/writing/grammar/verbs.go": "bf87e66b18c66f5be2e250aef15400caf6911a568a64449052eb168b12243f2a",
+    "internal/writing/grammar/mechanics.go": "5f3e898acb67308c3feedaba49a2d24d996b85d576c74bba2b6dbc2101d6245c",
+    "internal/writing/grammar/morphology.go": "0945e639c24a27099226db8c471b5de62bcce8fe4fbddf8f3581c938c5c33ca2",
+    "internal/writing/grammar/phrase_rules.go": "6a8ba8b722ce1a8f70ec1cd5f0b5f0744e21b268cc231c7ac37c82bc8afbeb16",
+    "internal/writing/grammar/homophones.go": "dce26105a11941a010ae56d574ea345979dbc63c87b331be690e8a54f126632b",
+    "internal/writing/grammar/phrases.go": "d8124a689c27163e40a26fbf1250746e109be8ee7b58bc9cf041c32af6e60727",
+    "frontend/vendored/importmap.json": "1a058a1baf284d415d5f16bc8a85340cd0b2e5340c3ba006074d87f537030a23",
+    "frontend/vendored/crelt/index.js": "924800defa2bf95a0bfd16dde589ecebbcd9e36b03635274da84968c77a3721e",
+    "frontend/vendored/spellcheck/es-LICENSE": "a21581497f07b5e550e438d26890ea2b1704492357de67740613bd589b1c652a",
+    "frontend/vendored/spellcheck/nspell-LICENSE": "ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d",
+    "frontend/vendored/spellcheck/en-GB.aff": "8ae1f19d4840d957728ad90555d5a8dff6cc5c046279c95ff0c00fc0a0136c7b",
+    "frontend/vendored/spellcheck/en-GB.dic": "869fe17ba4ee4b5401c60a666ee2d6a3dcc237f460b7294435df1cc6a799aa57",
+    "frontend/vendored/spellcheck/es.dic": "907f786a8ceb3456722b20ad91dd4dbe99c5c16e45015ea63155e36f26b06d2c",
+    "frontend/vendored/spellcheck/en-US.aff": "8ae1f19d4840d957728ad90555d5a8dff6cc5c046279c95ff0c00fc0a0136c7b",
+    "frontend/vendored/spellcheck/en-GB-LICENSE": "81b644347b40804c25811267efbea024a30b2bb1642fefa9c9c50f7b0bbcb67f",
+    "frontend/vendored/spellcheck/en-US-LICENSE": "2a7e8d8ae9e8facc84818546ae2a8d83aec5e9c80a675ff789acd1c338b53b3d",
+    "frontend/vendored/spellcheck/en-US.dic": "f0b1a234bd178bdd01875b2a392a9647f888b8fe879f79c52aae62c2759b3647",
+    "frontend/vendored/spellcheck/nspell.js": "78bda9b6109d04827855173f3583b7fa2d6ec0a9254e01c384b0b34b61a882c0",
+    "frontend/vendored/spellcheck/es.aff": "892039d59db11d747061b81c3a92a52d48ba0e055b5835af1943cbd3c2fba85b",
+    "frontend/vendored/markdown-it/index.js": "36c258381b663c9e54c109092b845f91493c0ddf51322797b84ee2aeb1fd1b2c",
+    "frontend/vendored/turndown/index.js": "3bcd2dd53d6eb3f7a8ed2363404c8869d92cfcaae7a76dca2d556e7ec4cb1f42",
+    "frontend/vendored/turndown/LICENSE": "a055e3a15db4b4cbb5af381230eba085603126d7d5d8c4dae45ee85b877a9729",
+    "frontend/vendored/markdown-it-plugins/LICENSES.md": "022376f0ed015e2bbe2738b9e63f2ee32d1addc8ca9f2a62cdcade93ab81f8c4",
+    "frontend/vendored/markdown-it-plugins/index.js": "e79ee1e6506e1acaa87150cab57717436f0191fcd53745cd8687b329c4efa10a",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-anchor.LICENSE": "064bc64e8647a52e96cd677f5eefa5cc33c50d5ad0a57c6a09af63ee9ed116df",
+    "frontend/vendored/markdown-it-plugins/manifest.json": "40f0cd9774dd1ad0cd1fd38b3eb711023d38a896cb441606dc702c69eb5cdb25",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-footnote.LICENSE": "c54b802231f8a715808d4ac73ef3df71aa2a68848b6aa49febdc383c0f9bfdbe",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-mark.LICENSE": "064bc64e8647a52e96cd677f5eefa5cc33c50d5ad0a57c6a09af63ee9ed116df",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-tex.LICENSE": "8b0b04396771e4773d03d2b07ecc54bc3efd42cb82d105b4c88988dadb58e2ca",
+    "frontend/vendored/markdown-it-plugins/@mdit__helper.LICENSE": "dbce1df8ee5bd72544721386ec2a0e55ab7b5ab2167b2ef3e1a807b51f503a16",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-sup.LICENSE": "064bc64e8647a52e96cd677f5eefa5cc33c50d5ad0a57c6a09af63ee9ed116df",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-tasklist.LICENSE": "c0f84905acfe5b8fbda2ea09888f94dc3b2da1a8b4cd34dd31da7cf6724c14b3",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-katex.LICENSE": "064bc64e8647a52e96cd677f5eefa5cc33c50d5ad0a57c6a09af63ee9ed116df",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-sub.LICENSE": "064bc64e8647a52e96cd677f5eefa5cc33c50d5ad0a57c6a09af63ee9ed116df",
+    "frontend/vendored/markdown-it-plugins/@mdit__plugin-inline-rule.LICENSE": "064bc64e8647a52e96cd677f5eefa5cc33c50d5ad0a57c6a09af63ee9ed116df",
+    "frontend/vendored/vega/vega.min.js": "463f3db6a40b20e9747b4ed38f37ed0add508838f9141b1cf8366784b07b30c8",
+    "frontend/vendored/vega/vega-embed.min.js": "12d02acfbe3ec59ef9a37dd4822a2e04e2961b5bbb671bbe661d2221715b99da",
+    "frontend/vendored/vega/vega-lite.min.js": "58c27358e26f2d319cf62f45bc17a4c8362f08645001df2ec8d341eee4097c7f",
+    "frontend/vendored/style-mod/index.js": "4bd6b34edda52f362553d33df7e3a10f31fbdc0c95125aabec89c4de6be80b0a",
+    "frontend/vendored/style-mod/index.d.ts": "fe9dd679e568dc2a0e5e6959f77b53f8bc1f126d46b0d17631347ba57470b808",
+    "frontend/vendored/mermaid-examples/index.js": "b51d94089702c56c1c48ea40c4faba61e508a6375494298aa3d6cd32c2bfe497",
+    "frontend/vendored/mermaid-examples/LICENSE": "ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80",
+    "frontend/vendored/w3c-keyname/index.js": "b649dec4f01c7c5eb05be4641b5b698c6938231ee50b38e17a2f0f822ca3df2e",
+    "frontend/vendored/w3c-keyname/index.d.ts": "1579edb3e801f25d47773f18ca78a25a5996747d7fb888e7b70190cc38e4ea85",
+    "frontend/vendored/writing/runtime.js": "5b6db12c766cf2f6ddbadd6e802905e64bbbaf7354b45198bc31b5f7895aa01b",
+    "frontend/vendored/writing/words.js": "32ac87b77fd26a22a4066a80b59b5af626bf09775e2ed140344cc67e63462541",
+    "frontend/vendored/writing/NOTICES.txt": "3da2c6ec68cf6c2d95e949ec505caaae0ac3593be35ac188c5d4f085c307c2eb",
+    "frontend/vendored/codemirror-live-markdown/index.js": "8773569537cc4913b250232f8e5ce5cc1945668152c0f7f114e5bc50bf3091d4",
+    "frontend/vendored/codemirror-live-markdown/README.md": "4b38207147bc8286ce6df81d0d4f2cc782714c637336def4706deb06bdc36b06",
+    "frontend/vendored/codemirror-live-markdown/index.js.map": "1625a1825e2fdef5bb3122272025cc192fb78d36bea02961d4d300b2b3982a5f",
+    "frontend/vendored/mermaid/mermaid.min.js": "74d7c46dabca328c2294733910a8aa1ed0c37451776e8d5295da38a2b758fb9b",
+    "frontend/vendored/fonts/inter.css": "cdde0711bce756f21ac20abc5f633ce8ccf6dbaa94b3727a2fad066c6eb37150",
+    "frontend/vendored/fonts/inter-latin-ext.woff2": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956",
+    "frontend/vendored/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "frontend/vendored/lucide/LICENSE": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+    "frontend/vendored/lucide/lucide.min.js": "e37f337f85a50b1af4c830cb46e32545201ab6625f00deacf42721bf33ff0de0",
+    "frontend/vendored/katex/manifest.json": "a6d4493152da83af33b22240911b7af7c813b8eb5f2a54c6e0c492876ff15afd",
+    "frontend/vendored/katex/LICENSE": "766ccc1f306c885aa45542a9846bbd0a505b27a0374f146778171c2254ce18e3",
+    "frontend/vendored/lezer/python/index.js": "47135244f8db0253e8cc7c01115f6cb86049a094936209091e6ca32c01258224",
+    "frontend/vendored/lezer/python/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/python/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/python/index.cjs": "e5a41a8de4f1b8576623604ba414a78e75af501cc3f5804fee60d1238bef728c",
+    "frontend/vendored/lezer/rust/index.js": "c416aa8eecbc3211319464e88d32c45d8ed3f5946356ae2232271e56b921d651",
+    "frontend/vendored/lezer/rust/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/rust/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/rust/index.cjs": "a5ccc8ba9a1f777fdc57030601821f77404c707765fe06dcfb2dda7878e7e9c2",
+    "frontend/vendored/lezer/common/index.js": "dab441db7948aae93b8a210d30a0481125bcb8943b129a8c5ebec1354a029e8d",
+    "frontend/vendored/lezer/common/index.d.ts": "54e76a6612d9b83fde2b1cc0569f20c5b8d38f7a860b88a1d9d805399bfeead3",
+    "frontend/vendored/lezer/common/index.d.cts": "54e76a6612d9b83fde2b1cc0569f20c5b8d38f7a860b88a1d9d805399bfeead3",
+    "frontend/vendored/lezer/common/index.cjs": "db74dcfc8a2eae29ccb2f2dffa9b48482c8258eb2b3158cb23ae0d4af3624013",
+    "frontend/vendored/lezer/sass/index.js": "06661f9311a62c59c140d38d8c28f4b7e4b0eab5d346f11ee0a705107a2a65a5",
+    "frontend/vendored/lezer/sass/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/sass/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/sass/index.cjs": "a45ccc1ac4a7a9694679b0d1d8d2bcf71166209567ec0317a46fab63e943a078",
+    "frontend/vendored/lezer/lr/constants.js": "2117b959d8ef1c0ce917c89be9ef0a9c0c2307e262bd24f3fbc4ebb666f55a6a",
+    "frontend/vendored/lezer/lr/index.js": "8d9b94f7c47b5226914e60613ec8bb49c3c3043df4e8d78ee7d19852fe34d582",
+    "frontend/vendored/lezer/lr/index.d.ts": "5a4ddf80b1bdab540fe5d3f837921e9e8dc559a1a319e75451c30f0d5f62ac0f",
+    "frontend/vendored/lezer/lr/index.d.cts": "5a4ddf80b1bdab540fe5d3f837921e9e8dc559a1a319e75451c30f0d5f62ac0f",
+    "frontend/vendored/lezer/lr/constants.d.ts": "bf6819dc33af91ee5bb7fb80ac842dee88d065e58c14ea94d27e8372483f9055",
+    "frontend/vendored/lezer/lr/index.cjs": "778d5b51c0817a4c20c9ab483109a192ebdc6df57701e159d8aab7c40a1f16c7",
+    "frontend/vendored/lezer/css/index.js": "77421a444cb93206180f036ded972dc541f7780c11c8a0be59a70cd8c057c1bf",
+    "frontend/vendored/lezer/css/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/css/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/css/index.cjs": "d0348c923acf6f02fb6fd9dbd103664cbc6491ff2dfe400ab5612cf5c7d64081",
+    "frontend/vendored/lezer/javascript/index.js": "184d175bd9d6e29e4bcb4853719bfe4d50ef66dcc3a867bff1c98ed88edfbf28",
+    "frontend/vendored/lezer/javascript/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/javascript/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/javascript/index.cjs": "e2adde9155790ddb888db4b97c7deba2de3e3e9a71f8289f483c149c910a86f3",
+    "frontend/vendored/lezer/html/index.js": "fd4c7f475d40e7cb86346c7c18bbaf0902492a995b03cf372adb8b2a33cc8829",
+    "frontend/vendored/lezer/html/index.d.ts": "91048da56a48a993b2899b1535ae237c9465c3215fa06bae527a74a01ab9515c",
+    "frontend/vendored/lezer/html/index.d.cts": "91048da56a48a993b2899b1535ae237c9465c3215fa06bae527a74a01ab9515c",
+    "frontend/vendored/lezer/html/index.cjs": "a56a1b382e1b337a82bc215aadab8f9d1cedc4df125c8f1071a538e12cbc0cfd",
+    "frontend/vendored/lezer/cpp/index.js": "72eeca221a2ea0aa64c5e7551e5734618032f748aac49ece01cf92b51fea3305",
+    "frontend/vendored/lezer/cpp/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/cpp/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/cpp/index.cjs": "b50c3777afe440c9ab2b9b6cd24412be402a5fe80c6aada9d6b791545cc756f6",
+    "frontend/vendored/lezer/highlight/index.js": "01969c7657e12fa125543d7bfd1d6591f411fa92e5cae468ef00222a1018322f",
+    "frontend/vendored/lezer/highlight/index.d.ts": "0c6ef3deba595b7dc7b4ee09342435c7a2392fe7752e335acdedfe2476529638",
+    "frontend/vendored/lezer/highlight/index.d.cts": "0c6ef3deba595b7dc7b4ee09342435c7a2392fe7752e335acdedfe2476529638",
+    "frontend/vendored/lezer/highlight/index.cjs": "7b4a96be4ac075b684dd5d0b218c0110b02d5d1116ec174b15889292fa116137",
+    "frontend/vendored/lezer/json/index.js": "3310e7216620dc17c6bdfb1665f774e7b0b29918e761ccc74a7e2a83f039a735",
+    "frontend/vendored/lezer/json/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/json/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/json/index.cjs": "e04f08c467d1611984d8de27e00d2faa6cb32abe8c387ad704a4fb9e7887d045",
+    "frontend/vendored/lezer/markdown/index.js": "7fefe4244953c37fe16634a264c83e28c25356d91133f10b90f9d5a08ae16e9c",
+    "frontend/vendored/lezer/markdown/index.d.ts": "5c9056189dccbbc1bc5ae496d5faaacd5ad3490e940563ac5d19ea4b42a3e180",
+    "frontend/vendored/lezer/markdown/index.d.cts": "5c9056189dccbbc1bc5ae496d5faaacd5ad3490e940563ac5d19ea4b42a3e180",
+    "frontend/vendored/lezer/markdown/index.cjs": "72d79eb50be18e86856a7f630c1af49473e6eb6d434fdf2a39379fc82223932f",
+    "frontend/vendored/lezer/go/index.js": "55ee4bb362e7f481a0915a8fd9eae5bea84d1a476916fda50180e1956d34966f",
+    "frontend/vendored/lezer/go/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/go/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/go/index.cjs": "a9d5fb483c5438c6523eb60764c4bc8888668f5ee89990626406fe5c3b895967",
+    "frontend/vendored/lezer/php/index.js": "f68642736e67e5ef86b21615a4b6182c38efa3377a0d432e31f04c5c6bf2aa76",
+    "frontend/vendored/lezer/php/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/php/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/php/index.cjs": "4dc3ee9ec9f59925b1f040ec84384b9c77b5bd292685ca83e77b17d782b00db3",
+    "frontend/vendored/lezer/yaml/index.js": "761bb6fa2f88915f916b33429b8d0f06639efe288b695c8abc6f32c0d116c9c5",
+    "frontend/vendored/lezer/yaml/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/yaml/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/yaml/index.cjs": "7cd304145c9dcebe623d739c9291ccefc3012f7ac91c18003dec8489623615b2",
+    "frontend/vendored/lezer/xml/index.js": "d1d35ac0d32592a1da777894669f139d25d5125ce79f205f0aa9ebee366fdba3",
+    "frontend/vendored/lezer/xml/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/xml/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/xml/index.cjs": "b975e854c52e3e2994fa6b23171910ded93fac78eb78614e5a94cbd9ba1c3db5",
+    "frontend/vendored/lezer/java/index.js": "182de33707767f2f6a5c68fce3fd35525f193e0c0fee01fcf3ddc8bee1371559",
+    "frontend/vendored/lezer/java/index.d.ts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/java/index.d.cts": "36ad2ab7e5f6342b63b28314dfb52843f8b3ee15f16bf68656a3dfcfed487cf0",
+    "frontend/vendored/lezer/java/index.cjs": "54c2e8226c44df6c505902cddc8c91e3172a12f5392828e2a9784c2bdc22c611",
+    "frontend/vendored/katex/dist/katex.min.js": "2ec5916941ef4383e0314eaabcc712301b06001d9fb68e08d751d2bae5a27a1a",
+    "frontend/vendored/katex/dist/katex.min.css": "180c2d77d434d7da51d6625c50a964d4fd6fdbdb9bc8796a0a016c30c49931fb",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size1-Regular.woff2": "6b47c40166b6dbe21a5dfca7718413f2147fd2399be1ba605d8ad39cedf25dfe",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Bold.ttf": "138ac28d1663b3037e9c5f52371fa5c63d8324f4a38d22cd573e6ea3a3fd0cf8",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size4-Regular.woff2": "a4af7d414440a1c1790825cfb700cf9cf43b0f2c4b04f0ebc523011ad9853ec0",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Caligraphic-Regular.ttf": "ed0b74372feefcbb9c0666b2e210da37b7e49fa7fbbf3eeb11db5f693dacfbb7",
+    "frontend/vendored/katex/dist/fonts/KaTeX_AMS-Regular.woff2": "0cdd387c9590a1a9f9794560022dbb59654a7d86f187aa0c81495ad42d3a7308",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Caligraphic-Regular.woff2": "5d53e70ad607c2352162dec9e0923fb54ecdafaccbf604cd8dcf7d00facb989b",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Fraktur-Bold.woff": "9be7ceb88004ab8ad124082246fbfcca4091e36385d4ec6ed1df67375dad50fb",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Caligraphic-Regular.woff": "3398dd02302557a793f2863f88e02d96ce10df2abffa07c8e9fa90775116e65c",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Math-BoldItalic.ttf": "f9377ab0271cda59af24bcffbd46a4d0c8a3572ffafdbb38de2ad5ea7b0d5ee5",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Script-Regular.woff2": "036d4e95149b69ff9bcc0cd55771efeb25ffa3947293e69acd78d5ac328c684b",
+    "frontend/vendored/katex/dist/fonts/KaTeX_AMS-Regular.woff": "30da91e84c893f875e252689faebdc590b2871145e8adc7f9a9d4dbd8ce0b251",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Typewriter-Regular.ttf": "f01f3e87d9c6a61c0c081ceb577abd864eb00a612f7ac1620dd6915fad2ef5aa",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Bold.woff": "c76c5d696297d51b9cb1639c7da4334f0e7dec81b42b11213b5e25ef671bb822",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size1-Regular.woff": "c943cc986384f59e86bea5fd7dc50a9c4dfe567a7c05eb40d6790720dead97c9",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Italic.ttf": "3931dd81faed86ba021bb2bbdc36f5bed9a38d6b4f4077aca59b265aa1b02083",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Italic.ttf": "0d85ae7cc30f23790a7f1a58c4a112fdca8aae769b6ba11429af1d98b1b6cb3a",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-BoldItalic.woff": "a6f7ec0d846ac7ad975adb8959c37ed49b94acbc4ae436db9ce9e20287e4a64c",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-BoldItalic.woff2": "99cd42a3c072d918f2f44984a807cf7aa16e13545fd0875fc07c6c65f99e715b",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Caligraphic-Bold.woff2": "de7701e42cf1f4cf0b766c03fb27977207eee2f4fd5d76fa82188406da43ea4c",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Bold.woff": "ece03cfd83e22c212cdef66feb8442d25a083beb988db3f1883f3f9738d750ba",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-BoldItalic.ttf": "70ee1f64a20f2048c21940ef46d0144fd215baa953ca69afd1e31e98544f708f",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size4-Regular.ttf": "c647367d1dd4e162468717d020e1fc0f1dc5c26ebfdffbe55261713bf88c5877",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Italic.woff2": "97479ca6cce906abc961ecac96faa5f9ca2e61b8e7670d475826bcdee9a7c267",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Regular.ttf": "f36ea897e19f4a2e571d1e900e4e3710e438deb05a842486045ba0a3e616a4ad",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Fraktur-Regular.woff2": "51814d270d06ff0255dba0799994fa4d8c84d11f09951d47595f4abb1f3602dc",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Regular.woff": "c6368d87e8a1a3a5d337623d83d8dc4b868f242a9ad476237d6f8d1e0f168cdc",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size3-Regular.ttf": "500e04d54f0d51666332c9d2089aa803be22aa878eca539e59fa53c6e522b082",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size3-Regular.woff": "6ab6b62e9b62dae2c00dd90f791bd10950be0ecc3490d7d6045f51c2e8fe0949",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size4-Regular.woff": "99f9c6750b489c9462bf04900bd3f939df9b829339daaaaa99ef5495cdddea58",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Math-Italic.woff": "8a8d244581371912b8f3f5a23e2437cb2a59cd9bcaebb0346e722c05737a2571",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size2-Regular.woff2": "d04c54219f9eaec6d4d4fd42dfb28785975a4794d6b2fc71e566b9cd6db842dd",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Regular.ttf": "d0332f52868370fd83ae7fa46470f90c8f2eab2fcf12bc4f88080b340c95a830",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size2-Regular.ttf": "a6b2099fb555c60e3a0db3a08842ebf1d732c6eb4e4bf44913613bed4fc4e39b",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Regular.woff2": "68e8c73ef42afd3ccec58bf0fba302cce448938e7fc020a5e31f8a952eee1342",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Fraktur-Bold.ttf": "9163df9c7122432e6495b4229fa9071cf9ae86a758ae5efc4924ec2e1a6dbce1",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Script-Regular.woff": "d96cdf2b3bdd4d64a8fd5f74a4c467f123a8a73931cd435889f08ffaf9bf947a",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Fraktur-Regular.ttf": "1e6f9579e90e2cac37f8f60a597c436e075c114385652b7cbeb0dec0421291b3",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Math-BoldItalic.woff2": "dc47344dbb6cb5b655c8460d561f4df5f501b90c804ad3c6cec65fe322351ab1",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Bold.woff2": "0f60d1b897938ec918c8ce073092411baf9438f6739465693ff18b0f9d20b021",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Italic.woff2": "00b26ac825e2095056396e0553b8ac26d3f8ad158c3826e28b4c45b385c4714a",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Regular.woff2": "c2342cd8b869e01752a9321dc17213fc40d4d04c79688c1d43f2cf316abd7866",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Math-Italic.woff2": "7af58c5ec8f132a2ddde9027c6d7814decce4d3b822a11192a42a20e2e973264",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Caligraphic-Bold.woff": "1ae6bd7475590e97e7f145a89e09ccde322f7a6bc0b91607b1c8b8ee28290fed",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Bold.ttf": "1ece03f79f95277d57dc7f6b435a74e1379b0d46104a8530286b60ff49369ea0",
+    "frontend/vendored/katex/dist/fonts/KaTeX_AMS-Regular.ttf": "68534840bcfdd2bffb6f0e8deb48684dd01e7f04ea2813267577afb906de1d13",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Typewriter-Regular.woff": "e14fed02b1aba7ce9f5afd5844b5d0321b22351febc720e0de8b8723527609f7",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Caligraphic-Bold.ttf": "07d8e303ce4fc12b4bb54f1004170dd190a1f3db45d400fe68060df3e0897268",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Math-BoldItalic.woff": "850c0af5c2238497febaf5e461d880bf458c341f42f4f330f1b1ab5698b1998e",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Italic.woff": "91ee67500cc0129aa0ace3ac5c61ff1692102f0f31d02b69347fba35dcb75bf2",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Fraktur-Bold.woff2": "74444efd593c005e3f4573b44524704c0af0a937fe911cca9e94068d0d140d3f",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Script-Regular.ttf": "1c67f068fea8bb09bf099c088b1cf64bd27516a6e07f4684344873564bb66a67",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Main-Italic.woff": "f1d6ef86f3b11a528bd5185199bd2443ecb2b0dead96d88674b5a2c12be24bdf",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Fraktur-Regular.woff": "5e28753be717dac97f559f49bc10be9cf3c124ddcabda6659d11cb68febc6463",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Typewriter-Regular.woff2": "71d517d67827787cfabdf186914cc3358eda539e37931941f2b2fd4a21f68c0b",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size1-Regular.ttf": "95b6d2f1a50173bfedb8c63e1d1c99b10427d0a4df4201cb44513b226951a22b",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size3-Regular.woff2": "73d591271b1604960cb10bb90fee021670af7297017e0e98480b332d11f51995",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Math-Italic.ttf": "08ce98e51b04d58945a301e639e02b6998af29fdfd61a7b8afdd07bbfc479d4a",
+    "frontend/vendored/katex/dist/fonts/KaTeX_Size2-Regular.woff": "2014c523c3210bcc166648c4d4cc57f05b747df07a24277bf71c51e67dc79e3d",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Bold.woff2": "e99ae51144bf1232efcc1bfe5add36262c6866b0faab24fa75740e1b98577a62",
+    "frontend/vendored/katex/dist/fonts/KaTeX_SansSerif-Regular.woff": "11e4dc8a6471ff6d6ee561d53d10fde8f7489e798257ff449c5d37c197435605",
+    "frontend/vendored/@replit/codemirror-vim/README.md": "b3361ffd0f74dd2098d21c98168da2bf5205b1e390c5cceddc89a58d160e57ff",
+    "frontend/vendored/@replit/codemirror-vim/package.json": "9835a81f26166934db5d326d1fec00b053345a4c00105a5b76bce95645444381",
+    "frontend/vendored/@replit/codemirror-vim/LICENSE": "aa8f65819a471c1a25fb3c0816c5a75e45f009b7899d292ee3cc70d9dbdd8f7e",
+    "frontend/vendored/@replit/codemirror-indentation-markers/dist/index.js": "270ced89b30b6473cbd87c40ea15a065f2311f6ef8a06f4b59319a3ea3ce850c",
+    "frontend/vendored/@replit/codemirror-vim/dist/index.js": "6fefe847dc3cfcc816ce5033cc2bdd61473f5e50aca5552cc1f2cb11d0ae0337",
+    "frontend/vendored/@replit/codemirror-vim/dist/index.d.ts": "9c7df418c941ae7ba535291793b91048ccbc4ec4b1eda806efcb93f6ff39da3c",
+    "frontend/vendored/@replit/codemirror-vim/dist/index.d.cts": "9c7df418c941ae7ba535291793b91048ccbc4ec4b1eda806efcb93f6ff39da3c",
+    "frontend/vendored/@replit/codemirror-vim/dist/index.cjs": "59faa035789c51ee57255177458c518d2a4e22fbbdf65cefca8cc75b70e9742e",
+    "frontend/vendored/codemirror/lang-javascript/index.js": "3f6f84c3139a3e2601e2c81c9b26f80e5bcc4ba2da4e493303c74d948a327400",
+    "frontend/vendored/codemirror/lang-javascript/index.d.ts": "3282b8668ebf36b1a79d70a09b015e5301e76ffa4f9e8a2042bbbfe03cd934d5",
+    "frontend/vendored/codemirror/lang-javascript/index.d.cts": "3282b8668ebf36b1a79d70a09b015e5301e76ffa4f9e8a2042bbbfe03cd934d5",
+    "frontend/vendored/codemirror/lang-javascript/index.cjs": "85086af4aa0f197d88080d2a72a7e16b7c056d3353a834b6f49589c1059bd477",
+    "frontend/vendored/codemirror/commands/index.js": "395c41fb17d4966162e8d29106e438278123bc3a3fa1b11825debdf1523594a4",
+    "frontend/vendored/codemirror/commands/index.d.ts": "50b94d7fa8ac92acc8a36d65de47b07fa84146b6577ccb3f2c06c5f324384e6f",
+    "frontend/vendored/codemirror/commands/index.d.cts": "50b94d7fa8ac92acc8a36d65de47b07fa84146b6577ccb3f2c06c5f324384e6f",
+    "frontend/vendored/codemirror/commands/index.cjs": "83991d65cb9341e10e29c2da08c08106f2ad6bbc79ab5f9a83558e9a882be23e",
+    "frontend/vendored/codemirror/lang-html/index.js": "6f608aaeb92179d873e487060d006a5859fa382de6ceb827935bb9a1f724191f",
+    "frontend/vendored/codemirror/lang-html/index.d.ts": "93200a234871de4f1a6393a3144929409e06c1e1cc912a2f0d0bac3e3f6cb610",
+    "frontend/vendored/codemirror/lang-html/index.d.cts": "93200a234871de4f1a6393a3144929409e06c1e1cc912a2f0d0bac3e3f6cb610",
+    "frontend/vendored/codemirror/lang-html/index.cjs": "08b1f5d75549fdf692589185a31490cced0bc3a7b0fbbea0aa8d7b1ea2fcd960",
+    "frontend/vendored/codemirror/lang-json/index.js": "5472a597498460db724d830a6852ed643eec267bfac3aab1498e8fd83cfd4e60",
+    "frontend/vendored/codemirror/lang-json/index.d.ts": "626e531e56621998a9d6488eb25c93f4091fd7a5484724458925b1ef0982a778",
+    "frontend/vendored/codemirror/lang-json/index.d.cts": "626e531e56621998a9d6488eb25c93f4091fd7a5484724458925b1ef0982a778",
+    "frontend/vendored/codemirror/lang-json/index.cjs": "8679060d8a1bfb9ec2c7e212e0e564ea8c3bbb5d452c95017b53936e056a9577",
+    "frontend/vendored/codemirror/lang-sass/index.js": "a756607742be0cc08332c40d9a1cad5984569701de18ad2d1783611947de9772",
+    "frontend/vendored/codemirror/lang-sass/index.d.ts": "90a5608aefe55e643b0e1ecc5c0bdba493577799aba2bbd6afd9fd9065a83e14",
+    "frontend/vendored/codemirror/lang-sass/index.d.cts": "90a5608aefe55e643b0e1ecc5c0bdba493577799aba2bbd6afd9fd9065a83e14",
+    "frontend/vendored/codemirror/lang-sass/index.cjs": "c03417ee2071671bc6f95d8b367270b2dacdc59d91f20e16b6368ba7d76f0c6e",
+    "frontend/vendored/codemirror/lang-xml/index.js": "c72ba8719b8890702397481cc95fe82939dcbf51f7b5e8d4c5d62e8c9026150d",
+    "frontend/vendored/codemirror/lang-xml/index.d.ts": "692296a0b5b151c296c6a8fff7fd6254778dcf8cabeceedcf2d0ff6799fb864b",
+    "frontend/vendored/codemirror/lang-xml/index.d.cts": "692296a0b5b151c296c6a8fff7fd6254778dcf8cabeceedcf2d0ff6799fb864b",
+    "frontend/vendored/codemirror/lang-xml/index.cjs": "3c59ae246264d7c248e56f1e95519ed36b0769b7600437d0d9fd39b64d98d460",
+    "frontend/vendored/codemirror/lang-jinja/index.js": "8c4b7b888ddfe4db066a0a29e84026bc81d2668c07a5e670a4d9aa81d2996c69",
+    "frontend/vendored/codemirror/lang-jinja/index.d.ts": "2da0fc435662f37d6bf893c142f688b905a1e88ad67a713f50530eb6eebd97b3",
+    "frontend/vendored/codemirror/lang-jinja/index.d.cts": "2da0fc435662f37d6bf893c142f688b905a1e88ad67a713f50530eb6eebd97b3",
+    "frontend/vendored/codemirror/lang-jinja/index.cjs": "ba40c22a423f21847cfc21d198846d580121f1bbaa188690c2a3d80d80e3c0ab",
+    "frontend/vendored/codemirror/language/index.js": "875ce988fbbed53c47cf4b2aad962afe1d6b23c15ecc40466cdc6be5b59d647e",
+    "frontend/vendored/codemirror/language/index.d.ts": "27cded7bab7de8d841a98dea9b4d8b53c0600f3a0a63e776bf9674b1470ff8ce",
+    "frontend/vendored/codemirror/language/index.d.cts": "27cded7bab7de8d841a98dea9b4d8b53c0600f3a0a63e776bf9674b1470ff8ce",
+    "frontend/vendored/codemirror/language/index.cjs": "34db623cd5be393d2c6e42a8136882a8d4fa36438091bb44093426e08ed0b7f0",
+    "frontend/vendored/codemirror/theme-one-dark/style.min.css": "9943e7dce73110574f501479b0cd0cb4c617dce2af8f0307230d0608d3527546",
+    "frontend/vendored/codemirror/theme-one-dark/index.js": "321fcfa59b7850a91060cad7b2c52c65904d43ee6e4b38dbfba9b992cfdf7446",
+    "frontend/vendored/codemirror/theme-one-dark/index.d.ts": "9001790195bf5cf382c676ded6da44833812e677bb9f31fcb22fa47d389039f4",
+    "frontend/vendored/codemirror/theme-one-dark/index.d.cts": "9001790195bf5cf382c676ded6da44833812e677bb9f31fcb22fa47d389039f4",
+    "frontend/vendored/codemirror/theme-one-dark/index.cjs": "34c57a2de2b8e66b989da42dc0a1a306bc3b0148768d6852d733a97c9c9b9817",
+    "frontend/vendored/codemirror/language-data/index.js": "f47c5d50606a14af8a76048d6825ab93646cb73684e016b8ad02f540d691879f",
+    "frontend/vendored/codemirror/language-data/index.d.ts": "8c321db2f7225e738a2b820d66df7793f56c0443aa4f6aa5aea070ba6638092d",
+    "frontend/vendored/codemirror/language-data/index.d.cts": "8c321db2f7225e738a2b820d66df7793f56c0443aa4f6aa5aea070ba6638092d",
+    "frontend/vendored/codemirror/language-data/index.cjs": "1e733f3d93915f811e3a2d19dcc73b798f8efeac2ce17e89552bf2a2b65db51b",
+    "frontend/vendored/codemirror/lang-css/index.js": "0a7e271ad65f99f43f34a7169acf67ec3ad016f4c7818904b3e34a5c89f40916",
+    "frontend/vendored/codemirror/lang-css/index.d.ts": "2394152d76cc45ad859afde55c9b304c828a037954860404b0d23c726a814ddd",
+    "frontend/vendored/codemirror/lang-css/index.d.cts": "2394152d76cc45ad859afde55c9b304c828a037954860404b0d23c726a814ddd",
+    "frontend/vendored/codemirror/lang-css/index.cjs": "3188b8677b8ddb4f3e3f0efbe1b2a59f527c19569ba15b6bd25e8d238ca88a4c",
+    "frontend/vendored/codemirror/lint/index.js": "199bd59387f9fdc9b7ce6d833153552c4cc2356621d16a2067f79c6887cc4b1d",
+    "frontend/vendored/codemirror/lint/index.d.ts": "b35f88c4ae41d4b085da718dde3ddff0b176337470275fee82ad0aa84858db07",
+    "frontend/vendored/codemirror/lint/index.d.cts": "b35f88c4ae41d4b085da718dde3ddff0b176337470275fee82ad0aa84858db07",
+    "frontend/vendored/codemirror/lint/index.cjs": "08fae86a9ce788a308055252932c268503d1a86f4d70be958121ce677f544cbc",
+    "frontend/vendored/codemirror/lang-go/index.js": "be7f93583f524bfb633b2d650c03e865f372051ae3d30b88e7fdcfdda70b029f",
+    "frontend/vendored/codemirror/lang-go/index.d.ts": "3c97873e261f110209a87e227ae5775036204e5ac3e4689919724f4b5c466fc5",
+    "frontend/vendored/codemirror/lang-go/index.d.cts": "3c97873e261f110209a87e227ae5775036204e5ac3e4689919724f4b5c466fc5",
+    "frontend/vendored/codemirror/lang-go/index.cjs": "8289bf1bf8c29f5de734890d1eaa01eaae9ee5968bb6f6b1baeffeb8579d4694",
+    "frontend/vendored/codemirror/lang-wast/index.js": "4c843f7e69bb8778570eb26cd5f470a95d15f14757348ea91d1403e00f803e83",
+    "frontend/vendored/codemirror/lang-wast/index.d.ts": "74cd067a5c64fc69612721d5070ade1e0695e8e41501b563a71102c4fe30cdf0",
+    "frontend/vendored/codemirror/lang-wast/index.d.cts": "74cd067a5c64fc69612721d5070ade1e0695e8e41501b563a71102c4fe30cdf0",
+    "frontend/vendored/codemirror/lang-wast/index.cjs": "c428686d6e4f2ba06283cf7c45bad2963f77d09cdb90c052134c2e6c82d95222",
+    "frontend/vendored/codemirror/lang-angular/index.js": "bf31ef5368b371a445b8a0429d459e6d3e6adab8238cb1611032aa01f230d66a",
+    "frontend/vendored/codemirror/lang-angular/index.d.ts": "81393475dbab636753e4fae0a6996a233987131e34904a4f1197e2a4fcc76df3",
+    "frontend/vendored/codemirror/lang-angular/index.d.cts": "81393475dbab636753e4fae0a6996a233987131e34904a4f1197e2a4fcc76df3",
+    "frontend/vendored/codemirror/lang-angular/index.cjs": "1f02593e39d57b842b81e4630194bcef46c362c8f7181279912d4a8c554f5058",
+    "frontend/vendored/codemirror/lang-rust/index.js": "8ffa47adb00f293119d03a25e5d920677e8e4cc6db03533cf0fc4b321270b8bc",
+    "frontend/vendored/codemirror/lang-rust/index.d.ts": "33c771e6f353a9ecd890df83961c9359e9da4c61e4b8d4044bf435e1e1c4d613",
+    "frontend/vendored/codemirror/lang-rust/index.d.cts": "33c771e6f353a9ecd890df83961c9359e9da4c61e4b8d4044bf435e1e1c4d613",
+    "frontend/vendored/codemirror/lang-rust/index.cjs": "f5f0e17062a5e4b88f960451866823da4629a855e7b564ba8b0eee7dcc4e40d5",
+    "frontend/vendored/codemirror/lang-sql/index.js": "1bfaf09ca4ba779687f638bb19564e56b66eae3ba1812fda72b1cc2c7cf296d5",
+    "frontend/vendored/codemirror/lang-sql/index.d.ts": "b6299cb4477935a9feaf12efb768d832186f55a7a6703cbd17f64d4cf6be88bc",
+    "frontend/vendored/codemirror/lang-sql/index.d.cts": "b6299cb4477935a9feaf12efb768d832186f55a7a6703cbd17f64d4cf6be88bc",
+    "frontend/vendored/codemirror/lang-sql/index.cjs": "c4366b611479221738fef0841c041cc731ec45628e5bce2dce0d4a03b3481df4",
+    "frontend/vendored/codemirror/lang-cpp/index.js": "30a012d2293ec5d2f817466e3f884a8435e13b2a93668baeb2a908f92e8968db",
+    "frontend/vendored/codemirror/lang-cpp/index.d.ts": "2e99daf0f723960723c69b7fc746e029aee135cee1ab2efc93c735a395ce90e5",
+    "frontend/vendored/codemirror/lang-cpp/index.d.cts": "2e99daf0f723960723c69b7fc746e029aee135cee1ab2efc93c735a395ce90e5",
+    "frontend/vendored/codemirror/lang-cpp/index.cjs": "4a8e80a2fbbdbfab35e63c886860365666b7cfd106ee3484149d2cb341bfb352",
+    "frontend/vendored/codemirror/lang-vue/index.js": "68fe96ec7e1c7afbf57595b1003169d146c8ebf38f263c6b3937694393718cfc",
+    "frontend/vendored/codemirror/lang-vue/index.d.ts": "dfaaf321f7b9669ecc2c9085aabdeceb1c2b4869e8d7bf31ab499f94a05a1b67",
+    "frontend/vendored/codemirror/lang-vue/index.d.cts": "dfaaf321f7b9669ecc2c9085aabdeceb1c2b4869e8d7bf31ab499f94a05a1b67",
+    "frontend/vendored/codemirror/lang-vue/index.cjs": "69eb64a60120298d7151686cb396623bb39538e6bc01a6307361b1e7b2ec51d2",
+    "frontend/vendored/codemirror/search/index.js": "1155a69fb8d6f56c1d644e3e93222348481d6b2df78d6bebcf3293fe209f3fd7",
+    "frontend/vendored/codemirror/search/index.d.ts": "5533dbd6734b05e0f11515082170f4450242b472bcd20741858fe116951ff887",
+    "frontend/vendored/codemirror/search/index.d.cts": "5533dbd6734b05e0f11515082170f4450242b472bcd20741858fe116951ff887",
+    "frontend/vendored/codemirror/search/index.cjs": "5a780b7f84e26b9331104d3469e35c78052a62d6ebbe8693f48f0c35742ee168",
+    "frontend/vendored/codemirror/lang-less/index.js": "889bd9b373ada26b3bfe66942ebea1c4696a812e0bbd5db807f152a08d0b8063",
+    "frontend/vendored/codemirror/lang-less/index.d.ts": "55b5c6c51cecc3eff8adb96b52591706d282473ae45f654847df527c39957ed0",
+    "frontend/vendored/codemirror/lang-less/index.d.cts": "55b5c6c51cecc3eff8adb96b52591706d282473ae45f654847df527c39957ed0",
+    "frontend/vendored/codemirror/lang-less/index.cjs": "72dbd0234258cae7fa69eceb78a1c25b62204ac32899264872ac62f5785d8e93",
+    "frontend/vendored/codemirror/lang-java/index.js": "e0cb6e93fc1a41a016b7634bfcec9bd27d12eb8694f5c394e37dad50dbd68e4c",
+    "frontend/vendored/codemirror/lang-java/index.d.ts": "95dd846f8ee3f817515095d91ab9cc7e2c24841278a06818172047f1f75f98d3",
+    "frontend/vendored/codemirror/lang-java/index.d.cts": "95dd846f8ee3f817515095d91ab9cc7e2c24841278a06818172047f1f75f98d3",
+    "frontend/vendored/codemirror/lang-java/index.cjs": "7e37f9f697a54427f29e902a07bc209574d9c72e78f844b667bfc2265c5480f4",
+    "frontend/vendored/codemirror/state/index.js": "739618b0e9be94924690161d2f27588fc4861a39dc945f50c8e67d266569676c",
+    "frontend/vendored/codemirror/state/index.d.ts": "ed7979834d3ba56cf6391fcb23eac0e550fc58cb322ef76defa83aa9e0a23d22",
+    "frontend/vendored/codemirror/state/index.d.cts": "ed7979834d3ba56cf6391fcb23eac0e550fc58cb322ef76defa83aa9e0a23d22",
+    "frontend/vendored/codemirror/state/index.cjs": "9286966affe4f8dc03185a012ed23bf153081cbf02beea1f3b0ac4c8602f37c3",
+    "frontend/vendored/codemirror/lang-php/index.js": "e1c3ea7b3458bafa8da9c0e286b782b3258e1567c79227cb66243150ec2d5ad0",
+    "frontend/vendored/codemirror/lang-php/index.d.ts": "1d38816ba1aa8564c63f07bc962dac6f516eb12c16e49ef3b6e81f36c6dae094",
+    "frontend/vendored/codemirror/lang-php/index.d.cts": "1d38816ba1aa8564c63f07bc962dac6f516eb12c16e49ef3b6e81f36c6dae094",
+    "frontend/vendored/codemirror/lang-php/index.cjs": "787c27e7d8c7f5194c142f3d0f9b07739451cd2fc04cb614888b8bc3b5df9ddd",
+    "frontend/vendored/codemirror/lang-markdown/index.js": "55d8cfa46628ca5cc907d1a991ed81c6872b392a17673c0b8cde396100b216b7",
+    "frontend/vendored/codemirror/lang-markdown/index.d.ts": "d69508d9daed62ec189eb00ac0f4f2226b0e0156843834ffbf1b58ab316141e3",
+    "frontend/vendored/codemirror/lang-markdown/index.d.cts": "d69508d9daed62ec189eb00ac0f4f2226b0e0156843834ffbf1b58ab316141e3",
+    "frontend/vendored/codemirror/lang-markdown/index.cjs": "fbef0a4eb11d458a47783da78b9fa248807c02040d53f891f087ecd82d9d08a7",
+    "frontend/vendored/codemirror/lang-yaml/index.js": "6279053de28ed4b4335cc3067638d97807f5dfc8b0fb1cee8de62f7e8efec1d9",
+    "frontend/vendored/codemirror/lang-yaml/index.d.ts": "980dda005d1f72295d7c9224bcb5f8c88fe513e8705e649dfb9cff337d09d994",
+    "frontend/vendored/codemirror/lang-yaml/index.d.cts": "980dda005d1f72295d7c9224bcb5f8c88fe513e8705e649dfb9cff337d09d994",
+    "frontend/vendored/codemirror/lang-yaml/index.cjs": "0967fb67fb81136b944a83dfbf4d2a3bcbb278336ce2b4a7d4c4253ed65d94b1",
+    "frontend/vendored/codemirror/view/index.js": "aadf68d18b4388c6f8dcf61b99919857a88d84837e75b1bea8057a408891d797",
+    "frontend/vendored/codemirror/view/index.d.ts": "db076419edc67972b504743763add3a1de5ee71a9d7ec0954289b2c6eb1262c2",
+    "frontend/vendored/codemirror/view/index.d.cts": "db076419edc67972b504743763add3a1de5ee71a9d7ec0954289b2c6eb1262c2",
+    "frontend/vendored/codemirror/view/index.cjs": "5d4e766ff9f33316e8e53d38705a19b39053a783b932992bec08970f067d1b96",
+    "frontend/vendored/codemirror/autocomplete/index.js": "2796fb2771a559ee9fbaa65367b96105368dd9ded1bb686df0e005be48801dcd",
+    "frontend/vendored/codemirror/autocomplete/index.d.ts": "7f76ad9370e731207b0b3ea80b6fc7060730209ca342ffec8575873822acfdd8",
+    "frontend/vendored/codemirror/autocomplete/index.d.cts": "7f76ad9370e731207b0b3ea80b6fc7060730209ca342ffec8575873822acfdd8",
+    "frontend/vendored/codemirror/autocomplete/index.cjs": "801471370def491e3a0f0f89e8a8c2bd434448448b5715afb35598bd364f82be",
+    "frontend/vendored/codemirror/lang-python/index.js": "c60274624c703cb07b471a2de503b319b222b87e140445c09ce57415130b5eca",
+    "frontend/vendored/codemirror/lang-python/index.d.ts": "dd7928e76087e0bb029074c20675aeb38eff85513d5f941f440c26d82dd5436c",
+    "frontend/vendored/codemirror/lang-python/index.d.cts": "dd7928e76087e0bb029074c20675aeb38eff85513d5f941f440c26d82dd5436c",
+    "frontend/vendored/codemirror/lang-python/index.cjs": "73b2a005b490083b7d3dc9bcfd4da41c8295fae235e13c7ce1822e667966c6bb",
+    "frontend/vendored/codemirror/lang-liquid/index.js": "d61e26726e0d4961145fed6f667a61545059ca0d334039e4b73803d0c95390a8",
+    "frontend/vendored/codemirror/lang-liquid/index.d.ts": "601e25f3e3766b0613ff2c6254d29908b4aee2697eb8e7989d40e7a6c1566b5b",
+    "frontend/vendored/codemirror/lang-liquid/index.d.cts": "601e25f3e3766b0613ff2c6254d29908b4aee2697eb8e7989d40e7a6c1566b5b",
+    "frontend/vendored/codemirror/lang-liquid/index.cjs": "aa8454ae47cddaacaa799b892af2df05b5e89f00c640019f083267607a02cce2",
+    "frontend/vendored/codemirror/legacy-modes/mode/nginx.js": "08ed247a31300c59a19003ce07a12ea3c7cf3835ddf1088e20c64b20d782faf8",
+    "frontend/vendored/codemirror/legacy-modes/mode/haskell.d.ts": "956c16eca4519e4eab98b2b05cacee814ac9d4b99859a872566c20b761fed2f9",
+    "frontend/vendored/codemirror/legacy-modes/mode/tiki.d.ts": "79f77527c8d33931f95ed307251006dbefab17ef6fb15ec4c12064408d1e4c6f",
+    "frontend/vendored/codemirror/legacy-modes/mode/gas.js": "037a04a148c8feee4e13787a8cbaa94ef9a6f91557afc25ee4a47955a45d2863",
+    "frontend/vendored/codemirror/legacy-modes/mode/tiki.js": "b9814553272a7b181054bc4a244f791054c74fb5859247f3b141575fd870e928",
+    "frontend/vendored/codemirror/legacy-modes/mode/xml.js": "7830e7f0ee77d00cd647d675d36dd1bcc526d02e023f9c346d2730364a1f2421",
+    "frontend/vendored/codemirror/legacy-modes/mode/vhdl.d.ts": "067860526dbf37dbda720b1e552ed2ce638ffab681735a3e72386c7e54e6467a",
+    "frontend/vendored/codemirror/legacy-modes/mode/crystal.js": "5ac6e4d68b307e17b9cf38559a45302f7d2702301d51c7d69e1ede0684837555",
+    "frontend/vendored/codemirror/legacy-modes/mode/r.d.ts": "59a5e7e996f2286e093112e5a61697ea4c819fae3cc25e8a33673e57863c898b",
+    "frontend/vendored/codemirror/legacy-modes/mode/troff.js": "6ff763513001ae4d35660c6e9cc1879069c3d3a4699edf10b5176986a2530060",
+    "frontend/vendored/codemirror/legacy-modes/mode/livescript.d.ts": "a18c538b65a6272987acebd7a08ff084e4775bb7cdd1f86fd44e5fcaadd32724",
+    "frontend/vendored/codemirror/legacy-modes/mode/ttcn.js": "3442277807d4484072015ef163f659936dd6c93be2aeefe5fe04f61931594942",
+    "frontend/vendored/codemirror/legacy-modes/mode/d.d.ts": "6945a58d82d709341948e868e39c57399de2d06d2f857cf63edf38da942bfd8d",
+    "frontend/vendored/codemirror/legacy-modes/mode/sieve.d.ts": "9eac4beba9f004412f675df665384f60ffa8e02b4200446c8b73ad26348c6aa7",
+    "frontend/vendored/codemirror/legacy-modes/mode/brainfuck.js": "d169e4dbf74509a4ba0f8eec4de6f6fb3a0bd4983fe85010224b22bfaf7fb57f",
+    "frontend/vendored/codemirror/legacy-modes/mode/mathematica.d.ts": "1a5a409eb2659e42ef662d0c0331697fe7739dd92a99d14104398d74c8b7a3d8",
+    "frontend/vendored/codemirror/legacy-modes/mode/apl.d.ts": "1079469d986d06f00503c44556efe72ad80242502a6d6aef372884a25d243315",
+    "frontend/vendored/codemirror/legacy-modes/mode/verilog.js": "621c7ecf126d8434df6fbe35844eaa59ce10340ed2d732f5ee09bc8817b61c72",
+    "frontend/vendored/codemirror/legacy-modes/mode/nsis.d.ts": "85df108c8febef9f44b7f0cfdc5156a0338510d90efad7da91f919ee89182cec",
+    "frontend/vendored/codemirror/legacy-modes/mode/turtle.js": "86386bdb0aa3612fa06ef99661d1a4e87b194d6b1e531cd0c6d79cba210c5681",
+    "frontend/vendored/codemirror/legacy-modes/mode/brainfuck.d.ts": "e56ac591b0613697072eebbca0d959fecc502f4c75e91515792642e7b5e9be53",
+    "frontend/vendored/codemirror/legacy-modes/mode/velocity.js": "7d6f87c1bf51243c175c8a12c5cda4c8fc72c94a2027b514c3a4e6e34d5fa36a",
+    "frontend/vendored/codemirror/legacy-modes/mode/wast.js": "791abb12ee345963438c7fe4d40f2d1d7e7b7c27aaa193e2d8a393188b7ef9e3",
+    "frontend/vendored/codemirror/legacy-modes/mode/go.js": "f287d3b5220fe41a53cdd3da14c61ffd7821b6763fa95ed904d3f5c6e37f8b6a",
+    "frontend/vendored/codemirror/legacy-modes/mode/scheme.d.ts": "3ef9cb3af2eafc941d0e8f8087fd7ff6920760af957b3467442ad89cbc5fd29d",
+    "frontend/vendored/codemirror/legacy-modes/mode/dockerfile.js": "d60756a09f90b24d6c6f67cf7c4b663032bc7f7a633734496acee7b79fd961ae",
+    "frontend/vendored/codemirror/legacy-modes/mode/ebnf.js": "96ba1e566d8dbc32a73806b6b8d7bcd0ce174ae1502742b55ccadf5e4da719ea",
+    "frontend/vendored/codemirror/legacy-modes/mode/fortran.js": "c1c0e00f061306f8983b2aa35d2c844703e348d1422c46ae33fcc4495b639f2b",
+    "frontend/vendored/codemirror/legacy-modes/mode/modelica.d.ts": "11a1b3e0a217894e005f0db932d2de1461ae9df82791bb835dd5e283e2f90180",
+    "frontend/vendored/codemirror/legacy-modes/mode/cobol.d.ts": "906e180ff6ff66c22e8d038205c4e8777aa8aa0faef62285ce14317cea7febcd",
+    "frontend/vendored/codemirror/legacy-modes/mode/yacas.js": "198a131d234afefb032b11ddc8f061a47038f0921f154fca7af0ca31d73bb197",
+    "frontend/vendored/codemirror/legacy-modes/mode/ebnf.d.ts": "b9d572531158d4e58206ffb2f110a10c69b2e2bb41b8fbca39c8a664077b1fc7",
+    "frontend/vendored/codemirror/legacy-modes/mode/elm.d.ts": "868c593eb62157cd5e8c8c596fd24132727b3cfddd9c0d206ece06ebfe49ede5",
+    "frontend/vendored/codemirror/legacy-modes/mode/sparql.d.ts": "d1bd33d5f465b3266130a183892ebe92e8bf59bcd5983cde3738f7df3cd00be0",
+    "frontend/vendored/codemirror/legacy-modes/mode/xml.d.ts": "2941639c6d54277eeabf4b58ac556e7330eb02f9b37e9fb58c294d31b7cfe119",
+    "frontend/vendored/codemirror/legacy-modes/mode/wast.d.ts": "fe7062f4f9de577414b15dadc1bc7879d3fa4f7ca6f55604dd75b86d15e6d522",
+    "frontend/vendored/codemirror/legacy-modes/mode/haskell.js": "653ca0ce9d6e848e3a94a4274961b267c1c14683651a4a7c6608493eaee45baa",
+    "frontend/vendored/codemirror/legacy-modes/mode/dylan.js": "ed0904220585e309fb8ad2a0f1901eebb02302f8ecd51831ecf7428ad70e8b53",
+    "frontend/vendored/codemirror/legacy-modes/mode/cmake.js": "7dc50465939671a4f3a0403e5d76c147de44c2e12dc69fe340c33872839ba706",
+    "frontend/vendored/codemirror/legacy-modes/mode/z80.js": "bc4637e8748e23ad71bd8f70e6307572f1e3bb143466dd9dbfaa2e1f8f7051b3",
+    "frontend/vendored/codemirror/legacy-modes/mode/python.js": "f2b6a4951aa1eeccccd816dba5fda1a7e0cd8e1a080a6daa28311ac2397da258",
+    "frontend/vendored/codemirror/legacy-modes/mode/asciiarmor.js": "a59f1569399bf4ba1196cf7faf8f6c6881ca7c0ed955fd59543839d55908340f",
+    "frontend/vendored/codemirror/legacy-modes/mode/vbscript.js": "09a1faf9809a38d4f8c37868e77a55779de9634ba08bdc989bdc68091542e5be",
+    "frontend/vendored/codemirror/legacy-modes/mode/commonlisp.js": "27706e451565e136306a57e9147b30c4d140d6b2ca6119af33d0632f1f50e098",
+    "frontend/vendored/codemirror/legacy-modes/mode/mumps.js": "0b8d6ac09d748330ff4d7a9ea373393b814935c1b19d449ba9e7a43c3dac121c",
+    "frontend/vendored/codemirror/legacy-modes/mode/javascript.d.ts": "2d22dbd1dfdf2b067fd63bd3a7a5f86329c17f04f33aee31c284278ed31c02ce",
+    "frontend/vendored/codemirror/legacy-modes/mode/perl.d.ts": "77b90a88f4010566239be48054fa4a695c3569fe9cad323181b5c2300c7d6283",
+    "frontend/vendored/codemirror/legacy-modes/mode/ntriples.d.ts": "470c40c03acc94424e9996a4fad558d4e20ad0954cda69d5827b736319b7f1a4",
+    "frontend/vendored/codemirror/legacy-modes/mode/cypher.js": "3a412c67648831a2e42e1567e624e4c983a078286af62e6fe565ab7cbb61674b",
+    "frontend/vendored/codemirror/legacy-modes/mode/powershell.d.ts": "3484759e9817416da932b812a23e6b1f72a2f9c20151fcbf40587a14a43d6463",
+    "frontend/vendored/codemirror/legacy-modes/mode/haxe.d.ts": "c63ae34d934d344e345c3adb6b171ab16fed1716ffffca01e6458958213ff14e",
+    "frontend/vendored/codemirror/legacy-modes/mode/coffeescript.js": "3f6ce6adfc644b2b25d74352ff33af7bf150c1364348d90ebd4794872bf20365",
+    "frontend/vendored/codemirror/legacy-modes/mode/sass.d.ts": "6f37f27a2f96607fb19a7e8ae3a8e773132664a3ad895049cc3c36aa1398442a",
+    "frontend/vendored/codemirror/legacy-modes/mode/groovy.d.ts": "6bdb020c056a2c1a9c8bcfa05b6d61b5c785025d14654f8131ab255ffd6d409b",
+    "frontend/vendored/codemirror/legacy-modes/mode/shell.d.ts": "9324f3f4c08d59b9b31c8169326934454b35d0bd19e90a62b42636f1b5a81668",
+    "frontend/vendored/codemirror/legacy-modes/mode/oz.js": "ae217c0bbc20c646533782bfb19b39548f30eed204c1c627a671a0d41517661a",
+    "frontend/vendored/codemirror/legacy-modes/mode/commonlisp.d.ts": "9935a5d9211a5649783da063c011c5d08de55563462e753c9113668924c1b192",
+    "frontend/vendored/codemirror/legacy-modes/mode/troff.d.ts": "18e40aa428eaebf77b23c01bf0dfa77f377ce5c65ba075b274fbb7d2803ba013",
+    "frontend/vendored/codemirror/legacy-modes/mode/smalltalk.d.ts": "f69e8a2d40c02294d500e6540449bae38376975cb44660c7a196d150f50e8b1b",
+    "frontend/vendored/codemirror/legacy-modes/mode/eiffel.js": "c259dfb574e03ce4fd654e37f9485ce6c7d84f064311b293ca14cab6087439a2",
+    "frontend/vendored/codemirror/legacy-modes/mode/octave.d.ts": "a45930f8fabc46e8fc78137b1f9613f7d5dcaf9467487c815a598110cf7b2db8",
+    "frontend/vendored/codemirror/legacy-modes/mode/tiddlywiki.js": "255a3e1c37639fce38d82063abf9a35859a62f8b9aafa0c9c72e2112fbc3b1c9",
+    "frontend/vendored/codemirror/legacy-modes/mode/pig.d.ts": "d8b6fde99c7de175e96ae324db5226ee6b6b99f52c2af8a4e95aee95da202993",
+    "frontend/vendored/codemirror/legacy-modes/mode/sas.d.ts": "61438627a7d049544c5db7cc9338c06d25374d79d3694e5d4922bfd26739aafb",
+    "frontend/vendored/codemirror/legacy-modes/mode/jinja2.js": "1f80e9d7e80ee5a65a65cf71a8141b4e332d3ee3a3662d861852f90bd1f724ad",
+    "frontend/vendored/codemirror/legacy-modes/mode/turtle.d.ts": "e964f1df81468633d8b7470590c88d47daaa5256a0de64ca3507dfd84eb78b4a",
+    "frontend/vendored/codemirror/legacy-modes/mode/puppet.d.ts": "49d32f6be6866e6642f7bd8062eb89d5a04a367bc906eed159d6a63b44946a6b",
+    "frontend/vendored/codemirror/legacy-modes/mode/modelica.js": "54c348c95c7c10648b3f6dd67313270a6386e3fb63fa96d454400be054ace08b",
+    "frontend/vendored/codemirror/legacy-modes/mode/dylan.d.ts": "2f47c053faf830a7dbaed6daa68b89085ccdc9b4a02bf21a543dd96cfe72315f",
+    "frontend/vendored/codemirror/legacy-modes/mode/verilog.d.ts": "f4906a01f45b0a85b4f3fc77c8f08e63674fea26409a34660bebbb89bb08690f",
+    "frontend/vendored/codemirror/legacy-modes/mode/ttcn-cfg.d.ts": "fa4a50084ac93b0ad6a67efdfbf8a338da4c1df8174304f0bd03e93fdd4af001",
+    "frontend/vendored/codemirror/legacy-modes/mode/haxe.js": "49755eecb81616c959f487905ed7147e1c596fb88b050ea3d862000e5ce840f4",
+    "frontend/vendored/codemirror/legacy-modes/mode/solr.js": "ddeae7bf6fa199d1f55bdf3f5d94c783d980fa5427be73de2129b694487b230b",
+    "frontend/vendored/codemirror/legacy-modes/mode/pascal.js": "9078972e2c06d73d8bebcffc7935b0932ed2427397ae89c44ef0961e65653d56",
+    "frontend/vendored/codemirror/legacy-modes/mode/swift.js": "49063ffb21c1e2ef9eddd85b7fa113f56c8c92961160e2e6ea7a7fdcd6ec6d82",
+    "frontend/vendored/codemirror/legacy-modes/mode/spreadsheet.d.ts": "50a8c8012c425c51253d9ed98957cbc767de0001afb862069351b7e6dd833a65",
+    "frontend/vendored/codemirror/legacy-modes/mode/ttcn.d.ts": "c2d9ef1f3fa1ddc8ca8637a05fd91af27f7abcb349a19a44af65154843d4606e",
+    "frontend/vendored/codemirror/legacy-modes/mode/diff.d.ts": "b99897a772ebd0f55f471161ab2367b1e94bc2f616cc8af83489fba2ac811be5",
+    "frontend/vendored/codemirror/legacy-modes/mode/fortran.d.ts": "9d1fb2734d86ad977db5ce1c2e754ab7fb1b1aa9fbf3027727183716d84fc79d",
+    "frontend/vendored/codemirror/legacy-modes/mode/cobol.js": "7186bd796d0e9974c07f4af14d487fc5851ca2e2380b3def2f5a35e9acbaaed4",
+    "frontend/vendored/codemirror/legacy-modes/mode/factor.js": "c43003ff4ff424bfebc11f93ed5187426e1d627f2ec505030be74de089bac5c3",
+    "frontend/vendored/codemirror/legacy-modes/mode/pig.js": "58fea184993e01991fecd4e6ea90c2a61cee66f7b03a9234eaafee3885cf2418",
+    "frontend/vendored/codemirror/legacy-modes/mode/groovy.js": "8f6dff4af7b2727e55d27425817331b4c73629dde753a3a632ea7d051ecd802b",
+    "frontend/vendored/codemirror/legacy-modes/mode/solr.d.ts": "e77058175a7dfb282f80d4252af92bc7a850ddcc227a83b93f95aed1c8244700",
+    "frontend/vendored/codemirror/legacy-modes/mode/pascal.d.ts": "9b2436f573020978c71869814c302c401b7beb098f58e619adad40541cdf78f9",
+    "frontend/vendored/codemirror/legacy-modes/mode/stylus.js": "cb289b1fbf8bf5332b3e479c960a5a899f8125b90fdd2677fb84b520a107fd9a",
+    "frontend/vendored/codemirror/legacy-modes/mode/rpm.d.ts": "53ca58bda23ce8a6414fca522260ac8c9f62d25868acf4c4677ff320b84a3221",
+    "frontend/vendored/codemirror/legacy-modes/mode/http.js": "5210b1109d965159aeb12a1c3f485bf4fc748f38cf808b79bcc1533174439078",
+    "frontend/vendored/codemirror/legacy-modes/mode/dockerfile.d.ts": "67db8ea56f7d04a76e44b6900d33aa0b077b9dc60c2a72b35a91590a2297f90d",
+    "frontend/vendored/codemirror/legacy-modes/mode/ruby.d.ts": "ce021d9aa471d30ff837550bc2f2d292aede2b67d1547502f35b9730fba55769",
+    "frontend/vendored/codemirror/legacy-modes/mode/erlang.js": "d84150cfbe2c34afc0334b5a6aaded7ec0978b4dbc5db15eae7459f10f9f364b",
+    "frontend/vendored/codemirror/legacy-modes/mode/swift.d.ts": "0d516a139735b2f568fd019d98edfe76e155d7bd12fa7b42ddc1d82b55251c37",
+    "frontend/vendored/codemirror/legacy-modes/mode/tcl.js": "1c9db881aff3c3a53d67328ab70da2ed09f549002b997ac6d52fdc29d7667f20",
+    "frontend/vendored/codemirror/legacy-modes/mode/mathematica.js": "41279ec5eb37b3836cf85e8b284b6a246310f975219acdc1d5ee2aae0d89846f",
+    "frontend/vendored/codemirror/legacy-modes/mode/fcl.d.ts": "d0dca6b6a46545e6ebf36e7dd8866d6dae187ede2a874e6a0eadb1e01a54de07",
+    "frontend/vendored/codemirror/legacy-modes/mode/clojure.d.ts": "782e21a03f10fcc88f28db66948cacc193af1e01a1d565ef71a889f3614dcf07",
+    "frontend/vendored/codemirror/legacy-modes/mode/stylus.d.ts": "868049b17e68ebac9e8d5a9ac4b061649e0370e4b32bb059b17386a727cc108f",
+    "frontend/vendored/codemirror/legacy-modes/mode/gherkin.d.ts": "a723cef6e3c765d2f11cb931347d8cccde7fa12234b55052ace3021afaca5c38",
+    "frontend/vendored/codemirror/legacy-modes/mode/dtd.js": "40c8e088a70fd000f33ce961957bb3176a97af36579c3bd921de764972095fa0",
+    "frontend/vendored/codemirror/legacy-modes/mode/smalltalk.js": "fa7290ecc6a6168b7c1d7db5a61d8c1eba55c289a3130eeb46ca162894e0a993",
+    "frontend/vendored/codemirror/legacy-modes/mode/mbox.js": "468d265efc75b0359da633afe66abdebf9c8bdda1fec3452fcabb2cad45294b4",
+    "frontend/vendored/codemirror/legacy-modes/mode/webidl.js": "1daa6e1d525d6ca79845947345503060ff4828fa859c511994bff3516b2e9c93",
+    "frontend/vendored/codemirror/legacy-modes/mode/livescript.js": "bde9e5798f00b64c0b202c29f7d68e4f2ec6d7785654e4463dc8dcb36b44a979",
+    "frontend/vendored/codemirror/legacy-modes/mode/julia.d.ts": "bbb119aebbd143ee6aa0af38656a196174e4604aa5793dd2cfcfa50652f09558",
+    "frontend/vendored/codemirror/legacy-modes/mode/xquery.js": "631430d4055fd8d3e98981a06a698953691a10dd09a299a9130c918ef7758f28",
+    "frontend/vendored/codemirror/legacy-modes/mode/asterisk.js": "5928db341f16b4ba23369fa873179dc067ef998a01ceb0611f3a22d3150d86e0",
+    "frontend/vendored/codemirror/legacy-modes/mode/clike.js": "232a058c78968156d1df0985d481bda19ee3a191c7d562c8ba365478b1e93478",
+    "frontend/vendored/codemirror/legacy-modes/mode/css.js": "7d7794deaaea590ee36717f415094c2592bb9bdc28e7d4df13eb14a93d34ea6e",
+    "frontend/vendored/codemirror/legacy-modes/mode/properties.js": "e9dfff7da26cd5847d703b719c363c52049e0428a03a75c4616d982bd6125221",
+    "frontend/vendored/codemirror/legacy-modes/mode/ecl.js": "2a11f1ab6384813bc00bcd10f2fbbfcaf2dacc415b58a4311e6d0e056d3bb04a",
+    "frontend/vendored/codemirror/legacy-modes/mode/stex.js": "b662799935a644d2b5f4a56c5a3e813fafd02bc8fa4f08275e4d9dc341dd2321",
+    "frontend/vendored/codemirror/legacy-modes/mode/yaml.js": "2bdc9c3ee1960bf9584260e042bfae7e9935dfa6ab15fdab4e96e5a6fa39ab1e",
+    "frontend/vendored/codemirror/legacy-modes/mode/z80.d.ts": "c8bdec6d84680d9d7ef40162f2bac0e8324f56bf1672d758e68529a03d172144",
+    "frontend/vendored/codemirror/legacy-modes/mode/javascript.js": "20bb8a4be26c0912bc8c0e1839c1c331d91067ed05bba3bec5c94ba7169eb010",
+    "frontend/vendored/codemirror/legacy-modes/mode/ruby.js": "ad3faeb2208d1a2aedd8e6ea847014b7850210a6a79b065edfe8277847dc9adc",
+    "frontend/vendored/codemirror/legacy-modes/mode/lua.d.ts": "907b93a62956ef8e64a2025159d471bd1c01340951aa55cd9ad4e5cb51278c9f",
+    "frontend/vendored/codemirror/legacy-modes/mode/properties.d.ts": "d3464755da8663966f12b690d95866591614d45836a63f58d53be901d56b8dbd",
+    "frontend/vendored/codemirror/legacy-modes/mode/mirc.d.ts": "52a5fcbb74d35c3aae66ad6509f0854c42e7fba243efd128fbf3e28ddf3a5518",
+    "frontend/vendored/codemirror/legacy-modes/mode/tiddlywiki.d.ts": "1a701e83bd8e6ee34549faf4ba2da528fb815ef81c02ac76ea095dec5cf39513",
+    "frontend/vendored/codemirror/legacy-modes/mode/coffeescript.d.ts": "d83e8f15e08bcbc4a304cc4a95367eb6f9181136dd32a3526a421423ddf13b1c",
+    "frontend/vendored/codemirror/legacy-modes/mode/python.d.ts": "4f1eacc2a100791fd2aa70075b06246c59cafe27da22e41876ba023e86dbbb9f",
+    "frontend/vendored/codemirror/legacy-modes/mode/eiffel.d.ts": "0cbe8cbd3486ef4970063e614041d5362372a1e50ac25e67dbd659abca5b5acd",
+    "frontend/vendored/codemirror/legacy-modes/mode/asn1.js": "fd837d1304c23c5ace8d8f0e0466130de174ce963be7532c3a4506f44c1d57d8",
+    "frontend/vendored/codemirror/legacy-modes/mode/erlang.d.ts": "eafec9bef85fd29c26d287b333fcea25b1f386352178dbbe20fa8838cb33fdaa",
+    "frontend/vendored/codemirror/legacy-modes/mode/mllike.js": "927132b783c3e6a1e4103fe178f196b5a7b200dce5edb227af1bd44bef86dc2f",
+    "frontend/vendored/codemirror/legacy-modes/mode/apl.js": "72ba9b581f2549f65385df209eedada37b4be3283a0de41757b3d9dcf614eb9c",
+    "frontend/vendored/codemirror/legacy-modes/mode/ntriples.js": "db82d75901cf0aa735184b401d3f1acc45873b1070a4269290a58f8eba78118d",
+    "frontend/vendored/codemirror/legacy-modes/mode/diff.js": "7c074edc0d87784e15c2ad2834e727e7edf5215401c256d4629248db55fdbbf2",
+    "frontend/vendored/codemirror/legacy-modes/mode/mscgen.d.ts": "2cdc795e5fef5e48d6328dd48a73dd299624430ba43124ea3c3c0fc0fecbca35",
+    "frontend/vendored/codemirror/legacy-modes/mode/xquery.d.ts": "d5d136bf7b7db9a8877acda8a6eec1f3af6cafffcde51442b7df20b5e03c77cd",
+    "frontend/vendored/codemirror/legacy-modes/mode/pug.js": "06a45473438e1bc69a57b4c2d050ed5b819abb6ee6904e4057b6bbe5c1433154",
+    "frontend/vendored/codemirror/legacy-modes/mode/lua.js": "5e3e4f37cc03c256d7c9e2f5e8f6c2fd474bf0f3d41fc193c7d8c47e8ee63982",
+    "frontend/vendored/codemirror/legacy-modes/mode/octave.js": "31116f7d1424838414843e7ef1579be4bbce76777c779e44650205a663132b03",
+    "frontend/vendored/codemirror/legacy-modes/mode/mllike.d.ts": "a9f95ce5a0f8005812c290db8aaa101f8010b843c70243e163098e68781f2e4a",
+    "frontend/vendored/codemirror/legacy-modes/mode/rust.d.ts": "2ab83341f85fd17cc8a1c1a1365ff8d55cc82a2ff55889aaddd0d0f1fca803ee",
+    "frontend/vendored/codemirror/legacy-modes/mode/d.js": "38f1f2062b67314f62875a0a6d76e9a8000bbd80c7b704f7334258af8c5867ff",
+    "frontend/vendored/codemirror/legacy-modes/mode/pegjs.js": "2ff43b1c373046459a147c1c81ea197ff8c1840b23c7dbcbd56ae925ff008d45",
+    "frontend/vendored/codemirror/legacy-modes/mode/perl.js": "bc26e7d11ebf89e4f37832b6e77d0cb188e90b233add92721739466b712f8b98",
+    "frontend/vendored/codemirror/legacy-modes/mode/q.js": "413d8b5bf25c58ce1e90a97a0ed8b4bb0819b57342d3a3da66b5b80e769a4c8c",
+    "frontend/vendored/codemirror/legacy-modes/mode/asciiarmor.d.ts": "98163bc762eb54150a2d50fb2ea59fe0c9a65472d7f1eb9c420adb86084a558e",
+    "frontend/vendored/codemirror/legacy-modes/mode/jinja2.d.ts": "127e61f1d7296a6624ca9fd42b81a82e31c64d8510c1d447e585658db8a2bfd6",
+    "frontend/vendored/codemirror/legacy-modes/mode/r.js": "4ef6ddbec85cf454cc71e78a35046cda310e82832cfae61d72a2fb7c8847799d",
+    "frontend/vendored/codemirror/legacy-modes/mode/protobuf.js": "6190b666f66a79062990a67f893639eac5622be24a728a70d7e41889bf2c7da8",
+    "frontend/vendored/codemirror/legacy-modes/mode/webidl.d.ts": "0ff0360438975a8188307c7f8dd2cb0d2225476a4957dc3acc0e49d7775966c9",
+    "frontend/vendored/codemirror/legacy-modes/mode/forth.d.ts": "71d029a0effa7604170e4b8fe44ac84cbd980c7a8d68f39344684a6b9a2c601d",
+    "frontend/vendored/codemirror/legacy-modes/mode/ecl.d.ts": "0356ce892c80d4c8b34dfb0c8a924c39c06c8898aa49da90d76cfb5c2a77c04a",
+    "frontend/vendored/codemirror/legacy-modes/mode/gherkin.js": "3143521eac2f81022aeed0ca73dd4b35d0cd91444eddee48f46709b88fcd4a80",
+    "frontend/vendored/codemirror/legacy-modes/mode/mbox.d.ts": "cbdb9a6a224ec6a63d293cb99a65e35cb3fe68c1828c85c9987c3970c235b8fe",
+    "frontend/vendored/codemirror/legacy-modes/mode/gas.d.ts": "b83d762f56dab9e4a05b67e2e0c0d36314cbf8a07b6be22f78119ae1641c697f",
+    "frontend/vendored/codemirror/legacy-modes/mode/vb.d.ts": "4b31715250142dce1859da1fccdf614e5df7853d24810b60bea51f4913db190a",
+    "frontend/vendored/codemirror/legacy-modes/mode/shell.js": "7a93ef93be37d3a0a9b5daf6ca1308395b141524e65a7e475843e86da4a44ef8",
+    "frontend/vendored/codemirror/legacy-modes/mode/sas.js": "ec23bc9a6e2cb0f713474ae9c8259eb54085833fdaae794dd564fda469e43c2e",
+    "frontend/vendored/codemirror/legacy-modes/mode/clike.d.ts": "aced80da996f67ca2559f36f88971c940e83deb0f3f6e94134cfe895af3e3992",
+    "frontend/vendored/codemirror/legacy-modes/mode/scheme.js": "b1bbec5972b1aeaabe650562485f2b7e03c237bf477e022e8d777a368c955f1a",
+    "frontend/vendored/codemirror/legacy-modes/mode/yaml.d.ts": "e09e8ecf1cdfb67945b37e940449fdfcbc95c1b7d3342bcd83024f3351ad7e7d",
+    "frontend/vendored/codemirror/legacy-modes/mode/nsis.js": "39d0061e9c26f3a96a7be356b7a06a55894d5e70cc54006ea11238cb1193c2b9",
+    "frontend/vendored/codemirror/legacy-modes/mode/http.d.ts": "a0026eabea990a343d450764a30de25c633b93f5f6593a7687076ca2bf782c13",
+    "frontend/vendored/codemirror/legacy-modes/mode/ttcn-cfg.js": "0157ece125102d07d3dd209d63fd0d9c17311704831865a37380db6452e9860a",
+    "frontend/vendored/codemirror/legacy-modes/mode/cypher.d.ts": "cbb52be72eca1ffc079511088a9879a940a3252218c6f6ddc88e2ec0abf9fda4",
+    "frontend/vendored/codemirror/legacy-modes/mode/idl.js": "c70ff96a852def30209aa614829c6d5f07eaab69b8badc251749037ea4f18490",
+    "frontend/vendored/codemirror/legacy-modes/mode/tcl.d.ts": "c00a8c0e58e4b39cf6e377562a7f680df14c943a74cc635430bdd6d070cecbdc",
+    "frontend/vendored/codemirror/legacy-modes/mode/fcl.js": "8baa855b17d56640eeacb553eb5b6e939f6a16a71a63add0098c7c1a85714c27",
+    "frontend/vendored/codemirror/legacy-modes/mode/go.d.ts": "14abdd4dd6a802a6491e7611b18188b862475d4afa320920dd86f61662b94f40",
+    "frontend/vendored/codemirror/legacy-modes/mode/sieve.js": "638d51726485bbad6db9b72c114a7ce747586bb3e552ba409e36f1f91f937fee",
+    "frontend/vendored/codemirror/legacy-modes/mode/sql.js": "b081b9f70a96a91d9a88ee62130247834348dcc9443186390a9f4b576c94a1e5",
+    "frontend/vendored/codemirror/legacy-modes/mode/forth.js": "822ec2317621396c6d13c744bb5485edc0af6ef2ed111fe8c13077be85fecc1b",
+    "frontend/vendored/codemirror/legacy-modes/mode/mscgen.js": "8a4a9e78da73f68296ae12f8f8721748b25597c11ec8e81e11f32cf1c6ec1351",
+    "frontend/vendored/codemirror/legacy-modes/mode/stex.d.ts": "e5542b92186872cf7f12f2676c0f4950fcb7e85415a9e59b7e21de7640a20621",
+    "frontend/vendored/codemirror/legacy-modes/mode/puppet.js": "cfb442e8c15b3fa4a7429156249b34767afc7e76dea074370a40baf930ca93a9",
+    "frontend/vendored/codemirror/legacy-modes/mode/sql.d.ts": "4627df5eb9c6ada35e2cf13b318d76e63152b8071c315f560c9950a1266194e0",
+    "frontend/vendored/codemirror/legacy-modes/mode/clojure.js": "f78d395daed00df90d7eef968dd5cd1bc7e2154aeb61a0601d3479ec0bae3307",
+    "frontend/vendored/codemirror/legacy-modes/mode/powershell.js": "f9a39a7be3bd683f52d0efe906d970413d2cf3bdfff6a930ccf12dc8ac6bfc99",
+    "frontend/vendored/codemirror/legacy-modes/mode/yacas.d.ts": "f20c04424d724a3070c301174244bc98ff77372c04abeab1bb0f84b239cf2cff",
+    "frontend/vendored/codemirror/legacy-modes/mode/nginx.d.ts": "1bbaecc4113a95b3a9efe6849c25e363086ac747be812c680c01d7294f018916",
+    "frontend/vendored/codemirror/legacy-modes/mode/toml.d.ts": "06ef854339556e8a1410478197a7aa3da02178c0ab7944823d510ee2eb87a76a",
+    "frontend/vendored/codemirror/legacy-modes/mode/toml.js": "13cf6cba0d4c6d45d3199ee097ab6d7b592cc6c8d2e806b3e4e3b6fbbf8e3410",
+    "frontend/vendored/codemirror/legacy-modes/mode/dtd.d.ts": "9377c1b5bf491a94c640b904f099579006b718c7092effc84b94ca00c82bd7d7",
+    "frontend/vendored/codemirror/legacy-modes/mode/css.d.ts": "7c4dd206cf89ae7cad41e522e645ba2e9629c661739ce0f5b9e03134a1689d4b",
+    "frontend/vendored/codemirror/legacy-modes/mode/elm.js": "73b2c1e0eb4765ed38d5bf957078c104383abacca7de67b02138ae04697ea7ad",
+    "frontend/vendored/codemirror/legacy-modes/mode/idl.d.ts": "7717cca600525314d37a407503e90762a8b3d831f86d95d3a0ad8633703331a6",
+    "frontend/vendored/codemirror/legacy-modes/mode/oz.d.ts": "41b59b6c5965c24b47f051b5b330423f9fe8027d64087d29be5729a16524a35f",
+    "frontend/vendored/codemirror/legacy-modes/mode/simple-mode.d.ts": "8d9a5c95a10116cbdda55deeaa9647ec90d8693e545583efc72a5c7aeb367a4c",
+    "frontend/vendored/codemirror/legacy-modes/mode/simple-mode.js": "8f4a77fbc64e952280e500578c864ab75468091a3c227dcca21017bb7f121410",
+    "frontend/vendored/codemirror/legacy-modes/mode/velocity.d.ts": "6062067128451d7d95d3c7c009d6705b025d2a214ab53233304f985e3fc114a2",
+    "frontend/vendored/codemirror/legacy-modes/mode/factor.d.ts": "44a14df28a66cbc473ec4805465fe32de0e09c70787f87face2358d0d0ef1e86",
+    "frontend/vendored/codemirror/legacy-modes/mode/crystal.d.ts": "d4c98f678af02955376cbc78db942ba48b4d51813b7943d5c609d5df316493bb",
+    "frontend/vendored/codemirror/legacy-modes/mode/sass.js": "b81440d6398f46bf703e441a93e3dd2037d276a5a614f6147322969c39254c60",
+    "frontend/vendored/codemirror/legacy-modes/mode/cmake.d.ts": "d19c969c40065a4ccfd368523c17add4f3719a17d8bd035ea130dd764f591d8e",
+    "frontend/vendored/codemirror/legacy-modes/mode/pegjs.d.ts": "48699c9191526dc0d7c5362499b07b82343b76bc091b344552a3830740262046",
+    "frontend/vendored/codemirror/legacy-modes/mode/vhdl.js": "c507669b495e6106e241031046103599911d99923c47616d0a0acec6f60d8fa3",
+    "frontend/vendored/codemirror/legacy-modes/mode/spreadsheet.js": "7579be7a41e01f08d69d75be104b008a4b8c5b16aa0be955a0a93938e171d77d",
+    "frontend/vendored/codemirror/legacy-modes/mode/sparql.js": "8a14ab12f5ac53320837c0a263fbaf594268db0c8fe54ce24d10d4bba07a1417",
+    "frontend/vendored/codemirror/legacy-modes/mode/textile.js": "899f8fc35ed4dcb6b4a427996155df73708e9f57fe3dabc0545b5a51cf4f99eb",
+    "frontend/vendored/codemirror/legacy-modes/mode/rpm.js": "98cedf7d7f3c404cce20a74ead4aa511f2f5c4dcb523cbaba99775d250644b3d",
+    "frontend/vendored/codemirror/legacy-modes/mode/q.d.ts": "83b1e94a777e7cdb13a4ac65cae6083ef75e133b6f82d57808ada3955d4d6358",
+    "frontend/vendored/codemirror/legacy-modes/mode/vbscript.d.ts": "1bf539d68734e0a27b32c948cd2c23773bff5d59578cabf9729590911b9a16b4",
+    "frontend/vendored/codemirror/legacy-modes/mode/asterisk.d.ts": "eadf07a033ffc93871ed3e520b65f83fba1712a41160baacc396e3f2ad09e42c",
+    "frontend/vendored/codemirror/legacy-modes/mode/asn1.d.ts": "168a7bbd9c404737cf3f2305a314174f39952a58f568b7c8cf99757510e07e6f",
+    "frontend/vendored/codemirror/legacy-modes/mode/textile.d.ts": "0fd6f6ed23830278850c80f39ecdf76af5255061d43be10ec83267880b64d82f",
+    "frontend/vendored/codemirror/legacy-modes/mode/vb.js": "452120e15db6516c7534b97ac7a1b6d0b4abe1853e9386bebabe924aff64e2eb",
+    "frontend/vendored/codemirror/legacy-modes/mode/mirc.js": "9effbe5d0c677fb91c61b5623c0961bf820d992ce186ea19bf9cf6f59b2816b4",
+    "frontend/vendored/codemirror/legacy-modes/mode/mumps.d.ts": "f713286b6e3f9aa7cf69a173a69052d28b5d674a65aba420228969369f6e7413",
+    "frontend/vendored/codemirror/legacy-modes/mode/rust.js": "21b386dce6c3cf94e3964d30e57b938768ef31ceeeed034e232b26d3324dcac0",
+    "frontend/vendored/codemirror/legacy-modes/mode/pug.d.ts": "19841e76c02b197817d4a70d3e5fb4fe8cf4b37080cdb38079f8ea36ab66a329",
+    "frontend/vendored/codemirror/legacy-modes/mode/protobuf.d.ts": "e1b156424b3c1f43bb5115916460bef83567bc0cf30c3375b5c2bae53e11b9af",
+    "frontend/vendored/codemirror/legacy-modes/mode/julia.js": "a7eb67bb6c7b582d13f9bbe2f587c8351475e7e231d75686d39aeb2ece5c639d",
+    "frontend/vendored/@uiw/codemirror-extensions-color/index.js": "e2d894edeac7fa2852b879d4b5cdc2666c16ad56d748f6734e1e02f59a553a96",
+    "frontend/vendored/@marijn/find-cluster-break/index.js": "4e9e441fac9db54e09e4e3b1cb0b0393da207ebe943f2ff9efc577821fc03751",
+    "frontend/vendored/@marijn/find-cluster-break/index.d.ts": "c40ce3890ef8ca40adbd279098507c0b482ba1a090bde1d0b56981b9a0ab8f6a"
+  },
+  "verificationInputsSHA256": {
+    "tests/fixtures/writing-grammar.json": "2f55757415d7e6c14c282c97ebd05dc25bb1aed3fd4251fc5fb74af3bf0398d8",
+    "tests/fixtures/writing-grammar-native.json": "c6ffff52be9b65f4f366fab43472721b146e3b47b2a0b029a87e3ee13c385378",
+    "internal/writing/grammar/SOURCE.json": "d77a8f638705ed32da275ef5dae41eadf0fcce9f610e627245f6b1732d15344f",
+    "internal/writing/grammar/corpus_test.go": "2663f38db7f3dd2f1967729ed4818c8aecac77211ed310e7a1d8e2d2b95b2c10",
+    "internal/writing/grammar_test.go": "92b48ead44cffd2f5991e82ecda74a9c5ac50adb7500497891affc3d1a23e600",
+    "tests/frontend/unit/writingGrammarIntegration.test.js": "964994ef3df098bc4224fff71a021b15b77c788ad4d3e12f90f52c0286446873"
+  },
+  "externalEvidenceSHA256": {
+    "comparison.json": "9e6af125a969464a5fe5d2ff097101b35aba9c70f804207e534e70e789ededc9",
+    "upstream-corpus.json": "ca5e4afde3c5d3d44ab1fddd0d9bc2b560036144f2636c188d6bad1ab19258cf",
+    "documents-baseline.json": "59cc88e4337e9f547cc64e7af2e633301e9658b84e27c5f8edbe57196259e3c5",
+    "documents-expanded.json": "975cdad587100a1015781b0ba84d81e972cb7c1a9365d6dc7d5d0afb76dc3d7f",
+    "baseline-adjustment.json": "5658d31085ab4b2c108f1e6092687b91d8fc8b8722f0fb8aa08dbf7aa82c9501",
+    "logs/frontend-coverage.log": "123a28f50f30b7a93a1c05c34141b857b6e0b8489b9da17d7525dcfd8c88b46d",
+    "logs/go-full.log": "6deb5448c2c9e88c8f7bdc8e79f6eda182652355fb369a52e06e962ae5c6ca4e",
+    "logs/go-race.log": "b218cbccedf7561ec0b7ef5260da1d2196959f3c3780d503aadbd75b0483b84a",
+    "logs/vale-race.log": "2266b42aeea5b11395dfe898eb0c2f40d16750ada7f3675e4f909ba1106628f8",
+    "logs/lint.log": "9ba92206264371328ffd3cefdbafead149ac9c9b2fdbde9e12bc123fe2c16022",
+    "logs/production-browser.log": "06aeb1ae2e1c8f0305a27654fc77c764f412db0694901912fe1d78f4f8b4a125"
+  },
+  "baselineAdjustment": {
+    "reason": "The original pre-batch snapshot predates concurrent pending editor work. Normalize non-grammar runtime inputs to current code for the packaged comparison. Plain Go and document comparisons remain valid because those editor inputs do not participate.",
+    "grammarBaseline": "original 54-check implementation; policy 4, mapping 17",
+    "current": "114 checks; policy 5, mapping 18",
+    "abortedRun": "initial-0-baseline was interrupted by the harness before completing the first timing pair; excluded from measurements"
+  },
+  "artifacts": "/home/grilo/benchmarks/figaro-grammar-broad-20260920"
+}

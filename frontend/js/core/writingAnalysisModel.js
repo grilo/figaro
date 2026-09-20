@@ -1,3 +1,4 @@
+import { writingGrammarRules, writingGrammarKinds, writingGrammarVersion, createWritingGrammarContext, writingGrammarReplacements } from './writingGrammarModel.js';
 import { spellingSource } from './spellingModel.js';
 import { applyWritingDecisions } from './writingDecisionsModel.js';
 import { normalizeWritingLenses } from './writingLensesModel.js';
@@ -6,10 +7,10 @@ import { readabilityOptions, writingEditorialPolicyVersion } from './writingPack
 import { writingTerminology, writingTextlintVersions, writingAcronymDefined, familiarWritingAcronyms } from './writingTextlintModel.js';
 import { writingSloplessVersion, writingSloplessRules, writingSloplessKinds, writingSloplessConcepts } from './writingSloplessModel.js';
 import { spellingVocabularyVersion } from './spellingVocabulary.js';
-import { writingWordinessContext } from './writingContextModel.js';
+import { writingAdvisoryContext } from './writingContextModel.js';
 
-export const writingMappingVersion = '11';
-export const writingEngineConfiguration = Object.freeze({ mapping: writingMappingVersion, spellingVocabulary: spellingVocabularyVersion, vale: '3.20.0',
+export const writingMappingVersion = '20';
+export const writingEngineConfiguration = Object.freeze({ mapping: writingMappingVersion, grammar: writingGrammarVersion, spellingVocabulary: spellingVocabularyVersion, vale: '3.20.0',
     writeGood: 'c9ceca7f574248a201d5524b001099c5626c7519', proselint: '8e24adbaa5dc6593b331f8bfab23c9af044af406',
     passive: '5.0.0', simplify: '8.0.0', repetition: '5.0.0', spelling: 'nspell-2.1.5', article: '5.0.0',
     contractions: '6.0.0', redundantAcronyms: '5.0.0', quotes: '6.0.2', equality: '7.1.0',
@@ -19,6 +20,7 @@ export const writingEngineConfiguration = Object.freeze({ mapping: writingMappin
     microsoft: '8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e', additionalRules: additionalWritingRulesVersion, editorial: writingEditorialPolicyVersion });
 const concepts = {
     ...writingSloplessConcepts,
+    ...Object.fromEntries(Object.values(writingGrammarKinds).map(kind => [kind, { lens: 'grammar', category: 'grammar', title: 'Check grammar', message: 'Review this construction in context.' }])),
     'style.modifier': { lens: 'direct', category: 'directness', title: 'Review vague modifier', message: 'Consider a specific description if this modifier adds little. Keep it when the degree or emphasis matters.' },
     'syntax.indirect-opening': { lens: 'direct', category: 'directness', title: 'Review indirect opening', message: 'Consider leading with the subject instead of “there is” or “there are” if that makes the point clearer.' },
     'style.opening-transition': { lens: 'direct', category: 'directness', title: 'Review opening transition', message: 'Keep “so” when it expresses a useful connection; consider removing it when it only delays the point.' },
@@ -55,6 +57,7 @@ const concepts = {
 };
 const rules = {
     ...writingSloplessKinds,
+    ...writingGrammarKinds,
     'write-good.Cliches': 'style.stock-phrase', 'write-good.Illusions': 'grammar.repeated-word',
     'write-good.So': 'style.opening-transition', 'write-good.ThereIs': 'syntax.indirect-opening', 'write-good.Weasel': 'style.modifier',
     'proselint.Airlinese': 'style.stock-phrase', 'proselint.Jargon': 'style.stock-phrase',
@@ -106,6 +109,8 @@ export function valeWritingObservations(output, projection) {
     const record = typeof output === 'string' ? JSON.parse(output) : output;
     if (!record || Array.isArray(record) || typeof record !== 'object') throw new Error('Invalid writing output');
     const lines = projection.text.split('\n');
+    const lineOffsets = new Map();
+    const grammarContext = createWritingGrammarContext(projection);
     const starts = []; let offset = 0;
     for (const line of lines) { starts.push(offset); offset += line.length + 1; }
     return Object.values(record).flatMap(alerts => {
@@ -113,11 +118,16 @@ export function valeWritingObservations(output, projection) {
         return alerts.flatMap(alert => {
             const line = lines[alert.Line - 1];
             const span = alert.Span;
-            const valid = line !== undefined && Array.isArray(span) && span.length === 2
-                && span.every(Number.isInteger) && span[0] > 0 && span[1] >= span[0] && span[1] <= Array.from(line).length;
-            const chars = valid ? Array.from(line) : [];
-            let from = valid ? starts[alert.Line - 1] + chars.slice(0, span[0] - 1).join('').length : -1;
-            let to = valid ? starts[alert.Line - 1] + chars.slice(0, span[1]).join('').length : -1;
+            if (line !== undefined && !lineOffsets.has(alert.Line)) {
+                const offsets = [0];
+                for (const char of line) offsets.push(offsets[offsets.length - 1] + char.length);
+                lineOffsets.set(alert.Line, offsets);
+            }
+            const offsets = lineOffsets.get(alert.Line);
+            const valid = offsets && Array.isArray(span) && span.length === 2
+                && span.every(Number.isInteger) && span[0] > 0 && span[1] >= span[0] && span[1] < offsets.length;
+            let from = valid ? starts[alert.Line - 1] + offsets[span[0] - 1] : -1;
+            let to = valid ? starts[alert.Line - 1] + offsets[span[1]] : -1;
             let actual = alert.Match;
             if (alert.Check === 'Microsoft.SentenceLength') {
                 // Vale anchors this occurrence rule to the first word. The advice
@@ -131,10 +141,13 @@ export function valeWritingObservations(output, projection) {
                     if (writingSentenceWordCount(actual) < longSentenceWordLimit) return [];
                 }
             }
+            const grammar = writingGrammarRules[alert.Check];
+            if (grammar && (projection.text.slice(from, to) !== actual || !grammarContext(from, to))) return [];
             return { engine: 'vale', version: '3.20.0', rule: alert.Check, from, to,
-                package: alert.Check?.startsWith('Microsoft.') ? 'Microsoft' : alert.Check?.startsWith('proselint.') ? 'proselint' : 'write-good',
-                packageVersion: alert.Check?.startsWith('Microsoft.') ? writingEngineConfiguration.microsoft : alert.Check?.startsWith('proselint.') ? writingEngineConfiguration.proselint : writingEngineConfiguration.writeGood, evidenceFamily: 'unknown',
-                actual, message: alert.Message, severity: alert.Severity, replacements: [], native: alert };
+                ...(grammar ? { intent: alert.Check } : {}),
+                package: grammar ? (alert.Check.startsWith('Harper.') ? 'Harper' : 'FigaroGrammar') : alert.Check?.startsWith('Microsoft.') ? 'Microsoft' : alert.Check?.startsWith('proselint.') ? 'proselint' : 'write-good',
+                packageVersion: grammar ? writingGrammarVersion : alert.Check?.startsWith('Microsoft.') ? writingEngineConfiguration.microsoft : alert.Check?.startsWith('proselint.') ? writingEngineConfiguration.proselint : writingEngineConfiguration.writeGood, evidenceFamily: 'unknown',
+                actual, message: alert.Message, severity: alert.Severity, replacements: grammar ? writingGrammarReplacements(alert) : [], native: alert };
         });
     });
 }
@@ -173,25 +186,30 @@ function normalizeObservation(raw, source, projection, spelling) {
     if (raw.engine === 'spelling' && actual !== word.word) return { raw, rejected: 'Spelling text disagrees with its range' };
     if (raw.engine !== 'spelling' && typeof raw.actual === 'string' && clean(projection.text.slice(raw.from, raw.to)) !== clean(raw.actual)) return { raw, rejected: 'Analyzer text disagrees with its range' };
     if (kind === 'style.wordiness' && /^utiliz/i.test(actual)) kind = 'lexicon.complex-word';
+    const indirectPlain = kind === 'style.wordiness' && /^there (?:is|are)$/iu.test(actual);
+    if (indirectPlain) kind = 'syntax.indirect-opening';
     if (kind === 'clarity.undefined-acronym' && !spelling.acronyms.has(actual)) spelling.acronyms.set(actual, writingAcronymDefined(actual, projection));
     const suppressed = kind === 'clarity.undefined-acronym' && (familiarWritingAcronyms.includes(actual) || projection.ordinaryCapitals?.includes(actual)) ? 'Familiar acronym or ordinary word'
         : kind === 'clarity.undefined-acronym' && spelling.acronyms.get(actual) ? 'Acronym defined in prose'
-            : kind === 'style.wordiness' && writingWordinessContext(raw, projection) ? 'Wording has an established meaning in this context' : '';
+            : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context' : '';
     const phraseNeedsReview = ['style.wordiness', 'lexicon.complex-word'].includes(kind) && !reviewed.has(clean(actual));
     const fixes = referenceLabel || raw.package === 'slopless' || phraseNeedsReview ? [] : kind === 'style.quotation' ? quotationFix(raw, range, source, projection)
         : !suppressed && range.editable && !advisoryOnly.has(kind) && !kind.startsWith('formulaic.')
+            && (!writingGrammarRules[raw.rule] || !/[\r\n]/u.test(source.slice(range.from, range.to)))
             ? [...new Set(raw.replacements || [])].filter(value => typeof value === 'string' && value.length > 0)
                 .map(value => ({ from: range.from, to: range.to, expected: source.slice(range.from, range.to), replacement: ['style.capitalization', 'style.sentence-spacing', 'style.terminology'].includes(kind) ? value : matchCase(value, actual) }))
             : [];
-    const presentation = { ...concepts[kind], lens: raw.package === 'slopless' ? 'formulaic' : concepts[kind].lens };
+    const presentation = { ...concepts[kind], lens: raw.package === 'slopless' ? 'formulaic' : indirectPlain ? 'plain' : concepts[kind].lens };
     if (raw.rule === 'slopless/word-repetition' && raw.detail) presentation.message = `${raw.detail} ${presentation.message}`;
     if (phraseNeedsReview) presentation.message = 'Consider whether simpler wording would preserve your meaning. This match needs contextual review; no automatic replacement is offered.';
+    if (writingGrammarRules[raw.rule]) { presentation.title = writingGrammarRules[raw.rule].title; presentation.message = raw.message || presentation.message; }
     if (raw.engine === 'figaro' && typeof raw.message === 'string') presentation.message = raw.message;
     if (kind === 'language.inclusive' && typeof raw.note === 'string' && raw.note.trim()) {
         presentation.message = raw.adviceType === 'reader-assumption' ? raw.note.trim() : `${presentation.message} ${raw.note.trim()}`;
     }
     if (referenceLabel) presentation.message += ' This label also identifies its Markdown reference; edit the label and reference together.';
     return { ...range, raw, kind, actual, sourceText: source.slice(range.from, range.to), suppressed, severity: 'advisory', intent: raw.intent || 'review', fixes,
+        ...(kind === 'syntax.indirect-opening' && /^there (?:is|are)$/iu.test(actual) ? { legacyKind: 'style.wordiness' } : {}),
         ...(kind === 'grammar.spelling' ? { bulkSafe: raw.bulkSafe === true } : {}), ...presentation };
 }
 function equivalent(left, right, candidates, source) {
@@ -217,6 +235,11 @@ export function resolveWritingFindings({ source, projection = { units: [], regio
     const eligibility = observations.length ? spellingSource(source) : { words: [], readOnly: [] };
     const spelling = { words: new Map(eligibility.words.map(word => [`${word.from}:${word.to}`, word])), readOnly: eligibility.readOnly, acronyms: new Map() };
     const evidence = observations.map(raw => normalizeObservation(raw, source, projection, spelling));
+    // A doubled article needs removal, not an overlapping a/an sound change.
+    const doubledArticles = evidence.filter(entry => entry.raw.rule === 'Harper.AnAnother' && !entry.rejected);
+    for (const entry of evidence) {
+        if (entry.kind === 'grammar.article' && doubledArticles.some(other => other.from <= entry.from && other.to >= entry.to)) entry.suppressed = 'Covered by the doubled-article correction';
+    }
     const candidates = evidence.filter(entry => !entry.rejected).sort((a, b) => a.from - b.from || b.to - a.to || compare(a.raw.rule, b.raw.rule) || compare(JSON.stringify(a.raw), JSON.stringify(b.raw)));
     const byStart = new Map(), intents = new Map();
     for (const entry of candidates) {

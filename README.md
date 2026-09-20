@@ -51,11 +51,36 @@ another way to explore those connections.
 Keep several notes open in tabs, and middle-click a tab to close it. Figaro asks
 before discarding unsaved changes. Typing and moving the caret keep the tab strip
 stable, including in long notes with charts.
+Cursor movement also keeps breadcrumbs and pane controls stable. Image previews
+stay mounted during ordinary movement, and an open Outline updates only the
+headings whose active state changes. Editing prose retains Outline rows and an
+unchanged task board, while heading and task edits continue to update their
+navigation targets. Formatting and ordinary code previews also reuse unchanged
+state as the cursor moves, keeping long notes from rereading every code block.
+Typing prose—including text with bold formatting, curly apostrophes, lists and
+blockquotes—reuses previews and guide positions. Helper-rail navigation and Pure
+phrase focus also reuse their prepared data in long notes. Frequent buffer
+updates keep remembered cursors intact without revisiting every open tab.
+Entering source updates the affected block while other previews stay in place. Find navigation
+reuses its match list, and remembered cursors update directly even with many
+open tabs.
 Deleting the active note from the file tree closes its tab and returns to the
 most recently used remaining tab. Closing the final tab returns to Home.
 
+Rename a file or folder with **F2** or its context menu. The status bar identifies
+the current step, from saving open files and checking references to renaming and
+refreshing. Files such as CSS stylesheets skip the reference question when no
+Markdown links point to them.
+
 Use **Document outline** to jump through a long note. Selecting a heading brings
 it to the top of the editor, with its section ready to read below it.
+Cursor memory updates independently of tab and toolbar presentation, so moving
+through a note does not refresh the workspace shell. Contributors can trace
+cursor and typing work with the [editor update guide](docs/EDITOR_UPDATES.md).
+
+Clicking the Outline, Writing lenses, Raw, PDF, or History launcher while typing
+keeps focus in the editor, so you can carry on writing. Click inside the sidebar
+to use its controls; keyboard activation still provides the usual pane access.
 
 When a note becomes a project, its tasks can stay beside the thinking that
 produced them. Add a hashtag such as `#todo` to put a task on the board. Use
@@ -75,11 +100,39 @@ and follows renames and moves made in Figaro on every supported platform.
 
 ## Refine a draft in your own voice
 
-Writing lenses underline words and phrases for review. Unchanged paragraphs and spelling lookups are reused as you edit; review work waits while you type. Hover a suggestion to
+With Vim **Move by visual rows** enabled, Up/Down and `j`/`k` finish traversing
+wrapped prose before revealing an adjacent diagram or code block. No blank line
+is needed between the block and the paragraph.
+
+Writing lenses underline words and phrases for review. Unchanged paragraphs and spelling lookups are reused as you edit; review work waits while you type. Previous cards stay visible while refreshing, with their actions disabled. Underlines in unchanged paragraphs follow edits; the edited paragraph and document-wide advice wait for fresh checks. Hover a suggestion to
 see its explanation and, where available, a replacement you can apply in
 place. Choose any combination of **Proofreading**, **Clarity**,
 **Directness**, **Inclusive language**, and **Formulaic writing** for each
 document.
+
+Proofreading also catches selected English grammar mistakes such as “She go,”
+“I have went,” “your welcome,” and “an advice.” It also reviews selected
+homophones, uncountable nouns, verb complements, and plural decades. It catches
+“I belief in you,” “their should be a warning,” and “my mother and me went,”
+plus selected question forms such as “Has we finished?” It corrects “their going
+to be late” while preserving possessive phrases such as “their going to be late
+worried us.” Broader phrase checks catch “for all intensive purposes,”
+“look forward to meet,” and “more cheaper,” alongside ordinal endings, selected
+compound words, and comma spacing. Further checks catch “good in swimming,”
+“a friend of me,” “The spare chairs is ready,” and “fewer time,” while preserving
+valid phrases such as “fewer time slots.” Review a suggested correction, apply it
+with Undo support, or ignore that occurrence. Ambiguous constructions remain
+unchanged; these are focused checks rather than a complete grammar judgment.
+
+Context checks also catch “What dose this sign mean?” and “We all seam to agree,”
+while preserving literal uses such as “beware in the forest.” Technical terms
+such as `async`, `dotfiles`, and `etag`, lower-camel-case identifiers, and acronyms
+defined in your note avoid misleading spelling replacements. Balanced multiline
+parentheses and literal scheduling phrases receive fewer false warnings.
+Equivalent “there is/are” advice shares one finding across selected lenses.
+
+Footnote identifiers such as `[^reference]` are excluded from writing advice,
+even before their definitions exist. The footnote's explanatory text is checked.
 
 ![An invitation draft with an in-place suggestion to shorten “in order to” to “to”](docs/images/figaro-writing.png)
 
@@ -87,9 +140,19 @@ Checks run locally in the background. Vale is built into Figaro and reuses its
 rules in memory, without extracting or launching a separate executable. Your restored note is available while
 writing lenses and vault indexing get ready, with Auto-Save and close protection
 already active. Saves write your text to disk first; Git history and index
-updates follow. You can ignore a suggestion, add a word
-to your dictionary, or return to a saved review decision later. Your choices
-survive restarts. Repeated suggestions share a card, and suitable replacements
+updates follow. A slow Git write allows newer edits to save while it records the
+captured revision. Cursor movement avoids redundant browser-storage writes, and
+slow workspace-session writes retain only the newest waiting snapshot. Keyboard
+navigation also reuses unchanged Outline, focus, and diagram information and
+avoids refreshing file-tree markers that have not changed. You can ignore a suggestion, add a word
+to your dictionary, or return to a saved review decision later. In English,
+adding a word also accepts its regular plural and possessives, such as
+`figarowords`, `figaroword's`, and `figarowords'`. This also applies to previously
+saved words. Adding `figaroword’s` also accepts the base word and its plural;
+adding `figarowords’` accepts the unpossessed `figarowords`. Visually identical
+accent encodings match consistently without changing your note text. Capitalized
+words receive case-matched suggestions, and all-caps and slash/dot-separated prose
+is checked too. Your choices survive restarts. Repeated suggestions share a card, and suitable replacements
 offer an action to apply the same change throughout the document.
 
 The advice is optional. Grammar checks cover selected issues, and readability
@@ -160,5 +223,7 @@ and [PDF styling guide](docs/PDF_STYLING.md).
 
 Found a problem or have an idea? [Open an issue](https://github.com/grilo/figaro/issues).
 Code contributions are welcome; the [contributor guide](CONTRIBUTING.md) covers
-development and testing. See [LICENSE](LICENSE) for the GPL terms and
+development and testing. Start with `npm run context` for a compact feature list;
+the [feature index](docs/FEATURE_INDEX.md) maps changes to source, documentation,
+and focused checks. See [LICENSE](LICENSE) for the GPL terms and
 [third-party notices](THIRD_PARTY_NOTICES.md) for dependency and theme credits.

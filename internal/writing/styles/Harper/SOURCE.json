@@ -1,0 +1,51 @@
+{
+  "package": "vale-cli/Harper",
+  "version": "0.1.0",
+  "harperVersion": "2.7.0",
+  "url": "https://github.com/vale-cli/Harper/releases/tag/v0.1.0",
+  "license": "Apache-2.0",
+  "upstreamFiles": {
+    "Harper/AnAnother.yml": "3ff68c30f0eaff02be3fd424109f539e947d1d5e04630795352f2a7d5a3c5466",
+    "Harper/AnotherAn.yml": "9376d9e404e93ad07523d1e7e98317aca4306c77486b0a8c9a7b3bb7c0fc50b2",
+    "Harper/BetterOffWith.yml": "695ceedcda92f54c7a427934bd206391a5b4dab6d8dccd1c6902e7948fcfba97",
+    "Harper/DespiteOf.yml": "0748b09621bd67eb6376d4dc5d3a2a3fb213ba97a7f4dbac2192292dddbd0d14",
+    "Harper/EachOthersPossessive.yml": "ff1a0c4c60318f825edf93dc28f2b33ea1cb03a3ea2445aa8c5d0a52553b3668",
+    "Harper/ForTheNthTime.yml": "ab299006a4cda7ff81899becf9561a30ff25459d476b23abf4c383e09b002613",
+    "Harper/IsBeenAuxSequence.yml": "52dcc7a54506b360eb9ddf8e0deb0e724371732c055b2139d05be779eb66cebf",
+    "Harper/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "Harper/ProgressiveNeedsBe.yml": "95ea62eb4602137c58bf9d27b64cadb8d64cd4da142614d8081cbc839441a339",
+    "Harper/SimplePastToPastParticiple.yml": "8b4fae58433ff932b72d7c8f2a5f428a137e627e3514859c2777c4720344f04e",
+    "Harper/SomeOfThe.yml": "a80bedc141e10f9ac53092e16eb4ec53806fd2ed328c737a4846ade98d6e2eeb",
+    "Harper/SomebodyElses.yml": "b9e1336d33ea7e875d1ad524073c5cb10e12e485efedbf53c95b7c325857a10a",
+    "Harper/SupposedTo.yml": "9b45fe98fd846d2d1b67da39ddc17e15113d4db5d516263148eb8062cfb2743f",
+    "Harper/TheAnother.yml": "91984513cac92ca7ba17635f4fd4a624d5acc7139e8274a03ef7cd9e5c9a4111",
+    "Harper/TheMy.yml": "1c850d520ee0542ebbc46bc3b17841f05a0e92aa4916d523d3b5da229ca0a614",
+    "Harper/TheMy2.yml": "afc85ca8c0c2c7b91e8ed157da5c778579ee45a6ec9db38a77c4871b6d88e88a",
+    "Harper/WillNonLemma.yml": "245c5d0d075c552131b4cee13a1d9cffd93c258c6097fa1bfa7af742fa6a71d4",
+    "config/dictionaries/harper.dict": "48c6abcd0a7a199ef2efd255a717f888690756e450734a84d798ad23c67508c8"
+  },
+  "files": {
+    "Harper/AnAnother.yml": "3ff68c30f0eaff02be3fd424109f539e947d1d5e04630795352f2a7d5a3c5466",
+    "Harper/AnotherAn.yml": "9376d9e404e93ad07523d1e7e98317aca4306c77486b0a8c9a7b3bb7c0fc50b2",
+    "Harper/BetterOffWith.yml": "695ceedcda92f54c7a427934bd206391a5b4dab6d8dccd1c6902e7948fcfba97",
+    "Harper/DespiteOf.yml": "0748b09621bd67eb6376d4dc5d3a2a3fb213ba97a7f4dbac2192292dddbd0d14",
+    "Harper/EachOthersPossessive.yml": "ff1a0c4c60318f825edf93dc28f2b33ea1cb03a3ea2445aa8c5d0a52553b3668",
+    "Harper/ForTheNthTime.yml": "ab299006a4cda7ff81899becf9561a30ff25459d476b23abf4c383e09b002613",
+    "Harper/IsBeenAuxSequence.yml": "52dcc7a54506b360eb9ddf8e0deb0e724371732c055b2139d05be779eb66cebf",
+    "Harper/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "Harper/SimplePastToPastParticiple.yml": "05714c5fee0fbd2462e1907b7b0431bf905840d92566ce619b58b6bf703efb55",
+    "Harper/SomeOfThe.yml": "a80bedc141e10f9ac53092e16eb4ec53806fd2ed328c737a4846ade98d6e2eeb",
+    "Harper/SomebodyElses.yml": "b9e1336d33ea7e875d1ad524073c5cb10e12e485efedbf53c95b7c325857a10a",
+    "Harper/SupposedTo.yml": "e7a976f297728cfa3b84d625b1094eafd7cc76cc00ff1871124aa9a1051e5b7a",
+    "Harper/TheAnother.yml": "91984513cac92ca7ba17635f4fd4a624d5acc7139e8274a03ef7cd9e5c9a4111",
+    "Harper/TheMy.yml": "1c850d520ee0542ebbc46bc3b17841f05a0e92aa4916d523d3b5da229ca0a614",
+    "Harper/TheMy2.yml": "afc85ca8c0c2c7b91e8ed157da5c778579ee45a6ec9db38a77c4871b6d88e88a",
+    "Harper/WillNonLemma.yml": "311ab609ff7dc97a3eb4684418337b233c508b80cd85d2d1a3a76e2bfd8c971b",
+    "config/dictionaries/harper.dict": "48c6abcd0a7a199ef2efd255a717f888690756e450734a84d798ad23c67508c8"
+  },
+  "adaptations": {
+    "SimplePastToPastParticiple.yml": "Restrict to perfect tenses; support curly apostrophes; omit ambiguous noun forms and capitalized name-like targets.",
+    "SupposedTo.yml": "Require a preceding form of be; preserve lexical suppose in questions such as What do you suppose to be true?",
+    "WillNonLemma.yml": "Match lowercase will/shall only; avoid personal-name Will false positives."
+  }
+}

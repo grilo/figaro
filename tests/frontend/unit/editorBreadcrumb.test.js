@@ -72,6 +72,23 @@ describe('editor breadcrumbs', () => {
         }).visible).toBe(false);
     });
 
+    test('retains path nodes through cursor and content updates but reflects path and visibility changes', () => {
+        state.showEditorBreadcrumbs = true;
+        state.activeTabId = 'note';
+        state.openTabs = [{ id: 'note', type: 'file', path: 'Folder/Note.md' }];
+        renderEditorBreadcrumb();
+        const item = document.querySelector('.editor-breadcrumb-item.current');
+        state.openTabs = [{ ...state.openTabs[0], cursorState: { anchor: 2, head: 2 }, _content: 'edited' }];
+        renderEditorBreadcrumb();
+        expect(document.querySelector('.editor-breadcrumb-item.current')).toBe(item);
+        state.openTabs = [{ ...state.openTabs[0], path: 'Folder/Renamed.md' }];
+        renderEditorBreadcrumb();
+        expect(document.querySelector('.editor-breadcrumb-item.current').textContent).toBe('Renamed.md');
+        state.showEditorBreadcrumbs = false;
+        renderEditorBreadcrumb();
+        expect(document.getElementById('editor-breadcrumb').children).toHaveLength(0);
+    });
+
     test('binds the setting to reactive state and local persistence', () => {
         expect(initEditorBreadcrumbSetting()).toBe(true);
         const toggle = document.getElementById('editor-breadcrumbs-toggle');

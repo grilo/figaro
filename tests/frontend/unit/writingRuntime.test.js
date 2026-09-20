@@ -1,7 +1,29 @@
 import { analyzeRetext, analyzeWriting, prepareWritingSource } from '../../../frontend/vendored/writing/runtime.js';
 import { resolveWritingFindings } from '../../../frontend/js/core/writingAnalysisModel.js';
 import editorial from '../../fixtures/writing-editorial.json';
+
+test('shared prose projection preserves slash and dot alternatives while protecting explicit paths', () => {
+    const source = 'writting/editting writting.editting src/file.md ../teh /var/teh';
+    const projection = prepareWritingSource(source);
+    expect(projection.text).toContain('writting/editting writting.editting');
+    expect(projection.text).not.toContain('file.md');
+    expect(projection.text).not.toContain('teh');
+});
 const preferences = { primary: 'plain', overlays: ['direct', 'repetition'], profile: 'direct' };
+
+test('writing lenses exclude defined and undefined footnote markers while checking footnote prose', async () => {
+    const source = '😀 We utilize it[^utilize] and [^markdownreferences]. [^was written]\r\n\r\n[^utilize]: The report was written in order to help.\r\n\r\nAn inline note ^[We utilize it].';
+    const data = await analyzeWriting(source);
+    expect(data.projection.text).not.toContain('markdownreferences');
+    const ranges = [...source.matchAll(/\[\^[^\]\r\n]+\]/g)].map(match => ({ from: match.index, to: match.index + match[0].length }));
+    expect(data.projection.units.filter(unit => !unit.hidden && unit.from >= 0)
+        .some(unit => ranges.some(range => range.from <= unit.from && unit.to <= range.to))).toBe(false);
+    const result = resolveWritingFindings({ source, ...data, preferences: { lenses: ['plain', 'direct'], language: 'en-US' } });
+    const findings = result.groups.flatMap(group => group.findings);
+    expect(findings.filter(item => item.kind === 'syntax.passive')).toHaveLength(1);
+    expect(findings.filter(item => item.actual === 'utilize')).toHaveLength(2);
+    for (const finding of findings) expect(ranges.some(range => finding.from < range.to && finding.to > range.from)).toBe(false);
+});
 
 test('pinned retext checks emit real passive, simplification, and repeated-word evidence', () => {
     const data = analyzeRetext('The report was written in order to help. The the team will utilize it.');

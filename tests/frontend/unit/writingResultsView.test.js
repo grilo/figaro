@@ -99,3 +99,26 @@ test('background decision failure directs recovery to saved decisions rather tha
     expect(view.element.querySelector('[role=status]').textContent).toBe('Saved review decisions need refreshing. Retry them to resume analysis.');
     expect([...view.element.querySelectorAll('button')].find(button => button.textContent === 'Retry analysis').hidden).toBe(true);
 });
+
+test('refresh keeps the same cards visible with disabled stale actions and restores actions after replacement', () => {
+    const onApply = jest.fn(), onNavigate = jest.fn();
+    const view = createWritingResultsView({ onApply, onNavigate, onRetry() {} });
+    document.body.replaceChildren(view.element);
+    const value = { current, analyzed: current, count: 1, resultVersion: 1, groups: [{ findings: [finding] }] };
+    view.update(value);
+    const row = view.element.querySelector('[data-finding]');
+    const apply = row.querySelector('[aria-label^="Replace"]');
+    view.invalidate(); view.invalidate();
+    expect(apply.disabled).toBe(true);
+    apply.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onApply).not.toHaveBeenCalled();
+    view.update({ ...value, current: { ...current, revision: 2 }, stale: true, states: { retext: 'analyzing' } });
+    expect(view.element.querySelector('[data-finding]')).toBe(row);
+    expect(view.element.textContent).toContain('Previous results are shown');
+    expect(view.element.querySelector('[role=status]').closest('[inert]')).toBeNull();
+    view.update({ ...value, resultVersion: 2 });
+    const fresh = view.element.querySelector('[aria-label^="Replace"]');
+    expect(fresh.disabled).toBe(false); fresh.click(); expect(onApply).toHaveBeenCalledTimes(1);
+    view.update({ current: { ...current, id: 'other' }, resultVersion: 3, count: 0, groups: [] });
+    expect(view.element.querySelector('[data-finding]')).toBeNull();
+});

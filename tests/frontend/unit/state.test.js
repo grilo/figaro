@@ -297,6 +297,27 @@ describe('State Management', () => {
     });
 
     describe('auto-persist subscriptions', () => {
+        test('cursor and buffer changes do not write synchronous tab storage', () => {
+            setState('openTabs', [{ id: 'a.md', type: 'file', title: 'A', path: 'a.md' }]);
+            setState('activeTabId', 'a.md');
+            const write = jest.spyOn(localStorage, 'setItem');
+            try {
+                for (let head = 1; head <= 100; head++) {
+                    setState('openTabs', state.openTabs.map(tab => ({
+                        ...tab, cursorState: { anchor: head, head }, dirty: true, content: 'edited',
+                    })));
+                }
+                expect(write).not.toHaveBeenCalled();
+                setState('openTabs', state.openTabs.map(tab => ({ ...tab, title: 'Renamed' })));
+                expect(write).toHaveBeenCalledTimes(1);
+                expect(JSON.parse(localStorage.getItem('openTabs'))[0].title).toBe('Renamed');
+                setState('openTabs', []);
+                expect(localStorage.getItem('openTabs')).toBe('[]');
+            } finally {
+                write.mockRestore();
+            }
+        });
+
         test('should auto-persist sidebarWidth on change', () => {
             setState('sidebarWidth', 330);
             expect(localStorage.getItem('sidebarWidth')).toBe('330');
@@ -339,13 +360,12 @@ describe('State Management', () => {
         });
 
         test('should auto-persist openTabs as serializable subset', () => {
-            state.openTabs = [
+            setState('openTabs', [
                 { id: 'a.md', type: 'file', title: 'A', path: 'a.md', dirty: false, cursorState: { anchor: 0, head: 0 } },
                 { id: 'calendar-x', type: 'calendar', title: 'Cal', dateStr: '2024-01-15' },
                 { id: 'backlinks-x', type: 'backlinks', title: 'BL', targetPath: 'x.md' }
-            ];
-            state.activeTabId = 'a.md';
-            setState('openTabs', [...state.openTabs]);
+            ]);
+            setState('activeTabId', 'a.md');
             const saved = JSON.parse(localStorage.getItem('openTabs'));
             expect(saved.length).toBe(2); // file + calendar only, no backlinks
             expect(saved[0].id).toBe('a.md');
@@ -357,4 +377,40 @@ describe('State Management', () => {
             expect(localStorage.getItem('activeTabId')).toBe('a.md');
         });
     });
+});
+
+
+import { getTabCursorState, setTabCursorState, getTabIndex } from '../../../frontend/js/state.js';
+import { recordTabEdit, recordTabContent } from '../../../frontend/js/tabManager.js';
+test.each([10, 1000])('buffer publications touch one tab and preserve cursor lifetimes with %i tabs', count => {
+    let reads = 0;
+    const tabs = Array.from({ length: count }, (_, index) => ({
+        get id() { reads++; return String(index); }, type: 'file', dirty: true, _editGeneration: 0,
+        cursorState: { anchor: 2, head: 3 },
+    }));
+    setState('openTabs', tabs);
+    const id = String(count - 1);
+    setTabCursorState(id, { anchor: 7, head: 8 });
+    const before = state.openTabs;
+    const notify = jest.fn(), stop = subscribe('tabCursors', notify);
+    reads = 0;
+    try {
+        for (let index = 0; index < 20; index++) {
+            recordTabEdit(id);
+            expect(recordTabContent(id, index + 1, 'content ' + index)).toBe(true);
+        }
+        expect(reads).toBeLessThan(100);
+        expect(notify).not.toHaveBeenCalled();
+        expect(getTabCursorState(id)).toEqual({ anchor: 7, head: 8 });
+        expect(before.at(-1)._editGeneration).toBe(0);
+        expect(state.openTabs.at(-1)._content).toBe('content 19');
+        expect(recordTabContent(id, 19, 'stale')).toBe(false);
+        setState('openTabs', [...state.openTabs].reverse());
+        expect(getTabIndex(id)).toBe(0);
+        recordTabEdit(id);
+        expect(state.openTabs[0]._editGeneration).toBe(21);
+        setState('openTabs', []);
+        setState('openTabs', [{ id, type: 'file', cursorState: { anchor: 1, head: 1 } }]);
+        expect(getTabCursorState(id)).toEqual({ anchor: 1, head: 1 });
+    } finally { stop(); setState('openTabs', []); }
 });

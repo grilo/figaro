@@ -29,6 +29,7 @@ describe('offline Markdown spellcheck', () => {
         const words = spellcheckWordRanges(source);
         expect(words).toEqual([
             { from: 1, to: 4, word: 'teh', editable: false },
+            { from: 9, to: 12, word: 'TEH', editable: false },
             { from: 15, to: 18, word: 'teh' },
             { from: 25, to: 29, word: 'typo' },
         ]);
@@ -75,7 +76,7 @@ describe('offline Markdown spellcheck', () => {
             markClass: 'cm-spellcheck-range',
         });
         expect(spellcheckWordRanges(source).map(range => range.word)).not.toEqual(expect.arrayContaining([
-            'metadata', 'misspeled', 'misspeledCode', 'misspeledFence', 'API',
+            'metadata', 'misspeled', 'misspeledCode', 'misspeledFence',
         ]));
     });
 

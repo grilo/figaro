@@ -75,7 +75,8 @@ export function applyWritingDecisions(findings, decisions, source, language) {
     const accepted = new Set(decisions.filter(item => item.language === language && item.type === 'acronym').map(item => item.acronym));
     for (const finding of findings) {
         if (finding.kind === 'clarity.undefined-acronym' && accepted.has(finding.actual)) finding.suppressed = 'Acronym accepted for this document';
-        else if (ranges.some(item => item.kind === finding.kind && item.range.from === finding.from && item.range.to === finding.to)) {
+        else if (ranges.some(item => (item.kind === finding.kind || finding.members?.some(member => member.legacyKind === item.kind))
+            && item.range.from === finding.from && item.range.to === finding.to)) {
             finding.suppressed = 'Occurrence ignored for this document';
         }
     }

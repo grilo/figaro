@@ -1,9 +1,13 @@
 import MarkdownIt from 'markdown-it';
-import { EditorSelection } from '@codemirror/state';
+import { EditorSelection, EditorState, StateField } from '@codemirror/state';
+import { EditorView, Decoration, WidgetType } from '@codemirror/view';
+import { markdownLanguage } from '@codemirror/lang-markdown';
+import { codeFolding, foldEffect, unfoldEffect } from '@codemirror/language';
 
 import {
     renderedTableCellMouseSelection,
     tablePreviewOwnsEvent,
+    createMarkdownTableField,
 } from '../frontend/js/liveMarkdownTablePlugin.js';
 
 import {
@@ -64,6 +68,32 @@ describe('source-preserving GFM table preview', () => {
 
     afterAll(() => {
         delete window.markdownit;
+    });
+
+    test('table source movement reuses parsing and decorations while edits and folding still refresh', () => {
+        const dragging = StateField.define({ create: () => false, update: value => value });
+        const [field] = createMarkdownTableField(StateField, EditorView, Decoration, WidgetType,
+            (state, from, to) => state.selection.ranges.some(range => range.from <= to && range.to >= from),
+            dragging, EditorSelection);
+        let state = EditorState.create({ doc: tableSource, extensions: [markdownLanguage, codeFolding(), dragging, field] });
+        const blocks = state.field(field).blocks;
+        const read = jest.spyOn(state.doc, 'toString');
+        state = state.update({ selection: { anchor: tableSource.indexOf('Alpha') } }).state;
+        const revealed = state.field(field);
+        for (let i = 0; i < 30; i++) state = state.update({ selection: { anchor: tableSource.indexOf('Alpha') + i % 2 } }).state;
+        expect(state.field(field)).toBe(revealed);
+        state = state.update({ selection: { anchor: 0 } }).state;
+        const fold = { from: state.doc.lineAt(blocks[0].from).to, to: blocks[0].to };
+        state = state.update({ effects: foldEffect.of(fold) }).state;
+        expect(state.field(field).decorations.size).toBe(0);
+        state = state.update({ effects: unfoldEffect.of(fold) }).state;
+        expect(state.field(field).decorations.size).toBe(1);
+        expect(state.field(field).blocks).toBe(blocks);
+        expect(read).not.toHaveBeenCalled();
+        read.mockRestore();
+        const from = tableSource.indexOf('Alpha');
+        state = state.update({ changes: { from, to: from + 5, insert: 'Gamma' } }).state;
+        expect(state.field(field).blocks[0].source).toContain('Gamma');
     });
 
     test('renders a semantic table while keeping the exact Markdown source', async () => {
@@ -127,6 +157,7 @@ describe('source-preserving GFM table preview', () => {
         const origin = { button: 0, target: cell, clientX: 90, clientY: 90 };
         const fakeView = {
             state: { sliceDoc: (from, to) => tableSource.slice(from, to) },
+            posAtDOM: (root, offset) => view.posAtDOM(root, offset),
             posAtCoords: jest.fn(() => tableSource.indexOf('After')),
         };
         const style = renderedTableCellMouseSelection(fakeView, origin, EditorSelection);
@@ -239,4 +270,22 @@ describe('source-preserving GFM table preview', () => {
         expect(menu.querySelector('[data-action^="table-"]')).toBeNull();
         expect(getEditorContent()).toBe(tableSource);
     });
+});
+
+test('typing before a table retains its preview DOM and updates the cell source target', () => {
+    const dragging = StateField.define({ create: () => false, update: value => value });
+    const [field] = createMarkdownTableField(StateField, EditorView, Decoration, WidgetType,
+        (state, from, to) => state.selection.ranges.some(range => range.from <= to && range.to >= from),
+        dragging, EditorSelection);
+    const view = new EditorView({ state: EditorState.create({ doc: tableSource,
+        extensions: [markdownLanguage, codeFolding(), dragging, field] }), parent: document.body });
+    try {
+        const root = view.dom.querySelector('.cm-block-widget--table');
+        view.dispatch({ changes: { from: 2, insert: 'more ' }, selection: { anchor: 2 } });
+        expect(view.dom.querySelector('.cm-block-widget--table')).toBe(root);
+        expect(view.posAtDOM(root, 0)).toBe(tableSource.indexOf('| Name') + 5);
+        const cell = root.querySelector('td[data-figaro-source-row]');
+        const selection = renderedTableCellMouseSelection(view, { button: 0, target: cell, clientX: 0, clientY: 0 }, EditorSelection);
+        expect(selection.get({ clientX: 0, clientY: 0 }).main.head).toBeGreaterThan(tableSource.indexOf('| **Alpha**') + 5);
+    } finally { view.destroy(); }
 });

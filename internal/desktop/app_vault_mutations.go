@@ -38,6 +38,8 @@ func (a *App) CreateDirectory(relPath string) (*SaveFileResult, error) {
 
 // DeletePath deletes a file or directory (recursive).
 func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
+	a.vaultPathMu.Lock()
+	defer a.vaultPathMu.Unlock()
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 
@@ -98,6 +100,8 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 
 // RenamePath renames/moves a file or folder.
 func (a *App) RenamePath(oldRel string, newRel string) (*SaveFileResult, error) {
+	a.vaultPathMu.Lock()
+	defer a.vaultPathMu.Unlock()
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 	return a.renamePathLocked(oldRel, newRel, true)
@@ -106,6 +110,8 @@ func (a *App) RenamePath(oldRel string, newRel string) (*SaveFileResult, error) 
 // RenamePathWithLinkUpdates applies the explicit reference choice made by the
 // file-tree rename flow. Moves retain RenamePath's link-preserving default.
 func (a *App) RenamePathWithLinkUpdates(oldRel string, newRel string, updateLinks bool) (*SaveFileResult, error) {
+	a.vaultPathMu.Lock()
+	defer a.vaultPathMu.Unlock()
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 	return a.renamePathLocked(oldRel, newRel, updateLinks)
@@ -277,6 +283,8 @@ func (a *App) renamePathWritingLocked(oldRel string, newRel string, updateLinks 
 
 // MovePath moves a file or directory into a target directory.
 func (a *App) MovePath(sourceRel string, targetDirRel string) (*SaveFileResult, error) {
+	a.vaultPathMu.Lock()
+	defer a.vaultPathMu.Unlock()
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 
@@ -353,6 +361,8 @@ type directoryMergeRename struct {
 // colliding files receive " (copy)", " (copy 2)", and so on. The frontend
 // calls this only after the user confirms the merge offered by MovePath.
 func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileResult, error) {
+	a.vaultPathMu.Lock()
+	defer a.vaultPathMu.Unlock()
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 	a.writingStateMu.Lock()

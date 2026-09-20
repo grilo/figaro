@@ -198,3 +198,21 @@ describe('code block interaction', () => {
         expect(view.dom.querySelector('.cm-codeblock-widget')).not.toBeNull();
     });
 });
+
+test('typing before a rendered fence retains its DOM and maps subsequent code clicks', () => {
+    const source = 'Ordinary prose here.\n\n```js\nconst answer = 42;\n```';
+    const view = new EditorView({ state: EditorState.create({ doc: source, extensions: [markdownLanguage,
+        collapseOnSelectionFacet.of(true), mouseSelectingField, codeBlockField({ lineNumbers: true }),
+    ] }), parent: document.body });
+    try {
+        const widget = view.dom.querySelector('.cm-codeblock-widget');
+        view.dispatch({ changes: { from: 2, insert: 'more ' }, selection: { anchor: 2 } });
+        expect(view.dom.querySelector('.cm-codeblock-widget')).toBe(widget);
+        expect(view.posAtDOM(widget, 0)).toBe(source.indexOf('```') + 5);
+        widget.querySelector('.cm-codeblock-line[data-line-index="0"]').dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true, cancelable: true, clientX: 0,
+        }));
+        expect(view.state.selection.main.head).toBe(source.indexOf('const answer') + 5);
+        expect(view.dom.querySelector('.cm-codeblock-widget')).toBeNull();
+    } finally { view.destroy(); }
+});

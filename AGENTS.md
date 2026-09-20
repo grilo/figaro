@@ -8,6 +8,35 @@ under `.agents/skills/`; use the release skill for release preparation and the
 PKM audit skill for requested editor UX audits. Skill maintenance or an audit of
 a skill does not authorize running its product-changing workflow.
 
+## Start with the feature index and load the applicable contracts
+
+- Start implementation with `npm run context` to list routes, then
+  `npm run context -- <feature>` for only that area's paths, symbols, and sections.
+  When the route is already known, skip the list. Use `docs/FEATURE_INDEX.md` as
+  a browsable fallback, reading the selected section instead of the whole index.
+  Read the relevant symbols and sections first; widen the search when callers,
+  shared contracts, failures, or cross-feature effects require it. Keep complete
+  logs on disk and report focused failures and summaries.
+- Before changing behavior or tests, read `.agents/guidance/testing.md` and the
+  applicable contract linked from `docs/TESTING.md`.
+- Before changing CodeMirror, cursor/widget behavior, or Markdown syntax, read
+  `.agents/guidance/editor.md`. Before changing visible UI, CSS, theme tokens,
+  or design-system components, read `.agents/guidance/ui.md`. New component
+  families, primitives, and visual variants still require explicit user approval.
+  These are explicit read requirements even when working from the repository root;
+  do not rely on automatic discovery of nested instruction files.
+- When adding, moving, renaming, splitting, or removing modules, feature entry
+  points, named source symbols, tests, documentation sections, or verification
+  commands, update the affected routes in `docs/feature-map.json` in the same change. Update a route
+  when ownership changes even if its old path still exists. Add a route for a
+  new feature area; list entry points rather than every helper. Regenerate
+  `docs/FEATURE_INDEX.md` with `npm run context:generate`, then run
+  `npm run context:check`. Before finishing, explicitly check that the index
+  still describes the changed area. Never hand-edit the generated index.
+- The index is a starting set, not an exhaustive dependency or test-selection
+  oracle. Focused checks do not replace required integrity, architecture,
+  broader coverage, or browser/native checks for affected boundaries.
+
 ## Changelog updates are part of every feature
 
 - Every user-facing feature, behavior change, and bug fix must update
@@ -72,109 +101,6 @@ a skill does not authorize running its product-changing workflow.
   registration below the browser layer; keep one representative assembled
   startup check for post-ready module requests instead of adding an end-to-end
   startup case per feature.
-
-## Testing strategy and feature-specific regressions
-
-- Every new behavior and every bug fix must add or update a regression test
-  that names and directly exercises that exact feature. A generic smoke test,
-  an unrelated existing test, or a manual check alone is not sufficient.
-- Put each assertion at the lowest layer capable of proving it. Prefer, in
-  order: pure logic tests with plain inputs; use-case tests with small injected
-  fakes; adapter or component tests using real temporary files, jsdom, or a
-  concrete CodeMirror instance; then a small end-to-end or real-browser check
-  only for a boundary that lower layers cannot represent.
-- Test every affected boundary without duplicating the entire feature at every
-  layer. Pure rules, cancellation/error sequencing, collision planning,
-  backend arguments, and state transitions do not belong in Playwright.
-  End-to-end coverage is reserved for irreducible browser or native behavior
-  such as computed layout and cursor geometry, focus handoff, sandboxed or
-  cross-origin frames, actual clipboard/composition events, and printable
-  browser output.
-- Before adding a new end-to-end spec, identify the exact browser-only risk,
-  prefer extending an existing focused boundary scenario, and keep the test to
-  one representative workflow. If a lower-layer regression can prove the
-  behavior, do not add an end-to-end test.
-- Treat existing end-to-end assertions of pure rules, backend arguments, or
-  failure matrices as migration debt. When touching such a scenario, establish
-  equivalent lower-layer coverage first, then remove the redundant browser
-  branches; do not preserve them merely because they already exist.
-- Before finishing, identify the user-visible acceptance cases (success,
-  cancellation/error, and non-destructive collision behavior where relevant)
-  and make each one observable at the appropriate layer. Follow the detailed
-  strategy and exception list in `docs/TESTING.md`.
-
-## CodeMirror cursor and widget contract
-
-- Any CodeMirror extension, decoration, replacement, widget, keymap, or editor
-  layout change must be checked for cursor movement. Test Arrow Up/Down across
-  the changed region and every feature-specific key (for example table-cell
-  arrows, Tab, Shift+Tab, and Enter), from both directions when applicable.
-- Also verify mouse placement and drag selection around replaced source. Block
-  widgets must obey the measured-height contract in `docs/LIVEPREVIEW.md` and
-  be registered in `tests/frontend/unit/blockWidgetLayout.test.js`.
-- Keep focused CodeMirror unit/component coverage. Add or extend one
-  real-browser regression only when actual layout, selection, or cursor
-  geometry is affected, and run the native packaged webview check described in
-  `docs/TESTING.md`; jsdom and Chromium cannot prove WebKitGTK, WebView2, or
-  WKWebView cursor geometry.
-
-## Markdown rendering surfaces
-
-- A Markdown syntax feature is incomplete until the editor, live/interactive
-  rendering, PDF preview, and generated PDF all preserve and render it.
-- Put syntax and transformation cases in focused editor and printable-renderer
-  tests. Extend the consolidated real-browser preview/export contract with one
-  representative case only when the browser rendering boundary changes;
-  preview and export may share a renderer, but their workflow wiring must
-  remain asserted without multiplying equivalent end-to-end cases.
-
-## All UI elements must be deliberately styled
-
-- Every new or changed visible element must use Figaro's theme tokens and
-  established component language. Shipping raw browser or operating-system
-  defaults for controls, menus, dialogs, states, spacing, or typography is not
-  considered complete.
-- Style every state the user can encounter, including hover, keyboard focus,
-  active/open, selected, disabled, loading, empty, validation, and error states
-  where applicable. Preserve accessible names, contrast, focus indication,
-  reduced-motion behavior, and keyboard operation while styling.
-- Cover structure, state, accessible names, and event handling in component
-  tests. Add or extend a focused real-browser regression only when computed
-  style, geometry, browser focus, or native event behavior is material and
-  cannot be established in jsdom; do not create a browser workflow merely
-  because an element is visible.
-
-## Reuse the approved design system and require approval for new components
-
-- Production UI and the visual catalogue must consume the canonical shared
-  primitives in `frontend/design-system/primitives.css`. Reuse an approved
-  primitive and semantic modifier before adding feature-local presentation;
-  feature classes may retain behavior, placement, and deliberately different
-  dimensions, but must not recreate shared hover, focus, active, selected,
-  disabled, loading, validation, or error states.
-- `frontend/design-system/approved-components.json` is the allowlist of
-  approved component families, primitives, and variants. Adding a component
-  family, a primitive, or a visual variant requires explicit user approval
-  before implementation. A general feature request does not implicitly grant
-  that approval. If no approved component can satisfy the requirement, stop,
-  explain the gap and proposed addition, and ask for approval before writing
-  the new component code or styles.
-- Reusing an approved primitive, adding a narrow feature layout hook, or
-  changing a component's content or behavior within its existing contract does
-  not create a new component and does not require another approval.
-- Every approved component change must keep the registry, production
-  stylesheet link, catalogue specimen, audit, and focused design-system tests
-  synchronized. The application stylesheet must not redefine canonical
-  `.ui-*` primitive blocks.
-- Keep semantic defaults in `frontend/design-system/tokens.css`, stable
-  art-direction selectors in `frontend/design-system/theme-surfaces.css`, and
-  bundled theme files as token-only `:root` overrides. Required and optional
-  theme keys belong in `frontend/design-system/theme-contract.json`.
-- Preserve the exact eager cascade recorded by
-  `frontend/design-system/style-manifest.json` in the application, catalogue,
-  and `frontend/styles.css` compatibility aggregate. New responsibility
-  modules belong under `frontend/styles/`; do not replace explicit startup
-  links with interaction-triggered loading.
 
 ## Prepare the Git handoff, but never commit
 

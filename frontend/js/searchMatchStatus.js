@@ -1,24 +1,29 @@
 import { getSearchQuery, searchPanelOpen } from '@codemirror/search';
 import { ViewPlugin } from '@codemirror/view';
-import { searchMatchAnnouncement } from './core/searchMatchModel.js';
+import { activeSearchMatchIndex, searchMatchAnnouncement } from './core/searchMatchModel.js';
 
-function matchSummary(state) {
+// Keep only the latest query per immutable document. Old documents can be collected.
+const documentMatches = new WeakMap();
+
+export function editorSearchMatchSummary(state) {
     const query = getSearchQuery(state);
     if (!query.search || !query.valid) {
         return searchMatchAnnouncement({ query: query.search, valid: query.valid });
     }
-    const selection = state.selection.main;
-    let total = 0;
-    let activeIndex = -1;
-    for (const match of query.getCursor(state)) {
-        if (match.from === selection.from && match.to === selection.to) activeIndex = total;
-        total += 1;
+    const wordChars = query.wholeWord ? state.languageDataAt('wordChars', state.selection.main.head)[0] || '' : '';
+    let cached = documentMatches.get(state.doc);
+    if (!cached || !query.eq(cached.query) || query.unquoted !== cached.query.unquoted
+        || wordChars !== cached.wordChars || (query.test && cached.state !== state)) {
+        const matches = [];
+        for (const { from, to } of query.getCursor(state)) matches.push({ from, to });
+        cached = { query, matches, wordChars, state: query.test ? state : null };
+        documentMatches.set(state.doc, cached);
     }
     return searchMatchAnnouncement({
         query: query.search,
         valid: query.valid,
-        total,
-        activeIndex,
+        total: cached.matches.length,
+        activeIndex: activeSearchMatchIndex(cached.matches, state.selection.main),
     });
 }
 
@@ -46,11 +51,17 @@ export const searchMatchStatusExtension = ViewPlugin.fromClass(class {
         this.schedule();
     }
 
-    update() {
-        this.schedule();
+    update(update) {
+        if (update.docChanged || update.selectionSet
+            || !getSearchQuery(update.startState).eq(getSearchQuery(update.state))
+            || update.transactions.some(transaction => transaction.reconfigured)
+            || (getSearchQuery(update.state).wholeWord && update.startState !== update.state)
+            || (getSearchQuery(update.state).test && update.startState !== update.state)
+            || searchPanelOpen(update.startState) !== searchPanelOpen(update.state)) this.schedule();
     }
 
     schedule() {
+        if (!searchPanelOpen(this.view.state)) return;
         if (this.frame !== null) return;
         const host = this.view.win || globalThis;
         const schedule = typeof host.requestAnimationFrame === 'function'
@@ -67,7 +78,7 @@ export const searchMatchStatusExtension = ViewPlugin.fromClass(class {
         const panel = this.view.dom.querySelector('.cm-panel.cm-search');
         if (!panel) return;
         const status = ensureStatus(panel);
-        const announcement = matchSummary(this.view.state);
+        const announcement = editorSearchMatchSummary(this.view.state);
         if (status.textContent !== announcement) status.textContent = announcement;
     }
 
@@ -80,5 +91,3 @@ export const searchMatchStatusExtension = ViewPlugin.fromClass(class {
         this.frame = null;
     }
 });
-
-export { matchSummary as editorSearchMatchSummary };

@@ -1,0 +1,322 @@
+# Feature index
+
+Generated from `docs/feature-map.json`; edit that map and run `npm run context:generate`.
+Start with `npm run context` for a compact route list, then `npm run context -- <feature>` for paths, symbols, and sections.
+This full index is the browsable reference. Use `npm run test:focus -- <feature> [feature…]` for frontend checks.
+
+Routes name entry points, not every dependency. Follow imports and callers when the change crosses a boundary.
+Focused tests include integrity and architecture checks but do not replace affected Go, coverage, browser, native, or release checks.
+Read the root [agent instructions](../AGENTS.md) and its applicable contracts before editing.
+
+| Feature | Route |
+| --- | --- |
+| Linked notes and heading navigation | [editor-links](#editor-links) |
+| Editor geometry, widgets, and Vim | [editor-layout](#editor-layout) |
+| Editor shell, window title, and pane launchers | [editor-chrome](#editor-chrome) |
+| Editor update dependencies and interaction diagnostics | [editor-updates](#editor-updates) |
+| Rich paste, copy, and clipboard images | [clipboard](#clipboard) |
+| Writing analysis and scheduling | [writing](#writing) |
+| Writing advice context, punctuation and equivalence | [writing-advice](#writing-advice) |
+| Curated English grammar and safe corrections | [writing-grammar](#writing-grammar) |
+| Whole-document editorial evaluation | [writing-evaluation](#writing-evaluation) |
+| Spelling and protected source ranges | [writing-spelling](#writing-spelling) |
+| Retain review results while typing | [writing-retention](#writing-retention) |
+| Inline writing advice and actions | [writing-inline](#writing-inline) |
+| Persist and reverse review decisions | [writing-decisions](#writing-decisions) |
+| File tree, mutations, and vault safety | [files](#files) |
+| Tab ownership, saving, and session continuity | [tabs](#tabs) |
+| Editor Find and accessible match status | [editor-find](#editor-find) |
+| Global note search | [search](#search) |
+| Backlinks and unlinked mentions | [backlinks](#backlinks) |
+| Vault graph layout and interaction | [graph](#graph) |
+| Document outline and sticky headings | [outline](#outline) |
+| Kanban, calendar, and task dates | [planning](#planning) |
+| History restoration and file revisions | [history](#history) |
+| PDF preview, rendering, and export | [pdf](#pdf) |
+| Exact Markdown source preview | [raw-preview](#raw-preview) |
+| Mermaid and diagram scheduling | [diagrams](#diagrams) |
+| Vega and Vega-Lite chart editing | [charts](#charts) |
+| Approved UI primitives and themes | [design](#design) |
+| Eager loading, bundling, and hydration | [startup](#startup) |
+| Preferences and machine-local settings | [settings](#settings) |
+| Release metadata, packaging, and Git handoff | [release](#release) |
+| Feature index, agent routing, and verification | [workflow](#workflow) |
+
+## editor-links
+
+Linked notes and heading navigation
+
+- Source: [frontend/js/editor.js](../frontend/js/editor.js) (`handleLinkClick`, `replaceMarkdownLinkTarget`), [frontend/js/core/linkedNoteNavigationModel.js](../frontend/js/core/linkedNoteNavigationModel.js) (`linkedNoteNavigationPlan`, `linkedNoteCreationPlan`), [frontend/js/usecases/linkedNoteNavigation.js](../frontend/js/usecases/linkedNoteNavigation.js) (`createLinkedNoteNavigation`), [frontend/js/usecases/similarNoteReview.js](../frontend/js/usecases/similarNoteReview.js) (`reviewMissingLinkedNote`)
+- Documentation: [docs/PROMPT.md#45-link-click-behavior](PROMPT.md#45-link-click-behavior), [docs/testing/export.md#raw-text-preview-and-heading-link-regressions](testing/export.md#raw-text-preview-and-heading-link-regressions)
+- Frontend tests: [tests/frontend/unit/linkedNoteNavigationModel.test.js](../tests/frontend/unit/linkedNoteNavigationModel.test.js), [tests/frontend/unit/linkedNoteNavigation.test.js](../tests/frontend/unit/linkedNoteNavigation.test.js), [tests/frontend/unit/similarNoteReview.test.js](../tests/frontend/unit/similarNoteReview.test.js), [tests/frontend/unit/editor.test.js](../tests/frontend/unit/editor.test.js)
+- Additional boundary checks: Follow docs/testing/editor.md for pointer, selection, or cursor changes; navigation planning alone is covered below the browser layer.
+
+## editor-layout
+
+Editor geometry, widgets, and Vim
+
+- Source: [frontend/js/editor.js](../frontend/js/editor.js) (`requestVerticalViewportMeasure`), [frontend/js/core/verticalCursorModel.js](../frontend/js/core/verticalCursorModel.js) (`verticalMotionStaysInLine`), [frontend/js/sourceFootprint.js](../frontend/js/sourceFootprint.js) (`sourceFootprintExtension`, `requestSourceFootprintMeasure`), [frontend/js/pureWriting.js](../frontend/js/pureWriting.js) (`createPureWritingExtension`), [frontend/js/core/pureWritingModel.js](../frontend/js/core/pureWritingModel.js) (`pureFocusRange`, `preparePurePhraseRanges`), [frontend/js/liveDiagramPlugin.js](../frontend/js/liveDiagramPlugin.js) (`createDiagramField`, `scanDiagramFences`), [frontend/js/liveMarkdownTablePlugin.js](../frontend/js/liveMarkdownTablePlugin.js) (`createMarkdownTableField`, `scanMarkdownTables`, `renderedTableSourceRange`), [frontend/js/mathPlugin.js](../frontend/js/mathPlugin.js) (`mathField`), [frontend/js/core/mathPreviewModel.js](../frontend/js/core/mathPreviewModel.js) (`mathPreviewBlocks`), [frontend/js/markdownBlockGuides.js](../frontend/js/markdownBlockGuides.js) (`buildMarkdownBlockGuides`, `createMarkdownBlockGuidesExtension`, `mapMarkdownBlockGuides`, `markdownGuideForBlockWidget`), [frontend/js/markdownImagePlugin.js](../frontend/js/markdownImagePlugin.js) (`createMarkdownImageField`), [frontend/js/core/selectionRangeIndex.js](../frontend/js/core/selectionRangeIndex.js) (`createSelectionRangeIndex`, `selectedRangeIndices`, `sourceRevealChanges`), [frontend/js/sourceReveal.js](../frontend/js/sourceReveal.js) (`sourceRevealIndex`, `updateSourceReveal`, `mapSourceReveal`), [frontend/js/core/markdownFormattingModel.js](../frontend/js/core/markdownFormattingModel.js) (`formattingMarkerVisibility`), [frontend/vendored/codemirror-live-markdown/index.js](../frontend/vendored/codemirror-live-markdown/index.js) (`livePreviewPlugin`, `markdownStylePlugin`, `codeBlockField`, `markdownWorkFacet`, `canMapMarkdownProseEdit`), [frontend/js/core/markdownProjectionModel.js](../frontend/js/core/markdownProjectionModel.js) (`markdownProseEditPreservesBlocks`, `mapMarkdownBlockDescriptors`), [frontend/js/core/markdownBlockGuideModel.js](../frontend/js/core/markdownBlockGuideModel.js) (`markdownBlockGuideSpacerLength`, `markdownGuidesInViewport`)
+- Documentation: [docs/LIVEPREVIEW.md#4-block-widget-geometry-contract](LIVEPREVIEW.md#4-block-widget-geometry-contract), [docs/testing/editor.md#block-widget-and-cursor-regressions](testing/editor.md#block-widget-and-cursor-regressions), [docs/EDITOR_PERFORMANCE.md](EDITOR_PERFORMANCE.md), [docs/EDITOR_PERFORMANCE.md#cursor-only-work-follow-up](EDITOR_PERFORMANCE.md#cursor-only-work-follow-up), [docs/EDITOR_PERFORMANCE.md#typing-and-interaction-follow-up](EDITOR_PERFORMANCE.md#typing-and-interaction-follow-up), [docs/EDITOR_UPDATES.md](EDITOR_UPDATES.md), [docs/EDITOR_PERFORMANCE.md#bounded-cursor-decoration-work](EDITOR_PERFORMANCE.md#bounded-cursor-decoration-work), [docs/EDITOR_UPDATES.md#installed-extension-audit](EDITOR_UPDATES.md#installed-extension-audit), [frontend/vendored/codemirror-live-markdown/README.md](../frontend/vendored/codemirror-live-markdown/README.md), [docs/EDITOR_PERFORMANCE.md#bundled-markdown-cursor-work](EDITOR_PERFORMANCE.md#bundled-markdown-cursor-work), [docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work](EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work), [docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements](EDITOR_PERFORMANCE.md#five-further-interaction-improvements)
+- Frontend tests: [tests/frontend/unit/verticalCursorModel.test.js](../tests/frontend/unit/verticalCursorModel.test.js), [tests/frontend/unit/blockWidgetLayout.test.js](../tests/frontend/unit/blockWidgetLayout.test.js), [tests/frontend/unit/vimVisual.test.js](../tests/frontend/unit/vimVisual.test.js), [tests/frontend/unit/pureWriting.test.js](../tests/frontend/unit/pureWriting.test.js), [tests/frontend/unit/pureWritingModel.test.js](../tests/frontend/unit/pureWritingModel.test.js), [tests/frontend/unit/liveDiagramPlugin.test.js](../tests/frontend/unit/liveDiagramPlugin.test.js), [tests/frontend/unit/editor.test.js](../tests/frontend/unit/editor.test.js), [tests/frontend/unit/markdownTables.test.js](../tests/frontend/unit/markdownTables.test.js), [tests/frontend/unit/mathPlugin.test.js](../tests/frontend/unit/mathPlugin.test.js), [tests/frontend/unit/markdownBlockGuides.test.js](../tests/frontend/unit/markdownBlockGuides.test.js), [tests/frontend/unit/sourceFootprintModel.test.js](../tests/frontend/unit/sourceFootprintModel.test.js), [tests/frontend/unit/graphicFootprintObservation.test.js](../tests/frontend/unit/graphicFootprintObservation.test.js), [tests/frontend/unit/markdownImagePlugin.test.js](../tests/frontend/unit/markdownImagePlugin.test.js), [tests/frontend/unit/selectionRangeIndex.test.js](../tests/frontend/unit/selectionRangeIndex.test.js), [tests/frontend/unit/sourceReveal.test.js](../tests/frontend/unit/sourceReveal.test.js), [tests/frontend/unit/markdownFormattingModel.test.js](../tests/frontend/unit/markdownFormattingModel.test.js), [tests/frontend/unit/vendoredMarkdownCursor.test.js](../tests/frontend/unit/vendoredMarkdownCursor.test.js), [tests/frontend/unit/markdownProjectionModel.test.js](../tests/frontend/unit/markdownProjectionModel.test.js), [tests/frontend/unit/markdownBlockGuideModel.test.js](../tests/frontend/unit/markdownBlockGuideModel.test.js)
+- Additional boundary checks: Run the affected existing editorUX or vimVisualRows Playwright scenario for geometry changes and repeat in the packaged native webview.
+
+## editor-chrome
+
+Editor shell, window title, and pane launchers
+
+- Source: [frontend/js/windowChrome.js](../frontend/js/windowChrome.js), [frontend/js/editorBreadcrumb.js](../frontend/js/editorBreadcrumb.js), [frontend/js/editorPreviewLaunchers.js](../frontend/js/editorPreviewLaunchers.js), [frontend/js/pureEditingChrome.js](../frontend/js/pureEditingChrome.js), [frontend/js/rightSidebarState.js](../frontend/js/rightSidebarState.js)
+- Documentation: [docs/testing/workspace.md#frameless-window-chrome-regressions](testing/workspace.md#frameless-window-chrome-regressions), [docs/testing/workspace.md#pure-mode-regressions](testing/workspace.md#pure-mode-regressions), [ARCHITECTURE.md#editor-decoration-updates](../ARCHITECTURE.md#editor-decoration-updates)
+- Frontend tests: [tests/frontend/unit/windowChrome.test.js](../tests/frontend/unit/windowChrome.test.js), [tests/frontend/unit/editorBreadcrumb.test.js](../tests/frontend/unit/editorBreadcrumb.test.js), [tests/frontend/unit/editorPreviewLaunchers.test.js](../tests/frontend/unit/editorPreviewLaunchers.test.js), [tests/frontend/unit/pureEditingChrome.test.js](../tests/frontend/unit/pureEditingChrome.test.js), [tests/frontend/unit/rightSidebarState.test.js](../tests/frontend/unit/rightSidebarState.test.js)
+- Additional boundary checks: Reuse existing outline and windowChrome browser boundaries for focus, accessibility, or geometry changes; verify native window behavior in the packaged webview.
+
+## editor-updates
+
+Editor update dependencies and interaction diagnostics
+
+- Source: [frontend/js/core/editorUpdateContract.js](../frontend/js/core/editorUpdateContract.js) (`EDITOR_UPDATE_CONSUMERS`, `editorUpdateReasons`, `editorConsumerReasons`), [frontend/js/core/workspaceTabChanges.js](../frontend/js/core/workspaceTabChanges.js) (`workspaceTabChanges`), [frontend/js/editorUpdates.js](../frontend/js/editorUpdates.js) (`subscribeEditorUpdates`, `publishEditorUpdate`), [frontend/js/editorDiagnostics.js](../frontend/js/editorDiagnostics.js) (`editorDiagnostics`, `editorInputTrace`, `readEditorDocument`), [frontend/js/usecases/interactionTrace.js](../frontend/js/usecases/interactionTrace.js) (`createInteractionTrace`), [frontend/js/state.js](../frontend/js/state.js), [frontend/js/editor.js](../frontend/js/editor.js) (`transferEditorHistory`), [frontend/js/core/workspaceCursorModel.js](../frontend/js/core/workspaceCursorModel.js)
+- Documentation: [docs/EDITOR_UPDATES.md](EDITOR_UPDATES.md), [ARCHITECTURE.md#editor-update-dependencies](../ARCHITECTURE.md#editor-update-dependencies), [docs/testing/editor.md#editor-update-contract-regressions](testing/editor.md#editor-update-contract-regressions), [docs/EDITOR_PERFORMANCE.md#editor-update-architecture-follow-up](EDITOR_PERFORMANCE.md#editor-update-architecture-follow-up), [docs/EDITOR_PERFORMANCE.md#bounded-cursor-decoration-work](EDITOR_PERFORMANCE.md#bounded-cursor-decoration-work), [docs/EDITOR_UPDATES.md#installed-extension-audit](EDITOR_UPDATES.md#installed-extension-audit), [docs/EDITOR_PERFORMANCE.md#bundled-markdown-cursor-work](EDITOR_PERFORMANCE.md#bundled-markdown-cursor-work), [docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work](EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work), [docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements](EDITOR_PERFORMANCE.md#five-further-interaction-improvements)
+- Frontend tests: [tests/frontend/unit/editorInteractionContract.test.js](../tests/frontend/unit/editorInteractionContract.test.js), [tests/frontend/unit/editorUpdates.test.js](../tests/frontend/unit/editorUpdates.test.js), [tests/frontend/unit/workspaceTabChanges.test.js](../tests/frontend/unit/workspaceTabChanges.test.js), [tests/frontend/unit/interactionTrace.test.js](../tests/frontend/unit/interactionTrace.test.js), [tests/frontend/unit/architecturePolicy.test.js](../tests/frontend/unit/architecturePolicy.test.js), [tests/frontend/unit/editorDiagnostics.test.js](../tests/frontend/unit/editorDiagnostics.test.js), [tests/frontend/unit/sourceReveal.test.js](../tests/frontend/unit/sourceReveal.test.js), [tests/frontend/unit/vendoredMarkdownCursor.test.js](../tests/frontend/unit/vendoredMarkdownCursor.test.js), [tests/frontend/unit/workspaceCursorModel.test.js](../tests/frontend/unit/workspaceCursorModel.test.js), [tests/frontend/unit/searchMatchStatus.test.js](../tests/frontend/unit/searchMatchStatus.test.js)
+- Additional boundary checks: Run tabs/editor-layout and affected observer suites. Reuse editorUX/outline/vimVisualRows browser tests and isolated packaged native input checks.
+
+## clipboard
+
+Rich paste, copy, and clipboard images
+
+- Source: [frontend/js/clipboardPaste.js](../frontend/js/clipboardPaste.js), [frontend/js/clipboardImage.js](../frontend/js/clipboardImage.js), [frontend/js/editor.js](../frontend/js/editor.js)
+- Documentation: [docs/testing/editor.md#smart-rich-paste-regressions](testing/editor.md#smart-rich-paste-regressions), [docs/PROMPT.md#4-markdown-editor](PROMPT.md#4-markdown-editor)
+- Frontend tests: [tests/frontend/unit/clipboardPaste.test.js](../tests/frontend/unit/clipboardPaste.test.js), [tests/frontend/unit/clipboardImage.test.js](../tests/frontend/unit/clipboardImage.test.js)
+- Additional boundary checks: Actual clipboard events need the existing browser/native clipboard boundary; pure conversion and failure cases stay in focused tests.
+
+## writing
+
+Writing analysis and scheduling
+
+- Source: [frontend/js/usecases/writingAnalysis.js](../frontend/js/usecases/writingAnalysis.js) (`createWritingAnalysis`), [frontend/js/writingRuntime.js](../frontend/js/writingRuntime.js) (`analyzeWriting`, `createIncrementalWritingAnalyzer`), [frontend/js/core/writingReviewWork.js](../frontend/js/core/writingReviewWork.js) (`resolveWritingReview`)
+- Documentation: [docs/WRITING_ENGINE.md#asynchronous-execution-contract](WRITING_ENGINE.md#asynchronous-execution-contract), [docs/testing/writing.md#writing-review-regression-coverage](testing/writing.md#writing-review-regression-coverage)
+- Frontend tests: [tests/frontend/unit/writingAnalysis.test.js](../tests/frontend/unit/writingAnalysis.test.js), [tests/frontend/unit/writingRuntime.test.js](../tests/frontend/unit/writingRuntime.test.js)
+- Additional boundary checks: Use writing-grammar, writing-spelling, writing-retention, writing-inline, or writing-decisions for those changes. Worker/startup changes also need the existing productionBundle boundary.
+
+## writing-advice
+
+Writing advice context, punctuation and equivalence
+
+- Source: [frontend/js/core/writingAnalysisModel.js](../frontend/js/core/writingAnalysisModel.js) (`resolveWritingFindings`), [frontend/js/core/writingContextModel.js](../frontend/js/core/writingContextModel.js) (`writingWordinessContext`, `writingAdvisoryContext`, `writingInclusiveContext`), [frontend/js/core/writingTextlintModel.js](../frontend/js/core/writingTextlintModel.js) (`textlintWritingObservations`, `writingAcronymDefinitions`, `writingAcronymDefined`), [frontend/js/core/writingPackagePolicy.js](../frontend/js/core/writingPackagePolicy.js), [frontend/js/core/writingDecisionsModel.js](../frontend/js/core/writingDecisionsModel.js) (`applyWritingDecisions`)
+- Documentation: [docs/WRITING_CORPUS_FIXES.md#september-quality-follow-up](WRITING_CORPUS_FIXES.md#september-quality-follow-up), [docs/testing/writing.md#writing-quality-regression-coverage](testing/writing.md#writing-quality-regression-coverage)
+- Frontend tests: [tests/frontend/unit/writingQuality.test.js](../tests/frontend/unit/writingQuality.test.js), [tests/frontend/unit/writingCorpusSafety.test.js](../tests/frontend/unit/writingCorpusSafety.test.js), [tests/frontend/unit/writingTextlint.test.js](../tests/frontend/unit/writingTextlint.test.js), [tests/frontend/unit/writingDecisionsModel.test.js](../tests/frontend/unit/writingDecisionsModel.test.js), [tests/frontend/unit/writingDecisionsIntegration.test.js](../tests/frontend/unit/writingDecisionsIntegration.test.js), [tests/frontend/unit/writingNextPackages.test.js](../tests/frontend/unit/writingNextPackages.test.js)
+- Additional boundary checks: Run the production whole-document evaluator on frozen regression and fresh manifests; record every finding and offered edit separately from expectations. Runtime changes also require existing eager-startup and packaged native boundaries.
+
+## writing-grammar
+
+Curated English grammar and safe corrections
+
+- Source: [frontend/js/core/writingGrammarModel.js](../frontend/js/core/writingGrammarModel.js) (`writingGrammarRules`, `writingGrammarKinds`, `createWritingGrammarContext`, `writingGrammarReplacements`), [frontend/js/core/writingAnalysisModel.js](../frontend/js/core/writingAnalysisModel.js) (`valeWritingObservations`, `resolveWritingFindings`), [internal/writing/grammar/grammar.go](../internal/writing/grammar/grammar.go), [internal/writing/grammar_adapter.go](../internal/writing/grammar_adapter.go), [internal/writing/vale.go](../internal/writing/vale.go), [third_party/vale/embedded/engine.go](../third_party/vale/embedded/engine.go), [third_party/vale/internal/check/figaro_memory.go](../third_party/vale/internal/check/figaro_memory.go), [scripts/update-writing-grammar-fixtures.mjs](../scripts/update-writing-grammar-fixtures.mjs), [frontend/js/core/writingLensesModel.js](../frontend/js/core/writingLensesModel.js), [frontend/js/core/writingLensHelpModel.js](../frontend/js/core/writingLensHelpModel.js), [third_party/vale/internal/check/sequence.go](../third_party/vale/internal/check/sequence.go), [third_party/vale/internal/nlp/prose.go](../third_party/vale/internal/nlp/prose.go), [internal/writing/grammar/context.go](../internal/writing/grammar/context.go), [internal/writing/grammar/morphology.go](../internal/writing/grammar/morphology.go), [internal/writing/grammar/verbs.go](../internal/writing/grammar/verbs.go), [internal/writing/grammar/nouns.go](../internal/writing/grammar/nouns.go), [internal/writing/grammar/homophones.go](../internal/writing/grammar/homophones.go), [internal/writing/grammar/word_choice.go](../internal/writing/grammar/word_choice.go), [internal/writing/grammar/noun_verb.go](../internal/writing/grammar/noun_verb.go), [internal/writing/grammar/pronouns.go](../internal/writing/grammar/pronouns.go), [internal/writing/grammar/homophone_context.go](../internal/writing/grammar/homophone_context.go), [internal/writing/grammar_alerts.go](../internal/writing/grammar_alerts.go), [internal/writing/grammar/phrase_rules.go](../internal/writing/grammar/phrase_rules.go), [internal/writing/grammar/phrases.go](../internal/writing/grammar/phrases.go), [internal/writing/grammar/constructions.go](../internal/writing/grammar/constructions.go), [internal/writing/grammar/mechanics.go](../internal/writing/grammar/mechanics.go), [internal/writing/grammar/prepositions.go](../internal/writing/grammar/prepositions.go), [internal/writing/grammar/usage_words.go](../internal/writing/grammar/usage_words.go), [internal/writing/grammar/noun_agreement.go](../internal/writing/grammar/noun_agreement.go)
+- Documentation: [docs/WRITING_HARPER.md#scope](WRITING_HARPER.md#scope), [docs/WRITING_HARPER.md#source-and-execution-contract](WRITING_HARPER.md#source-and-execution-contract), [docs/WRITING_HARPER.md#verification-and-maintenance](WRITING_HARPER.md#verification-and-maintenance), [docs/testing/writing.md#curated-grammar-regression-coverage](testing/writing.md#curated-grammar-regression-coverage), [docs/WRITING_HARPER.md#native-verification--19-september-2026](WRITING_HARPER.md#native-verification--19-september-2026), [docs/WRITING_HARPER.md#added-constructions-and-homophones](WRITING_HARPER.md#added-constructions-and-homophones), [docs/benchmarks/writing-grammar-expansion-2026-09-19.md#behavioral-comparison-with-native-harper](benchmarks/writing-grammar-expansion-2026-09-19.md#behavioral-comparison-with-native-harper), [docs/benchmarks/writing-grammar-expansion-2026-09-19.md#packaged-linux-application-measurements](benchmarks/writing-grammar-expansion-2026-09-19.md#packaged-linux-application-measurements), [docs/WRITING_HARPER.md#pronoun-and-question-context](WRITING_HARPER.md#pronoun-and-question-context), [docs/benchmarks/writing-grammar-context-2026-09-19.md#behavioral-comparison](benchmarks/writing-grammar-context-2026-09-19.md#behavioral-comparison), [docs/benchmarks/writing-grammar-context-2026-09-19.md#packaged-linux-verification](benchmarks/writing-grammar-context-2026-09-19.md#packaged-linux-verification), [docs/benchmarks/writing-documents-2026-09-20.md#results](benchmarks/writing-documents-2026-09-20.md#results), [docs/WRITING_HARPER.md#broad-phrase-and-mechanics-coverage](WRITING_HARPER.md#broad-phrase-and-mechanics-coverage), [docs/benchmarks/writing-grammar-broad-2026-09-20.md#scope-and-method](benchmarks/writing-grammar-broad-2026-09-20.md#scope-and-method), [docs/benchmarks/writing-grammar-broad-2026-09-20.md#behavioral-comparison](benchmarks/writing-grammar-broad-2026-09-20.md#behavioral-comparison), [docs/benchmarks/writing-grammar-broad-2026-09-20.md#whole-document-review](benchmarks/writing-grammar-broad-2026-09-20.md#whole-document-review), [docs/benchmarks/writing-grammar-broad-2026-09-20.md#packaged-linux-verification](benchmarks/writing-grammar-broad-2026-09-20.md#packaged-linux-verification), [docs/benchmarks/writing-grammar-broad-2026-09-20.md#evidence-and-reproduction](benchmarks/writing-grammar-broad-2026-09-20.md#evidence-and-reproduction), [docs/WRITING_HARPER.md#contextual-usage-and-noun-subjects](WRITING_HARPER.md#contextual-usage-and-noun-subjects), [docs/benchmarks/writing-grammar-usage-2026-09-20.md#scope-and-method](benchmarks/writing-grammar-usage-2026-09-20.md#scope-and-method), [docs/benchmarks/writing-grammar-usage-2026-09-20.md#behavioral-comparison](benchmarks/writing-grammar-usage-2026-09-20.md#behavioral-comparison), [docs/benchmarks/writing-grammar-usage-2026-09-20.md#whole-document-review](benchmarks/writing-grammar-usage-2026-09-20.md#whole-document-review), [docs/benchmarks/writing-grammar-usage-2026-09-20.md#packaged-linux-verification](benchmarks/writing-grammar-usage-2026-09-20.md#packaged-linux-verification), [docs/benchmarks/writing-grammar-usage-2026-09-20.md#evidence-and-reproduction](benchmarks/writing-grammar-usage-2026-09-20.md#evidence-and-reproduction), [docs/WRITING_HARPER.md#broader-contexts-and-quality-follow-up](WRITING_HARPER.md#broader-contexts-and-quality-follow-up), [docs/benchmarks/writing-quality-2026-09-20.md#grammar-comparison](benchmarks/writing-quality-2026-09-20.md#grammar-comparison), [docs/benchmarks/writing-quality-2026-09-20.md#packaged-linux-verification](benchmarks/writing-quality-2026-09-20.md#packaged-linux-verification)
+- Frontend tests: [tests/frontend/unit/writingGrammar.test.js](../tests/frontend/unit/writingGrammar.test.js), [tests/frontend/unit/writingGrammarIntegration.test.js](../tests/frontend/unit/writingGrammarIntegration.test.js), [tests/frontend/unit/writingAnalysis.test.js](../tests/frontend/unit/writingAnalysis.test.js), [tests/frontend/unit/writingLensHelp.test.js](../tests/frontend/unit/writingLensHelp.test.js), [tests/frontend/unit/writingLensesModel.test.js](../tests/frontend/unit/writingLensesModel.test.js), [tests/frontend/unit/writingQuality.test.js](../tests/frontend/unit/writingQuality.test.js)
+- Additional boundary checks: Run go test ./internal/writing/... and (cd third_party/vale && go test -race ./...). Native grammar_test.go verifies the bridge fixture and pinned assets; grammar/grammar_test.go and grammar/corpus_test.go own pure rules and the shared reviewed minimal pairs. Regenerate fixtures only with node scripts/update-writing-grammar-fixtures.mjs and review the diff. Engine changes require actual native startup, full review, Apply/Undo, typing/save, cancellation/reuse, and shutdown; run the existing productionBundle browser boundary.
+
+## writing-evaluation
+
+Whole-document editorial evaluation
+
+- Source: [scripts/evaluate-writing-documents.mjs](../scripts/evaluate-writing-documents.mjs), [scripts/writing-native-profile.mjs](../scripts/writing-native-profile.mjs), [tests/fixtures/writing-documents/manifest.json](../tests/fixtures/writing-documents/manifest.json), [tests/fixtures/writing-quality-documents/manifest.json](../tests/fixtures/writing-quality-documents/manifest.json)
+- Documentation: [docs/WRITING_CORPUS.md#september-whole-document-snapshot](WRITING_CORPUS.md#september-whole-document-snapshot), [docs/benchmarks/writing-documents-2026-09-20.md#corpus-and-method](benchmarks/writing-documents-2026-09-20.md#corpus-and-method), [docs/benchmarks/writing-documents-2026-09-20.md#reproduction-and-verification](benchmarks/writing-documents-2026-09-20.md#reproduction-and-verification), [tests/fixtures/writing-documents/README.md](../tests/fixtures/writing-documents/README.md), [THIRD_PARTY_NOTICES.md#evaluation-only-markdown-manuals](../THIRD_PARTY_NOTICES.md#evaluation-only-markdown-manuals), [docs/benchmarks/writing-grammar-broad-2026-09-20.md#whole-document-review](benchmarks/writing-grammar-broad-2026-09-20.md#whole-document-review), [docs/WRITING_CORPUS.md#fresh-quality-evaluation](WRITING_CORPUS.md#fresh-quality-evaluation), [tests/fixtures/writing-quality-documents/README.md](../tests/fixtures/writing-quality-documents/README.md), [docs/benchmarks/writing-quality-2026-09-20.md#scope-and-method](benchmarks/writing-quality-2026-09-20.md#scope-and-method), [docs/benchmarks/writing-quality-2026-09-20.md#known-document-regressions](benchmarks/writing-quality-2026-09-20.md#known-document-regressions), [docs/benchmarks/writing-quality-2026-09-20.md#fresh-documents](benchmarks/writing-quality-2026-09-20.md#fresh-documents), [docs/benchmarks/writing-quality-2026-09-20.md#evidence-and-limitations](benchmarks/writing-quality-2026-09-20.md#evidence-and-limitations)
+- Frontend tests: [tests/frontend/unit/writingCorpusSafety.test.js](../tests/frontend/unit/writingCorpusSafety.test.js), [tests/frontend/unit/writingSpelling.test.js](../tests/frontend/unit/writingSpelling.test.js), [tests/frontend/unit/writingQuality.test.js](../tests/frontend/unit/writingQuality.test.js)
+- Additional boundary checks: Run node scripts/evaluate-writing-documents.mjs --output /tmp/figaro-writing-documents.json to inspect actual combined-provider results. Preserve source/license hashes; manual labels are separate from output and do not establish held-out accuracy.
+
+## writing-spelling
+
+Spelling and protected source ranges
+
+- Source: [frontend/js/core/spellingModel.js](../frontend/js/core/spellingModel.js) (`spellingSource`, `spellcheckWordRanges`), [frontend/js/core/writingFootnoteModel.js](../frontend/js/core/writingFootnoteModel.js) (`writingFootnoteRanges`), [frontend/js/spellcheck.js](../frontend/js/spellcheck.js), [frontend/js/core/spellingDictionaryModel.js](../frontend/js/core/spellingDictionaryModel.js) (`spellingWordKey`, `acceptedSpelling`, `filterAcceptedSpelling`), [frontend/js/usecases/spellingDictionary.js](../frontend/js/usecases/spellingDictionary.js) (`createSpellingDictionary`), [frontend/js/core/spellingSuggestionsModel.js](../frontend/js/core/spellingSuggestionsModel.js) (`isCorrectlySpelledProseWord`, `highConfidenceSuggestions`), [frontend/js/core/spellingVocabulary.js](../frontend/js/core/spellingVocabulary.js), [frontend/js/core/writingTechnicalModel.js](../frontend/js/core/writingTechnicalModel.js) (`writingTechnicalRanges`), [internal/settings/spelling_words.go](../internal/settings/spelling_words.go), [internal/desktop/app_spelling_dictionary.go](../internal/desktop/app_spelling_dictionary.go), [frontend/js/core/writingTextlintModel.js](../frontend/js/core/writingTextlintModel.js) (`writingAcronymDefinitions`, `writingAcronymDefined`)
+- Documentation: [docs/WRITING_ENGINE.md#editorial-scope-and-source-safety](WRITING_ENGINE.md#editorial-scope-and-source-safety), [docs/WRITING_ENGINE.md#inline-review-and-personal-spelling-words](WRITING_ENGINE.md#inline-review-and-personal-spelling-words), [docs/WRITING_CORPUS_FIXES.md#september-quality-follow-up](WRITING_CORPUS_FIXES.md#september-quality-follow-up)
+- Frontend tests: [tests/frontend/unit/writingSpelling.test.js](../tests/frontend/unit/writingSpelling.test.js), [tests/frontend/unit/writingFootnoteModel.test.js](../tests/frontend/unit/writingFootnoteModel.test.js), [tests/frontend/unit/spellcheck.test.js](../tests/frontend/unit/spellcheck.test.js), [tests/frontend/unit/spellingDictionaryModel.test.js](../tests/frontend/unit/spellingDictionaryModel.test.js), [tests/frontend/unit/spellingDictionary.test.js](../tests/frontend/unit/spellingDictionary.test.js), [tests/frontend/unit/writingTechnicalModel.test.js](../tests/frontend/unit/writingTechnicalModel.test.js), [tests/frontend/unit/writingCorpusSafety.test.js](../tests/frontend/unit/writingCorpusSafety.test.js), [tests/frontend/unit/writingQuality.test.js](../tests/frontend/unit/writingQuality.test.js)
+- Additional boundary checks: Personal-word resolution and shared technical masking also need writing. Persistence changes need go test ./internal/settings ./internal/desktop -run SpellingDictionary. Package mapping changes need the existing productionBundle boundary.
+
+## writing-retention
+
+Retain review results while typing
+
+- Source: [frontend/js/core/writingRetentionModel.js](../frontend/js/core/writingRetentionModel.js) (`canRetainWritingResults`, `retainWritingFindings`), [frontend/js/usecases/writingAnalysis.js](../frontend/js/usecases/writingAnalysis.js), [frontend/js/writingInline.js](../frontend/js/writingInline.js) (`retainedInlineState`), [frontend/js/views/writingResultsView.js](../frontend/js/views/writingResultsView.js) (`createWritingResultsView`)
+- Documentation: [docs/WRITING_ENGINE.md#retained-results-while-editing--10-september-2026](WRITING_ENGINE.md#retained-results-while-editing--10-september-2026), [docs/testing/workspace.md#retained-writing-results-and-adjacent-mermaid-navigation](testing/workspace.md#retained-writing-results-and-adjacent-mermaid-navigation)
+- Frontend tests: [tests/frontend/unit/writingRetentionModel.test.js](../tests/frontend/unit/writingRetentionModel.test.js), [tests/frontend/unit/writingAnalysis.test.js](../tests/frontend/unit/writingAnalysis.test.js), [tests/frontend/unit/writingInline.test.js](../tests/frontend/unit/writingInline.test.js), [tests/frontend/unit/writingResultsView.test.js](../tests/frontend/unit/writingResultsView.test.js)
+- Additional boundary checks: Underlines, cursor geometry, and popup focus changes require the existing editorUX and packaged-native boundary.
+
+## writing-inline
+
+Inline writing advice and actions
+
+- Source: [frontend/js/writingInline.js](../frontend/js/writingInline.js) (`openInlineWriting`, `updateInlineWriting`), [frontend/js/views/writingInlineView.js](../frontend/js/views/writingInlineView.js) (`createWritingInlineView`), [frontend/js/core/writingInlineModel.js](../frontend/js/core/writingInlineModel.js) (`inlineWritingFindings`)
+- Documentation: [docs/WRITING_ENGINE.md#inline-review-and-personal-spelling-words](WRITING_ENGINE.md#inline-review-and-personal-spelling-words), [docs/WRITING.md#review-suggestions](WRITING.md#review-suggestions)
+- Frontend tests: [tests/frontend/unit/writingInline.test.js](../tests/frontend/unit/writingInline.test.js), [tests/frontend/unit/writingLinkHints.test.js](../tests/frontend/unit/writingLinkHints.test.js)
+- Additional boundary checks: Changes to real hover, focus, or cursor geometry require the existing editorUX and packaged-native checks.
+
+## writing-decisions
+
+Persist and reverse review decisions
+
+- Source: [frontend/js/usecases/writingDecisions.js](../frontend/js/usecases/writingDecisions.js) (`createWritingDecisions`), [frontend/js/core/writingDecisionsModel.js](../frontend/js/core/writingDecisionsModel.js), [frontend/js/views/writingDecisionsView.js](../frontend/js/views/writingDecisionsView.js)
+- Documentation: [docs/WRITING_ENGINE.md#durable-review-decisions](WRITING_ENGINE.md#durable-review-decisions), [docs/WRITING.md#keep-and-reverse-decisions](WRITING.md#keep-and-reverse-decisions), [docs/WRITING_ENGINE.md#durable-decision-verification](WRITING_ENGINE.md#durable-decision-verification)
+- Frontend tests: [tests/frontend/unit/writingDecisions.test.js](../tests/frontend/unit/writingDecisions.test.js), [tests/frontend/unit/writingDecisionsModel.test.js](../tests/frontend/unit/writingDecisionsModel.test.js), [tests/frontend/unit/writingDecisionsIntegration.test.js](../tests/frontend/unit/writingDecisionsIntegration.test.js)
+- Additional boundary checks: Persistence changes require the real rooted Go writing-decision adapter tests; focus changes need the existing native/browser boundary.
+
+## files
+
+File tree, mutations, and vault safety
+
+- Source: [frontend/js/fileTree.js](../frontend/js/fileTree.js), [frontend/js/usecases/fileTreeTransfer.js](../frontend/js/usecases/fileTreeTransfer.js), [internal/desktop/app_vault_mutations.go](../internal/desktop/app_vault_mutations.go), [frontend/js/core/fileTreeModel.js](../frontend/js/core/fileTreeModel.js) (`fileTreeTabMarkersChanged`, `dirtyFilePaths`)
+- Documentation: [docs/PROMPT.md#3-file-operations](PROMPT.md#3-file-operations), [docs/testing/workspace.md#file-tree-copy-regressions](testing/workspace.md#file-tree-copy-regressions)
+- Frontend tests: [tests/frontend/unit/fileTree.test.js](../tests/frontend/unit/fileTree.test.js), [tests/frontend/unit/fileTreeTransfer.test.js](../tests/frontend/unit/fileTreeTransfer.test.js), [tests/frontend/unit/fileTreeRefresh.test.js](../tests/frontend/unit/fileTreeRefresh.test.js), [tests/frontend/unit/fileTreeModel.test.js](../tests/frontend/unit/fileTreeModel.test.js)
+- Additional boundary checks: Run go test ./internal/desktop for backend changes, retaining real os.Root containment, collision, rollback, and CSS rename coverage. For Windows rename hangs, capture the packaged app's last progress stage and storage location; Linux checks do not establish native Windows completion. Include slow_history_test.go for save/path-lock ordering.
+
+## tabs
+
+Tab ownership, saving, and session continuity
+
+- Source: [frontend/js/tabManager.js](../frontend/js/tabManager.js), [frontend/js/usecases/documentSave.js](../frontend/js/usecases/documentSave.js), [frontend/js/usecases/editorDocumentSession.js](../frontend/js/usecases/editorDocumentSession.js), [frontend/js/state.js](../frontend/js/state.js) (`getTabCursorState`, `setTabCursorState`, `getTabIndex`), [frontend/js/core/sessionModel.js](../frontend/js/core/sessionModel.js) (`sessionTabStorageUpdate`, `buildSessionSnapshot`), [frontend/js/usecases/sessionPersistence.js](../frontend/js/usecases/sessionPersistence.js) (`createSessionPersistence`), [frontend/js/core/workspaceTabChanges.js](../frontend/js/core/workspaceTabChanges.js), [frontend/js/core/workspaceTabModel.js](../frontend/js/core/workspaceTabModel.js) (`moveWorkspaceTabPaths`, `updateWorkspaceTab`, `recordWorkspaceTabEdit`, `recordWorkspaceTabContent`), [frontend/js/core/workspaceCursorModel.js](../frontend/js/core/workspaceCursorModel.js) (`createWorkspaceCursorStore`), [frontend/js/session.js](../frontend/js/session.js)
+- Documentation: [docs/PROMPT.md#2-tab-system](PROMPT.md#2-tab-system), [ARCHITECTURE.md#editor-buffer-ownership-and-undo-history](../ARCHITECTURE.md#editor-buffer-ownership-and-undo-history), [docs/testing/editor.md#editor-buffer-undo-ownership](testing/editor.md#editor-buffer-undo-ownership), [ARCHITECTURE.md#session-state-is-not-settings](../ARCHITECTURE.md#session-state-is-not-settings), [docs/testing/workspace.md#file-revision-continuity](testing/workspace.md#file-revision-continuity), [docs/EDITOR_UPDATES.md#ownership-and-notification-contract](EDITOR_UPDATES.md#ownership-and-notification-contract), [docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work](EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work), [docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements](EDITOR_PERFORMANCE.md#five-further-interaction-improvements)
+- Frontend tests: [tests/frontend/unit/tabManager.test.js](../tests/frontend/unit/tabManager.test.js), [tests/frontend/unit/documentSave.test.js](../tests/frontend/unit/documentSave.test.js), [tests/frontend/unit/tabNavigationModel.test.js](../tests/frontend/unit/tabNavigationModel.test.js), [tests/frontend/unit/state.test.js](../tests/frontend/unit/state.test.js), [tests/frontend/unit/sessionModel.test.js](../tests/frontend/unit/sessionModel.test.js), [tests/frontend/unit/sessionPersistence.test.js](../tests/frontend/unit/sessionPersistence.test.js), [tests/frontend/unit/workspaceTabChanges.test.js](../tests/frontend/unit/workspaceTabChanges.test.js), [tests/frontend/unit/workspaceCursorModel.test.js](../tests/frontend/unit/workspaceCursorModel.test.js), [tests/frontend/unit/workspaceTabModel.test.js](../tests/frontend/unit/workspaceTabModel.test.js)
+- Additional boundary checks: Add the affected session/undo tests; focus or tab geometry changes need the existing tab/browser boundary.
+
+## editor-find
+
+Editor Find and accessible match status
+
+- Source: [frontend/js/searchMatchStatus.js](../frontend/js/searchMatchStatus.js) (`searchMatchStatusExtension`, `editorSearchMatchSummary`), [frontend/js/core/searchMatchModel.js](../frontend/js/core/searchMatchModel.js) (`activeSearchMatchIndex`, `searchMatchAnnouncement`)
+- Documentation: [docs/PROMPT.md#41-capabilities](PROMPT.md#41-capabilities), [docs/testing/editor.md#editor-update-contract-regressions](testing/editor.md#editor-update-contract-regressions), [docs/EDITOR_UPDATES.md#installed-extension-audit](EDITOR_UPDATES.md#installed-extension-audit), [docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work](EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work)
+- Frontend tests: [tests/frontend/unit/searchMatchModel.test.js](../tests/frontend/unit/searchMatchModel.test.js), [tests/frontend/unit/searchMatchStatus.test.js](../tests/frontend/unit/searchMatchStatus.test.js)
+- Additional boundary checks: Reuse the existing editorUX Find workflow for native focus and panel layout.
+
+## search
+
+Global note search
+
+- Source: [frontend/js/search.js](../frontend/js/search.js), [frontend/js/usecases/workspaceSearch.js](../frontend/js/usecases/workspaceSearch.js) (`createWorkspaceSearch`), [internal/search/model.go](../internal/search/model.go)
+- Documentation: [docs/PROMPT.md#73-global-search](PROMPT.md#73-global-search), [docs/testing/workspace.md#search-and-shell-accessibility-regressions](testing/workspace.md#search-and-shell-accessibility-regressions)
+- Frontend tests: [tests/frontend/unit/search.test.js](../tests/frontend/unit/search.test.js), [tests/frontend/unit/searchModel.test.js](../tests/frontend/unit/searchModel.test.js)
+- Additional boundary checks: Run go test ./internal/search for backend search rules; keyboard focus changes need the existing accessibility browser scenario.
+
+## backlinks
+
+Backlinks and unlinked mentions
+
+- Source: [frontend/js/backlinks.js](../frontend/js/backlinks.js) (`configureBacklinksWorkspace`, `loadBacklinksResults`, `linkUnlinkedMention`)
+- Documentation: [docs/PROMPT.md#71-relationships-panel](PROMPT.md#71-relationships-panel), [docs/testing/workspace.md#search-and-shell-accessibility-regressions](testing/workspace.md#search-and-shell-accessibility-regressions)
+- Frontend tests: [tests/frontend/unit/backlinks.test.js](../tests/frontend/unit/backlinks.test.js), [tests/frontend/race/backlinks.race.test.js](../tests/frontend/race/backlinks.race.test.js)
+- Additional boundary checks: Relationship backend changes require go test ./internal/desktop; actual popup/windowing focus needs the existing browser boundary.
+
+## graph
+
+Vault graph layout and interaction
+
+- Source: [frontend/js/graphView.js](../frontend/js/graphView.js) (`createGraphView`), [frontend/js/core/graphModel.js](../frontend/js/core/graphModel.js) (`normalizeVaultGraph`, `graphViewLayout`, `graphNodePointerAction`), [internal/desktop/app_graph.go](../internal/desktop/app_graph.go)
+- Documentation: [docs/PROMPT.md#71-relationships-panel](PROMPT.md#71-relationships-panel), [docs/testing/workspace.md#search-and-shell-accessibility-regressions](testing/workspace.md#search-and-shell-accessibility-regressions)
+- Frontend tests: [tests/frontend/unit/graphModel.test.js](../tests/frontend/unit/graphModel.test.js), [tests/frontend/unit/graphView.test.js](../tests/frontend/unit/graphView.test.js)
+- Additional boundary checks: Run go test ./internal/desktop for backend graph changes; canvas geometry and pointer interaction need the existing graph browser boundary.
+
+## outline
+
+Document outline and sticky headings
+
+- Source: [frontend/js/outline.js](../frontend/js/outline.js) (`refreshOutlineModel`, `navigateToHeading`, `toggleOutlinePanel`, `renderStickyHeadingsAtPosition`), [frontend/js/core/outlineModel.js](../frontend/js/core/outlineModel.js) (`extractOutlineHeadings`, `activeOutlineHeadingHierarchy`, `outlineEditNeedsParse`, `mapOutlineHeadings`, `outlineHeadingStructure`)
+- Documentation: [docs/PROMPT.md#77-document-outline](PROMPT.md#77-document-outline), [ARCHITECTURE.md#outline-navigation](../ARCHITECTURE.md#outline-navigation), [ARCHITECTURE.md#editor-decoration-updates](../ARCHITECTURE.md#editor-decoration-updates), [docs/testing/workspace.md#sidebar-navigation-regressions](testing/workspace.md#sidebar-navigation-regressions), [docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work](EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work)
+- Frontend tests: [tests/frontend/unit/outline.test.js](../tests/frontend/unit/outline.test.js), [tests/frontend/unit/outlinePanel.test.js](../tests/frontend/unit/outlinePanel.test.js)
+- Additional boundary checks: Run the existing outline browser scenario and packaged native check for heading geometry, scroll alignment, or focus changes.
+
+## planning
+
+Kanban, calendar, and task dates
+
+- Source: [frontend/js/kanban.js](../frontend/js/kanban.js) (`overlayDirtyKanbanBuffers`, `refreshKanbanFromDirtyBuffers`), [frontend/js/calendar.js](../frontend/js/calendar.js), [internal/taskschedule/model.go](../internal/taskschedule/model.go), [frontend/js/core/kanbanBufferModel.js](../frontend/js/core/kanbanBufferModel.js) (`createKanbanBufferProjection`, `overlayKanbanCards`)
+- Documentation: [docs/PROMPT.md#6-kanban-board](PROMPT.md#6-kanban-board), [docs/NOTES_AND_PLANNING.md](NOTES_AND_PLANNING.md), [docs/testing/workspace.md#kanban-due-date-regressions](testing/workspace.md#kanban-due-date-regressions), [docs/testing/workspace.md#kanban-paint-continuity-regressions](testing/workspace.md#kanban-paint-continuity-regressions)
+- Frontend tests: [tests/frontend/unit/kanban.test.js](../tests/frontend/unit/kanban.test.js), [tests/frontend/unit/calendarModel.test.js](../tests/frontend/unit/calendarModel.test.js), [tests/frontend/unit/calendarTimelineModel.test.js](../tests/frontend/unit/calendarTimelineModel.test.js), [tests/frontend/unit/kanbanBufferModel.test.js](../tests/frontend/unit/kanbanBufferModel.test.js)
+- Additional boundary checks: Run go test ./internal/taskschedule for task policy; use existing Kanban/calendar browser scenarios only for geometry and native events.
+
+## history
+
+History restoration and file revisions
+
+- Source: [frontend/js/historyPanel.js](../frontend/js/historyPanel.js), [internal/history/service.go](../internal/history/service.go), [frontend/js/usecases/activityReview.js](../frontend/js/usecases/activityReview.js), [internal/history/commit_plan.go](../internal/history/commit_plan.go), [internal/history/commit_file.go](../internal/history/commit_file.go), [internal/history/path_status.go](../internal/history/path_status.go)
+- Documentation: [ARCHITECTURE.md#git-status-and-history-restoration](../ARCHITECTURE.md#git-status-and-history-restoration), [docs/testing/workspace.md#file-revision-continuity](testing/workspace.md#file-revision-continuity)
+- Frontend tests: [tests/frontend/unit/historyRestore.test.js](../tests/frontend/unit/historyRestore.test.js), [tests/frontend/unit/historyDiff.test.js](../tests/frontend/unit/historyDiff.test.js), [tests/frontend/unit/historyPaneTabs.test.js](../tests/frontend/unit/historyPaneTabs.test.js)
+- Additional boundary checks: Run go test -race ./internal/history ./internal/desktop for Git/filesystem changes, including commit_plan_test.go, commit_file_test.go, and desktop/slow_history_test.go; use actual temporary repositories.
+
+## pdf
+
+PDF preview, rendering, and export
+
+- Source: [frontend/js/pdfPreview.js](../frontend/js/pdfPreview.js), [frontend/pdf/preview-frame.html](../frontend/pdf/preview-frame.html), [internal/desktop/pdf_export.go](../internal/desktop/pdf_export.go)
+- Documentation: [docs/PDF_STYLING.md](PDF_STYLING.md), [docs/testing/export.md](testing/export.md), [ARCHITECTURE.md#pdf-rendering-and-export-snapshots](../ARCHITECTURE.md#pdf-rendering-and-export-snapshots)
+- Frontend tests: [tests/frontend/unit/pdfPreview.test.js](../tests/frontend/unit/pdfPreview.test.js), [tests/frontend/unit/pdfPreviewFrame.test.js](../tests/frontend/unit/pdfPreviewFrame.test.js), [tests/frontend/unit/pdfPreviewImageModel.test.js](../tests/frontend/unit/pdfPreviewImageModel.test.js)
+- Additional boundary checks: Run go test ./internal/pdfexport for export adapters; preserve consolidated preview/export browser coverage when rendering or frame wiring changes.
+
+## raw-preview
+
+Exact Markdown source preview
+
+- Source: [frontend/js/rawTextPreview.js](../frontend/js/rawTextPreview.js) (`openRawTextPreview`, `syncRawTextPreviewScroll`, `copyRawTextPreview`), [frontend/js/core/rawTextPreviewModel.js](../frontend/js/core/rawTextPreviewModel.js) (`rawPreviewScrollTopForAnchor`)
+- Documentation: [ARCHITECTURE.md#raw-text-preview-exact-markdown-source](../ARCHITECTURE.md#raw-text-preview-exact-markdown-source), [docs/testing/export.md#raw-text-preview-and-heading-link-regressions](testing/export.md#raw-text-preview-and-heading-link-regressions)
+- Frontend tests: [tests/frontend/unit/rawTextPreview.test.js](../tests/frontend/unit/rawTextPreview.test.js), [tests/frontend/unit/rawTextPreviewModel.test.js](../tests/frontend/unit/rawTextPreviewModel.test.js), [tests/frontend/unit/editorPreviewLaunchers.test.js](../tests/frontend/unit/editorPreviewLaunchers.test.js)
+- Additional boundary checks: Actual scroll alignment, clipboard delivery, and focus changes require the existing raw preview browser/native boundary.
+
+## diagrams
+
+Mermaid and diagram scheduling
+
+- Source: [frontend/js/mermaidEditor.js](../frontend/js/mermaidEditor.js) (`openMermaidEditor`), [frontend/js/diagramRenderer.js](../frontend/js/diagramRenderer.js), [frontend/js/usecases/diagramRenderQueue.js](../frontend/js/usecases/diagramRenderQueue.js)
+- Documentation: [docs/DIAGRAMS_AND_EXPORT.md#mermaid-diagrams](DIAGRAMS_AND_EXPORT.md#mermaid-diagrams), [docs/PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite](PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite)
+- Frontend tests: [tests/frontend/unit/mermaidEditor.test.js](../tests/frontend/unit/mermaidEditor.test.js), [tests/frontend/unit/mermaidPreviewSession.test.js](../tests/frontend/unit/mermaidPreviewSession.test.js), [tests/frontend/unit/mermaidDiagramModel.test.js](../tests/frontend/unit/mermaidDiagramModel.test.js)
+- Additional boundary checks: Use charts for Vega/Vega-Lite editing. Add affected Draw.io/table tests for those formats; frame, geometry, or printable changes need existing browser boundaries.
+
+## charts
+
+Vega and Vega-Lite chart editing
+
+- Source: [frontend/js/vegaLiteChartEditor.js](../frontend/js/vegaLiteChartEditor.js) (`openVegaLiteChartEditor`), [frontend/js/core/vegaLiteChartEditorModel.js](../frontend/js/core/vegaLiteChartEditorModel.js)
+- Documentation: [docs/DIAGRAMS_AND_EXPORT.md#charts-and-drawio](DIAGRAMS_AND_EXPORT.md#charts-and-drawio), [docs/PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite](PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite), [docs/testing/workspace.md#chart-heavy-editing-performance-verification](testing/workspace.md#chart-heavy-editing-performance-verification)
+- Frontend tests: [tests/frontend/unit/vegaLiteChartEditorModel.test.js](../tests/frontend/unit/vegaLiteChartEditorModel.test.js), [tests/frontend/unit/vegaLiteChartEditor.test.js](../tests/frontend/unit/vegaLiteChartEditor.test.js)
+- Additional boundary checks: Changes to graphic measurements or printable output need the existing chart and preview/export browser boundaries; use diagrams for shared scheduling.
+
+## design
+
+Approved UI primitives and themes
+
+- Source: [frontend/design-system/primitives.css](../frontend/design-system/primitives.css), [frontend/design-system/approved-components.json](../frontend/design-system/approved-components.json), [frontend/design-system/style-manifest.json](../frontend/design-system/style-manifest.json)
+- Documentation: [frontend/design-system/README.md](../frontend/design-system/README.md), [frontend/design-system/AUDIT.md](../frontend/design-system/AUDIT.md), [.agents/guidance/ui.md](../.agents/guidance/ui.md)
+- Frontend tests: [tests/frontend/unit/designSystemCatalog.test.js](../tests/frontend/unit/designSystemCatalog.test.js)
+- Additional boundary checks: Run npm run lint and npm run build:design-system; new families/primitives/variants require explicit user approval before implementation.
+
+## startup
+
+Eager loading, bundling, and hydration
+
+- Source: [frontend/js/bootstrap.js](../frontend/js/bootstrap.js), [frontend/js/app.js](../frontend/js/app.js), [frontend/js/usecases/startupHydration.js](../frontend/js/usecases/startupHydration.js), [scripts/build-app-bundle.mjs](../scripts/build-app-bundle.mjs), [frontend/index.html](../frontend/index.html), [scripts/vendor.sh](../scripts/vendor.sh)
+- Documentation: [ARCHITECTURE.md#eager-application-loading](../ARCHITECTURE.md#eager-application-loading), [docs/TESTING.md#eager-startup-contract](TESTING.md#eager-startup-contract)
+- Frontend tests: [tests/frontend/unit/startupHydration.test.js](../tests/frontend/unit/startupHydration.test.js), [tests/frontend/unit/startupTimings.test.js](../tests/frontend/unit/startupTimings.test.js), [tests/frontend/unit/startupView.test.js](../tests/frontend/unit/startupView.test.js)
+- Additional boundary checks: Run npm run build:app; use the existing productionBundle browser contract for assembled startup changes.
+
+## settings
+
+Preferences and machine-local settings
+
+- Source: [frontend/js/app.js](../frontend/js/app.js), [internal/settings/model.go](../internal/settings/model.go), [internal/desktop/app_settings.go](../internal/desktop/app_settings.go)
+- Documentation: [docs/PROMPT.md#21-settings-tab](PROMPT.md#21-settings-tab), [ARCHITECTURE.md#machine-local-application-state](../ARCHITECTURE.md#machine-local-application-state)
+- Frontend tests: [tests/frontend/unit/settingsNavigation.test.js](../tests/frontend/unit/settingsNavigation.test.js), [tests/frontend/unit/settingsPicker.test.js](../tests/frontend/unit/settingsPicker.test.js)
+- Additional boundary checks: Run go test ./internal/settings ./internal/desktop for persistence, migrations, and native settings boundaries.
+
+## release
+
+Release metadata, packaging, and Git handoff
+
+- Source: [scripts/prepare-release.sh](../scripts/prepare-release.sh), [scripts/verify-release.sh](../scripts/verify-release.sh), [.githooks/prepare-commit-msg](../.githooks/prepare-commit-msg)
+- Documentation: [CONTRIBUTING.md#release-process](../CONTRIBUTING.md#release-process), [.agents/skills/prepare-figaro-release/SKILL.md](../.agents/skills/prepare-figaro-release/SKILL.md)
+- Frontend tests: [tests/frontend/unit/releasePreparation.test.js](../tests/frontend/unit/releasePreparation.test.js), [tests/frontend/unit/releaseMetadata.test.js](../tests/frontend/unit/releaseMetadata.test.js), [tests/frontend/unit/releaseNotes.test.js](../tests/frontend/unit/releaseNotes.test.js), [tests/frontend/unit/commitHandoff.test.js](../tests/frontend/unit/commitHandoff.test.js)
+- Additional boundary checks: For release preparation read the complete release skill; focused checks neither finalize nor replace its verification and version/action approval.
+
+## workflow
+
+Feature index, agent routing, and verification
+
+- Source: [scripts/feature-workflow.cjs](../scripts/feature-workflow.cjs) (`renderContextList`, `renderContext`, `declaredSymbols`), [scripts/feature-workflow.mjs](../scripts/feature-workflow.mjs) (`checkReferences`, `runFocused`), [docs/feature-map.json](feature-map.json), [AGENTS.md](../AGENTS.md)
+- Documentation: [CONTRIBUTING.md#focused-change-workflow](../CONTRIBUTING.md#focused-change-workflow), [docs/TESTING.md#focused-iteration](TESTING.md#focused-iteration), [docs/benchmarks/feature-context-2026-09-13.md#feature-discovery-context-baseline--13-september-2026](benchmarks/feature-context-2026-09-13.md#feature-discovery-context-baseline--13-september-2026)
+- Frontend tests: [tests/frontend/unit/featureWorkflow.test.js](../tests/frontend/unit/featureWorkflow.test.js)
+- Additional boundary checks: Run npm run context:check; audit moved documentation links and preserve all required broader checks.

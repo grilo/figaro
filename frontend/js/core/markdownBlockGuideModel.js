@@ -76,3 +76,16 @@ export function leadingFrontmatterEnd(source) {
     const lineEnd = text.indexOf('\n', match.index + match[0].length);
     return lineEnd < 0 ? text.length : lineEnd + 1;
 }
+
+/** Sorted guide lines let viewport changes visit only the visible entries. */
+export function markdownGuidesInViewport(guides, from, to) {
+    let low = 0, high = guides.length;
+    while (low < high) {
+        const middle = (low + high) >> 1;
+        if (guides[middle].lineFrom < from) low = middle + 1;
+        else high = middle;
+    }
+    const visible = [];
+    for (let index = low; index < guides.length && guides[index].lineFrom <= to; index++) visible.push(guides[index]);
+    return visible;
+}

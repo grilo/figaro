@@ -1,3 +1,6 @@
+import { sourceRevealIndex, updateSourceReveal, mapSourceReveal } from './sourceReveal.js';
+import { canMapMarkdownProseEdit } from 'codemirror-live-markdown';
+import { countEditorWork, readEditorDocument } from './editorDiagnostics.js';
 /**
  * Source-preserving live GFM table previews.
  *
@@ -55,14 +58,23 @@ function protectTablePreviewScrolling(root) {
     }
 }
 
+/** Resolve the mounted decoration, including after edits before a retained widget. */
+export function renderedTableSourceRange(view, root) {
+    if (!root || typeof root._figaroTableSource !== 'string') return null;
+    try {
+        const from = view.posAtDOM(root, 0);
+        return Number.isInteger(from) ? { from, to: from + root._figaroTableSource.length } : null;
+    } catch { return null; }
+}
+
 /** Map primary clicks and drags that start in a rendered cell back to source. */
 export function renderedTableCellMouseSelection(view, event, EditorSelection) {
     if (event?.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null;
     const cell = event.target?.closest?.('th[data-figaro-source-row], td[data-figaro-source-row]');
     const root = cell?.closest?.('.cm-block-widget--table');
-    const from = Number(root?.dataset.tableFrom);
-    const to = Number(root?.dataset.tableTo);
-    if (!cell || !Number.isInteger(from) || !Number.isInteger(to) || to < from) return null;
+    const range = renderedTableSourceRange(view, root);
+    if (!cell || !range) return null;
+    const { from, to } = range;
 
     const source = view.state.sliceDoc(from, to);
     const offset = markdownTableCellCursorOffset(
@@ -99,8 +111,9 @@ export function renderedTableCellMouseSelection(view, event, EditorSelection) {
 
 /** Return top-level GFM table ranges from CodeMirror's Markdown syntax tree. */
 export function scanMarkdownTables(state) {
+    countEditorWork('parse.tables');
     const tables = [];
-    const documentSource = state.doc.toString();
+    const documentSource = readEditorDocument(state.doc, 'tables');
     if (!documentSource.includes('|')) return tables;
     const tree = syntaxTree(state);
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
@@ -134,6 +147,11 @@ function createMarkdownTableWidget(WidgetType) {
                 && other.to === this.to;
         }
 
+        updateDOM(wrapper) {
+            if (wrapper._figaroTableSource !== this.source) return false;
+            return true;
+        }
+
         toDOM(view) {
             const ownerDocument = view?.dom?.ownerDocument || globalThis.document;
             const surface = ownerDocument.createElement('div');
@@ -141,8 +159,7 @@ function createMarkdownTableWidget(WidgetType) {
             surface.setAttribute('aria-label', 'Rendered Markdown table');
 
             const wrapper = wrapBlockWidget(surface, 'cm-block-widget--table');
-            wrapper.dataset.tableFrom = String(this.from);
-            wrapper.dataset.tableTo = String(this.to);
+            wrapper._figaroTableSource = this.source;
             protectTablePreviewScrolling(wrapper);
             markSourceFootprint(wrapper, {
                 kind: 'table',
@@ -184,11 +201,7 @@ function sourceRangeIsFolded(state, block) {
     return found;
 }
 
-function selectionTouchesRanges(selection, ranges) {
-    return selection?.ranges?.some(selectionRange => ranges.some(range => (
-        selectionRange.from <= range.to && selectionRange.to >= range.from
-    )));
-}
+
 
 /** Build the live-preview state field for source-preserving Markdown tables. */
 export function createMarkdownTableField(
@@ -202,51 +215,53 @@ export function createMarkdownTableField(
 ) {
     const MarkdownTableWidget = createMarkdownTableWidget(WidgetType);
 
-    const buildState = state => {
-        const decorations = [];
-        const ranges = [];
-        const isDragging = state.field(mouseSelectingField, false);
-        const blocks = scanMarkdownTables(state);
-
-        for (const block of blocks) {
-            ranges.push({ from: block.from, to: block.to });
-            if (isDragging
-                || shouldShowSource(state, block.from, block.to)
-                || sourceRangeIsFolded(state, block)) continue;
-            decorations.push(Decoration.replace({
-                widget: new MarkdownTableWidget(block.source, block.sourceLines, block.from, block.to),
-                block: true,
-            }).range(block.from, block.to));
-        }
-
+    const projectBlock = (state, block, visible) => {
+        if (state.field(mouseSelectingField, false) || visible || sourceRangeIsFolded(state, block)) return [];
+        return [Decoration.replace({
+            widget: new MarkdownTableWidget(block.source, block.sourceLines, block.from, block.to),
+            block: true, sourceBlock: block.sourceIdentity || block,
+        }).range(block.from, block.to)];
+    };
+    const buildState = (state, blocks = scanMarkdownTables(state)) => {
+        const visibleIndices = new Set();
+        const decorations = blocks.flatMap((block, index) => {
+            const visible = Boolean(shouldShowSource(state, block.from, block.to));
+            if (visible) visibleIndices.add(index);
+            return projectBlock(state, block, visible);
+        });
         return {
-            decorations: decorations.length
-                ? Decoration.set(decorations, true)
-                : Decoration.none,
-            ranges,
+            decorations: Decoration.set(decorations, true),
+            ranges: blocks.map(({ from, to }) => ({ from, to })),
+            blocks, visibleIndices, revealIndex: sourceRevealIndex(blocks),
         };
     };
 
     const field = StateField.define({
         create: buildState,
         update(value, transaction) {
-            if (transaction.docChanged
+            if (transaction.reconfigured || transaction.docChanged
                 || syntaxTree(transaction.startState) !== syntaxTree(transaction.state)) {
+                if (!transaction.reconfigured && canMapMarkdownProseEdit(transaction)) {
+                    const mapped = mapSourceReveal(value, transaction);
+                    if (transaction.effects.length || transaction.state.field(mouseSelectingField, false)
+                        || transaction.startState.field(mouseSelectingField, false)) return buildState(transaction.state, mapped.blocks);
+                    mapped.ranges = mapped.blocks === value.blocks ? value.ranges
+                        : mapped.blocks.map(({ from, to }) => ({ from, to }));
+                    return updateSourceReveal(mapped, transaction, shouldShowSource, projectBlock);
+                }
                 return buildState(transaction.state);
             }
 
             const isDragging = transaction.state.field(mouseSelectingField, false);
             const wasDragging = transaction.startState.field(mouseSelectingField, false);
-            if (wasDragging && !isDragging) return buildState(transaction.state);
+            if (wasDragging && !isDragging) return buildState(transaction.state, value.blocks);
             if (isDragging) return value;
             if (foldedRanges(transaction.startState) !== foldedRanges(transaction.state)) {
-                return buildState(transaction.state);
+                return buildState(transaction.state, value.blocks);
             }
-            if (transaction.selection && (
-                selectionTouchesRanges(transaction.startState.selection, value.ranges)
-                || selectionTouchesRanges(transaction.state.selection, value.ranges)
-            )) return buildState(transaction.state);
-            return value;
+            return transaction.selection
+                ? updateSourceReveal(value, transaction, shouldShowSource, projectBlock)
+                : value;
         },
         provide: field => EditorView.decorations.from(field, value => value.decorations),
     });

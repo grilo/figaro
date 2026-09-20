@@ -46,9 +46,9 @@ test('unknown names remain reviewable without ordinary-word replacement guesses'
     expect((await spelling('Reciept'))[0]).toMatchObject({ replacements: ['Receipt'], bulkSafe: true });
 });
 
-test('dictionary alternatives do not turn an unpossessed plural into a possessive', async () => {
+test('dictionary alternatives preserve an unknown plural rather than deleting its suffix or inventing possession', async () => {
     const [finding] = await spelling('precedences');
-    expect(finding.replacements).toContain('precedence');
+    expect(finding.replacements).toEqual([]);
     expect(finding.replacements).not.toContain("precedence's");
     expect(finding.bulkSafe).toBe(false);
     expect((await spelling('doesnt'))[0].replacements).toContain("doesn't");

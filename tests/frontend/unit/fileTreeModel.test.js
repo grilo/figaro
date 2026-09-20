@@ -1,6 +1,7 @@
 import {
     directoryPathsForReveal,
     dirtyFilePaths,
+    fileTreeTabMarkersChanged,
     fileTreeActionPaths,
     fileTreeFilePresentation,
     fileTreeKeyCommand,
@@ -249,4 +250,16 @@ describe('file tree model', () => {
         expect(fileTreeKeyCommand({ key: 'F2', shiftKey: true, itemActionable: true }))
             .toBeNull();
     });
+});
+
+
+test('tree marker invalidation ignores cursor/order metadata and follows dirty paths', () => {
+    const a = { id: 'a', type: 'file', path: 'a.md', dirty: true };
+    const b = { id: 'b', type: 'drawio', path: 'b.drawio.svg', dirty: false };
+    expect(fileTreeTabMarkersChanged([a, b], [b, { ...a, cursorState: { head: 4 }, title: 'A' }])).toBe(false);
+    expect(fileTreeTabMarkersChanged([a, b], [{ ...a, dirty: false }, b])).toBe(true);
+    expect(fileTreeTabMarkersChanged([a, b], [a, { ...b, dirty: true }])).toBe(true);
+    expect(fileTreeTabMarkersChanged([a], [{ ...a, path: 'renamed.md' }])).toBe(true);
+    expect(fileTreeTabMarkersChanged([a], [])).toBe(true);
+    expect(fileTreeTabMarkersChanged([], [b])).toBe(false);
 });

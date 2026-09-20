@@ -23,7 +23,7 @@ function harness() {
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
 
-test.each(['repetition', 'consistency', 'readability'])('enabling %s fetches its newly restored Vale evidence after a Formulaic-only cached result', async lens => {
+test.each(['repetition', 'consistency', 'readability', 'grammar'])('enabling %s fetches its newly restored Vale evidence after a Formulaic-only cached result', async lens => {
     const { controller, vale } = harness();
     const source = 'The draft is ready—we can send it.';
     controller.update(snapshot({ source, preferences: { language: 'en-US', lenses: ['formulaic'] } }), { immediate: true });
@@ -121,6 +121,26 @@ test('writing spelling reanalyzes after dictionary changes and hides accepted wo
     controller.destroy();
 });
 
+test('adding a base word refreshes personal plurals and possessives in pane and inline review, scoped to English', async () => {
+    const { controller, spelling } = harness();
+    const words = ['figarowords', 'figaroword’s', 'figarowords’', 'figarwords'];
+    const source = words.join(' ');
+    spelling.mockResolvedValue(words.map(actual => ({ engine: 'spelling', rule: 'figaro-spelling',
+        from: source.indexOf(actual), to: source.indexOf(actual) + actual.length, actual, replacements: [] })));
+    const initial = snapshot({ source, preferences: { lenses: ['spelling'] }, spelling: { enabled: true, language: 'en-US', words: [] } });
+    controller.update(initial, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
+    expect(controller.snapshot().count).toBe(4);
+    const saved = { ...initial, configuration: 'dictionary-updated', spelling: { ...initial.spelling, words: ['figaroword'] } };
+    controller.update(saved, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
+    expect(controller.snapshot().findings.map(item => item.actual)).toEqual(['figarwords']);
+    expect(controller.snapshot().inlineFindings.map(item => item.actual)).toEqual(['figarwords']);
+    controller.update({ ...saved, language: 'es', preferences: { lenses: ['spelling'], language: 'es' },
+        configuration: 'Spanish', spelling: { ...saved.spelling, language: 'es' } }, { immediate: true });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(controller.snapshot().count).toBe(4);
+    controller.destroy();
+});
+
 test('writing lens changes reuse current evidence while display identity follows unchanged prose', async () => {
     const { controller, retext } = harness();
     const initial = snapshot({ source: 'The report was written. We utilize it.', preferences: { lenses: ['plain'] } });
@@ -132,7 +152,7 @@ test('writing lens changes reuse current evidence while display identity follows
     expect(retext.analyze).toHaveBeenCalledTimes(1);
     expect(controller.snapshot().count).toBe(1);
     controller.update({ ...direct, revision: 2, source: 'Today.\n\n' + direct.source });
-    expect(controller.snapshot().count).toBe(0);
+    expect(controller.snapshot()).toMatchObject({ count: 1, stale: true });
     await jest.advanceTimersByTimeAsync(500);
     expect(controller.snapshot().findings.find(item => item.actual === 'utilize').displayId).toBe(word.displayId);
     controller.update(null); expect(controller.snapshot().count).toBe(0);
@@ -166,17 +186,17 @@ test.each([
     const { controller, vale } = harness();
     controller.update(snapshot({ source, preferences: { lenses: [lens], language: 'en-US' } }), { immediate: true });
     await jest.advanceTimersByTimeAsync(0);
-    const needsVale = ['consistency', 'readability'].includes(lens);
+    const needsVale = ['consistency', 'readability', 'grammar'].includes(lens);
     expect(controller.snapshot()).toMatchObject({ count, states: { retext: 'complete', vale: needsVale ? 'complete' : 'disabled' } });
     expect(vale.analyze).toHaveBeenCalledTimes(needsVale ? 1 : 0);
     controller.destroy();
 });
 
-test('enabling Directness after new lenses requests missing Vale evidence before reusing it', async () => {
+test('enabling Directness reuses Vale evidence already fetched for grammar', async () => {
     const { controller, vale } = harness();
     const initial = snapshot({ source: 'A example was written.', preferences: { lenses: ['grammar'] } });
     controller.update(initial, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
-    expect(vale.analyze).not.toHaveBeenCalled();
+    expect(vale.analyze).toHaveBeenCalledTimes(1);
     controller.update({ ...initial, configuration: 'with-direct', preferences: { lenses: ['grammar', 'direct'] } }, { immediate: true });
     await jest.advanceTimersByTimeAsync(0);
     expect(vale.analyze).toHaveBeenCalledTimes(1);
@@ -184,15 +204,15 @@ test('enabling Directness after new lenses requests missing Vale evidence before
     controller.destroy();
 });
 
-test('new-lens analysis failures retry without inventing unavailable Vale checks or retaining stale fixes', async () => {
+test('grammar retries both engines after prose projection fails without retaining stale fixes', async () => {
     const { controller, retext, vale } = harness();
     retext.analyze.mockRejectedValueOnce(new Error('Worker unavailable'));
     controller.update(snapshot({ source: 'A example.', preferences: { lenses: ['grammar'] } }), { immediate: true });
     await jest.advanceTimersByTimeAsync(0);
-    expect(controller.snapshot()).toMatchObject({ count: 0, states: { retext: 'failed', vale: 'disabled' } });
+    expect(controller.snapshot()).toMatchObject({ count: 0, states: { retext: 'failed', vale: 'unavailable' } });
     controller.retry(); await jest.advanceTimersByTimeAsync(0);
-    expect(controller.snapshot()).toMatchObject({ count: 1, states: { retext: 'complete', vale: 'disabled' } });
-    expect(vale.analyze).not.toHaveBeenCalled(); controller.destroy();
+    expect(controller.snapshot()).toMatchObject({ count: 1, states: { retext: 'complete', vale: 'complete' } });
+    expect(vale.analyze).toHaveBeenCalledTimes(1); controller.destroy();
 });
 
 test('Inclusive language retries failed analysis and rejects stale alternatives after edits or document switches', async () => {
@@ -281,8 +301,8 @@ test('late background resolution is discarded after typing, language changes and
 });
 
 test('later spelling cannot clear a failed prose recovery; partial results retain Retry until grammar is rebuilt', async () => {
-    let finishSpelling;
-    const recovered = createWritingProse({ analyze: jest.fn().mockRejectedValueOnce(new Error('recovery failed')).mockImplementation(analyzeWriting) });
+    let finishSpelling, canRecover = false;
+    const recovered = createWritingProse({ analyze: jest.fn(source => canRecover ? analyzeWriting(source) : Promise.reject(new Error('recovery failed'))) });
     const review = { cancel: jest.fn(), resolve: jest.fn().mockRejectedValueOnce(new Error('worker unavailable')).mockImplementation(input => recovered.resolve(input)) };
     let controller;
     const view = createWritingResultsView({ onRetry: () => controller.retry() });
@@ -298,7 +318,7 @@ test('later spelling cannot clear a failed prose recovery; partial results retai
     expect(controller.snapshot()).toMatchObject({ count: 1, states: { retext: 'complete', spelling: 'complete', review: 'failed' } });
     expect(view.element.querySelector('[role=status]').textContent).toContain('Partial results');
     const retry = [...view.element.querySelectorAll('button')].find(button => button.textContent === 'Retry analysis');
-    expect(retry.hidden).toBe(false); retry.click(); await jest.advanceTimersByTimeAsync(0);
+    expect(retry.hidden).toBe(false); canRecover = true; retry.click(); await jest.advanceTimersByTimeAsync(0);
     finishSpelling(spelling); await jest.advanceTimersByTimeAsync(0);
     expect(controller.snapshot()).toMatchObject({ count: 2, states: { review: 'complete' } });
     expect(view.element.querySelector('[role=status]').textContent).toBe('2 suggestions');
@@ -321,4 +341,74 @@ test.each([
     finish(await analyzeWriting(initial.source)); await jest.advanceTimersByTimeAsync(0);
     expect(controller.snapshot().count).toBe(0);
     expect(controller.snapshot().current).toMatchObject(next); controller.destroy();
+});
+
+test('source refresh retains old review until all replacement engines settle and rejects stale Apply even against its old snapshot', async () => {
+    const { controller, retext, vale } = harness();
+    const first = snapshot();
+    controller.update(first, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
+    const old = controller.snapshot();
+    const next = { ...first, revision: 2, source: 'Now.\n\nWe utilize it.' };
+    let finishVale;
+    vale.analyze.mockImplementationOnce(() => new Promise(resolve => { finishVale = resolve; }));
+    controller.update(next);
+    expect(controller.snapshot()).toMatchObject({ count: 1, stale: true, analyzed: first, resultVersion: old.resultVersion });
+    const apply = jest.fn();
+    expect(controller.fix(old.findings[0].id, 0, first, apply)).toBe(false);
+    expect(controller.fixAll(old.findings[0].id, first, apply)).toBe(0);
+    await jest.advanceTimersByTimeAsync(500);
+    expect(retext.analyze).toHaveBeenCalledTimes(2);
+    expect(controller.snapshot()).toMatchObject({ stale: true, analyzed: first, resultVersion: old.resultVersion });
+    expect(apply).not.toHaveBeenCalled();
+    finishVale('{}'); await jest.advanceTimersByTimeAsync(0);
+    expect(controller.snapshot()).toMatchObject({ stale: false, analyzed: next, count: 1 });
+    expect(controller.fix(controller.snapshot().findings[0].id, 0, next, apply)).toBe(true);
+    expect(apply.mock.calls[0][0].from).toBe(9);
+    controller.destroy();
+});
+
+test('retained review clears when switching notes or disabling lenses', async () => {
+    const { controller } = harness();
+    const first = snapshot();
+    controller.update(first, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
+    controller.update({ ...first, revision: 2, source: 'Second.\n\nWe utilize it.' });
+    expect(controller.snapshot().stale).toBe(true);
+    controller.update({ ...first, id: 'different' });
+    expect(controller.snapshot()).toMatchObject({ stale: false, count: 0 });
+    await jest.advanceTimersByTimeAsync(500);
+    controller.update({ ...first, id: 'different', revision: 3, preferences: { lenses: [] }, configuration: 'disabled' });
+    expect(controller.snapshot()).toMatchObject({ stale: false, count: 0 });
+    controller.destroy();
+});
+
+test('failed replacement review retains disabled old results and retry publishes a current snapshot', async () => {
+    const review = { resolve: jest.fn(writingTestPorts.review.resolve), cancel() {} };
+    const controller = createWritingAnalysis({ ...writingTestPorts, review,
+        retext: { analyze: source => analyzeWriting(source), cancel() {} },
+        vale: { analyze: async () => '{}', cancel() {} }, spelling: async () => [], schedule: setTimeout, unschedule: clearTimeout });
+    const first = snapshot();
+    controller.update(first, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
+    review.resolve.mockRejectedValueOnce(new Error('review failed'));
+    const next = { ...first, revision: 2, source: 'Now.\n\nWe utilize it.' };
+    controller.update(next); await jest.advanceTimersByTimeAsync(500);
+    expect(controller.snapshot()).toMatchObject({ count: 1, stale: true, analyzed: first, states: { review: 'failed' } });
+    controller.retry(); await jest.advanceTimersByTimeAsync(0);
+    expect(controller.snapshot()).toMatchObject({ count: 1, stale: false, analyzed: next, states: { review: 'complete' } });
+    controller.destroy();
+});
+
+test('empty spelling completion cannot blank retained prose while a replacement or cancelled worker is pending', async () => {
+    const { controller, retext } = harness();
+    const first = snapshot({ preferences: { lenses: ['plain', 'spelling'] }, spelling: { enabled: true, language: 'en-US', words: [] } });
+    controller.update(first, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
+    let finish;
+    retext.analyze.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const second = { ...first, revision: 2, source: 'Second.\n\nWe utilize it.' };
+    controller.update(second); await jest.advanceTimersByTimeAsync(500);
+    expect(controller.snapshot()).toMatchObject({ count: 1, stale: true, states: { spelling: 'complete', retext: 'analyzing' } });
+    const third = { ...first, revision: 3, source: 'Third.\n\nWe utilize it.' };
+    controller.update(third); await jest.advanceTimersByTimeAsync(500);
+    finish(analyzeRetext(second.source)); await jest.advanceTimersByTimeAsync(0);
+    expect(controller.snapshot()).toMatchObject({ count: 1, stale: false, analyzed: third });
+    controller.destroy();
 });

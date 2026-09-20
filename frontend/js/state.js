@@ -1,13 +1,26 @@
+import { workspaceTabChanges } from './core/workspaceTabChanges.js';
+import { createWorkspaceCursorStore } from './core/workspaceCursorModel.js';
+import { countEditorWork, traceEditorWork } from './editorDiagnostics.js';
 /**
  * Shared Reactive State Management
  * Single source of truth for application state
  */
 
 import { log } from './log.js';
-import { restoreSessionTabs, serializeSessionTabs } from './sessionTabs.js';
+import { restoreSessionTabs, serializeSessionTabs, sessionTabStorageUpdate } from './core/sessionModel.js';
 import { createLocalStateStorage } from './adapters/localStateStorage.js';
 
 const stateStorage = createLocalStateStorage();
+const workspaceCursors = createWorkspaceCursorStore();
+let cursorTabs;
+let tabPositions = new Map();
+function synchronizeCursorTabs() {
+    if (cursorTabs === state.openTabs) return [];
+    const changes = workspaceCursors.reconcile(state.openTabs);
+    cursorTabs = state.openTabs;
+    tabPositions = new Map((state.openTabs || []).map((tab, index) => [tab.id, index]));
+    return changes;
+}
 export const state = {
     // Editor
     editorView: null,           // CodeMirror EditorView instance
@@ -32,6 +45,8 @@ export const state = {
     
     // Tabs
     openTabs: [],               // Array of tab objects: { id, type, path, title, dirty, data }
+    // Materialize only at a session/snapshot boundary, never for an ordinary key.
+    get tabCursorStates() { synchronizeCursorTabs(); return workspaceCursors.snapshot(); },
     activeTabId: null,          // Currently active tab ID
     nextTabId: 1,               // Auto-incrementing tab ID
     
@@ -88,6 +103,7 @@ export const state = {
 
 // Reactive subscribers
 const subscribers = new Map();
+const subscriberNames = new WeakMap();
 
 /**
  * Subscribe to state changes
@@ -95,7 +111,9 @@ const subscribers = new Map();
  * @param {Function} callback - Called with (newValue, oldValue)
  * @returns {Function} Unsubscribe function
  */
-export function subscribe(key, callback) {
+export function subscribe(key, callback, consumer = 'subscriber') {
+    subscriberNames.set(callback, consumer);
+    if (key === 'openTabs') throw new Error('Subscribe to tabPresentation, tabCursors, or tabBuffers');
     if (!subscribers.has(key)) {
         subscribers.set(key, new Set());
     }
@@ -113,7 +131,7 @@ function notify(key, newValue, oldValue) {
     if (subscribers.has(key)) {
         subscribers.get(key).forEach(cb => {
             try {
-                cb(newValue, oldValue);
+                traceEditorWork(`state:${key}:${subscriberNames.get(cb) || 'subscriber'}`, key, () => cb(newValue, oldValue));
             } catch (e) {
                 log.error(`State subscriber error for ${key}:`, e);
             }
@@ -126,12 +144,58 @@ function notify(key, newValue, oldValue) {
  * @param {string} key - State key
  * @param {*} value - New value
  */
-export function setState(key, value) {
+export function setState(key, value, transition = null) {
     const oldValue = state[key];
     if (oldValue !== value) {
         state[key] = value;
-        notify(key, value, oldValue);
+        if (key === 'openTabs') {
+            // A model-owned single-record replacement preserves the immutable array
+            // contract, while classification and cursor lifetime work stay local.
+            const local = transition?.source === oldValue && transition.tabs === value
+                && oldValue[transition.index] === transition.previous
+                && value[transition.index] === transition.tab;
+            const changes = local ? workspaceTabChanges([transition.previous], [transition.tab])
+                : workspaceTabChanges(oldValue, value);
+            const sameLifetime = local && cursorTabs === oldValue
+                && transition.previous.id === transition.tab.id
+                && transition.previous.type === transition.tab.type
+                && transition.previous.cursorState === transition.tab.cursorState;
+            if (sameLifetime) cursorTabs = value;
+            const cursorChanges = synchronizeCursorTabs();
+            for (const [changed, channel] of [
+                [changes.presentation, 'tabPresentation'], [changes.buffers, 'tabBuffers'],
+            ]) {
+                if (!changed) continue;
+                countEditorWork(`notifications.${channel}`);
+                notify(channel, value, oldValue);
+            }
+            for (const change of cursorChanges) {
+                countEditorWork('notifications.tabCursors');
+                notify('tabCursors', change);
+            }
+        } else notify(key, value, oldValue);
     }
+}
+
+/** Rebuilt with tab lifetimes; buffer replacements preserve these positions. */
+export function getTabIndex(tabId) {
+    synchronizeCursorTabs();
+    return tabPositions.get(tabId) ?? -1;
+}
+
+export function getTabCursorState(tabId) {
+    synchronizeCursorTabs();
+    return workspaceCursors.read(tabId);
+}
+
+/** Publish one selection without replacing or classifying the tab collection. */
+export function setTabCursorState(tabId, selection) {
+    synchronizeCursorTabs();
+    const change = workspaceCursors.update(tabId, selection);
+    if (!change) return false;
+    countEditorWork('notifications.tabCursors');
+    notify('tabCursors', change);
+    return true;
 }
 
 /**
@@ -377,17 +441,12 @@ subscribe('selectedTreePath', () => {
         }
     } catch (e) { /* noop */ }
 });
-subscribe('openTabs', () => {
+subscribe('tabPresentation', (tabs, previous) => {
     try {
-        const serializable = serializeSessionTabs(state.openTabs);
-        stateStorage.write('openTabs', JSON.stringify(serializable));
-        if (state.activeTabId) {
-            stateStorage.write('activeTabId', state.activeTabId);
-        } else {
-            stateStorage.remove('activeTabId');
-        }
+        const update = sessionTabStorageUpdate(previous, tabs);
+        if (update !== null) stateStorage.write('openTabs', update);
     } catch (e) { /* noop */ }
-});
+}, 'tab-metadata');
 subscribe('activeTabId', () => {
     try {
         if (state.activeTabId) {
@@ -396,6 +455,6 @@ subscribe('activeTabId', () => {
             stateStorage.remove('activeTabId');
         }
     } catch (e) { /* noop */ }
-});
+}, 'tab-metadata');
 
 export default state;

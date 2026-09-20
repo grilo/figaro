@@ -1,17 +1,19 @@
 import { createWritingExamplesView } from './writingExamplesView.js';
 import { limitWritingAlternatives } from './writingAlternativesView.js';
 /** Compose the approved menu surface and standard buttons for an inline review. */
-export function createWritingInlineView({ findings, onApply, onApplyAll, bulkCount = () => 0, onIgnore, onAcceptAcronym, onAddWord, onClose }) {
+export function createWritingInlineView({ findings, stale = false, onApply, onApplyAll, bulkCount = () => 0, onIgnore, onAcceptAcronym, onAddWord, onClose }) {
     const dom = document.createElement('div');
     dom.className = 'ui-menu cm-writing-tooltip';
     dom.setAttribute('role', 'dialog'); dom.setAttribute('aria-label', 'Writing suggestions');
     const status = document.createElement('p');
     status.className = 'writing-lenses-description'; status.setAttribute('role', 'status'); status.hidden = true;
+    if (stale) { status.hidden = false; status.textContent = 'Refreshing suggestions. Actions will return when checks finish.'; }
     const button = (text, label, action) => {
         const control = document.createElement('button');
         control.type = 'button'; control.className = 'ui-button';
         control.textContent = text; control.setAttribute('aria-label', label);
-        control.addEventListener('click', action); return control;
+        control.disabled = stale;
+        control.addEventListener('click', event => { if (!stale) action(event); }); return control;
     };
     for (const finding of findings) {
         const section = document.createElement('section'); section.className = 'writing-inline-finding';

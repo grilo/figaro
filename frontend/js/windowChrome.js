@@ -1,3 +1,4 @@
+import { countEditorWork } from './editorDiagnostics.js';
 /**
  * Native frameless-window controls shared by every Wails desktop webview.
  *
@@ -13,6 +14,7 @@ import { windowTitleForTab } from './core/windowTitleModel.js';
 let initialized = false;
 let closeRequestHandler = () => callNative('WindowClose');
 let titleSubscriptions = [];
+let nativeTitle = null;
 
 function callNative(method, ...args) {
     try {
@@ -99,14 +101,22 @@ function syncWindowTitle() {
     const activeId = getState('activeTabId');
     const activeTab = (getState('openTabs') || []).find(tab => tab.id === activeId) || null;
     const title = windowTitleForTab(activeTab);
-    document.title = title;
-    callNative('WindowSetTitle', title);
+    if (document.title !== title) document.title = title;
+    if (nativeTitle === title) return;
+    try {
+        countEditorWork('io.windowTitle');
+        const result = backend().WindowSetTitle(title);
+        nativeTitle = title;
+        Promise.resolve(result).catch(() => {
+            if (nativeTitle === title) nativeTitle = null;
+        });
+    } catch (_) { nativeTitle = null; }
 }
 
 function installWindowTitleSync() {
     titleSubscriptions = [
-        subscribe('activeTabId', syncWindowTitle),
-        subscribe('openTabs', syncWindowTitle),
+        subscribe('activeTabId', syncWindowTitle, 'window-title'),
+        subscribe('tabPresentation', syncWindowTitle, 'window-title'),
     ];
     syncWindowTitle();
 }
@@ -127,6 +137,7 @@ export function initWindowChrome() {
 export function resetWindowChromeForTests() {
     for (const unsubscribe of titleSubscriptions) unsubscribe?.();
     titleSubscriptions = [];
+    nativeTitle = null;
     initialized = false;
     closeRequestHandler = () => closeNativeWindow();
 }

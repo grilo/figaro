@@ -1,7 +1,8 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView, hasHoverTooltips } from '@codemirror/view';
 import { inlineWritingState, writingInlineExtension, updateInlineWriting, openInlineWriting } from '../../../frontend/js/writingInline.js';
-import { inlineWritingFindings, writingFindingsAt, filterAcceptedSpelling, visibleWritingRanges, writingTooltipBounds } from '../../../frontend/js/core/writingInlineModel.js';
+import { inlineWritingFindings, writingFindingsAt, visibleWritingRanges, writingTooltipBounds } from '../../../frontend/js/core/writingInlineModel.js';
+import { filterAcceptedSpelling } from '../../../frontend/js/core/spellingDictionaryModel.js';
 import { createWritingInlineView } from '../../../frontend/js/views/writingInlineView.js';
 import { analyzeRetext, analyzeWriting } from '../../../frontend/vendored/writing/runtime.js';
 import { resolveWritingFindings } from '../../../frontend/js/core/writingAnalysisModel.js';
@@ -177,4 +178,46 @@ test('writing tooltip bounds keep examples and actions clear of the sidebar and 
         .toEqual({ left: 308, top: 48, right: 892, bottom: 692 });
     expect(writingTooltipBounds({ left: -100, top: -40, right: 1400, bottom: 1000 }, { width: 1200, height: 700 }))
         .toEqual({ left: 8, top: 8, right: 1192, bottom: 692 });
+});
+
+test('editing another paragraph retains shifted read-only underlines through typing, splitting, undo and refresh', () => {
+    const before = 'First paragraph.\n\nWe utilize words.';
+    const from = before.indexOf('utilize');
+    const occurrence = { ...finding, kind: 'lexicon.complex-word', from, to: from + 7 };
+    const job = { ...current, source: before };
+    const view = new EditorView({ parent: document.body, state: EditorState.create({ doc: before, extensions: [writingInlineExtension] }) });
+    try {
+        updateInlineWriting(view, { current: job, analyzed: job, groups: [{ findings: [occurrence] }] }, { apply: jest.fn() });
+        const serialize = jest.spyOn(view.state.doc, 'toString');
+        view.dispatch({ changes: { from: 5, insert: 'new ' } });
+        expect(serialize).not.toHaveBeenCalled();
+        expect(view.state.field(inlineWritingState)).toMatchObject({ stale: true, actions: {}, findings: [{ from: from + 4, to: from + 11 }] });
+        updateInlineWriting(view, { stale: true }, {});
+        expect(view.dom.querySelector('.cm-writing-range').textContent).toBe('utilize');
+        view.dispatch({ changes: { from: 3, insert: '\n' } });
+        expect(view.state.field(inlineWritingState).findings[0].from).toBe(from + 5);
+        view.dispatch({ selection: { anchor: from + 6 } });
+        openInlineWriting(view);
+        const tooltip = view.dom.querySelector('.cm-writing-tooltip');
+        expect(tooltip.textContent).toContain('Refreshing suggestions');
+        expect([...tooltip.querySelectorAll('button')].every(button => button.disabled)).toBe(true);
+        // Reverse the edits, as Undo does: retained positions follow the current source.
+        view.dispatch({ changes: { from: 3, to: 4 } });
+        view.dispatch({ changes: { from: 5, to: 9 } });
+        expect(view.state.field(inlineWritingState).findings[0].from).toBe(from);
+        updateInlineWriting(view, { current: job, analyzed: job, groups: [{ findings: [occurrence] }] }, {});
+        expect(view.state.field(inlineWritingState).stale).toBeUndefined();
+        view.dispatch({ changes: { from: from + 1, insert: 'x' } });
+        expect(view.state.field(inlineWritingState).findings).toEqual([]);
+    } finally { view.destroy(); }
+});
+
+test.each(['```\n', '[target]: /url\n', '---\n'])('structural Markdown insertion %s clears unrelated inline results synchronously', insert => {
+    const view = new EditorView({ parent: document.body, state: EditorState.create({ doc: 'First.\n\n' + source, extensions: [writingInlineExtension] }) });
+    try {
+        const job = { ...current, source: view.state.doc.toString() };
+        updateInlineWriting(view, { current: job, analyzed: job, groups: [{ findings: [{ ...finding, from: 11, to: 18 }] }] }, {});
+        view.dispatch({ changes: { from: 0, insert } });
+        expect(view.state.field(inlineWritingState).findings).toEqual([]);
+    } finally { view.destroy(); }
 });

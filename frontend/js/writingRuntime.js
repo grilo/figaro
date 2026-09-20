@@ -1,6 +1,7 @@
 // This entry is bundled at build time for both the module worker and adapter tests.
 import { getFrontmatterRegion } from './frontmatter.js';
 import { wikiLinkRanges } from './core/noteLinks.js';
+import { writingFootnoteRanges } from './core/writingFootnoteModel.js';
 import { ordinaryWritingWords } from '../vendored/writing/words.js';
 import { unified } from 'unified';
 import { VFile } from 'vfile';
@@ -82,7 +83,6 @@ function hideTechnicalSyntax(units) {
     const text = units.map(unit => unit.char).join('');
     const hide = (from, to) => { for (let i = from; i < to; i++) units[i] = { ...units[i], char: ' ', safe: false, hidden: true }; };
     for (const range of writingTechnicalRanges(text)) hide(range.from, range.to);
-    for (const match of text.matchAll(/(?:\.{1,2}\/|\/)[\w./-]+/gu)) hide(match.index, match.index + match[0].length);
     for (const match of text.matchAll(/--[a-z][\w-]*|\b[A-Za-z]+(?:[A-Z][a-z]+){1,}\b|\b\w+(?:\.\w+)+\([^\n)]*\)/gu)) {
         if (/^[A-Z]{2,}s$/u.test(match[0])) continue; // Acronym plurals are prose, not camelCase identifiers.
         hide(match.index, match.index + match[0].length);
@@ -91,10 +91,18 @@ function hideTechnicalSyntax(units) {
 export function prepareWritingSource(source) {
     const result = { text: '', units: [], regions: [], quotationSpans: [], typography: { text: '', units: [] } };
     const wiki = wikiLinkRanges(source);
+    const footnotes = writingFootnoteRanges(source);
     function visit(node) {
         if (excluded.has(node.type)) return;
         if (blocks.has(node.type)) {
             const units = []; collectInline(node, source, units); hideTechnicalSyntax(units);
+            for (const range of footnotes) {
+                if (range.to <= node.position.start.offset || range.from >= node.position.end.offset) continue;
+                for (let at = 0; at < units.length; at++) {
+                    const unit = units[at];
+                    if (unit.from >= range.from && unit.to <= range.to) units[at] = { ...unit, char: ' ', safe: false, hidden: true };
+                }
+            }
             for (const link of wiki) {
                 if (link.to <= node.position.start.offset || link.from >= node.position.end.offset) continue;
                 for (let at = 0; at < units.length; at++) {

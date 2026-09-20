@@ -47,6 +47,7 @@ describe('history restore workflow', () => {
         configureHistoryWorkspace({ saveFileSnapshot: mockSaveFileSnapshot });
         testUtils.createMockDOM();
         jest.clearAllMocks();
+        mockEditorView.hasFocus = false;
         mockState.openTabs = [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true }];
         mockState.activeTabId = 'note.md';
         window.go.desktop.App.GetCommitCount.mockResolvedValue(2);
@@ -61,6 +62,20 @@ describe('history restore workflow', () => {
     });
 
     afterEach(() => closeHistoryPanel());
+
+    test('mouse-opening History while typing preserves editor focus', async () => {
+        updateHistoryCount('note.md'); await settle();
+        const editor = document.createElement('textarea');
+        document.body.append(editor); editor.focus(); mockEditorView.hasFocus = true;
+        const button = document.getElementById('history-count');
+        const down = new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true });
+        button.dispatchEvent(down);
+        button.dispatchEvent(new MouseEvent('click', { detail: 1, bubbles: true }));
+        await settle();
+        expect(down.defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(editor);
+        expect(document.querySelector('.history-item')).not.toBeNull();
+    });
 
     test('switching from Versions to Activity waits for the owned live buffer to return', async () => {
         updateHistoryCount('note.md'); await settle();

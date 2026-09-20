@@ -122,7 +122,7 @@ and patterns that span protected content are not reported.
 
 `core/writingSloplessModel.js` owns the selection, neutral presentation,
 examples, UTF-16 range validation, mark splitting and repeated-word anchors.
-Mapping/configuration version 11 includes the package pin and exact selected
+Mapping/configuration version 18 includes the package pin and exact selected
 rule map. No CLI, runtime configuration files, model API, network service or
 interaction-triggered module import is used. Package upgrades require another
 rule review and an updated inventory; upstream additions are never enabled

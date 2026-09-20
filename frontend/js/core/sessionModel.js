@@ -19,6 +19,14 @@ export function serializeSessionTabs(tabs) {
         });
 }
 
+// Cursor positions, dirty flags, and editor buffers are not tab-list metadata.
+// Keeping this decision pure prevents their frequent updates from touching
+// synchronous browser storage. Cursor restoration uses the portable session.
+export function sessionTabStorageUpdate(previous, next) {
+    const serialized = JSON.stringify(serializeSessionTabs(next));
+    return serialized === JSON.stringify(serializeSessionTabs(previous)) ? null : serialized;
+}
+
 /**
  * Legacy sessions may still contain the old synthetic Welcome tab. Ignore it:
  * the workspace overview is a view, not a serializable tab.
@@ -97,9 +105,11 @@ export function normalizeSessionPayload(payload) {
 export function buildSessionSnapshot(workspace) {
     const openTabs = serializeSessionTabs(workspace?.openTabs);
     const cursorStates = {};
+    const liveCursors = workspace?.tabCursorStates;
     for (const tab of (Array.isArray(workspace?.openTabs) ? workspace.openTabs : [])) {
-        if (tab?.type === 'file' && tab.cursorState) {
-            cursorStates[tab.id] = tab.cursorState;
+        const cursor = liveCursors ? liveCursors[tab?.id] : tab?.cursorState;
+        if (tab?.type === 'file' && cursor) {
+            cursorStates[tab.id] = { anchor: cursor.anchor, head: cursor.head };
         }
     }
 

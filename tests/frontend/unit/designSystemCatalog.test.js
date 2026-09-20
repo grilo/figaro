@@ -896,7 +896,9 @@ describe('design-system catalogue', () => {
     });
 
     test('keeps the explicit component-approval gate in repository instructions', () => {
-        const instructions = fs.readFileSync(path.resolve('AGENTS.md'), 'utf8');
+        const rootInstructions = fs.readFileSync(path.resolve('AGENTS.md'), 'utf8');
+        expect(rootInstructions).toContain('.agents/guidance/ui.md');
+        const instructions = fs.readFileSync(path.resolve('.agents/guidance/ui.md'), 'utf8');
         expect(instructions).toContain('explicit user approval');
         expect(instructions).toContain('approved-components.json');
         expect(instructions).toContain('design-system/primitives.css');

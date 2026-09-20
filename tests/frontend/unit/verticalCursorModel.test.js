@@ -192,3 +192,11 @@ describe('vertical cursor boundary policy', () => {
         })).toBe(0);
     });
 });
+
+test('visual rows inside a source line precede adjacent block entry in either direction', async () => {
+    const { verticalMotionStaysInLine } = await import('../../../frontend/js/core/verticalCursorModel.js');
+    const line = { from: 10, to: 100, before: 50 };
+    expect(verticalMotionStaysInLine({ ...line, after: 30, forward: false })).toBe(true);
+    expect(verticalMotionStaysInLine({ ...line, after: 70, forward: true })).toBe(true);
+    for (const after of [5, 105, 50]) expect(verticalMotionStaysInLine({ ...line, after, forward: false })).toBe(false);
+});

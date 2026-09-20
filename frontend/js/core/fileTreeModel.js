@@ -194,6 +194,13 @@ export function dirtyFilePaths(openTabs) {
         .map(tab => tab.path));
 }
 
+// Cursor snapshots, tab titles and ordering do not change tree markers.
+export function fileTreeTabMarkersChanged(previous, next) {
+    const before = dirtyFilePaths(previous);
+    const after = dirtyFilePaths(next);
+    return before.size !== after.size || [...before].some(path => !after.has(path));
+}
+
 /** Flatten only the rows a collapsed/expanded tree currently exposes. */
 export function visibleFileTreeRows(items, expandedDirectories, styles = {}, depth = 1, parentPath = null) {
     const expanded = expandedDirectories instanceof Set

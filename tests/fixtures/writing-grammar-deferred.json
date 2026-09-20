@@ -1,0 +1,16 @@
+[
+  {
+    "rule": "Harper.ProgressiveNeedsBe",
+    "source": "I have running home.",
+    "actual": "have",
+    "replacements": [
+      "have been"
+    ],
+    "valid": [
+      "I have been running home.",
+      "I have swimming lessons.",
+      "We have running water.",
+      "They have working parents."
+    ]
+  }
+]

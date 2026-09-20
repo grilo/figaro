@@ -1,0 +1,2542 @@
+{
+  "date": "2026-09-20",
+  "reviewer": "Codex agent; no independent human review or adjudication",
+  "status": "Exploratory document review, not a precision/recall release gate",
+  "manifestSHA256": "898b21f02655be430a4046f684fa29848659a18455d8a3da007b6fb166dbe002",
+  "configuration": {
+    "mapping": "17",
+    "grammar": "harper-0.1.0-curated-1+figaro-4"
+  },
+  "summary": {
+    "documents": 6,
+    "proseWords": 2119,
+    "visibleOccurrences": 150,
+    "cards": 122,
+    "labels": {
+      "unnecessary": 115,
+      "misleading": 10,
+      "useful optional advice": 10,
+      "definite error": 15
+    },
+    "offeredEdits": 40,
+    "safeOfferedEdits": 15,
+    "unsafeOfferedEdits": 25,
+    "occurrencesWithUnsafeEdits": 17,
+    "bulkPlans": 0
+  },
+  "documents": [
+    {
+      "id": "serve-static",
+      "sha256": "a42b827162e00dd9abdd60ff9d6ff91de232fc542390fd269a9526d5dc751c8c",
+      "proseWords": 630,
+      "counts": {
+        "jsRaw": 27,
+        "spellingRaw": 30,
+        "nativeRaw": 44,
+        "visible": 63,
+        "cards": 44,
+        "suppressed": 8
+      },
+      "seededErrors": [],
+      "controls": []
+    },
+    {
+      "id": "p-map",
+      "sha256": "df3cabe97595f6460012ab9afe236473d5089100b638b835cb6fc1753568b0f8",
+      "proseWords": 483,
+      "counts": {
+        "jsRaw": 13,
+        "spellingRaw": 12,
+        "nativeRaw": 27,
+        "visible": 33,
+        "cards": 26,
+        "suppressed": 2
+      },
+      "seededErrors": [],
+      "controls": []
+    },
+    {
+      "id": "workshop",
+      "sha256": "3a7e15126b940b55b65f597a96c321df9bb2c797ca05a92fc81baaf816e516f4",
+      "proseWords": 243,
+      "counts": {
+        "jsRaw": 7,
+        "spellingRaw": 2,
+        "nativeRaw": 19,
+        "visible": 17,
+        "cards": 17,
+        "suppressed": 2
+      },
+      "seededErrors": [
+        {
+          "context": "Their going to be late",
+          "actual": "Their",
+          "replacement": "They're",
+          "fromUTF16": 123,
+          "toUTF16": 128,
+          "findings": [
+            0
+          ]
+        },
+        {
+          "context": "Your going to be welcomed",
+          "actual": "Your",
+          "replacement": "You're",
+          "fromUTF16": 233,
+          "toUTF16": 237,
+          "findings": [
+            1
+          ]
+        },
+        {
+          "context": "Its going to be useful",
+          "actual": "Its",
+          "replacement": "It's",
+          "fromUTF16": 367,
+          "toUTF16": 370,
+          "findings": [
+            5
+          ]
+        },
+        {
+          "context": "check teh printed",
+          "actual": "teh",
+          "replacement": "the",
+          "fromUTF16": 473,
+          "toUTF16": 476,
+          "findings": [
+            6
+          ]
+        },
+        {
+          "context": "an uniform",
+          "actual": "an",
+          "replacement": "a",
+          "fromUTF16": 525,
+          "toUTF16": 527,
+          "findings": [
+            7
+          ]
+        },
+        {
+          "context": "chairs is",
+          "actual": "is",
+          "replacement": "are",
+          "fromUTF16": 615,
+          "toUTF16": 617,
+          "findings": []
+        },
+        {
+          "context": "the the pencils",
+          "actual": "the the",
+          "replacement": "the",
+          "fromUTF16": 774,
+          "toUTF16": 781,
+          "findings": [
+            10
+          ]
+        },
+        {
+          "context": "**recieve**",
+          "actual": "recieve",
+          "replacement": "receive",
+          "fromUTF16": 914,
+          "toUTF16": 921,
+          "findings": [
+            11
+          ]
+        }
+      ],
+      "controls": [
+        {
+          "context": "Their going to be thanked surprised the helpers.",
+          "findings": [
+            14
+          ]
+        },
+        {
+          "context": "Your running today worried nobody",
+          "findings": []
+        },
+        {
+          "context": "Their going home was expected.",
+          "findings": [
+            15
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden",
+      "sha256": "41120fa864261bafe90ae2356b4edcb755530ee2994cf1dc93661eff77a32637",
+      "proseWords": 261,
+      "counts": {
+        "jsRaw": 9,
+        "spellingRaw": 2,
+        "nativeRaw": 14,
+        "visible": 15,
+        "cards": 14,
+        "suppressed": 4
+      },
+      "seededErrors": [],
+      "controls": [
+        {
+          "context": "colour",
+          "findings": []
+        },
+        {
+          "context": "organised",
+          "findings": []
+        },
+        {
+          "context": "grey",
+          "findings": []
+        },
+        {
+          "context": "neighbour",
+          "findings": []
+        },
+        {
+          "context": "Their going to be interviewed was unexpected.",
+          "findings": [
+            7,
+            8
+          ]
+        },
+        {
+          "context": "Your going to have been selected surprised the whole group.",
+          "findings": [
+            9
+          ]
+        },
+        {
+          "context": "Their not going to be served immediately seemed reasonable.",
+          "findings": [
+            10,
+            11
+          ]
+        },
+        {
+          "context": "request for the guide",
+          "findings": []
+        },
+        {
+          "context": "postal address",
+          "findings": []
+        },
+        {
+          "context": "response time",
+          "findings": []
+        }
+      ]
+    },
+    {
+      "id": "service-note",
+      "sha256": "5f4e9486e45cbae7b31f5637dad9f584a0b61f12c4e50a1995028f29657c89ad",
+      "proseWords": 242,
+      "counts": {
+        "jsRaw": 8,
+        "spellingRaw": 0,
+        "nativeRaw": 7,
+        "visible": 10,
+        "cards": 9,
+        "suppressed": 3
+      },
+      "seededErrors": [
+        {
+          "context": "has went",
+          "actual": "went",
+          "replacement": "gone",
+          "fromUTF16": 449,
+          "toUTF16": 453,
+          "findings": [
+            3
+          ]
+        },
+        {
+          "context": "discuss about",
+          "actual": "discuss about",
+          "replacement": "discuss",
+          "fromUTF16": 594,
+          "toUTF16": 607,
+          "findings": [
+            4
+          ]
+        },
+        {
+          "context": "shorter then",
+          "actual": "then",
+          "replacement": "than",
+          "fromUTF16": 674,
+          "toUTF16": 678,
+          "findings": [
+            5
+          ]
+        },
+        {
+          "context": "Your going to be served",
+          "actual": "Your",
+          "replacement": "You're",
+          "fromUTF16": 734,
+          "toUTF16": 738,
+          "findings": []
+        },
+        {
+          "context": "should of",
+          "actual": "should of",
+          "replacement": "should have",
+          "fromUTF16": 1086,
+          "toUTF16": 1095,
+          "findings": [
+            6
+          ]
+        },
+        {
+          "context": "look forward to meet",
+          "actual": "to meet",
+          "replacement": "to meeting",
+          "fromUTF16": 1142,
+          "toUTF16": 1149,
+          "findings": []
+        },
+        {
+          "context": "let her to inspect",
+          "actual": "to inspect",
+          "replacement": "inspect",
+          "fromUTF16": 1212,
+          "toUTF16": 1222,
+          "findings": [
+            8
+          ]
+        },
+        {
+          "context": "more cheaper",
+          "actual": "more cheaper",
+          "replacement": "cheaper",
+          "fromUTF16": 1416,
+          "toUTF16": 1428,
+          "findings": []
+        }
+      ],
+      "controls": [
+        {
+          "context": "request body",
+          "findings": []
+        },
+        {
+          "context": "response body",
+          "findings": []
+        },
+        {
+          "context": "The team have finished",
+          "findings": []
+        }
+      ]
+    },
+    {
+      "id": "walk",
+      "sha256": "24d75510ca3e821af0bfc32c488847411e9682ba5c048f0939529d146a2526e6",
+      "proseWords": 260,
+      "counts": {
+        "jsRaw": 6,
+        "spellingRaw": 1,
+        "nativeRaw": 12,
+        "visible": 12,
+        "cards": 12,
+        "suppressed": 0
+      },
+      "seededErrors": [
+        {
+          "context": "Its going to be closed",
+          "actual": "Its",
+          "replacement": "It's",
+          "fromUTF16": 361,
+          "toUTF16": 364,
+          "findings": [
+            1
+          ]
+        },
+        {
+          "context": "Your going to be given",
+          "actual": "Your",
+          "replacement": "You're",
+          "fromUTF16": 672,
+          "toUTF16": 676,
+          "findings": [
+            6
+          ]
+        },
+        {
+          "context": "seperate",
+          "actual": "seperate",
+          "replacement": "separate",
+          "fromUTF16": 982,
+          "toUTF16": 990,
+          "findings": [
+            8
+          ]
+        },
+        {
+          "context": "fewer time",
+          "actual": "fewer",
+          "replacement": "less",
+          "fromUTF16": 1031,
+          "toUTF16": 1036,
+          "findings": []
+        }
+      ],
+      "controls": [
+        {
+          "context": "their waiting quietly helped the clerk",
+          "findings": [
+            4
+          ]
+        },
+        {
+          "context": "Their going to have been told already was my first assumption.",
+          "findings": [
+            5
+          ]
+        }
+      ]
+    }
+  ],
+  "review": [
+    {
+      "document": "serve-static",
+      "index": 0,
+      "fromUTF16": 19,
+      "toUTF16": 22,
+      "kind": "grammar.spelling",
+      "actual": "NPM",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 1,
+      "fromUTF16": 64,
+      "toUTF16": 67,
+      "kind": "grammar.spelling",
+      "actual": "NPM",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 2,
+      "fromUTF16": 304,
+      "toUTF16": 307,
+      "kind": "grammar.spelling",
+      "actual": "npm",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 3,
+      "fromUTF16": 356,
+      "toUTF16": 363,
+      "kind": "syntax.passive",
+      "actual": "is done",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 4,
+      "fromUTF16": 577,
+      "toUTF16": 588,
+      "kind": "grammar.spelling",
+      "actual": "serveStatic",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 5,
+      "fromUTF16": 618,
+      "toUTF16": 628,
+      "kind": "grammar.spelling",
+      "actual": "middleware",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 6,
+      "fromUTF16": 712,
+      "toUTF16": 725,
+      "kind": "syntax.passive",
+      "actual": "be determined",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 7,
+      "fromUTF16": 906,
+      "toUTF16": 916,
+      "kind": "grammar.spelling",
+      "actual": "middleware",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 8,
+      "fromUTF16": 977,
+      "toUTF16": 989,
+      "kind": "grammar.spelling",
+      "actual": "acceptRanges",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 9,
+      "fromUTF16": 1161,
+      "toUTF16": 1173,
+      "kind": "grammar.spelling",
+      "actual": "cacheControl",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 10,
+      "fromUTF16": 1324,
+      "toUTF16": 1332,
+      "kind": "grammar.spelling",
+      "actual": "dotfiles",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "dotfiles",
+          "replacement": "defiles",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 11,
+      "fromUTF16": 1343,
+      "toUTF16": 1351,
+      "kind": "grammar.spelling",
+      "actual": "dotfiles",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "dotfiles",
+          "replacement": "defiles",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 12,
+      "fromUTF16": 1353,
+      "toUTF16": 1364,
+      "kind": "syntax.passive",
+      "actual": "are treated",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 13,
+      "fromUTF16": 1385,
+      "toUTF16": 1392,
+      "kind": "grammar.spelling",
+      "actual": "dotfile",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "dotfile",
+          "replacement": "defile",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 14,
+      "fromUTF16": 1557,
+      "toUTF16": 1569,
+      "kind": "syntax.passive",
+      "actual": "is specified",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 15,
+      "fromUTF16": 1580,
+      "toUTF16": 1588,
+      "kind": "grammar.spelling",
+      "actual": "dotfiles",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "dotfiles",
+          "replacement": "defiles",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 16,
+      "fromUTF16": 1616,
+      "toUTF16": 1617,
+      "kind": "grammar.unmatched-pair",
+      "actual": "(",
+      "label": "misleading",
+      "reason": "The authored parenthesis has a matching closing parenthesis in the same paragraph.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 17,
+      "fromUTF16": 1617,
+      "toUTF16": 1621,
+      "kind": "style.wordiness",
+      "actual": "i.e.",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 18,
+      "fromUTF16": 1654,
+      "toUTF16": 1661,
+      "kind": "grammar.spelling",
+      "actual": "dotfile",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "dotfile",
+          "replacement": "defile",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 19,
+      "fromUTF16": 1462,
+      "toUTF16": 1469,
+      "kind": "syntax.passive",
+      "actual": "is done",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 20,
+      "fromUTF16": 1723,
+      "toUTF16": 1731,
+      "kind": "grammar.spelling",
+      "actual": "dotfiles",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "dotfiles",
+          "replacement": "defiles",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 21,
+      "fromUTF16": 1767,
+      "toUTF16": 1774,
+      "kind": "grammar.spelling",
+      "actual": "dotfile",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "dotfile",
+          "replacement": "defile",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 22,
+      "fromUTF16": 1825,
+      "toUTF16": 1832,
+      "kind": "grammar.spelling",
+      "actual": "dotfile",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "dotfile",
+          "replacement": "defile",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 23,
+      "fromUTF16": 1907,
+      "toUTF16": 1911,
+      "kind": "grammar.spelling",
+      "actual": "etag",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "etag",
+          "replacement": "eta",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        },
+        {
+          "expected": "etag",
+          "replacement": "etas",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        },
+        {
+          "expected": "etag",
+          "replacement": "stag",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        },
+        {
+          "expected": "etag",
+          "replacement": "tag",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 24,
+      "fromUTF16": 1931,
+      "toUTF16": 1935,
+      "kind": "grammar.spelling",
+      "actual": "etag",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "etag",
+          "replacement": "eta",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        },
+        {
+          "expected": "etag",
+          "replacement": "etas",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        },
+        {
+          "expected": "etag",
+          "replacement": "stag",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        },
+        {
+          "expected": "etag",
+          "replacement": "tag",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 25,
+      "fromUTF16": 2004,
+      "toUTF16": 2013,
+      "kind": "grammar.spelling",
+      "actual": "fallbacks",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "fallbacks",
+          "replacement": "callbacks",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        },
+        {
+          "expected": "fallbacks",
+          "replacement": "fallback",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        },
+        {
+          "expected": "fallbacks",
+          "replacement": "fullbacks",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "serve-static",
+      "index": 26,
+      "fromUTF16": 2075,
+      "toUTF16": 2083,
+      "kind": "syntax.passive",
+      "actual": "be added",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 27,
+      "fromUTF16": 2144,
+      "toUTF16": 2153,
+      "kind": "syntax.passive",
+      "actual": "be served",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 28,
+      "fromUTF16": 2221,
+      "toUTF16": 2232,
+      "kind": "grammar.spelling",
+      "actual": "fallthrough",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 29,
+      "fromUTF16": 2242,
+      "toUTF16": 2252,
+      "kind": "grammar.spelling",
+      "actual": "middleware",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 30,
+      "fromUTF16": 2291,
+      "toUTF16": 2295,
+      "kind": "language.inclusive",
+      "actual": "just",
+      "label": "misleading",
+      "reason": "Here “just” limits the classification of errors; it does not claim a reader should find a task easy.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 31,
+      "fromUTF16": 2326,
+      "toUTF16": 2333,
+      "kind": "style.wordiness",
+      "actual": "forward",
+      "label": "misleading",
+      "reason": "Forward is a technical operation on a client error, not unnecessarily formal prose.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 32,
+      "fromUTF16": 2458,
+      "toUTF16": 2468,
+      "kind": "grammar.spelling",
+      "actual": "middleware",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 33,
+      "fromUTF16": 2472,
+      "toUTF16": 2478,
+      "kind": "language.inclusive",
+      "actual": "simply",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 34,
+      "fromUTF16": 2501,
+      "toUTF16": 2511,
+      "kind": "grammar.spelling",
+      "actual": "middleware",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 35,
+      "fromUTF16": 2636,
+      "toUTF16": 2646,
+      "kind": "syntax.passive",
+      "actual": "is desired",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 36,
+      "fromUTF16": 2657,
+      "toUTF16": 2665,
+      "kind": "style.wordiness",
+      "actual": "multiple",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 37,
+      "fromUTF16": 2717,
+      "toUTF16": 2724,
+      "kind": "style.wordiness",
+      "actual": "address",
+      "label": "misleading",
+      "reason": "A web address is the intended technical noun.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 38,
+      "fromUTF16": 2793,
+      "toUTF16": 2800,
+      "kind": "syntax.passive",
+      "actual": "be used",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 39,
+      "fromUTF16": 2809,
+      "toUTF16": 2819,
+      "kind": "grammar.spelling",
+      "actual": "middleware",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 40,
+      "fromUTF16": 2820,
+      "toUTF16": 2830,
+      "kind": "syntax.passive",
+      "actual": "is mounted",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 41,
+      "fromUTF16": 2846,
+      "toUTF16": 2857,
+      "kind": "syntax.passive",
+      "actual": "is designed",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 42,
+      "fromUTF16": 2864,
+      "toUTF16": 2872,
+      "kind": "style.modifier",
+      "actual": "strictly",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 43,
+      "fromUTF16": 2968,
+      "toUTF16": 2978,
+      "kind": "grammar.spelling",
+      "actual": "middleware",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 44,
+      "fromUTF16": 3195,
+      "toUTF16": 3201,
+      "kind": "style.wordiness",
+      "actual": "option",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 45,
+      "fromUTF16": 3214,
+      "toUTF16": 3226,
+      "kind": "syntax.passive",
+      "actual": "be specified",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 46,
+      "fromUTF16": 3368,
+      "toUTF16": 3374,
+      "kind": "style.wordiness",
+      "actual": "option",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 47,
+      "fromUTF16": 3622,
+      "toUTF16": 3634,
+      "kind": "grammar.spelling",
+      "actual": "lastModified",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 48,
+      "fromUTF16": 3747,
+      "toUTF16": 3753,
+      "kind": "grammar.spelling",
+      "actual": "maxAge",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 49,
+      "fromUTF16": 3755,
+      "toUTF16": 3762,
+      "kind": "style.wordiness",
+      "actual": "Provide",
+      "label": "unnecessary",
+      "reason": "“Provide” is clear in a technical parameter description; a synonym does not improve the instruction.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 50,
+      "fromUTF16": 3969,
+      "toUTF16": 3977,
+      "kind": "grammar.spelling",
+      "actual": "pathname",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 51,
+      "fromUTF16": 3983,
+      "toUTF16": 3986,
+      "kind": "grammar.spelling",
+      "actual": "dir",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 52,
+      "fromUTF16": 4015,
+      "toUTF16": 4025,
+      "kind": "grammar.spelling",
+      "actual": "setHeaders",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 53,
+      "fromUTF16": 4140,
+      "toUTF16": 4149,
+      "kind": "syntax.passive",
+      "actual": "is called",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 54,
+      "fromUTF16": 4265,
+      "toUTF16": 4275,
+      "kind": "syntax.passive",
+      "actual": "being sent",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 55,
+      "fromUTF16": 4323,
+      "toUTF16": 4333,
+      "kind": "syntax.passive",
+      "actual": "being sent",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 56,
+      "fromUTF16": 5428,
+      "toUTF16": 5434,
+      "kind": "language.inclusive",
+      "actual": "Simple",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 57,
+      "fromUTF16": 5446,
+      "toUTF16": 5452,
+      "kind": "language.inclusive",
+      "actual": "simple",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 58,
+      "fromUTF16": 5695,
+      "toUTF16": 5703,
+      "kind": "style.wordiness",
+      "actual": "Multiple",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 59,
+      "fromUTF16": 5732,
+      "toUTF16": 5738,
+      "kind": "language.inclusive",
+      "actual": "simple",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 60,
+      "fromUTF16": 5761,
+      "toUTF16": 5769,
+      "kind": "style.wordiness",
+      "actual": "multiple",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 61,
+      "fromUTF16": 5789,
+      "toUTF16": 5801,
+      "kind": "syntax.passive",
+      "actual": "are searched",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "serve-static",
+      "index": 62,
+      "fromUTF16": 6821,
+      "toUTF16": 6824,
+      "kind": "clarity.undefined-acronym",
+      "actual": "MIT",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 0,
+      "fromUTF16": 43,
+      "toUTF16": 157,
+      "kind": "readability.complex-sentence",
+      "actual": "Useful when you need to run promise-returning & async functions multiple times with different inputs concurrently.",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 1,
+      "fromUTF16": 91,
+      "toUTF16": 96,
+      "kind": "grammar.spelling",
+      "actual": "async",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "async",
+          "replacement": "sync",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "p-map",
+      "index": 2,
+      "fromUTF16": 107,
+      "toUTF16": 115,
+      "kind": "style.wordiness",
+      "actual": "multiple",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 3,
+      "fromUTF16": 254,
+      "toUTF16": 268,
+      "kind": "style.wordiness",
+      "actual": "whether or not",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 4,
+      "fromUTF16": 814,
+      "toUTF16": 818,
+      "kind": "grammar.spelling",
+      "actual": "pMap",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 5,
+      "fromUTF16": 870,
+      "toUTF16": 882,
+      "kind": "syntax.passive",
+      "actual": "is fulfilled",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 6,
+      "fromUTF16": 948,
+      "toUTF16": 961,
+      "kind": "syntax.passive",
+      "actual": "are fulfilled",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 7,
+      "fromUTF16": 1109,
+      "toUTF16": 1121,
+      "kind": "grammar.spelling",
+      "actual": "pMapIterable",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 8,
+      "fromUTF16": 1159,
+      "toUTF16": 1164,
+      "kind": "grammar.spelling",
+      "actual": "async",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "async",
+          "replacement": "sync",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "p-map",
+      "index": 9,
+      "fromUTF16": 1616,
+      "toUTF16": 1627,
+      "kind": "syntax.passive",
+      "actual": "is iterated",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 10,
+      "fromUTF16": 1747,
+      "toUTF16": 1757,
+      "kind": "syntax.passive",
+      "actual": "is invoked",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 11,
+      "fromUTF16": 1937,
+      "toUTF16": 1944,
+      "kind": "syntax.passive",
+      "actual": "be used",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 12,
+      "fromUTF16": 2072,
+      "toUTF16": 2082,
+      "kind": "syntax.passive",
+      "actual": "be reached",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 13,
+      "fromUTF16": 2420,
+      "toUTF16": 2427,
+      "kind": "style.wordiness",
+      "actual": "Minimum",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 14,
+      "fromUTF16": 2503,
+      "toUTF16": 2515,
+      "kind": "grammar.spelling",
+      "actual": "backpressure",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 15,
+      "fromUTF16": 2606,
+      "toUTF16": 2613,
+      "kind": "style.wordiness",
+      "actual": "Minimum",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 16,
+      "fromUTF16": 2638,
+      "toUTF16": 2645,
+      "kind": "style.wordiness",
+      "actual": "Maximum",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 17,
+      "fromUTF16": 2750,
+      "toUTF16": 2755,
+      "kind": "grammar.spelling",
+      "actual": "async",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "async",
+          "replacement": "sync",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "p-map",
+      "index": 18,
+      "fromUTF16": 2789,
+      "toUTF16": 2799,
+      "kind": "syntax.passive",
+      "actual": "be limited",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 19,
+      "fromUTF16": 2808,
+      "toUTF16": 2816,
+      "kind": "style.wordiness",
+      "actual": "there is",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 20,
+      "fromUTF16": 2832,
+      "toUTF16": 2844,
+      "kind": "grammar.spelling",
+      "actual": "backpressure",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 21,
+      "fromUTF16": 2847,
+      "toUTF16": 2956,
+      "kind": "readability.complex-sentence",
+      "actual": "Useful whenever you are consuming the iterable slower than what the mapper function can produce concurrently.",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 22,
+      "fromUTF16": 2922,
+      "toUTF16": 2930,
+      "kind": "style.wordiness",
+      "actual": "function",
+      "label": "misleading",
+      "reason": "Function names the programming operation; simplification could lose its technical sense.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 23,
+      "fromUTF16": 3086,
+      "toUTF16": 3097,
+      "kind": "grammar.spelling",
+      "actual": "stopOnError",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 24,
+      "fromUTF16": 3199,
+      "toUTF16": 3210,
+      "kind": "syntax.passive",
+      "actual": "be rejected",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 25,
+      "fromUTF16": 3572,
+      "toUTF16": 3577,
+      "kind": "grammar.spelling",
+      "actual": "async",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "async",
+          "replacement": "sync",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "p-map",
+      "index": 26,
+      "fromUTF16": 3793,
+      "toUTF16": 3799,
+      "kind": "style.wordiness",
+      "actual": "option",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 27,
+      "fromUTF16": 3637,
+      "toUTF16": 3775,
+      "kind": "readability.complex-sentence",
+      "actual": "In the case of infinite concurrency with sync iterables, all mappers are invoked on startup and will continue after the first rejection.",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 28,
+      "fromUTF16": 3637,
+      "toUTF16": 3651,
+      "kind": "style.wordiness",
+      "actual": "In the case of",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 29,
+      "fromUTF16": 3708,
+      "toUTF16": 3719,
+      "kind": "syntax.passive",
+      "actual": "are invoked",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 30,
+      "fromUTF16": 4403,
+      "toUTF16": 4411,
+      "kind": "grammar.spelling",
+      "actual": "pMapSkip",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "p-map",
+      "index": 31,
+      "fromUTF16": 5658,
+      "toUTF16": 5663,
+      "kind": "grammar.spelling",
+      "actual": "async",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "async",
+          "replacement": "sync",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "p-map",
+      "index": 32,
+      "fromUTF16": 5886,
+      "toUTF16": 5891,
+      "kind": "grammar.spelling",
+      "actual": "async",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": [
+        {
+          "expected": "async",
+          "replacement": "sync",
+          "rangeValid": true,
+          "safeInContext": false,
+          "reason": "Changes or removes the intended technical term."
+        }
+      ]
+    },
+    {
+      "document": "workshop",
+      "index": 0,
+      "fromUTF16": 123,
+      "toUTF16": 128,
+      "kind": "grammar.figarogrammar.theirtotheyre",
+      "actual": "Their",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "Their",
+          "replacement": "They're",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "workshop",
+      "index": 1,
+      "fromUTF16": 233,
+      "toUTF16": 237,
+      "kind": "grammar.figarogrammar.yourpredicateadjective",
+      "actual": "Your",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "Your",
+          "replacement": "You're",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "workshop",
+      "index": 2,
+      "fromUTF16": 247,
+      "toUTF16": 258,
+      "kind": "syntax.passive",
+      "actual": "be welcomed",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 3,
+      "fromUTF16": 306,
+      "toUTF16": 312,
+      "kind": "language.inclusive",
+      "actual": "simple",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 4,
+      "fromUTF16": 340,
+      "toUTF16": 351,
+      "kind": "syntax.passive",
+      "actual": "is reserved",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 5,
+      "fromUTF16": 367,
+      "toUTF16": 370,
+      "kind": "grammar.figarogrammar.itscontraction",
+      "actual": "Its",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "Its",
+          "replacement": "It's",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "workshop",
+      "index": 6,
+      "fromUTF16": 473,
+      "toUTF16": 476,
+      "kind": "grammar.spelling",
+      "actual": "teh",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "teh",
+          "replacement": "the",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "workshop",
+      "index": 7,
+      "fromUTF16": 525,
+      "toUTF16": 527,
+      "kind": "grammar.article",
+      "actual": "an",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "an",
+          "replacement": "a",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "workshop",
+      "index": 8,
+      "fromUTF16": 728,
+      "toUTF16": 737,
+      "kind": "style.wordiness",
+      "actual": "There are",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 9,
+      "fromUTF16": 728,
+      "toUTF16": 737,
+      "kind": "syntax.indirect-opening",
+      "actual": "There are",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 10,
+      "fromUTF16": 774,
+      "toUTF16": 781,
+      "kind": "grammar.repeated-word",
+      "actual": "the the",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "the the",
+          "replacement": "the",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "workshop",
+      "index": 11,
+      "fromUTF16": 914,
+      "toUTF16": 921,
+      "kind": "grammar.spelling",
+      "actual": "recieve",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "recieve",
+          "replacement": "receive",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "workshop",
+      "index": 12,
+      "fromUTF16": 1065,
+      "toUTF16": 1075,
+      "kind": "syntax.passive",
+      "actual": "is printed",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 13,
+      "fromUTF16": 1151,
+      "toUTF16": 1163,
+      "kind": "style.modifier",
+      "actual": "deliberately",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 14,
+      "fromUTF16": 1267,
+      "toUTF16": 1277,
+      "kind": "syntax.passive",
+      "actual": "be thanked",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 15,
+      "fromUTF16": 1381,
+      "toUTF16": 1393,
+      "kind": "syntax.passive",
+      "actual": "was expected",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "workshop",
+      "index": 16,
+      "fromUTF16": 1469,
+      "toUTF16": 1490,
+      "kind": "style.stock-phrase",
+      "actual": "At the end of the day",
+      "label": "misleading",
+      "reason": "The workshop actually ends at the end of the day; this is literal scheduling, not corporate jargon.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 0,
+      "fromUTF16": 322,
+      "toUTF16": 335,
+      "kind": "syntax.passive",
+      "actual": "were measured",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 1,
+      "fromUTF16": 431,
+      "toUTF16": 438,
+      "kind": "style.wordiness",
+      "actual": "reflect",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 2,
+      "fromUTF16": 481,
+      "toUTF16": 490,
+      "kind": "style.wordiness",
+      "actual": "establish",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 3,
+      "fromUTF16": 724,
+      "toUTF16": 730,
+      "kind": "style.wordiness",
+      "actual": "remain",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 4,
+      "fromUTF16": 841,
+      "toUTF16": 844,
+      "kind": "grammar.spelling",
+      "actual": "LAI",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 5,
+      "fromUTF16": 870,
+      "toUTF16": 873,
+      "kind": "grammar.spelling",
+      "actual": "LAI",
+      "label": "unnecessary",
+      "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 6,
+      "fromUTF16": 971,
+      "toUTF16": 983,
+      "kind": "syntax.passive",
+      "actual": "is described",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 7,
+      "fromUTF16": 1194,
+      "toUTF16": 1208,
+      "kind": "syntax.passive",
+      "actual": "be interviewed",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 8,
+      "fromUTF16": 1209,
+      "toUTF16": 1223,
+      "kind": "syntax.passive",
+      "actual": "was unexpected",
+      "label": "misleading",
+      "reason": "The predicate adjective describes a state; naming an actor does not address this construction.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 9,
+      "fromUTF16": 1244,
+      "toUTF16": 1257,
+      "kind": "syntax.passive",
+      "actual": "been selected",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 10,
+      "fromUTF16": 1304,
+      "toUTF16": 1313,
+      "kind": "syntax.passive",
+      "actual": "be served",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 11,
+      "fromUTF16": 1314,
+      "toUTF16": 1325,
+      "kind": "style.wordiness",
+      "actual": "immediately",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 12,
+      "fromUTF16": 1427,
+      "toUTF16": 1428,
+      "kind": "formulaic.curly-punctuation",
+      "actual": "“",
+      "label": "unnecessary",
+      "reason": "Valid, intentional typographic quotation marks; no straight-quote preference was stated. Message correctly explains optionality.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 13,
+      "fromUTF16": 1443,
+      "toUTF16": 1444,
+      "kind": "formulaic.curly-punctuation",
+      "actual": "”",
+      "label": "unnecessary",
+      "reason": "Valid, intentional typographic quotation marks; no straight-quote preference was stated. Message correctly explains optionality.",
+      "fixes": []
+    },
+    {
+      "document": "garden",
+      "index": 14,
+      "fromUTF16": 1702,
+      "toUTF16": 1710,
+      "kind": "style.wordiness",
+      "actual": "contains",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "service-note",
+      "index": 0,
+      "fromUTF16": 117,
+      "toUTF16": 125,
+      "kind": "style.wordiness",
+      "actual": "contains",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "service-note",
+      "index": 1,
+      "fromUTF16": 168,
+      "toUTF16": 176,
+      "kind": "style.wordiness",
+      "actual": "contains",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "service-note",
+      "index": 2,
+      "fromUTF16": 416,
+      "toUTF16": 423,
+      "kind": "style.wordiness",
+      "actual": "However",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "service-note",
+      "index": 3,
+      "fromUTF16": 449,
+      "toUTF16": 453,
+      "kind": "grammar.harper.simplepasttopastparticiple",
+      "actual": "went",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "went",
+          "replacement": "gone",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "service-note",
+      "index": 4,
+      "fromUTF16": 594,
+      "toUTF16": 607,
+      "kind": "grammar.figarogrammar.discuss",
+      "actual": "discuss about",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "discuss about",
+          "replacement": "discuss",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "service-note",
+      "index": 5,
+      "fromUTF16": 674,
+      "toUTF16": 678,
+      "kind": "grammar.figarogrammar.thenthan",
+      "actual": "then",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "then",
+          "replacement": "than",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "service-note",
+      "index": 6,
+      "fromUTF16": 1093,
+      "toUTF16": 1095,
+      "kind": "grammar.figarogrammar.modalof",
+      "actual": "of",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "of",
+          "replacement": "have",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "service-note",
+      "index": 7,
+      "fromUTF16": 1134,
+      "toUTF16": 1141,
+      "kind": "style.wordiness",
+      "actual": "forward",
+      "label": "misleading",
+      "reason": "Forward is part of “look forward to”; the missed problem is the complement “meet,” not this word.",
+      "fixes": []
+    },
+    {
+      "document": "service-note",
+      "index": 8,
+      "fromUTF16": 1212,
+      "toUTF16": 1222,
+      "kind": "grammar.figarogrammar.lettodo",
+      "actual": "to inspect",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "to inspect",
+          "replacement": "inspect",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "service-note",
+      "index": 9,
+      "fromUTF16": 1341,
+      "toUTF16": 1349,
+      "kind": "style.wordiness",
+      "actual": "purchase",
+      "label": "useful optional advice",
+      "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 0,
+      "fromUTF16": 329,
+      "toUTF16": 333,
+      "kind": "language.inclusive",
+      "actual": "easy",
+      "label": "misleading",
+      "reason": "The sentence reports a sign’s claim about a route, not the author assuming the reader finds a task easy.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 1,
+      "fromUTF16": 361,
+      "toUTF16": 364,
+      "kind": "grammar.figarogrammar.itscontraction",
+      "actual": "Its",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "Its",
+          "replacement": "It's",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "walk",
+      "index": 2,
+      "fromUTF16": 374,
+      "toUTF16": 383,
+      "kind": "syntax.passive",
+      "actual": "be closed",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 3,
+      "fromUTF16": 457,
+      "toUTF16": 474,
+      "kind": "syntax.passive",
+      "actual": "were disappointed",
+      "label": "misleading",
+      "reason": "The predicate adjective describes a state; naming an actor does not address this construction.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 4,
+      "fromUTF16": 494,
+      "toUTF16": 501,
+      "kind": "style.modifier",
+      "actual": "quietly",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 5,
+      "fromUTF16": 563,
+      "toUTF16": 572,
+      "kind": "syntax.passive",
+      "actual": "been told",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 6,
+      "fromUTF16": 672,
+      "toUTF16": 676,
+      "kind": "grammar.figarogrammar.yourpredicateadjective",
+      "actual": "Your",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "Your",
+          "replacement": "You're",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "walk",
+      "index": 7,
+      "fromUTF16": 686,
+      "toUTF16": 694,
+      "kind": "syntax.passive",
+      "actual": "be given",
+      "label": "unnecessary",
+      "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 8,
+      "fromUTF16": 982,
+      "toUTF16": 990,
+      "kind": "grammar.spelling",
+      "actual": "seperate",
+      "label": "definite error",
+      "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+      "fixes": [
+        {
+          "expected": "seperate",
+          "replacement": "separate",
+          "rangeValid": true,
+          "safeInContext": true,
+          "reason": "Preserves the intended correction."
+        }
+      ]
+    },
+    {
+      "document": "walk",
+      "index": 9,
+      "fromUTF16": 1211,
+      "toUTF16": 1212,
+      "kind": "formulaic.curly-punctuation",
+      "actual": "“",
+      "label": "unnecessary",
+      "reason": "Valid, intentional typographic quotation marks; no straight-quote preference was stated. Message correctly explains optionality.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 10,
+      "fromUTF16": 1227,
+      "toUTF16": 1228,
+      "kind": "formulaic.curly-punctuation",
+      "actual": "”",
+      "label": "unnecessary",
+      "reason": "Valid, intentional typographic quotation marks; no straight-quote preference was stated. Message correctly explains optionality.",
+      "fixes": []
+    },
+    {
+      "document": "walk",
+      "index": 11,
+      "fromUTF16": 1275,
+      "toUTF16": 1281,
+      "kind": "style.wordiness",
+      "actual": "retain",
+      "label": "unnecessary",
+      "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+      "fixes": []
+    }
+  ],
+  "comparison": [
+    {
+      "id": "serve-static",
+      "added": [],
+      "removed": 0,
+      "seededBefore": 0,
+      "seededAfter": 0
+    },
+    {
+      "id": "p-map",
+      "added": [],
+      "removed": 0,
+      "seededBefore": 0,
+      "seededAfter": 0
+    },
+    {
+      "id": "workshop",
+      "added": [
+        {
+          "kind": "grammar.figarogrammar.theirtotheyre",
+          "actual": "Their",
+          "fromUTF16": 123
+        },
+        {
+          "kind": "grammar.figarogrammar.yourpredicateadjective",
+          "actual": "Your",
+          "fromUTF16": 233
+        },
+        {
+          "kind": "grammar.figarogrammar.itscontraction",
+          "actual": "Its",
+          "fromUTF16": 367
+        }
+      ],
+      "removed": 0,
+      "seededBefore": 4,
+      "seededAfter": 7
+    },
+    {
+      "id": "garden",
+      "added": [],
+      "removed": 0,
+      "seededBefore": 0,
+      "seededAfter": 0
+    },
+    {
+      "id": "service-note",
+      "added": [],
+      "removed": 0,
+      "seededBefore": 5,
+      "seededAfter": 5
+    },
+    {
+      "id": "walk",
+      "added": [
+        {
+          "kind": "grammar.figarogrammar.itscontraction",
+          "actual": "Its",
+          "fromUTF16": 361
+        },
+        {
+          "kind": "grammar.figarogrammar.yourpredicateadjective",
+          "actual": "Your",
+          "fromUTF16": 672
+        }
+      ],
+      "removed": 0,
+      "seededBefore": 1,
+      "seededAfter": 3
+    }
+  ],
+  "verification": {
+    "frontend": {
+      "suites": 290,
+      "tests": 2422,
+      "coveragePassed": true
+    },
+    "go": {
+      "applicationCoveragePercent": 77.7,
+      "racePassed": true,
+      "nestedValeRacePassed": true
+    },
+    "browserProductionStartup": "passed",
+    "crossCompile": [
+      "windows/amd64 internal/writing tests",
+      "darwin/arm64 internal/writing tests"
+    ],
+    "native": {
+      "kind": "grammar",
+      "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+      "appReadyWebviewMs": 1064,
+      "initializationMs": 146,
+      "measures": [
+        {
+          "words": 1001,
+          "isolated": [
+            {
+              "ms": 13.000000000000227,
+              "findings": 53
+            }
+          ],
+          "pipeline": [
+            {
+              "ms": 53.00000000000023,
+              "proseMs": 29,
+              "nativeMs": 14.000000000000227,
+              "resolveMs": 6,
+              "renderFrameMs": 4,
+              "findings": 54,
+              "evidence": 93,
+              "mountedCards": 4
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "readyUnixNano": 1789856103184528600,
+      "qa": {
+        "visibleSuggestion": true,
+        "applyPreservesMarkdown": true,
+        "keyboardUndo": true,
+        "ignorePersisted": true,
+        "typingFrameMs": [
+          9,
+          23,
+          10,
+          11,
+          17,
+          16,
+          16,
+          17,
+          16,
+          16,
+          17.000000000000455,
+          16
+        ],
+        "analysisPendingBeforeSave": true,
+        "analysisPendingAfterSave": true,
+        "savedWhileAnalyzing": true,
+        "cancelMs": 4.0000000000009095,
+        "cancelOutcome": "Error: context canceled",
+        "reuse": true,
+        "postReadyModuleRequests": [],
+        "shutdownWithWork": true
+      },
+      "launchUnixNano": 1789856101838445379,
+      "processToReadyMs": 1346.083221,
+      "reportToExitMs": 0.587432
+    }
+  },
+  "sourceSHA256": {
+    "internal/writing/grammar/homophone_context.go": "cb2cfbcdbe164076825da41d26a7db8ef8eefb7930bc45b86c327708db8bfe53",
+    "internal/writing/grammar/grammar.go": "0f36640d297469be189d40b1fe7799d2abfe8ad406ecfad3201b1b4e8811a8ab",
+    "internal/writing/grammar/SOURCE.json": "9c42b5a93d5dd22fdbad07225fcd77dac4a19ca0fae9558ae823807d9512a8df",
+    "frontend/js/core/writingGrammarModel.js": "1e35d60036f49351dba612a4bab13d39aae5310f32f5b05a804c740b62b96896",
+    "frontend/js/core/writingAnalysisModel.js": "20f6147151bcca1db08df4156a03bdf3c7c565107ed4c526a5f82e09a0b88d49",
+    "scripts/evaluate-writing-documents.mjs": "fce2bd9fc1fb5f0bde6d9a32436fda2a063338363f1b2ad08c4ee28f25239c69",
+    "tests/fixtures/writing-grammar.json": "c01f61c7ff88cc4ea0c21c4cdeb82afba7c943116e3d2654463438ac9e56082a",
+    "tests/fixtures/writing-grammar-native.json": "d485cf42be927dd25a6852e1a3faa4055b739677ab926d6642bba5caf5fec630"
+  },
+  "baselineSourceSHA256": {
+    "internal/writing/grammar/homophone_context.go": "06c26c03f0aa5d3c748e9d8110e62be721a0d84dbea0d4cfa8e0542fd339aa10",
+    "internal/writing/grammar/grammar.go": "c33bf5caedb8d11c1520d97c1c7827722b56d9dad45b2dbdb16f4b5d18308497",
+    "internal/writing/grammar/SOURCE.json": "2bb3ded0d7db9bab1e46bd900dd75eff2236efd9ac63fb68eb875229984b4998",
+    "frontend/js/core/writingGrammarModel.js": "a925236ad30c8a6978327d43b5778920abfa76d053fca68f6fa04a37d4e96754",
+    "frontend/js/core/writingAnalysisModel.js": "f314b38f5c6f40be962b3a5df36eddcb8f7f1d1b4e95c7c82b2a12e841b05ab8",
+    "tests/fixtures/writing-grammar.json": "3c3406f2222c6e57fea3fd56ba2eb10f5079ad8e2f4d9197a2e5b81b6efb1236",
+    "tests/fixtures/writing-grammar-native.json": "a91810cf3030ff3cac5537bf94c762f2beeb4dce15a513c117112d32852496c1"
+  },
+  "rawEvidenceSHA256": {
+    "baseline.json": "9eca6412a969c1195b2b14f6de693d169a5d43742fba5178a43567338597bcbf",
+    "after.json": "d12e609ca2e0c7b5fca29477f822b411d1599c4dbcbdd368b491d25f1bc43921",
+    "verified.json": "3aba840df9225cde4e36c647d0ef66d3cd768ea3fcd3cbb57283fc06580c8a50"
+  }
+}

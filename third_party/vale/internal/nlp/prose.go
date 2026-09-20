@@ -2,6 +2,7 @@ package nlp
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
@@ -68,8 +69,20 @@ func RegisterModel(name, path string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
+	defer f.Close()
+	return registerModelReader(name, f)
+}
 
+// RegisterModelReader eagerly builds an immutable, content-addressed local model.
+func RegisterModelReader(name string, r io.Reader) error {
+	taggersMu.Lock()
+	defer taggersMu.Unlock()
+	if _, built := taggers[name]; built {
+		return nil
+	}
+	return registerModelReader(name, r)
+}
+func registerModelReader(name string, f io.Reader) error {
 	entries, err := tag.ReadDictionary(f)
 	if err != nil {
 		return err
@@ -153,6 +166,9 @@ func tagTextWith(model, text string) ([]tag.Token, error) {
 	var tokens []tag.Token
 	for _, sent := range punktSegmenter().Segment(text) {
 		found := wordTokenizer().Tokenize(sent.Text)
+		if len(tokens)+len(found) > 65536 {
+			return nil, fmt.Errorf("writing analysis exceeds token limit")
+		}
 		t.TagTokens(found)
 
 		// Tokenize reported offsets within the sentence; shift them so they

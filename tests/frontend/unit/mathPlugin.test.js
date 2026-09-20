@@ -1,6 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { mathField } from '../frontend/js/mathPlugin.js';
+import { mathPreviewBlocks } from '../frontend/js/core/mathPreviewModel.js';
 
 function decorationCount(value, doc) {
     let count = 0;
@@ -15,6 +16,41 @@ describe('math preview state', () => {
         view?.destroy();
         view = null;
         delete window.katex;
+    });
+
+    test('parses the existing inline and display vocabulary without rendering dependencies', () => {
+        expect(mathPreviewBlocks('Text $x$\n$$\ny+z\n$$')).toEqual([
+            { from: 9, to: 18, text: 'y+z', source: '$$\ny+z\n$$', displayMode: true },
+            { from: 5, to: 8, text: 'x', source: '$x$', displayMode: false },
+        ]);
+    });
+
+    test('source motion and entry/exit reuse parsed math without flattening the document', () => {
+        let state = EditorState.create({ doc: 'Before\n$abcdefgh$\nAfter', extensions: [mathField] });
+        const blocks = state.field(mathField).blocks;
+        const read = jest.spyOn(state.doc, 'toString');
+        state = state.update({ selection: { anchor: 9 } }).state;
+        const revealed = state.field(mathField);
+        for (let i = 0; i < 30; i++) state = state.update({ selection: { anchor: 9 + i % 2 } }).state;
+        expect(state.field(mathField)).toBe(revealed);
+        state = state.update({ selection: { anchor: 0 } }).state;
+        expect(state.field(mathField).blocks).toBe(blocks);
+        expect(decorationCount(state.field(mathField), state.doc)).toBe(1);
+        expect(read).not.toHaveBeenCalled();
+        read.mockRestore();
+        state = state.update({ changes: { from: 9, to: 10, insert: 'Z' } }).state;
+        expect(state.field(mathField).blocks).not.toBe(blocks);
+        expect(state.field(mathField).blocks[0].text).toContain('Z');
+    });
+
+    test('maps math through outside edits and reparses a newly joined inline expression', () => {
+        let state = EditorState.create({ doc: 'Before\n$x$\n$a\nb$', extensions: [mathField] });
+        state = state.update({ changes: { from: 0, insert: 'Prefix ' }, selection: { anchor: 15 } }).state;
+        expect(state.field(mathField).blocks[0].from).toBe(14);
+        expect(state.field(mathField).visibleIndices.has(0)).toBe(true);
+        const newline = state.doc.toString().lastIndexOf('\n');
+        state = state.update({ changes: { from: newline, to: newline + 1 } }).state;
+        expect(state.field(mathField).blocks.map(block => block.text)).toEqual(['x', 'ab']);
     });
 
     test('keeps its decoration state while the cursor moves on ordinary lines and exposes math source on entry', () => {

@@ -1,3 +1,4 @@
+import { deferEditorWork, countEditorWork } from './editorDiagnostics.js';
 import { backend } from './backend.js';
 /**
  * Session Persistence - saves/loads UI state through the Wails backend API
@@ -31,6 +32,7 @@ function resetPortableWorkspaceState() {
 function readWorkspace() {
     return {
         openTabs: state.openTabs,
+        tabCursorStates: state.tabCursorStates,
         activeTabId: state.activeTabId,
         selectedFilePath: state.selectedFilePath,
         selectedTreePath: state.selectedTreePath,
@@ -53,6 +55,7 @@ function applyPortableSession(session) {
 const persistence = createSessionPersistence({
     readSession: () => backend().LoadSession(),
     writeSession: async data => {
+        countEditorWork('io.sessionWrite');
         const result = await backend().SaveSession(data);
         resolveRuntimeFileIssue('.config/session.json', ['disk_full']);
         return result;
@@ -96,8 +99,8 @@ export function saveSession() {
  */
 export function scheduleSessionSave(delay = 350) {
     if (scheduledSessionSave !== null) clearTimeout(scheduledSessionSave);
-    scheduledSessionSave = setTimeout(() => {
+    scheduledSessionSave = setTimeout(deferEditorWork('session', 'cursor persistence', () => {
         scheduledSessionSave = null;
         saveSession();
-    }, delay);
+    }, 'debounce'), delay);
 }

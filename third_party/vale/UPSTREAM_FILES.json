@@ -6,6 +6,10 @@
       "upstreamSHA256": null
     },
     {
+      "path": "embedded/grammar_test.go",
+      "upstreamSHA256": null
+    },
+    {
       "path": "internal/check/action.go",
       "upstreamSHA256": "b5b6f6ee324a7c6f7e35150aace8160e07c46473321cca425126261a419b5c99"
     },
@@ -58,8 +62,16 @@
       "upstreamSHA256": "6471aa943175a0aed0bb53410e59a0ed7ecf768417aee9dfbebd5649ad1cfd9d"
     },
     {
+      "path": "internal/check/sequence.go",
+      "upstreamSHA256": "11d70de7b1a03a830c989c8697d89814a1fe6b24983743da77173726e4927f9b"
+    },
+    {
       "path": "internal/check/substitution.go",
       "upstreamSHA256": "8d170596b2b9ae3b4a323d74acf66ae23b5b413bfc4a2e65e1211e5fa077e355"
+    },
+    {
+      "path": "internal/check/upos.go",
+      "upstreamSHA256": "4788cbdf91aef0facb87efcf2f7698a0f3b5d428e650c2b1c1c469474fb6b773"
     },
     {
       "path": "internal/check/variables.go",

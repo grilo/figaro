@@ -1,3 +1,5 @@
+import { sourceRevealIndex, updateSourceReveal } from './sourceReveal.js';
+import { countEditorWork, readEditorDocument } from './editorDiagnostics.js';
 /**
  * Live diagram preview for Mermaid, Vega, and Vega-Lite fenced code blocks.
  *
@@ -67,9 +69,10 @@ function parseFenceCloser(line) {
  * code blocks) remain intact.
  */
 export function scanDiagramFences(doc) {
+    countEditorWork('parse.diagrams');
     const diagrams = [];
     let open = null;
-    const source = doc.toString();
+    const source = readEditorDocument(doc, 'diagrams');
     if (!/\b(?:mermaid|vega(?:-lite)?)\b/iu.test(source)) return diagrams;
 
     const finish = (closeLine, recoveredFence) => {
@@ -446,65 +449,62 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
         return found;
     };
 
-    const buildState = (state) => {
+    const projectBlock = (state, block, sourceVisible) => {
         const decorations = [];
-        const ranges = [];
         const isDragging = state.field(mouseSelectingField, false);
-        const blocks = scanDiagramFences(state.doc);
-
-        for (const block of blocks) {
-            ranges.push({ from: block.from, to: block.to });
-            const sourceVisible = shouldShowSource(state, block.from, block.to);
-            const folded = sourceRangeIsFolded(state, block);
-            if (!block.code || isDragging || sourceVisible || folded) {
-                const height = sourceVisible && !folded
-                    ? (block.lang === 'vega-lite'
-                        ? vegaLiteChartHeight(block.rawCode ?? block.code)
-                        : block.lang === 'mermaid'
-                            ? mermaidDiagramHeight(block.rawCode ?? block.code)
-                            : null)
-                    : null;
-                if (height) {
-                    const firstLine = state.doc.lineAt(block.from).number;
-                    const lastLine = state.doc.lineAt(block.to).number;
-                    for (let number = firstLine; number <= lastLine; number += 1) {
-                        const opener = number === firstLine;
-                        decorations.push(Decoration.line({
-                            class: `${block.lang === 'mermaid' ? 'cm-mermaid-diagram-source-line' : 'cm-vega-lite-chart-source-line'} cm-diagram-source-line${opener ? ' cm-diagram-source-placeholder' : ''}${opener && block.lang === 'vega-lite' ? ' cm-vega-lite-chart-source-placeholder' : ''}${opener && block.lang === 'mermaid' ? ' cm-mermaid-diagram-source-placeholder' : ''}`,
-                            attributes: opener ? {
-                                style: `--cm-diagram-source-height:calc(${height + 44}px - ${lastLine - firstLine}lh)`,
-                            } : undefined,
-                        }).range(state.doc.line(number).from));
-                    }
+        const folded = sourceRangeIsFolded(state, block);
+        if (!block.code || isDragging || sourceVisible || folded) {
+            const height = sourceVisible && !folded
+                ? (block.lang === 'vega-lite'
+                    ? vegaLiteChartHeight(block.rawCode ?? block.code)
+                    : block.lang === 'mermaid'
+                        ? mermaidDiagramHeight(block.rawCode ?? block.code)
+                        : null)
+                : null;
+            if (height) {
+                const firstLine = state.doc.lineAt(block.from).number;
+                const lastLine = state.doc.lineAt(block.to).number;
+                for (let number = firstLine; number <= lastLine; number += 1) {
+                    const opener = number === firstLine;
+                    decorations.push(Decoration.line({
+                        sourceBlock: block.sourceIdentity || block,
+                        class: `${block.lang === 'mermaid' ? 'cm-mermaid-diagram-source-line' : 'cm-vega-lite-chart-source-line'} cm-diagram-source-line${opener ? ' cm-diagram-source-placeholder' : ''}${opener && block.lang === 'vega-lite' ? ' cm-vega-lite-chart-source-placeholder' : ''}${opener && block.lang === 'mermaid' ? ' cm-mermaid-diagram-source-placeholder' : ''}`,
+                        attributes: opener ? {
+                            style: `--cm-diagram-source-height:calc(${height + 44}px - ${lastLine - firstLine}lh)`,
+                        } : undefined,
+                    }).range(state.doc.line(number).from));
                 }
-                continue;
             }
-            decorations.push(Decoration.replace({
-                widget: new DiagramWidget(
-                    block.lang,
-                    block.code,
-                    block.recoveredFence,
-                    block.sourceLines,
-                    block.sourceText,
-                    block.from,
-                    block.to,
-                ),
-                block: true,
-            }).range(block.from, block.to));
+            return decorations;
         }
-
-        return {
-            decorations: decorations.length
-                ? Decoration.set(decorations.sort((a, b) => a.from - b.from), true)
-                : Decoration.none,
-            ranges,
-            blocks,
-        };
+        decorations.push(Decoration.replace({
+            widget: new DiagramWidget(
+                block.lang,
+                block.code,
+                block.recoveredFence,
+                block.sourceLines,
+                block.sourceText,
+                block.from,
+                block.to,
+            ),
+            block: true, sourceBlock: block.sourceIdentity || block,
+        }).range(block.from, block.to));
+        return decorations;
     };
 
-    const selectionTouchesRanges = (selection, ranges) => selection?.ranges?.some(selectionRange =>
-        ranges.some(range => selectionRange.from <= range.to && selectionRange.to >= range.from)
-    );
+    const buildState = (state, blocks = scanDiagramFences(state.doc)) => {
+        const visibleIndices = new Set();
+        const decorations = blocks.flatMap((block, index) => {
+            const visible = Boolean(shouldShowSource(state, block.from, block.to));
+            if (visible) visibleIndices.add(index);
+            return projectBlock(state, block, visible);
+        });
+        return {
+            decorations: Decoration.set(decorations, true),
+            ranges: blocks.map(({ from, to }) => ({ from, to })),
+            blocks, visibleIndices, revealIndex: sourceRevealIndex(blocks),
+        };
+    };
 
     const changesNeedDiagramRescan = (value, transaction) => {
         let needsRescan = false;
@@ -521,13 +521,14 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
     };
 
     const mapState = (value, changes) => ({
+        ...value,
         decorations: value.decorations.map(changes),
         ranges: value.ranges.map(range => ({
             from: changes.mapPos(range.from, -1),
             to: changes.mapPos(range.to, 1),
         })),
         blocks: value.blocks.map(block => ({
-            ...block,
+            ...block, sourceIdentity: block.sourceIdentity || block,
             from: changes.mapPos(block.from, -1),
             to: changes.mapPos(block.to, 1),
             lineFrom: changes.mapPos(block.lineFrom, -1),
@@ -539,25 +540,29 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
     return StateField.define({
         create: buildState,
         update(value, transaction) {
+            if (transaction.reconfigured) return buildState(transaction.state);
             if (transaction.docChanged) {
                 if (changesNeedDiagramRescan(value, transaction)) {
                     return buildState(transaction.state);
                 }
-                return mapState(value, transaction.changes);
+                const mapped = mapState(value, transaction.changes);
+                mapped.revealIndex = sourceRevealIndex(mapped.blocks);
+                return transaction.selection ? buildState(transaction.state, mapped.blocks) : mapped;
             }
 
             const isDragging = transaction.state.field(mouseSelectingField, false);
             const wasDragging = transaction.startState.field(mouseSelectingField, false);
-            if (wasDragging && !isDragging) return buildState(transaction.state);
+            if (wasDragging && !isDragging) return buildState(transaction.state, value.blocks);
             if (isDragging) return value;
             if (foldedRanges(transaction.startState) !== foldedRanges(transaction.state)) {
-                return buildState(transaction.state);
+                return buildState(transaction.state, value.blocks);
             }
-            if (transaction.selection && (
-                selectionTouchesRanges(transaction.startState.selection, value.ranges)
-                || selectionTouchesRanges(transaction.state.selection, value.ranges)
-            )) return buildState(transaction.state);
-            return value;
+            // Selection changes only choose rendered versus revealed source.
+            // The immutable document's parsed fences survive navigation, and
+            // motion inside the same revealed fence keeps its decorations too.
+            return transaction.selection
+                ? updateSourceReveal(value, transaction, shouldShowSource, projectBlock)
+                : value;
         },
         provide: field => [
             EditorView.decorations.from(field, value => value.decorations),

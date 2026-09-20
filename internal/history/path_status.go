@@ -55,6 +55,8 @@ func (h *Service) pathHasUncommittedChanges(worktree *git.Worktree, relPath stri
 		return true, false, nil
 	}
 
+	h.lockVaultRead()
+	defer h.unlockVaultRead()
 	root, err := os.OpenRoot(h.repoPath)
 	if err != nil {
 		return false, false, err

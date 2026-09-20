@@ -38,7 +38,7 @@ type SnapshotFile struct {
 	SymbolicLink bool
 }
 
-// VaultReadLocker lets the host serialize history reads with vault mutations.
+// VaultReadLocker lets the host protect path identity or a file snapshot.
 type VaultReadLocker interface {
 	RLock()
 	RUnlock()
@@ -49,10 +49,13 @@ type Service struct {
 	repo          *git.Repository
 	repoPath      string
 	vaultMu       VaultReadLocker
+	pathsMu       VaultReadLocker
 	mu            sync.Mutex
 	onCommit      func()
 	activityMu    sync.Mutex
 	activityCache map[string]*activity.Document
+	commitHead    plumbing.Hash
+	commitEntries map[string]gitPathState
 }
 
 // New initializes or opens a Git repository in the vault directory.
@@ -79,10 +82,13 @@ func New(vaultPath string) (*Service, error) {
 	return &Service{repo: repo, repoPath: absPath}, nil
 }
 
-// SetVaultReadLocker attaches the owning app's vault lock after construction.
-func (h *Service) SetVaultReadLocker(locker VaultReadLocker) {
+// SetVaultLocks attaches the host's locks before publishing this service.
+// Path mutations take paths exclusively before the content lock. History holds
+// paths for the operation, but contents only while capturing the target file.
+// Ordinary note saves take only contents and never wait for Git object writes.
+func (h *Service) SetVaultLocks(paths, contents VaultReadLocker) {
 	h.mu.Lock()
-	h.vaultMu = locker
+	h.pathsMu, h.vaultMu = paths, contents
 	h.mu.Unlock()
 }
 
@@ -123,8 +129,8 @@ func ensureConfigTrackable(vaultPath string) error {
 
 // CommitFile stages and commits a single file with an auto-generated message.
 func (h *Service) CommitFile(relPath string) error {
-	h.lockVaultRead()
-	defer h.unlockVaultRead()
+	h.lockPathsRead()
+	defer h.unlockPathsRead()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.commitFileLocked(relPath)
@@ -132,8 +138,8 @@ func (h *Service) CommitFile(relPath string) error {
 
 // ArchivePathWithVaultLocked records the current contents of one file or
 // directory immediately before the owning application removes it. The caller
-// must hold the vault's write lock so no Figaro mutation can land between this
-// snapshot and the subsequent deletion.
+// must hold both the path and vault write locks, in that order, so no Figaro
+// mutation can land between this snapshot and the subsequent deletion.
 func (h *Service) ArchivePathWithVaultLocked(relPath string) error {
 	_, err := h.ArchivePathSnapshotWithVaultLocked(relPath)
 	return err
@@ -244,8 +250,8 @@ func (h *Service) archivePathLocked(relPath string) (string, error) {
 }
 
 // GetPathSnapshotWithVaultLocked reads one path from the exact archive commit.
-// The caller holds the vault write lock while it checks for collisions and
-// publishes the reconstructed path.
+// The caller holds the path and vault write locks, in that order, while it
+// checks for collisions and publishes the reconstructed path.
 func (h *Service) GetPathSnapshotWithVaultLocked(relPath, hash string) ([]SnapshotFile, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -342,66 +348,11 @@ func archiveContainsPath(relPath string, candidate string) bool {
 	return path == target || strings.HasPrefix(path, target+"/")
 }
 
-func (h *Service) commitFileLocked(relPath string) error {
-	if h.repo == nil {
-		return fmt.Errorf("history service not initialized")
-	}
-
-	worktree, err := h.repo.Worktree()
-	if err != nil {
-		return fmt.Errorf("get worktree: %w", err)
-	}
-	status, err := worktree.Status()
-	if err != nil {
-		return fmt.Errorf("check status: %w", err)
-	}
-	targetStatus, targetChanged := status[filepath.ToSlash(relPath)]
-	if !targetChanged || (targetStatus.Staging == git.Unmodified && targetStatus.Worktree == git.Unmodified) {
-		return nil
-	}
-	// A single-note history action must never absorb changes the user staged
-	// independently. go-git commits the entire index, so refuse safely before
-	// touching it when another path is already staged.
-	for path, statusFile := range status {
-		if path != filepath.ToSlash(relPath) && statusFile.Staging != git.Unmodified && statusFile.Staging != git.Untracked {
-			return fmt.Errorf("cannot commit %s while %s has staged changes", relPath, path)
-		}
-	}
-	if _, err := worktree.Add(relPath); err != nil {
-		return fmt.Errorf("stage file %s: %w", relPath, err)
-	}
-
-	status, err = worktree.Status()
-	if err != nil {
-		return fmt.Errorf("check status: %w", err)
-	}
-	hasStaged := false
-	for _, statusFile := range status {
-		if statusFile.Staging != git.Unmodified && statusFile.Staging != git.Untracked {
-			hasStaged = true
-			break
-		}
-	}
-	if !hasStaged {
-		return nil
-	}
-
-	message := fmt.Sprintf("auto: %s — %s", relPath, time.Now().Format("2006-01-02 15:04:05"))
-	if _, err := worktree.Commit(message, &git.CommitOptions{
-		Author: &object.Signature{Name: "figaro", Email: "figaro@local", When: time.Now()},
-	}); err != nil {
-		return fmt.Errorf("commit: %w", err)
-	}
-	log.Println("[history] Committed:", relPath)
-	h.notifyCommitLocked()
-	return nil
-}
-
 // HasUncommittedChanges reports whether one vault-relative path differs from
 // HEAD in either the worktree or index. Other vault changes are irrelevant.
 func (h *Service) HasUncommittedChanges(relPath string) (bool, error) {
-	h.lockVaultRead()
-	defer h.unlockVaultRead()
+	h.lockPathsRead()
+	defer h.unlockPathsRead()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.repo == nil {
@@ -531,19 +482,25 @@ func (h *Service) CommitCount(relPath string) (int, error) {
 }
 
 func (h *Service) lockVaultRead() {
-	h.mu.Lock()
-	locker := h.vaultMu
-	h.mu.Unlock()
-	if locker != nil {
-		locker.RLock()
+	if h.vaultMu != nil {
+		h.vaultMu.RLock()
 	}
 }
 
 func (h *Service) unlockVaultRead() {
-	h.mu.Lock()
-	locker := h.vaultMu
-	h.mu.Unlock()
-	if locker != nil {
-		locker.RUnlock()
+	if h.vaultMu != nil {
+		h.vaultMu.RUnlock()
+	}
+}
+
+func (h *Service) lockPathsRead() {
+	if h.pathsMu != nil {
+		h.pathsMu.RLock()
+	}
+}
+
+func (h *Service) unlockPathsRead() {
+	if h.pathsMu != nil {
+		h.pathsMu.RUnlock()
 	}
 }

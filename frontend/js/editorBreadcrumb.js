@@ -1,5 +1,8 @@
+import { countEditorWork } from './editorDiagnostics.js';
 import { getState, setState, subscribe } from './state.js';
 import { editorBreadcrumbModel } from './core/editorBreadcrumbModel.js';
+
+const renderedBreadcrumbs = new WeakMap();
 
 function currentBreadcrumbModel() {
     return editorBreadcrumbModel({
@@ -13,6 +16,10 @@ export function renderEditorBreadcrumb(root = document) {
     if (!breadcrumb) return false;
 
     const model = currentBreadcrumbModel();
+    const key = JSON.stringify(model);
+    if (renderedBreadcrumbs.get(breadcrumb) === key) return model.visible;
+    renderedBreadcrumbs.set(breadcrumb, key);
+    countEditorWork('dom.breadcrumb');
     breadcrumb.hidden = !model.visible;
     breadcrumb.replaceChildren();
     if (!model.visible) return false;
@@ -43,8 +50,8 @@ export function initEditorBreadcrumb(root = document) {
     breadcrumb.dataset.initialized = 'true';
     const render = () => renderEditorBreadcrumb(root);
     subscribe('showEditorBreadcrumbs', render);
-    subscribe('activeTabId', render);
-    subscribe('openTabs', render);
+    subscribe('activeTabId', render, 'breadcrumb');
+    subscribe('tabPresentation', render, 'breadcrumb');
     render();
     return true;
 }

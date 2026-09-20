@@ -13,6 +13,8 @@ the product specification records detailed behavior and edge cases.
 
 ## Reference
 
+- [Feature index for contributors](FEATURE_INDEX.md) — start with `npm run context` for compact discovery
+
 - [Product and behavior specification](PROMPT.md)
 - [Writing engine and coverage](WRITING_ENGINE.md)
 - [Formulaic writing rules](WRITING_SLOPLESS.md)
@@ -25,3 +27,15 @@ the product specification records detailed behavior and edge cases.
 - [Changelog](../CHANGELOG.md)
 
 [Back to Figaro](../README.md)
+
+- [Curated English grammar checks](WRITING_HARPER.md): selected Harper-port rules, contextual homophones, verb/noun constructions, pronoun/question checks, and broad phrase/mechanics coverage,
+  conservative Go checks, source safety, and maintenance. The
+  [60-rule batch report](benchmarks/writing-grammar-broad-2026-09-20.md) records
+  native comparison, whole-document results and packaged-app measurements. The
+  [usage-batch report](benchmarks/writing-grammar-usage-2026-09-20.md) covers the
+  next 60 checks, noun-subject agreement and mass-noun quantifiers.
+  The [quality follow-up](benchmarks/writing-quality-2026-09-20.md) covers safer
+  spelling, less misleading and duplicate advice, broader existing grammar
+  contexts, and a fresh eight-document evaluation.
+
+- [Editor updates and interaction diagnostics](EDITOR_UPDATES.md): cursor/typing notification ownership, allowed work, tracing and regression workflow.

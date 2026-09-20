@@ -13,7 +13,7 @@ test('each lens has a short summary and three or four contextual examples with e
         expect(value.examples.every(example => example.before && example.after && example.before !== example.after)).toBe(true);
         expect(value.limits.length).toBeGreaterThan(50);
     }
-    expect(writingLensHelp('proofreading', english).limits).toContain('subject–verb agreement');
+    expect(writingLensHelp('proofreading', english).limits).toContain('Complex subjects');
     expect(writingLensHelp('proofreading', english).limits).toContain('limited to reviewed corrections');
     expect(writingLensHelp('clarity', english).limits).toContain('do not measure writing quality');
     expect(writingLensHelp('clarity', english).limits).toContain('including plural forms');
@@ -119,4 +119,11 @@ describe('persistent lens help', () => {
         expect(popup().hidden).toBe(true);
         expect(document.activeElement).toBe(disclosure);
     });
+});
+
+test('Proofreading explains the new conservative grammar scope without claiming full coverage', () => {
+    const value = writingLensHelp('proofreading', english);
+    expect(value.coverage).toContain('homophone');
+    expect(value.limits).toContain('ambiguous meanings');
+    expect(value.examples).toContainEqual({ label: 'Verb agreement', before: 'She go to school.', after: 'She goes to school.' });
 });

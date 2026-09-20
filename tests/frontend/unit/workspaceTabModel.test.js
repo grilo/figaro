@@ -1,3 +1,4 @@
+import { createWorkspaceCursorStore } from '../../../frontend/js/core/workspaceCursorModel.js';
 import {
     acknowledgeWorkspaceFileSave,
     beginWorkspaceFileLoad,
@@ -5,12 +6,10 @@ import {
     workspaceFileLoadIsCurrent,
     beginWorkspaceTabSave,
     recordWorkspaceTabContent,
-    recordWorkspaceTabCursor,
     recordWorkspaceTabEdit,
     recordWorkspaceTabTextScale,
     resetWorkspaceTabTextScale,
     resetWorkspaceTabTextScales,
-    restoreWorkspaceTabCursors,
 } from '../../../frontend/js/core/workspaceTabModel.js';
 
 describe('workspace tab model', () => {
@@ -49,22 +48,18 @@ describe('workspace tab model', () => {
         expect(allReset[1]).toBe(allScaled[1]);
     });
 
-    test('restores cursors and advances saves as immutable transitions', () => {
-        const tabs = [{ id: 'a.md', type: 'file' }, { id: 'settings', type: 'settings' }];
-        const restored = restoreWorkspaceTabCursors(tabs, {
-            'a.md': { anchor: 4, head: 7 },
-            settings: { anchor: 1, head: 1 },
-        });
-        expect(restored[0].cursorState).toEqual({ anchor: 4, head: 7 });
-        expect(restored[1].cursorState).toBeUndefined();
-
-        const cursor = recordWorkspaceTabCursor(restored, 'a.md', { anchor: 8, head: 8 });
-        expect(cursor.tab.cursorState).toEqual({ anchor: 8, head: 8 });
-        expect(restored[0].cursorState).toEqual({ anchor: 4, head: 7 });
-
-        const saving = beginWorkspaceTabSave(cursor.tabs, 'a.md');
+    test('save generations remain separate from immutable cursor records', () => {
+        const tabs = [{ id: 'a.md', type: 'file' }];
+        const cursors = createWorkspaceCursorStore(); cursors.reconcile(tabs);
+        cursors.update('a.md', { anchor: 4, head: 7 });
+        const before = cursors.snapshot();
+        cursors.update('a.md', { anchor: 8, head: 8 });
+        const saving = beginWorkspaceTabSave(tabs, 'a.md');
+        cursors.reconcile(saving.tabs);
+        expect(before['a.md']).toEqual({ anchor: 4, head: 7 });
+        expect(cursors.read('a.md')).toEqual({ anchor: 8, head: 8 });
         expect(saving.tab._saveGeneration).toBe(1);
-        expect(cursor.tab._saveGeneration).toBeUndefined();
+        expect(tabs[0]._saveGeneration).toBeUndefined();
     });
 });
 
@@ -75,17 +70,21 @@ describe('file load revision ownership', () => {
 
     test('finishes on the current immutable tab after cursor changes', () => {
         const loading = beginWorkspaceFileLoad([original], original.id);
-        const cursor = recordWorkspaceTabCursor(loading.tabs, original.id, { anchor: 1, head: 1 });
-        expect(workspaceFileLoadIsCurrent(cursor.tab, loading.tab, original.id)).toBe(true);
-        const finished = finishWorkspaceFileLoad(cursor.tabs, loading.tab, file, original.id);
-        expect(finished.tab).toMatchObject({ mtime: 20, _content: 'loaded', dirty: false, cursorState: { anchor: 1, head: 1 } });
+        const cursors = createWorkspaceCursorStore(); cursors.reconcile(loading.tabs);
+        cursors.update(original.id, { anchor: 1, head: 1 });
+        expect(workspaceFileLoadIsCurrent(loading.tab, loading.tab, original.id)).toBe(true);
+        const finished = finishWorkspaceFileLoad(loading.tabs, loading.tab, file, original.id);
+        cursors.reconcile(finished.tabs);
+        expect(finished.tab).toMatchObject({ mtime: 20, _content: 'loaded', dirty: false });
+        expect(cursors.read(original.id)).toEqual({ anchor: 1, head: 1 });
         expect(original.mtime).toBe(10);
     });
 
     test('rejects an older read even when cursor updates separated two loads', () => {
         const first = beginWorkspaceFileLoad([original], original.id);
-        const cursor = recordWorkspaceTabCursor(first.tabs, original.id, { anchor: 1, head: 1 });
-        const second = beginWorkspaceFileLoad(cursor.tabs, original.id);
+        const cursors = createWorkspaceCursorStore(); cursors.reconcile(first.tabs);
+        cursors.update(original.id, { anchor: 1, head: 1 });
+        const second = beginWorkspaceFileLoad(first.tabs, original.id);
         expect(workspaceFileLoadIsCurrent(second.tab, first.tab, original.id)).toBe(false);
         expect(finishWorkspaceFileLoad(second.tabs, first.tab, file, original.id).changed).toBe(false);
     });

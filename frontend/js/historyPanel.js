@@ -24,6 +24,7 @@ import {
 import { paneSeparatorKeyboardPlan } from './core/paneSeparatorModel.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
 import { claimRightPane, registerRightPaneMode } from './rightPaneCoordinator.js';
+import { bindRightPaneLauncher } from './rightPaneLauncher.js';
 
 let saveWorkspaceFileSnapshot = null;
 
@@ -61,9 +62,9 @@ export function initHistoryPanel() {
     // Status bar click
     const countEl = document.getElementById('history-count');
     if (countEl) {
-        countEl.addEventListener('click', () => {
+        bindRightPaneLauncher(countEl, { getEditorView, activate: () => {
             if (countEl.classList.contains('has-history')) toggleHistoryPanel();
-        });
+        } });
     }
 
     const gitStatus = document.getElementById('git-status');

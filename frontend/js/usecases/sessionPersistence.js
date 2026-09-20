@@ -11,7 +11,8 @@ export function createSessionPersistence({
     resetWorkspace,
     reportFailure = () => {},
 }) {
-    let saveQueue = Promise.resolve();
+    let running = false;
+    let pending = null;
 
     async function load() {
         try {
@@ -27,14 +28,35 @@ export function createSessionPersistence({
         }
     }
 
+    async function drain() {
+        running = true;
+        while (pending) {
+            const job = pending;
+            pending = null;
+            try {
+                await writeSession(job.snapshot);
+            } catch (error) {
+                reportFailure('save', error);
+            } finally {
+                job.resolve();
+            }
+        }
+        running = false;
+    }
+
     function save() {
         const snapshot = buildSessionSnapshot(readWorkspace());
-        saveQueue = saveQueue
-            .then(() => writeSession(snapshot))
-            .catch(error => {
-                reportFailure('save', error);
-            });
-        return saveQueue;
+        if (pending) {
+            // Only the latest workspace matters after a slow write. All callers
+            // covered by this pending job settle after that snapshot is attempted.
+            pending.snapshot = snapshot;
+            return pending.promise;
+        }
+        let resolve;
+        const promise = new Promise(finish => { resolve = finish; });
+        pending = { snapshot, resolve, promise };
+        if (!running) void drain();
+        return promise;
     }
 
     return { load, save };

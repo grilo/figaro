@@ -11,7 +11,7 @@
     "build:app": "node scripts/build-app-bundle.mjs",
     "build:design-system": "node scripts/build-design-system.mjs",
     "test": "npm run test:integrity && jest",
-    "test:integrity": "node scripts/test-integrity.mjs",
+    "test:integrity": "node scripts/feature-workflow.mjs check && node scripts/test-integrity.mjs",
     "test:unit": "npm run test:integrity && bash tests/release/prepare-release.test.sh && jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "npm run test:integrity && bash tests/release/prepare-release.test.sh && jest --runInBand --coverage",
@@ -19,7 +19,11 @@
     "lint": "eslint frontend/js frontend/design-system",
     "lint:fix": "eslint frontend/js frontend/design-system --fix",
     "vendor": "bash scripts/vendor.sh",
-    "vendor:markdown": "node scripts/vendor-markdown-renderer.mjs"
+    "vendor:markdown": "node scripts/vendor-markdown-renderer.mjs",
+    "context": "node scripts/feature-workflow.mjs context",
+    "context:generate": "node scripts/feature-workflow.mjs generate",
+    "context:check": "node scripts/feature-workflow.mjs check",
+    "test:focus": "node scripts/feature-workflow.mjs test"
   },
   "devDependencies": {
     "@babel/core": "^8.0.1",
@@ -41,6 +45,7 @@
       "^.+\\.[cm]?js$": "babel-jest"
     },
     "moduleNameMapper": {
+      "^codemirror-live-markdown$": "<rootDir>/frontend/vendored/codemirror-live-markdown/index.js",
       "^\\./test_setup\\.js$": "<rootDir>/tests/frontend/support/test_setup.js",
       "^\\.\\./frontend/(.*)$": "<rootDir>/frontend/$1",
       "^(\\.{1,2}/.*)\\.js$": "$1",

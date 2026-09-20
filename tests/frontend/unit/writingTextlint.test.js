@@ -24,7 +24,7 @@ test('textlint initializes actual pinned rules before readiness and includes the
     expect(pkg['textlint-rule-terminology']).toBe(writingTextlintVersions.terminology);
     expect(pkg['@textlint/kernel']).toBe(writingTextlintVersions.kernel);
     expect(pkg['@textlint/textlint-plugin-text']).toBe(writingTextlintVersions.parser);
-    expect(writingEngineConfiguration).toMatchObject({ mapping: '11', terminology: writingTerminology, textlint: writingTextlintVersions });
+    expect(writingEngineConfiguration).toMatchObject({ mapping: '20', terminology: writingTerminology, textlint: writingTextlintVersions });
 });
 
 test.each(['(', '[', '{', '"', '«', '‹'])('unmatched-pair maps the native position to the exact opening %s after Unicode and formatting', async mark => {

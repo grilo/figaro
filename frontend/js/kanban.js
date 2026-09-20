@@ -1,4 +1,6 @@
+import { countEditorWork, deferEditorWork } from './editorDiagnostics.js';
 import { backend } from './backend.js';
+import { createKanbanBufferProjection, overlayKanbanCards } from './core/kanbanBufferModel.js';
 import { toggledWorkspacePresentation } from './core/workspaceTabModel.js';
 /**
  * Kanban Module - Task board with drag-drop, column management
@@ -287,10 +289,10 @@ function scheduleDueDayRefresh() {
 
 function scheduleLiveKanbanRefresh() {
     if (liveRefreshFrame !== null) return;
-    const refresh = () => {
+    const refresh = deferEditorWork('kanban', 'document snapshot', () => {
         liveRefreshFrame = null;
         refreshKanbanFromDirtyBuffers();
-    };
+    }, 'frame');
     // Repaint on the next frame instead of asking the backend to rediscover
     // the vault after every keystroke. The dirty editor snapshots are already
     // in state and are the authoritative source until they are saved.
@@ -333,6 +335,7 @@ function removeDisplayHashtag(value, tag) {
 
 /** Parse one dirty Markdown snapshot using the backend Kanban card contract. */
 export function kanbanCardsForBuffer(file, content) {
+    countEditorWork('parse.kanban');
     const fileName = String(file || '').replaceAll('\\', '/').split('/').pop() || String(file || '');
     const cards = [];
     String(content || '').split('\n').forEach((line, index) => {
@@ -367,19 +370,16 @@ function dirtyKanbanBuffers() {
     return snapshots;
 }
 
+const projectDirtyBuffers = createKanbanBufferProjection(kanbanCardsForBuffer);
+let overlayCache = null;
+let lastRenderedOverlay = null;
+
 /** Replace saved cards for dirty files with their current in-memory cards. */
 export function overlayDirtyKanbanBuffers(boardData, snapshots = dirtyKanbanBuffers()) {
-    const board = {};
-    const dirtyPaths = new Set(snapshots.keys());
-    for (const [column, tasks] of Object.entries(boardData || {})) {
-        board[column] = (tasks || []).filter(task => !dirtyPaths.has(task.file));
-    }
-    for (const [file, content] of snapshots) {
-        for (const card of kanbanCardsForBuffer(file, content)) {
-            if (!board[card.tag]) board[card.tag] = [];
-            board[card.tag].push(card);
-        }
-    }
+    const projection = projectDirtyBuffers(snapshots);
+    if (overlayCache?.base === boardData && overlayCache.projection === projection) return overlayCache.board;
+    const board = overlayKanbanCards(boardData, projection);
+    overlayCache = { base: boardData, projection, board };
     return board;
 }
 
@@ -432,7 +432,9 @@ export function applySavedKanbanSnapshot(filePath, content) {
     );
     savedKanbanColumns = savedColumnsForBoard(savedKanbanBoardData);
     kanbanColumns = appendDirtyColumns(savedKanbanColumns);
-    const boardData = applyRememberedKanbanOrder(overlayDirtyKanbanBuffers(savedKanbanBoardData));
+    const overlay = overlayDirtyKanbanBuffers(savedKanbanBoardData);
+    lastRenderedOverlay = overlay;
+    const boardData = applyRememberedKanbanOrder(overlay);
     persistedColumns.clear();
     for (const column of savedKanbanColumns) persistedColumns.add(column);
     setState('kanbanColumns', kanbanColumns);
@@ -461,8 +463,8 @@ function appendDirtyColumns(columns) {
     const result = [...columns];
     const seen = new Set(result);
     const discovered = new Set();
-    for (const [file, content] of dirtyKanbanBuffers()) {
-        for (const card of kanbanCardsForBuffer(file, content)) {
+    for (const cards of projectDirtyBuffers(dirtyKanbanBuffers()).values()) {
+        for (const card of cards) {
             if (!seen.has(card.tag)) discovered.add(card.tag);
         }
     }
@@ -505,7 +507,12 @@ export async function refreshKanbanData({ focusCol = null, container = getBoardC
             taskScheduleError = schedules.error ? `Couldn’t load schedules: ${schedules.error.message || schedules.error}. Reopen Kanban to retry; no metadata was changed.` : '';
         }
         savedKanbanBoardData = savedBoard || {};
-        const boardData = applyRememberedKanbanOrder(overlayDirtyKanbanBuffers(savedKanbanBoardData));
+        // A completed backend refresh is authoritative even when an adapter
+        // reuses its object. Identity reuse is only for local typing updates.
+        overlayCache = null;
+        const overlay = overlayDirtyKanbanBuffers(savedKanbanBoardData);
+        lastRenderedOverlay = overlay;
+        const boardData = applyRememberedKanbanOrder(overlay);
         setState('kanbanBoardData', boardData);
         persistedColumns.clear();
         for (const column of savedKanbanColumns) persistedColumns.add(column);
@@ -521,7 +528,10 @@ export async function refreshKanbanData({ focusCol = null, container = getBoardC
 // Reproject the existing saved board with dirty tabs only. This is the hot
 // typing path and intentionally never calls the backend.
 function refreshKanbanFromDirtyBuffers() {
-    const boardData = applyRememberedKanbanOrder(overlayDirtyKanbanBuffers(savedKanbanBoardData));
+    const overlay = overlayDirtyKanbanBuffers(savedKanbanBoardData);
+    if (overlay === lastRenderedOverlay) return;
+    lastRenderedOverlay = overlay;
+    const boardData = applyRememberedKanbanOrder(overlay);
     kanbanColumns = appendDirtyColumns(savedKanbanColumns);
     setState('kanbanColumns', kanbanColumns);
     setState('kanbanBoardData', boardData);

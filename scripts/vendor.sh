@@ -306,7 +306,8 @@ cat > "$VENDOR_DIR/importmap.json" << 'EOF'
     "w3c-keyname": "./w3c-keyname/index.js",
     "style-mod": "./style-mod/index.js",
     "@uiw/codemirror-extensions-color": "./@uiw/codemirror-extensions-color/index.js",
-    "turndown": "./turndown/index.js"
+    "turndown": "./turndown/index.js",
+    "nspell": "./spellcheck/nspell.js"
   }
 }
 EOF

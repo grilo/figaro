@@ -1,3 +1,5 @@
+import { sourceRevealIndex, updateSourceReveal } from './sourceReveal.js';
+import { countEditorWork, readEditorDocument } from './editorDiagnostics.js';
 /**
  * Math Plugin — renders $inline$ and $$block$$ math using KaTeX
  * Uses StateField (not ViewPlugin) to safely handle block decorations.
@@ -6,6 +8,7 @@
 import { StateField } from '@codemirror/state';
 import { EditorView, WidgetType, Decoration } from '@codemirror/view';
 import { markBlockWidget } from './blockWidget.js';
+import { mathPreviewBlocks } from './core/mathPreviewModel.js';
 import { sourceLineCount } from './core/sourceFootprintModel.js';
 import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
 
@@ -60,69 +63,43 @@ class MathWidget extends WidgetType {
     }
 }
 
-function buildMathState(state) {
-    const decorations = [];
-    const ranges = [];
-    const doc = state.doc;
+function mathSourceVisible(state, block) {
     const cursor = state.selection.main.head;
-    const text = doc.toString();
-    if (!text.includes('$')) {
-        return { decorations: Decoration.none, ranges };
-    }
+    return cursor >= block.from && cursor <= block.to;
+}
 
-    // Block math: $$...$$
-    const blockRe = /\$\$\s*([\s\S]*?)\s*\$\$/g;
-    let m;
-    while ((m = blockRe.exec(text)) !== null) {
-        const start = m.index;
-        const end = start + m[0].length;
-        ranges.push({ from: start, to: end });
-        if (cursor >= start && cursor <= end) continue;
-        if (m[1].includes('\n') || m[0].includes('\n')) {
-            // Multi-line block: use StateField-provided decoration (safe for line breaks)
-            decorations.push(Decoration.replace({
-                widget: new MathWidget(m[1], true, sourceLineCount(doc, start, end), m[0]),
-                block: true
-            }).range(start, end));
-        } else {
-            decorations.push(Decoration.replace({
-                widget: new MathWidget(m[1], false)
-            }).range(start, end));
-        }
-    }
+function mathBlockDecorations(state, block, visible) {
+    if (visible) return [];
+    return [Decoration.replace({
+        widget: new MathWidget(block.text, block.displayMode,
+            block.displayMode ? sourceLineCount(state.doc, block.from, block.to) : 1,
+            block.displayMode ? block.source : ''),
+        block: block.displayMode, sourceBlock: block.sourceIdentity || block,
+    }).range(block.from, block.to)];
+}
 
-    // Inline math: $...$ (single-line, not inside code blocks). Scan the
-    // document directly so large notes do not allocate an array and a regex
-    // for every source line during activation.
-    const inlineRe = /\$([^$\n]+)\$/g;
-    while ((m = inlineRe.exec(text)) !== null) {
-        const start = m.index;
-        const end = start + m[0].length;
-        ranges.push({ from: start, to: end });
-        if (cursor >= start && cursor <= end) continue;
-        decorations.push(Decoration.replace({
-            widget: new MathWidget(m[1], false)
-        }).range(start, end));
+function buildMathState(state, blocks) {
+    if (!blocks) {
+        countEditorWork('parse.math');
+        blocks = mathPreviewBlocks(readEditorDocument(state.doc, 'math'));
     }
-
+    const visibleIndices = new Set();
+    const decorations = blocks.flatMap((block, index) => {
+        const visible = mathSourceVisible(state, block);
+        if (visible) visibleIndices.add(index);
+        return mathBlockDecorations(state, block, visible);
+    });
     return {
         decorations: Decoration.set(decorations, true),
-        ranges,
+        ranges: blocks.map(({ from, to }) => ({ from, to })),
+        blocks, visibleIndices, revealIndex: sourceRevealIndex(blocks),
     };
 }
 
-function selectionTouchesRanges(selection, ranges) {
-    return selection?.ranges?.some(selectionRange => ranges.some(range =>
-        selectionRange.from <= range.to && selectionRange.to >= range.from
-    ));
-}
-
-function selectionMayContainMathDelimiter(state, selection) {
-    return selection?.ranges?.some(range => {
-        const start = state.doc.lineAt(range.from).text;
-        const end = state.doc.lineAt(range.to).text;
-        return start.includes('$') || end.includes('$');
-    });
+function refreshMathVisibility(value, state) {
+    return value.blocks.some((block, index) => mathSourceVisible(state, block) !== value.visibleIndices.has(index))
+        ? buildMathState(state, value.blocks)
+        : value;
 }
 
 function changesNeedMathRescan(value, transaction) {
@@ -131,7 +108,7 @@ function changesNeedMathRescan(value, transaction) {
         if (needsRescan) return;
         const before = transaction.startState.doc.sliceString(fromA, toA);
         const after = transaction.state.doc.sliceString(fromB, toB);
-        if (before.includes('$') || after.includes('$')) {
+        if (/[$\n]/u.test(before) || /[$\n]/u.test(after)) {
             needsRescan = true;
             return;
         }
@@ -144,6 +121,10 @@ function changesNeedMathRescan(value, transaction) {
 
 function mapMathState(value, changes) {
     return {
+        ...value,
+        blocks: value.blocks.map(block => ({ ...block, sourceIdentity: block.sourceIdentity || block,
+            from: changes.mapPos(block.from, -1), to: changes.mapPos(block.to, 1),
+        })),
         decorations: value.decorations.map(changes),
         ranges: value.ranges.map(range => ({
             from: changes.mapPos(range.from, -1),
@@ -159,18 +140,15 @@ export const mathField = StateField.define({
     update(value, transaction) {
         if (transaction.docChanged) {
             if (changesNeedMathRescan(value, transaction)) return buildMathState(transaction.state);
-            return mapMathState(value, transaction.changes);
+            const mapped = mapMathState(value, transaction.changes);
+            mapped.revealIndex = sourceRevealIndex(mapped.blocks);
+            return refreshMathVisibility(mapped, transaction.state);
         }
         if (!transaction.selection) return value;
 
-        const selectionTouchesKnownMath = selectionTouchesRanges(transaction.startState.selection, value.ranges)
-            || selectionTouchesRanges(transaction.state.selection, value.ranges);
-        if (selectionTouchesKnownMath
-            || selectionMayContainMathDelimiter(transaction.startState, transaction.startState.selection)
-            || selectionMayContainMathDelimiter(transaction.state, transaction.state.selection)) {
-            return buildMathState(transaction.state);
-        }
-        return value;
+        const headRange = state => [{ from: state.selection.main.head, to: state.selection.main.head }];
+        return updateSourceReveal(value, transaction,
+            (state, from, to) => mathSourceVisible(state, { from, to }), mathBlockDecorations, headRange);
     },
     provide: field => EditorView.decorations.from(field, value => value.decorations)
 });

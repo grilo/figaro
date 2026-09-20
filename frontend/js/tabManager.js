@@ -1,3 +1,4 @@
+import { countEditorWork } from './editorDiagnostics.js';
 import { initStartupLogsSettings } from './views/startupLogsSettings.js';
 import { backend } from './backend.js';
 /**
@@ -6,9 +7,9 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, graphIcon, settingsIcon, warningIcon } from './icons.js';
-import { setState, getState, subscribe, recordRecentFile } from './state.js';
+import { setState, getState, subscribe, recordRecentFile, getTabIndex, getTabCursorState, setTabCursorState } from './state.js';
 import { saveSession } from './session.js';
-import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile, createEditorView, setImageBasePath } from './editor.js';
+import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile, createEditorView, setImageBasePath, transferEditorHistory } from './editor.js';
 import { statusBar } from './statusBar.js';
 import { errorDialog, saveFailureDialog } from './dialogs.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
@@ -38,14 +39,13 @@ import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
 import { boundedAdjacentTabId, tabCloseNavigationPlan } from './core/tabNavigationModel.js';
 import {
     acknowledgeWorkspaceFileSave,
+    moveWorkspaceTabPaths,
     beginWorkspaceFileLoad,
     finishWorkspaceFileLoad,
     workspaceFileLoadIsCurrent,
     recordWorkspaceTabContent,
-    recordWorkspaceTabCursor,
     recordWorkspaceTabEdit,
     recordWorkspaceTabTextScale,
-    restoreWorkspaceTabCursors,
     resetWorkspaceTabTextScale,
     resetWorkspaceTabTextScales,
     updateWorkspaceTab,
@@ -258,7 +258,7 @@ function snapshotActiveFileTab(tab) {
         tab._content = editor.state.doc.toString();
     }
     const cursorState = saveCursorState(tab.id);
-    if (cursorState) tab.cursorState = cursorState;
+    if (cursorState) recordTabCursor(tab.id, cursorState);
     if (tab.dirty && !saveFailureEpisodes.has(tab.id)) void saveFileSnapshot(tab, contentSnapshotForTab(tab)).catch(() => {});
 }
 
@@ -717,8 +717,8 @@ export function initTabManager() {
     });
     
     // Subscribe to tab changes
-    subscribe('openTabs', renderTabBar);
-    subscribe('activeTabId', renderTabBar);
+    subscribe('tabPresentation', renderTabBar, 'tab-bar');
+    subscribe('activeTabId', renderTabBar, 'tab-bar');
     subscribe('pinnedTabs', renderTabBar);
 
     // All-tabs dropdown
@@ -898,7 +898,8 @@ export async function switchTab(tabId, {
 
     // Capture before the target document replaces the shared CodeMirror
     // document. Its temporary selection must never overwrite this snapshot.
-    const cursorState = tab.searchLine ? null : (tab.cursorState ? { ...tab.cursorState } : null);
+    const rememberedCursor = getTabCursorState(tab.id);
+    const cursorState = tab.searchLine ? null : (rememberedCursor ? { ...rememberedCursor } : null);
     switchRightPaneTab(tabId);
     
     setState('activeTabId', tabId);
@@ -1363,26 +1364,18 @@ export async function replaceActiveFileTab(id, title, type, data = {}) {
  * persisted session in sync after a successful filesystem move.
  */
 export function updateTabsForMovedPath(oldPath, newPath) {
-    const tabs = getState('openTabs');
-    const idChanges = new Map();
-    let changed = false;
-
-    for (const tab of tabs) {
-        if (!isFileBackedTab(tab)) continue;
-        const movedPath = movedTabPath(tab.path, oldPath, newPath);
-        if (!movedPath) continue;
-
-        const oldId = tab.id;
-        tab.path = movedPath;
-        tab.title = movedPath.split('/').pop() || tab.title;
-        if (oldId === normalizeTabPath(oldPath) || oldId.startsWith(normalizeTabPath(oldPath) + '/')) {
-            tab.id = movedPath;
-            idChanges.set(oldId, movedPath);
+    const previousTabs = getState('openTabs');
+    const plan = moveWorkspaceTabPaths(previousTabs, oldPath, newPath);
+    if (!plan.changed) return false;
+    const { tabs, idChanges } = plan;
+    tabs.forEach((tab, index) => {
+        if (tab !== previousTabs[index]) transferEditorHistory(previousTabs[index], tab);
+        if (tab.id !== previousTabs[index].id && tab.type === 'file') {
+            tab.cursorState = getTabCursorState(previousTabs[index].id);
         }
-        changed = true;
-    }
-
-    if (!changed) return false;
+    });
+    // Publish the new records before active-id consumers resolve a renamed tab.
+    setState('openTabs', tabs);
 
     const pinned = getState('pinnedTabs');
     const nextPinned = [...new Set(pinned.map(tabId => idChanges.get(tabId) || tabId))];
@@ -1408,7 +1401,6 @@ export function updateTabsForMovedPath(oldPath, newPath) {
         if (title) title.textContent = tab.title;
     }
 
-    setState('openTabs', [...tabs]);
     saveTabsToStorage();
     renderTabBar();
 
@@ -1635,9 +1627,9 @@ export function markTabDirty(tabId, { alreadyDirty = false } = {}) {
 
 /** Record a CodeMirror edit through the tab owner's immutable transition. */
 export function recordTabEdit(tabId) {
-    const transition = recordWorkspaceTabEdit(getState('openTabs'), tabId);
+    const transition = recordWorkspaceTabEdit(getState('openTabs'), tabId, getTabIndex(tabId));
     if (!transition.changed) return null;
-    setState('openTabs', transition.tabs);
+    setState('openTabs', transition.tabs, transition);
     if (transition.becameDirty) {
         renderTabBar();
         if (transition.tab.id === getState('activeTabId') && transition.tab.path) {
@@ -1650,17 +1642,14 @@ export function recordTabEdit(tabId) {
 }
 
 export function recordTabContent(tabId, generation, content) {
-    const transition = recordWorkspaceTabContent(getState('openTabs'), tabId, generation, content);
+    const transition = recordWorkspaceTabContent(getState('openTabs'), tabId, generation, content, getTabIndex(tabId));
     if (!transition.changed) return false;
-    setState('openTabs', transition.tabs);
+    setState('openTabs', transition.tabs, transition);
     return true;
 }
 
 export function recordTabCursor(tabId, cursorState) {
-    const transition = recordWorkspaceTabCursor(getState('openTabs'), tabId, cursorState);
-    if (!transition.changed) return false;
-    setState('openTabs', transition.tabs);
-    return true;
+    return setTabCursorState(tabId, cursorState);
 }
 
 export function recordTabMtime(tabId, mtime) {
@@ -1671,11 +1660,11 @@ export function recordTabMtime(tabId, mtime) {
 }
 
 export function restoreTabCursorStates(cursorStates) {
-    const tabs = getState('openTabs');
-    const restored = restoreWorkspaceTabCursors(tabs, cursorStates);
-    if (restored === tabs) return false;
-    setState('openTabs', restored);
-    return true;
+    let changed = false;
+    for (const [tabId, selection] of Object.entries(cursorStates || {})) {
+        changed = setTabCursorState(tabId, selection) || changed;
+    }
+    return changed;
 }
 
 export function updateTabTitle(tabId, title) {
@@ -1724,6 +1713,7 @@ export function renderTabBar() {
         ? activeId
         : sorted.at(-1)?.id;
 
+    countEditorWork('dom.tabBar');
     tabStrip.innerHTML = sorted.map(tab => {
         const isPinned = pinned.includes(tab.id);
         const isActive = tab.id === activeId;
@@ -2111,12 +2101,12 @@ function initAllTabsDropdown() {
         items[nextIndex].focus();
     });
 
-    subscribe('openTabs', () => {
+    subscribe('tabPresentation', () => {
         if (!dropdown.classList.contains('hidden')) renderAllTabsDropdown(dropdown);
-    });
+    }, 'tab-bar');
     subscribe('activeTabId', () => {
         if (!dropdown.classList.contains('hidden')) renderAllTabsDropdown(dropdown);
-    });
+    }, 'tab-bar');
 }
 
 function renderAllTabsDropdown(dropdown) {

@@ -1,0 +1,35 @@
+{
+  "metric": "UTF-8 bytes of discovery output, not model tokens or total change cost",
+  "date": "2026-09-13",
+  "command": "node scripts/feature-workflow.mjs context [route]",
+  "samples": [
+    {
+      "route": "list",
+      "before_utf8_bytes": 775,
+      "after_utf8_bytes": 1167,
+      "change_percent": 50.6
+    },
+    {
+      "route": "editor-links",
+      "before_utf8_bytes": 1884,
+      "after_utf8_bytes": 1008,
+      "change_percent": -46.5
+    },
+    {
+      "route": "writing",
+      "before_utf8_bytes": 1773,
+      "after_utf8_bytes": 768,
+      "change_percent": -56.7
+    },
+    {
+      "route": "search",
+      "before_utf8_bytes": 1576,
+      "after_utf8_bytes": 701,
+      "change_percent": -55.5
+    }
+  ],
+  "earlier_full_index_bytes": 16536,
+  "old_root_instructions_bytes": 8338,
+  "new_root_instructions_bytes": 8585,
+  "feature_map_sha256": "f07771c80107be127a90dd349203584b72f724cdc35eacd5b57b21d4269f0938"
+}

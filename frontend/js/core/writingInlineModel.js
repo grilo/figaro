@@ -20,12 +20,6 @@ export function visibleWritingRanges(findings, visibleRanges) {
     })).filter(range => range.from < range.to));
 }
 
-export function spellingWordKey(word) { return String(word).trim().toLowerCase().replace(/[’‘]/g, '\''); }
-export function filterAcceptedSpelling(values, words = []) {
-    const accepted = new Set(words.map(spellingWordKey));
-    return values.filter(value => !accepted.has(spellingWordKey(value.actual || value.word)));
-}
-
 /** Keep review actions inside the editor/viewport intersection. */
 export function writingTooltipBounds(editor, viewport) {
     return { left: Math.max(8, editor.left + 8), right: Math.min(viewport.width - 8, editor.right - 8),

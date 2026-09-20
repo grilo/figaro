@@ -26,6 +26,7 @@ export function writingTextlintProjection(projection) {
 }
 
 export function textlintWritingObservations(messages, projection) {
+    const paired = pairedOpenings(projection);
     return messages.flatMap(message => {
         let from, to, replacements = [], version;
         if (message.ruleId === '@textlint-rule/no-unmatched-pair') {
@@ -34,6 +35,7 @@ export function textlintWritingObservations(messages, projection) {
             const mark = message.message.match(/^Cannot find a pairing character for (.)./u)?.[1];
             from = message.index - 1; to = message.index;
             if (!mark || projection.text.slice(from, to) !== mark) return [];
+            if (paired.has(from)) return [];
             version = writingTextlintVersions.pairs;
         } else if (message.ruleId === 'textlint-rule-terminology') {
             [from, to] = message.fix?.range || [];
@@ -49,6 +51,27 @@ export function textlintWritingObservations(messages, projection) {
     });
 }
 
+// The upstream sentence parser can lose a closer after a newline/abbreviation.
+// Verify only fully nested visible pairs inside the same eligible block. A
+// mismatched closer, protected mark, or another paragraph cannot close a pair.
+function pairedOpenings(projection) {
+    const pairs = { '(': ')', '[': ']', '{': '}', '«': '»', '‹': '›', '「': '」', '（': '）', '『': '』', '｛': '｝', '［': '］', '〚': '〛', '【': '】' };
+    const closers = new Set(Object.values(pairs)), paired = new Set();
+    for (const region of projection.regions || []) {
+        const stack = [];
+        for (let at = region.start; at < region.end; at++) {
+            if (projection.units[at]?.hidden || projection.units[at]?.from < 0) continue;
+            const char = projection.text[at];
+            if (pairs[char]) stack.push({ at, close: pairs[char] });
+            else if (closers.has(char)) {
+                if (stack.at(-1)?.close === char) paired.add(stack.pop().at);
+                else stack.length = 0;
+            }
+        }
+    }
+    return paired;
+}
+
 function acronymInitialsMatch(acronym, expansion) {
     const words = expansion.split(/[ \t\n-]+/u);
     const initial = word => /^ex/i.test(word) ? '[EX]' : word[0].toUpperCase();
@@ -62,20 +85,28 @@ function acronymInitialsMatch(acronym, expansion) {
         && matches([...words.slice(0, of - 1), words[of + 1], words[of - 1]]);
 }
 
+/** Candidate definitions; callers enforce their own Markdown eligibility. */
+export function writingAcronymDefinitions(text, acronym) {
+    if (acronym !== undefined && !/^[A-Z]{3,5}$/.test(acronym)) return [];
+    const expansion = '[\\p{L}][\\p{L}’\'-]*(?:[ \\t\\n]+[\\p{L}][\\p{L}’\'-]*){1,7}';
+    const token = acronym || '[A-Z]{3,5}';
+    const patterns = [new RegExp(`(${expansion})[ \\t\\n]+\\((${token})s?\\)`, 'gu'),
+        new RegExp(`\\b(${token})s?[ \\t\\n]+\\((${expansion})\\)`, 'gu')];
+    return patterns.flatMap((pattern, index) => [...text.matchAll(pattern)]
+        .filter(match => acronymInitialsMatch(match[index ? 1 : 2], match[index ? 2 : 1]))
+        .map(match => ({ acronym: match[index ? 1 : 2], from: match.index, to: match.index + match[0].length })));
+}
+
 /** Recognize bounded forward/reverse definitions, including plural acronyms. */
 export function writingAcronymDefined(acronym, projection) {
-    if (!/^[A-Z]{3,5}$/.test(acronym)) return false;
-    const expansion = '[\\p{L}][\\p{L}’\'-]*(?:[ \\t\\n]+[\\p{L}][\\p{L}’\'-]*){1,7}';
-    const patterns = [new RegExp(`(${expansion})[ \\t\\n]+\\(${acronym}s?\\)`, 'gu'),
-        new RegExp(`\\b${acronym}s?[ \\t\\n]+\\((${expansion})\\)`, 'gu')];
     // Match inside each eligible block. A greedy expansion starting in a
     // preceding heading must not consume and hide a valid local definition.
     for (const region of projection.regions) {
         const text = projection.text.slice(region.start, region.end);
-        for (const pattern of patterns) for (const match of text.matchAll(pattern)) {
-            const from = region.start + match.index;
-            if (projection.units.slice(from, from + match[0].length).some(unit => unit.from < 0 || unit.hidden)) continue;
-            if (acronymInitialsMatch(acronym, match[1])) return true;
+        for (const match of writingAcronymDefinitions(text, acronym)) {
+            const from = region.start + match.from, to = region.start + match.to;
+            if (projection.units.slice(from, to).some(unit => unit.from < 0 || unit.hidden)) continue;
+            return true;
         }
     }
     return false;

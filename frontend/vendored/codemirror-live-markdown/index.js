@@ -1,3 +1,6 @@
+import { createSelectionRangeIndex, sourceRevealChanges } from '../../js/core/selectionRangeIndex.js';
+import { formattingMarkerVisibility } from '../../js/core/markdownFormattingModel.js';
+import { markdownProseEditPreservesBlocks, mapMarkdownBlockDescriptors } from '../../js/core/markdownProjectionModel.js';
 import { Facet, StateEffect, StateField } from '@codemirror/state';
 import { foldedRanges, syntaxTree } from '@codemirror/language';
 import { ViewPlugin, Decoration, EditorView, WidgetType } from '@codemirror/view';
@@ -52144,86 +52147,125 @@ function isInsideSkippedParent(node) {
   }
   return false;
 }
+// Figaro keeps diagnostics injected through state, with no application singleton.
+var markdownWorkFacet = Facet.define({ combine: values => values[0] || (() => {}) });
+function countMarkdownWork(state, name, amount = 1) {
+  state.facet(markdownWorkFacet)(name, amount);
+}
+// CodeMirror adapter shared with Figaro's other cached Markdown projections.
+// A changed or incomplete paragraph boundary always takes the structural path.
+const proseEditResults = new WeakMap();
+function canMapMarkdownProseEdit(update) {
+  if (proseEditResults.has(update)) return proseEditResults.get(update);
+  if (!update.docChanged) return false;
+  const before = update.startState, after = update.state;
+  const oldTree = syntaxTree(before), newTree = syntaxTree(after);
+  if (oldTree.length !== before.doc.length || newTree.length !== after.doc.length) return false;
+  const paragraph = (tree, position) => {
+    let node = tree.resolveInner(position, 1);
+    while (node.parent && node.name !== "Paragraph") node = node.parent;
+    if (node.name !== "Paragraph") return null;
+    let image = false;
+    node.cursor().iterate(child => { if (child.name === "Image") image = true; });
+    return image ? null : node;
+  };
+  const sameStructure = (oldNode, newNode) => {
+    for (; oldNode && newNode; oldNode = oldNode.parent, newNode = newNode.parent) {
+      if (oldNode.name !== newNode.name
+          || !/^(Paragraph|Document|ListItem|BulletList|OrderedList|Blockquote)$/.test(oldNode.name)
+          || update.changes.mapPos(oldNode.from, -1) !== newNode.from
+          || update.changes.mapPos(oldNode.to, 1) !== newNode.to) return false;
+    }
+    return !oldNode && !newNode;
+  };
+  let safe = true;
+  update.changes.iterChanges((from, to, nextFrom, nextTo) => {
+    if (!safe) return;
+    const oldNode = paragraph(oldTree, from), newNode = paragraph(newTree, nextFrom);
+    safe = markdownProseEditPreservesBlocks(before.sliceDoc(from, to), after.sliceDoc(nextFrom, nextTo))
+      && Boolean(oldNode && newNode) && from >= oldNode.from && to <= oldNode.to
+      && nextFrom >= newNode.from && nextTo <= newNode.to && sameStructure(oldNode, newNode);
+  });
+  proseEditResults.set(update, safe);
+  return safe;
+}
+function visitVisibleMarkdown(view, consumer, enter) {
+  const seen = new Set();
+  let visited = 0;
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(view.state).iterate({ from, to, enter(node) {
+      visited++;
+      if (node.from >= to || node.to <= from) return false;
+      const key = node.type.id + ":" + node.from + ":" + node.to;
+      if (seen.has(key)) return;
+      seen.add(key);
+      // Container nodes can span several visible ranges. Deduplicate the
+      // descriptor callback without pruning their later visible descendants.
+      return enter(node);
+    } });
+  }
+  countMarkdownWork(view.state, "syntax.nodes." + consumer, visited);
+}
+function markerVisibility(state, markers) {
+  return formattingMarkerVisibility({ markers, selections: state.selection.ranges,
+    selectedLines: state.selection.ranges.map(range => ({
+      from: state.doc.lineAt(range.from).number, to: state.doc.lineAt(range.to).number
+    })), collapse: state.facet(collapseOnSelectionFacet), dragging: state.field(mouseSelectingField, false) });
+}
+function markerDecorations(state, markers, visibility) {
+  countMarkdownWork(state, "decorations.markers");
+  return Decoration.set(markers.map((marker, index) => {
+    const base = marker.block ? "cm-formatting-block" : "cm-formatting-inline";
+    return Decoration.mark({ class: base + (visibility[index] ? " " + base + "-visible" : "") })
+      .range(marker.from, marker.to);
+  }), true);
+}
 var livePreviewPlugin = ViewPlugin.fromClass(
   class {
     constructor(view) {
       this.decorations = this.build(view);
     }
     update(update) {
-      if (checkUpdateAction(update) === "rebuild") {
+      if (update.docChanged || update.viewportChanged
+          || syntaxTree(update.startState) !== syntaxTree(update.state)
+          || update.transactions.some(transaction => transaction.reconfigured)) {
         this.decorations = this.build(update.view);
+        return;
       }
+      const dragging = update.state.field(mouseSelectingField, false);
+      const wasDragging = update.startState.field(mouseSelectingField, false);
+      if (dragging || (!update.selectionSet && !wasDragging)) return;
+      const visibility = markerVisibility(update.state, this.markers);
+      if (visibility.every((visible, index) => visible === this.visibility[index])) return;
+      this.visibility = visibility;
+      this.decorations = markerDecorations(update.state, this.markers, visibility);
     }
     build(view) {
-      const decorations = [];
-      const { state } = view;
-      const activeLines = /* @__PURE__ */ new Set();
-      for (const range of state.selection.ranges) {
-        const startLine = state.doc.lineAt(range.from).number;
-        const endLine = state.doc.lineAt(range.to).number;
-        for (let l = startLine; l <= endLine; l++) {
-          activeLines.add(l);
-        }
-      }
-      const isDrag = state.field(mouseSelectingField, false);
-      syntaxTree(state).iterate({
-        enter: (node) => {
-          const markTypes = [
-            "EmphasisMark",
-            // * or _
-            "StrikethroughMark",
-            // ~~
-            "CodeMark",
-            // `
-            "HeaderMark",
-            // #
-            "ListMark",
-            // - or *
-            "QuoteMark"
-            // >
-          ];
-          if (!markTypes.includes(node.name)) return;
-          if (isInsideSkippedParent(node)) {
-            return;
-          }
-          if (node.name === "CodeMark") {
-            const parent = node.node.parent;
-            if (parent && parent.name === "InlineCode") {
-              const text = state.doc.sliceString(parent.from, parent.to);
-              if (text.startsWith("`$") && text.endsWith("$`")) {
-                return;
-              }
-            }
-          }
-          const isBlock = ["HeaderMark", "ListMark", "QuoteMark"].includes(
-            node.name
-          );
-          const lineNum = state.doc.lineAt(node.from).number;
-          const isActiveLine = activeLines.has(lineNum);
-          if (isBlock) {
-            const cls = isActiveLine && !isDrag ? "cm-formatting-block cm-formatting-block-visible" : "cm-formatting-block";
-            decorations.push(
-              Decoration.mark({ class: cls }).range(node.from, node.to)
-            );
-          } else {
-            if (node.from >= node.to) return;
-            const isTouched = shouldShowSource(state, node.from, node.to);
-            const cls = isTouched && !isDrag ? "cm-formatting-inline cm-formatting-inline-visible" : "cm-formatting-inline";
-            decorations.push(
-              Decoration.mark({ class: cls }).range(node.from, node.to)
-            );
+      const markers = [];
+      const state = view.state;
+      const markTypes = new Set(["EmphasisMark", "StrikethroughMark", "CodeMark", "HeaderMark", "ListMark", "QuoteMark"]);
+      visitVisibleMarkdown(view, "markers", node => {
+        if (!markTypes.has(node.name) || node.from >= node.to || isInsideSkippedParent(node)) return;
+        if (node.name === "CodeMark") {
+          const parent = node.node.parent;
+          if (parent?.name === "InlineCode") {
+            // Inspect only the delimiters needed for the legacy inline-math exclusion.
+            countMarkdownWork(state, "source.slices.markers", 2);
+            const opening = state.doc.sliceString(parent.from, parent.from + 2);
+            const closing = state.doc.sliceString(parent.to - 2, parent.to);
+            if (opening === "`$" && closing === "$`") return;
           }
         }
+        markers.push({ from: node.from, to: node.to,
+          block: ["HeaderMark", "ListMark", "QuoteMark"].includes(node.name),
+          line: state.doc.lineAt(node.from).number });
       });
-      return Decoration.set(
-        decorations.sort((a, b) => a.from - b.from),
-        true
-      );
+      this.markers = markers;
+      this.visibility = markerVisibility(state, markers);
+      return markerDecorations(state, markers, this.visibility);
     }
   },
-  {
-    decorations: (v) => v.decorations
-  }
+  { decorations: value => value.decorations }
 );
 var SKIP_PARENT_TYPES2 = /* @__PURE__ */ new Set(["FencedCode", "CodeBlock"]);
 function isInsideSkippedParent2(node) {
@@ -52242,12 +52284,15 @@ var markdownStylePlugin = ViewPlugin.fromClass(
       this.decorations = this.build(view);
     }
     update(update) {
-      if (update.docChanged || update.viewportChanged) {
+      if (update.docChanged || update.viewportChanged
+          || syntaxTree(update.startState) !== syntaxTree(update.state)
+          || update.transactions.some(transaction => transaction.reconfigured)) {
         this.decorations = this.build(update.view);
       }
     }
     build(view) {
       const decorations = [];
+      countMarkdownWork(view.state, "decorations.styles");
       const styleMap = {
         ATXHeading1: "cm-header-1",
         ATXHeading2: "cm-header-2",
@@ -52261,8 +52306,7 @@ var markdownStylePlugin = ViewPlugin.fromClass(
         InlineCode: "cm-code",
         Link: "cm-link"
       };
-      syntaxTree(view.state).iterate({
-        enter: (node) => {
+      visitVisibleMarkdown(view, "styles", node => {
           const cls = styleMap[node.name];
           if (!cls) return;
           if (isInsideSkippedParent2(node)) {
@@ -52276,7 +52320,6 @@ var markdownStylePlugin = ViewPlugin.fromClass(
               Decoration.line({ class: "cm-heading-line" }).range(node.from)
             );
           }
-        }
       });
       return Decoration.set(decorations, true);
     }
@@ -53074,19 +53117,24 @@ var CodeBlockWidget = class extends WidgetType {
    * Check if two widgets are equal
    */
   eq(other) {
-    return other.data.code === this.data.code && other.data.language === this.data.language && other.data.showLineNumbers === this.data.showLineNumbers && other.data.showCopyButton === this.data.showCopyButton && other.data.from === this.data.from;
+    return other.data.code === this.data.code && other.data.language === this.data.language && other.data.showLineNumbers === this.data.showLineNumbers && other.data.showCopyButton === this.data.showCopyButton && other.data.from === this.data.from && other.data.to === this.data.to && other.data.sourceText === this.data.sourceText;
+  }
+  updateDOM(container) {
+    const previous = container.__figaroCodeBlockData;
+    if (!previous || previous.code !== this.data.code || previous.language !== this.data.language
+        || previous.sourceText !== this.data.sourceText
+        || previous.showLineNumbers !== this.data.showLineNumbers || previous.showCopyButton !== this.data.showCopyButton) return false;
+    container.__figaroCodeBlockData = this.data;
+    return true;
   }
   /**
    * Render to DOM element
    */
   toDOM(view) {
-    const { code, language, showLineNumbers, showCopyButton, from, lineStarts } = this.data;
-    const widgetData = this.data;
+    const { code, language, showLineNumbers, showCopyButton } = this.data;
     const container = document.createElement("div");
+    container.__figaroCodeBlockData = this.data;
     container.className = "cm-codeblock-widget";
-    container.dataset.from = String(from);
-    container.dataset.to = String(this.data.to);
-    container.dataset.lineStarts = JSON.stringify(lineStarts);
     container.classList.add("cm-source-footprint", "cm-source-footprint--scroll");
     container.dataset.sourceFootprint = "code";
     container.dataset.sourceFootprintState = "overflow";
@@ -53121,8 +53169,12 @@ var CodeBlockWidget = class extends WidgetType {
         }
         event.stopPropagation();
         event.preventDefault();
+        const widgetData = container.__figaroCodeBlockData;
         const lineEl = target.closest(".cm-codeblock-line");
-        let targetPos = widgetData.from;
+        // Decorations may move without recreating the widget or its source payload.
+        const currentFrom = view.posAtDOM(container, 0);
+        const offset = currentFrom - widgetData.from;
+        let targetPos = currentFrom;
 //         // // console.log("[CodeBlock Widget] mousedown", {
 //           lineEl: !!lineEl,
 //           lineIndex: lineEl ? lineEl.dataset.lineIndex : null,
@@ -53137,11 +53189,11 @@ var CodeBlockWidget = class extends WidgetType {
             10
           );
           if (lineIndex === -1) {
-            targetPos = widgetData.from;
+            targetPos = currentFrom;
           } else if (lineIndex === -2) {
-            targetPos = widgetData.to;
+            targetPos = widgetData.to + offset;
           } else if (lineIndex >= 0 && lineIndex < widgetData.lineStarts.length) {
-            targetPos = widgetData.lineStarts[lineIndex];
+            targetPos = widgetData.lineStarts[lineIndex] + offset;
             const charOffset = this.measureClickOffset(
               lineEl,
               event.clientX,
@@ -53320,66 +53372,62 @@ function sourceRangeIsFolded(state, from, to) {
   });
   return found;
 }
-function buildCodeBlockDecorations(state, options) {
-  const decorations = [];
-  const isDrag = state.field(mouseSelectingField, false);
-  syntaxTree(state).iterate({
-    enter: (node) => {
-      if (node.name === "FencedCode") {
-        const codeInfo = node.node.getChild("CodeInfo");
-        let language = options.defaultLanguage;
-        if (codeInfo) {
-          language = state.doc.sliceString(codeInfo.from, codeInfo.to).trim();
-        }
-        const normalizedLanguage = language.split(/\s+/, 1)[0].toLowerCase();
-        const skipLanguages = options.skipLanguages || [];
-        if (SKIP_LANGUAGES.has(normalizedLanguage) || skipLanguages.some((item) => String(item).toLowerCase() === normalizedLanguage)) {
-          return;
-        }
-        const codeText = node.node.getChild("CodeText");
-        const code = codeText ? state.doc.sliceString(codeText.from, codeText.to) : "";
-        const codeFrom = codeText ? codeText.from : node.from;
-        const lineStarts = [];
-        if (codeText) {
-          const startPos = codeText.from;
-          lineStarts.push(startPos);
-          for (let i = 0; i < code.length; i++) {
-            if (code[i] === "\n") {
-              lineStarts.push(startPos + i + 1);
-            }
-          }
-        }
-        const isTouched = shouldShowSource(state, node.from, node.to);
-        const isFolded = sourceRangeIsFolded(state, node.from, node.to);
-        if (!isTouched && !isDrag && !isFolded) {
-          const widget = createCodeBlockWidget({
-            code,
-            language,
-            showLineNumbers: options.lineNumbers,
-            showCopyButton: options.copyButton,
-            from: node.from,
-            to: node.to,
-            codeFrom,
-            lineStarts,
-            sourceText: state.doc.sliceString(node.from, node.to),
-            sourceLines: state.doc.lineAt(node.to).number - state.doc.lineAt(node.from).number + 1
-          });
-          decorations.push(
-            Decoration.replace({ widget, block: true }).range(node.from, node.to)
-          );
-        } else {
-          for (let pos = node.from; pos <= node.to; ) {
-            const line = state.doc.lineAt(pos);
-            decorations.push(
-              Decoration.line({ class: "cm-codeblock-source" }).range(line.from)
-            );
-            pos = line.to + 1;
-          }
-        }
-      }
+function parseCodeBlockDescriptors(state, options) {
+  const blocks = [];
+  const skipped = new Set([...SKIP_LANGUAGES, ...(options.skipLanguages || []).map(language => String(language).toLowerCase())]);
+  let visited = 0;
+  syntaxTree(state).iterate({ enter(node) {
+    visited++;
+    if (node.name !== "FencedCode") return;
+    const codeInfo = node.node.getChild("CodeInfo");
+    let language = options.defaultLanguage;
+    if (codeInfo) {
+      countMarkdownWork(state, "source.slices.code");
+      language = state.doc.sliceString(codeInfo.from, codeInfo.to).trim();
     }
+    if (skipped.has(language.split(/\s+/, 1)[0].toLowerCase())) return false;
+    const codeText = node.node.getChild("CodeText");
+    const code = codeText ? state.doc.sliceString(codeText.from, codeText.to) : "";
+    const sourceText = state.doc.sliceString(node.from, node.to);
+    countMarkdownWork(state, "source.slices.code", codeText ? 2 : 1);
+    const codeFrom = codeText ? codeText.from : node.from;
+    const lineStarts = codeText ? [codeFrom] : [];
+    for (let index = 0; index < code.length; index++) {
+      if (code[index] === "\n") lineStarts.push(codeFrom + index + 1);
+    }
+    blocks.push({ from: node.from, to: node.to, code, language, codeFrom,
+      lineStarts, sourceText,
+      sourceLines: state.doc.lineAt(node.to).number - state.doc.lineAt(node.from).number + 1 });
+    return false;
+  } });
+  countMarkdownWork(state, "syntax.nodes.code", visited);
+  countMarkdownWork(state, "parse.code");
+  return { blocks, revealIndex: createSelectionRangeIndex(blocks) };
+}
+function codeBlockDecorations(state, options, block, visible) {
+  const sourceBlock = block.sourceIdentity || block;
+  if (!visible && !state.field(mouseSelectingField, false) && !sourceRangeIsFolded(state, block.from, block.to)) {
+    const widget = createCodeBlockWidget({ ...block,
+      showLineNumbers: options.lineNumbers, showCopyButton: options.copyButton });
+    return [Decoration.replace({ widget, block: true, sourceBlock }).range(block.from, block.to)];
+  }
+  const decorations = [];
+  for (let pos = block.from; pos <= block.to; ) {
+    const line = state.doc.lineAt(pos);
+    decorations.push(Decoration.line({ class: "cm-codeblock-source", sourceBlock }).range(line.from));
+    pos = line.to + 1;
+  }
+  return decorations;
+}
+function buildCodeBlockDecorations(state, options, parsed = parseCodeBlockDescriptors(state, options)) {
+  countMarkdownWork(state, "decorations.code");
+  const visibleIndices = new Set();
+  const decorations = parsed.blocks.flatMap((block, index) => {
+    const visible = Boolean(shouldShowSource(state, block.from, block.to));
+    if (visible) visibleIndices.add(index);
+    return codeBlockDecorations(state, options, block, visible);
   });
-  return Decoration.set(decorations.sort((a, b) => a.from - b.from), true);
+  return { ...parsed, visibleIndices, decorations: Decoration.set(decorations, true) };
 }
 function createCodeBlockClickHandler() {
   return EditorView.domEventHandlers({
@@ -53398,27 +53446,45 @@ function createCodeBlockClickHandler() {
 }
 function createCodeBlockField(options) {
   return StateField.define({
-    create(state) {
-      return buildCodeBlockDecorations(state, options);
-    },
-    update(deco, tr) {
-      if (tr.docChanged || tr.reconfigured || foldedRanges(tr.startState) !== foldedRanges(tr.state)) {
-        return buildCodeBlockDecorations(tr.state, options);
+    create: state => buildCodeBlockDecorations(state, options),
+    update(value, tr) {
+      let mapped = false;
+      if (tr.docChanged || tr.reconfigured || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
+        if (tr.reconfigured || !canMapMarkdownProseEdit(tr)) return buildCodeBlockDecorations(tr.state, options);
+        const blocks = mapMarkdownBlockDescriptors(value.blocks, position => tr.changes.mapPos(position));
+        const parsed = { blocks, revealIndex: blocks === value.blocks ? value.revealIndex : createSelectionRangeIndex(blocks) };
+        if (tr.effects.length || tr.state.field(mouseSelectingField, false) || tr.startState.field(mouseSelectingField, false)) {
+          return buildCodeBlockDecorations(tr.state, options, parsed);
+        }
+        value = { ...value, ...parsed, decorations: value.decorations.map(tr.changes) };
+        mapped = true;
       }
       const isDragging = tr.state.field(mouseSelectingField, false);
       const wasDragging = tr.startState.field(mouseSelectingField, false);
-      if (wasDragging && !isDragging) {
-        return buildCodeBlockDecorations(tr.state, options);
+      if (!mapped && ((wasDragging && !isDragging) || foldedRanges(tr.startState) !== foldedRanges(tr.state))) {
+        return buildCodeBlockDecorations(tr.state, options, value);
       }
-      if (isDragging) {
-        return deco;
+      if (isDragging || (!tr.selection && !mapped)) return value;
+      const plan = sourceRevealChanges(value,
+        [...tr.startState.selection.ranges.map(range => ({
+          from: tr.changes.mapPos(range.from, -1), to: tr.changes.mapPos(range.to, 1)
+        })), ...tr.state.selection.ranges],
+        block => shouldShowSource(tr.state, block.from, block.to));
+      countMarkdownWork(tr.state, "selection.rangeNodes.code", plan.visited);
+      countMarkdownWork(tr.state, "selection.visibilityChecks.code", plan.checks);
+      if (!plan.changes.length) return value;
+      let decorations = value.decorations;
+      for (const { block, visible } of plan.changes) {
+        countMarkdownWork(tr.state, "decorations.sourceBlocks.code");
+        decorations = decorations.update({
+          filterFrom: tr.state.doc.lineAt(block.from).from, filterTo: block.to,
+          filter: (_from, _to, decoration) => decoration.spec.sourceBlock !== (block.sourceIdentity || block),
+          add: codeBlockDecorations(tr.state, options, block, visible), sort: true
+        });
       }
-      if (tr.selection) {
-        return buildCodeBlockDecorations(tr.state, options);
-      }
-      return deco;
+      return { ...value, visibleIndices: plan.visibleIndices, decorations };
     },
-    provide: (f) => EditorView.decorations.from(f)
+    provide: field => EditorView.decorations.from(field, value => value.decorations)
   });
 }
 function codeBlockField(options) {
@@ -53838,6 +53904,8 @@ function selectionTouchesLinkDecorations(decorations, selection) {
 function buildLinkDecorations(view, options) {
   const decorations = [];
   const state = view.state;
+  let visited = 0;
+  countMarkdownWork(state, "decorations.links");
   const isDrag = state.field(mouseSelectingField, false);
   const skipRanges = [];
   const visibleRanges = visibleDocumentRanges(view);
@@ -53846,6 +53914,7 @@ function buildLinkDecorations(view, options) {
       from: range.from,
       to: range.to,
       enter: (node) => {
+        visited++;
         if (SKIP_PARENT_TYPES3.has(node.name)) {
           skipRanges.push({ from: node.from, to: node.to });
         }
@@ -53860,12 +53929,14 @@ function buildLinkDecorations(view, options) {
       from: range.from,
       to: range.to,
       enter: (node) => {
+        visited++;
         if (node.name === "Link") {
           if (isInSkipRange(node.from, node.to)) {
             return;
           }
           const from = node.from;
           const to = node.to;
+          countMarkdownWork(state, "source.slices.links");
           const text = state.doc.sliceString(from, to);
           const linkData = parseLinkSyntax(text);
           if (!linkData) {
@@ -53885,6 +53956,7 @@ function buildLinkDecorations(view, options) {
     });
   }
   for (const range of visibleRanges) {
+    countMarkdownWork(state, "source.slices.links");
     const text = state.doc.sliceString(range.from, range.to);
     let match;
     WIKI_LINK_REGEX.lastIndex = 0;
@@ -53912,6 +53984,7 @@ function buildLinkDecorations(view, options) {
       }
     }
   }
+  countMarkdownWork(state, "syntax.nodes.links", visited);
   return Decoration.set(decorations.sort((a, b) => a.from - b.from), true);
 }
 function linkPlugin(options) {
@@ -53922,7 +53995,9 @@ function linkPlugin(options) {
         this.decorations = buildLinkDecorations(view, mergedOptions);
       }
       update(update) {
-        if (update.docChanged || update.viewportChanged) {
+        if (update.docChanged || update.viewportChanged
+            || syntaxTree(update.startState) !== syntaxTree(update.state)
+            || update.transactions.some(transaction => transaction.reconfigured)) {
           this.decorations = buildLinkDecorations(update.view, mergedOptions);
           return;
         }
@@ -54372,6 +54447,4 @@ var editorTheme = EditorView.theme({
   ".hljs-name": { color: "#22863a" }
 });
 
-export { blockMathField, checkUpdateAction, clearImageCache, clearMathCache, codeBlockField, collapseOnSelectionFacet, editorTheme, highlightCode, imageField, initHighlighter, isHighlighterAvailable, isLanguageRegistered, linkPlugin, livePreviewPlugin, loadImage, markdownStylePlugin, mathPlugin, mouseSelectingField, preloadImages, registerLanguage, renderMath, resolveImagePath, setMouseSelecting, setTableSourceMode, shouldShowSource, tableEditorField, tableEditorPlugin, tableField };
-//# sourceMappingURL=index.js.map
-//# sourceMappingURL=index.js.map
+export { canMapMarkdownProseEdit, markdownWorkFacet, blockMathField, checkUpdateAction, clearImageCache, clearMathCache, codeBlockField, collapseOnSelectionFacet, editorTheme, highlightCode, imageField, initHighlighter, isHighlighterAvailable, isLanguageRegistered, linkPlugin, livePreviewPlugin, loadImage, markdownStylePlugin, mathPlugin, mouseSelectingField, preloadImages, registerLanguage, renderMath, resolveImagePath, setMouseSelecting, setTableSourceMode, shouldShowSource, tableEditorField, tableEditorPlugin, tableField };

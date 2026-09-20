@@ -16,9 +16,10 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
     const retry = node('button', 'ui-button ui-button--quiet', 'Retry analysis'); retry.type = 'button'; retry.addEventListener('click', onRetry);
     const list = node('div', 'writing-results-list');
     const more = node('button', 'ui-button ui-button--quiet'); more.type = 'button';
-    let limit = writingReviewPageSize, lastValue, owner;
+    let limit = writingReviewPageSize, lastValue, owner, invalidated = false;
     const positions = new Map();
     more.addEventListener('click', () => {
+        if (invalidated) return;
         const previous = limit;
         limit += writingReviewPageSize; signature = ''; api.update(lastValue);
         (list.children[previous]?.querySelector('button') || element).focus();
@@ -27,16 +28,26 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
     let signature = '', disclosure = new Set();
     function button(text, label, action, key) {
         const control = node('button', 'ui-button', text); control.type = 'button';
-        control.setAttribute('aria-label', label); control.dataset.focusKey = key; control.addEventListener('click', action); return control;
+        control.setAttribute('aria-label', label); control.dataset.focusKey = key;
+        control.addEventListener('click', event => { if (!invalidated) action(event); }); return control;
     }
     const api = {
         element,
-        // One property invalidates every old card without walking/rebuilding
-        // its controls during an editor input event.
-        invalidate() { element.inert = true; },
+        // Touch the bounded visible controls once per refresh, never per key.
+        invalidate() {
+            if (invalidated) return;
+            invalidated = true; more.disabled = true;
+            list.querySelectorAll('button').forEach(control => { control.disabled = true; });
+            element.setAttribute('aria-busy', 'true');
+            status.textContent = 'Refreshing suggestions. Previous results are shown until checks finish.';
+        },
         announce(text) { status.textContent = text; },
         update(value) {
-            element.inert = false;
+            if (value.stale) api.invalidate();
+            else {
+                if (invalidated) list.querySelectorAll('button').forEach(control => { control.disabled = false; });
+                invalidated = false; more.disabled = false; element.removeAttribute('aria-busy');
+            }
             lastValue = value;
             if (owner !== value.current?.id) { owner = value.current?.id; limit = writingReviewPageSize; positions.clear(); }
             const { current, groups = [], count = 0, states = {}, rejected = 0 } = value;
@@ -53,9 +64,13 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
             else if (!selected.some(lens => writingLensSupportsLanguage(lens, current.language))) message = 'Choose a supported lens to review suggestions.';
             if (failure) message = `Partial results. Some checks are unavailable. ${message}`;
             if (current?.decisionsFailed) message = 'Saved review decisions need refreshing. Retry them to resume analysis.';
+            if (value.stale && !current?.decisionsFailed) message = failure
+                ? 'Previous results are shown. Some checks could not refresh. Retry analysis.'
+                : 'Refreshing suggestions. Previous results are shown until checks finish.';
             status.textContent = message;
             status.classList.toggle('ui-notice', failure); status.classList.toggle('ui-notice--warning', failure);
             retry.hidden = !failure || Boolean(current?.decisionsFailed);
+            if (value.stale && signature) return;
             for (const control of list.querySelectorAll('[data-writing-bulk]')) control.disabled = busy;
             const nextSignature = JSON.stringify([current?.id, current?.revision, current?.configuration, value.resultVersion ?? groups]);
             if (nextSignature === signature) return;
@@ -98,7 +113,7 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
                         actions.setAttribute('aria-busy', 'true'); api.announce('Saving review decision…');
                         try { await action(); }
                         catch (error) { api.announce(error.message || 'Couldn’t save the review decision. Try again.'); status.classList.add('ui-notice', 'ui-notice--warning'); }
-                        finally { controls.forEach(control => { control.disabled = false; }); actions.removeAttribute('aria-busy'); }
+                        finally { controls.forEach(control => { control.disabled = invalidated; }); actions.removeAttribute('aria-busy'); }
                     }, key);
                     actions.append(remember('Ignore this occurrence', `Ignore ${finding.title}`, () => onDismiss(finding.id, value.analyzed), `${displayId}:dismiss`));
                     if (finding.kind === 'clarity.undefined-acronym' && onAcceptAcronym) {
@@ -125,6 +140,7 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
                 (same || rows[Math.min(Math.max(rowIndex, 0), rows.length - 1)]?.querySelector('button') || element).focus({ preventScroll: true });
             }
             disclosure = new Set([...disclosure].filter(id => groups.some(group => group.findings.some(item => (item.displayId || item.id) === id))));
+            if (value.stale) list.querySelectorAll('button').forEach(control => { control.disabled = true; });
         },
     };
     return api;

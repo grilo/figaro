@@ -14,6 +14,8 @@ Markdown** icon opens the exact source preview. The file-tree context menu
 deliberately prioritizes file operations.
 PDF shares the current pane width with Outline, Raw Markdown, and Writing
 lenses. All launchers remain visible and the selected one is highlighted.
+Clicking the PDF or Raw launcher while typing keeps focus in the editor;
+click inside the preview to interact with it.
 Returning to a note restores its previously open pane for this session.
 The status bar’s document metrics remain beneath the editor and follow the
 preview pane edge when resized; this shell layout does not alter printed output.

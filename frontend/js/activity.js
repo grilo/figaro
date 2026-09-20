@@ -1,3 +1,4 @@
+import { subscribeEditorUpdates } from './editorUpdates.js';
 import { backend } from './backend.js';
 import { getState } from './state.js';
 import { getEditorDocumentTabId, getEditorView } from './editor.js';
@@ -119,9 +120,9 @@ export function initActivity() {
     } });
     registerRightPaneMode('activity', closePane, () => openPane(undefined));
     for (const type of ['active-tab-changed', 'tab-switched']) document.addEventListener(type, selectOwnedNote);
-    document.addEventListener('editor-view-updated', event => {
+    subscribeEditorUpdates('activity', detail => {
         selectOwnedNote();
-        if (event.detail?.docChanged && selectedKey) { remapScope(event.detail.writingChanges); controller.changed(); }
+        if (detail.docChanged && selectedKey) { remapScope(detail.writingChanges); controller.changed(); }
     });
     for (const type of ['vault-history-changed', 'vault-file-saved', 'vault-filesystem-changed']) document.addEventListener(type, event => {
         if (!event.detail?.path || event.detail.path === ownedNote()?.path) { selectOwnedNote(); if (selectedKey) controller.refresh(); }

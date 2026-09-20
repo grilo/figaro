@@ -16,8 +16,14 @@ const mockState = {
     _restoredActiveTabId: null
 };
 
-jest.mock('../frontend/js/state.js', () => ({
+jest.mock('../frontend/js/state.js', () => {
+    const { createWorkspaceCursorStore } = jest.requireActual('../../../frontend/js/core/workspaceCursorModel.js');
+    const cursors = createWorkspaceCursorStore();
+    return ({
     get state() { return mockState; },
+    getTabIndex: jest.fn(id => mockState.openTabs.findIndex(tab => tab.id === id)),
+    getTabCursorState: jest.fn(id => { cursors.reconcile(mockState.openTabs); return cursors.read(id); }),
+    setTabCursorState: jest.fn((id, selection) => { cursors.reconcile(mockState.openTabs); return Boolean(cursors.update(id, selection)); }),
     setState: jest.fn((key, value) => { mockState[key] = value; }),
     getState: jest.fn((key) => mockState[key]),
     subscribe: jest.fn(),
@@ -26,7 +32,7 @@ jest.mock('../frontend/js/state.js', () => ({
     }),
     initState: jest.fn(),
     persistState: jest.fn()
-}));
+}); });
 
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn().mockReturnValue({ isDestroyed: false }),
@@ -39,6 +45,7 @@ jest.mock('../frontend/js/editor.js', () => ({
     createEditorView: jest.fn(),
     configureEditorForFile: jest.fn().mockResolvedValue(true),
     setImageBasePath: jest.fn(),
+    transferEditorHistory: jest.fn(),
 }));
 
 jest.mock('../frontend/js/statusBar.js', () => ({
@@ -87,7 +94,7 @@ jest.mock('../frontend/js/drawio.js', () => ({
     renderDrawioTab: jest.fn().mockResolvedValue(),
 }));
 
-import { state, setState, getState, subscribe } from '../frontend/js/state.js';
+import { state, setState, getState, subscribe, getTabCursorState } from '../frontend/js/state.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState } from '../frontend/js/editor.js';
 import { initSettingsPanel } from '../frontend/js/theme.js';
 import { createGraphView } from '../frontend/js/graphView.js';
@@ -149,6 +156,7 @@ describe('Tab Manager', () => {
         
         // Reset state
         mockState.openTabs = [];
+        getTabCursorState('__reset__');
         mockState.activeTabId = null;
         mockState.pinnedTabs = [];
         mockState.recentFiles = [];
@@ -957,7 +965,7 @@ describe('Tab Manager', () => {
             saveCursorState.mockReturnValue(cursorState);
 
             openTab('settings', 'Settings', 'settings');
-            expect(getState('openTabs').find(tab => tab.id === 'note-1').cursorState).toEqual(cursorState);
+            expect(getTabCursorState('note-1')).toEqual(cursorState);
 
             await closeTab('settings');
             await testUtils.waitFor(0);
@@ -1569,7 +1577,7 @@ describe('Tab Manager', () => {
     describe('renderTabBar', () => {
         test('text and caret publications preserve tab nodes and avoid overflow reads after the dirty transition', () => {
             initTabManager();
-            const publish = subscribe.mock.calls.find(([key]) => key === 'openTabs')[1];
+            const publish = subscribe.mock.calls.find(([key]) => key === 'tabPresentation')[1];
             mockState.openTabs = [{ id: 'a', type: 'file', title: 'A', path: 'A.md', dirty: false }];
             mockState.activeTabId = 'a';
             publish();
@@ -1594,7 +1602,8 @@ describe('Tab Manager', () => {
             expect(document.querySelector('#tab-strip .tab')).toBe(dirty);
             expect(document.activeElement).toBe(dirty);
             expect(layout).not.toHaveBeenCalled();
-            expect(getActiveTab()).toMatchObject({ _content: 'text 10', cursorState: { anchor: 10, head: 10 } });
+            expect(getActiveTab()).toMatchObject({ _content: 'text 10' });
+            expect(getTabCursorState('a')).toEqual({ anchor: 10, head: 10 });
             mockState.openTabs = [{ ...getActiveTab(), dirty: false }];
             publish();
             expect(document.querySelector('#tab-strip .tab').classList.contains('dirty')).toBe(false);

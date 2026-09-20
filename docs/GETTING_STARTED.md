@@ -80,6 +80,9 @@ editable. Writing engines and vault indexing can continue preparing in the
 background. Every editor save writes to disk first, then attempts Git history,
 then updates task metadata and the index. A slow history operation does not
 hold up the next disk write; a follow-up failure leaves saved text intact.
+History records its captured text while newer edits remain saved and eligible
+for a later revision. Workspace-session saves keep the newest waiting tab and
+cursor snapshot when storage is slow.
 Local Git history records versions according to
 your Auto-Commit setting; **Save to history** records the active file when it has
 changes to save. It does not include unrelated staged files. Undo and Redo belong

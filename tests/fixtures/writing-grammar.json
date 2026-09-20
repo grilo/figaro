@@ -1,0 +1,5623 @@
+[
+  {
+    "rule": "Harper.BetterOffWith",
+    "source": "We are better of with this plan.",
+    "actual": "better of with",
+    "replacements": [
+      "better off with"
+    ],
+    "valid": [
+      "We are better off with this plan.",
+      "Which plan are we better off with?"
+    ]
+  },
+  {
+    "rule": "Harper.SimplePastToPastParticiple",
+    "source": "I have went to the store.",
+    "actual": "went",
+    "replacements": [
+      "gone"
+    ],
+    "valid": [
+      "I have gone to the store.",
+      "I went to the store.",
+      "I am broke.",
+      "I have saw blades.",
+      "We have rose bushes.",
+      "He is a bore.",
+      "I have Ran on my team."
+    ]
+  },
+  {
+    "rule": "Harper.SupposedTo",
+    "source": "We are suppose to go.",
+    "actual": "suppose to",
+    "replacements": [
+      "supposed to"
+    ],
+    "valid": [
+      "We are supposed to go.",
+      "I suppose we should go.",
+      "What do you suppose to be true?",
+      "Whom do you suppose to be here?"
+    ]
+  },
+  {
+    "rule": "Harper.TheMy",
+    "source": "My the car is outside.",
+    "actual": "My the",
+    "replacements": [],
+    "valid": [
+      "Give her the book.",
+      "My The Frame TV is here.",
+      "My car is outside."
+    ]
+  },
+  {
+    "rule": "Harper.TheMy2",
+    "source": "The my car is outside.",
+    "actual": "The my",
+    "replacements": [],
+    "valid": [
+      "The My Projects page is open.",
+      "The car is outside."
+    ]
+  },
+  {
+    "rule": "Harper.DespiteOf",
+    "source": "Despite of the rain, we left.",
+    "actual": "Despite of",
+    "replacements": [],
+    "valid": [
+      "Despite the rain, we left.",
+      "In spite of the rain, we left."
+    ]
+  },
+  {
+    "rule": "Harper.IsBeenAuxSequence",
+    "source": "The work is been completed.",
+    "actual": "is been",
+    "replacements": [
+      "has been"
+    ],
+    "valid": [
+      "The work has been completed.",
+      "He is being helpful."
+    ]
+  },
+  {
+    "rule": "Harper.AnAnother",
+    "source": "I need an another pen.",
+    "actual": "an another",
+    "replacements": [
+      "another"
+    ],
+    "valid": [
+      "I need another pen.",
+      "I need an orange pen."
+    ]
+  },
+  {
+    "rule": "Harper.AnotherAn",
+    "source": "I need another an example.",
+    "actual": "another an",
+    "replacements": [
+      "another"
+    ],
+    "valid": [
+      "I need another example.",
+      "Another answer would help."
+    ]
+  },
+  {
+    "rule": "Harper.TheAnother",
+    "source": "Try the another option.",
+    "actual": "the another",
+    "replacements": [
+      "the other",
+      "another"
+    ],
+    "valid": [
+      "Try the other option.",
+      "Try another option."
+    ]
+  },
+  {
+    "rule": "Harper.SomeOfThe",
+    "source": "Some the notes are ready.",
+    "actual": "Some the",
+    "replacements": [
+      "Some of the"
+    ],
+    "valid": [
+      "Some of the notes are ready.",
+      "Some notes are ready."
+    ]
+  },
+  {
+    "rule": "Harper.EachOthersPossessive",
+    "source": "We read each others notes.",
+    "actual": "each others",
+    "replacements": [
+      "each other's"
+    ],
+    "valid": [
+      "We read each other's notes.",
+      "We read each others' notes."
+    ]
+  },
+  {
+    "rule": "Harper.SomebodyElses",
+    "source": "That is somebody's else book.",
+    "actual": "somebody's else",
+    "replacements": [
+      "somebody else's"
+    ],
+    "valid": [
+      "That is somebody else's book."
+    ]
+  },
+  {
+    "rule": "Harper.ForTheNthTime",
+    "source": "It happened for second time.",
+    "actual": "for second time",
+    "replacements": [],
+    "valid": [
+      "It happened for the second time.",
+      "Leave room for second time derivatives."
+    ]
+  },
+  {
+    "rule": "Harper.WillNonLemma",
+    "source": "They will goes home.",
+    "actual": "goes",
+    "replacements": [],
+    "valid": [
+      "They will go home.",
+      "His will stipulates this.",
+      "The will was read.",
+      "Free will remains a difficult question.",
+      "Will goes to school.",
+      "Will owns a shop.",
+      "Will has a pen."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.PronounVerbAgreement",
+    "source": "She go to school every day.",
+    "actual": "go",
+    "replacements": [
+      "goes"
+    ],
+    "valid": [
+      "She goes to school every day.",
+      "Does she go to school?",
+      "I insist that she go to school.",
+      "He and she go to school.",
+      "She read the report yesterday.",
+      "She can go to school.",
+      "They work together.",
+      "He found they were missing.",
+      "She lay on the grass.",
+      "He rose early.",
+      "He felt it was cold.",
+      "He kept the book.",
+      "She left the room.",
+      "She bought a book.",
+      "He spent the day here."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.IAmAgreement",
+    "source": "I are ready.",
+    "actual": "are",
+    "replacements": [
+      "am"
+    ],
+    "valid": [
+      "I am ready.",
+      "John and I are ready.",
+      "He and I are ready.",
+      "The letters I and J are here."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.PronounInflectionBe",
+    "source": "They is ready.",
+    "actual": "is",
+    "replacements": [
+      "are"
+    ],
+    "valid": [
+      "They are ready.",
+      "What they are doing is useful.",
+      "If he were here, we could leave.",
+      "She is ready."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InflectedVerbAfterTo",
+    "source": "I want to goes home.",
+    "actual": "goes",
+    "replacements": [
+      "go"
+    ],
+    "valid": [
+      "I want to go home.",
+      "I am used to working late.",
+      "I look forward to swimming.",
+      "The key to growing plants is water.",
+      "We are committed to helping people."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ModalOf",
+    "source": "We could of gone home.",
+    "actual": "of",
+    "replacements": [
+      "have"
+    ],
+    "valid": [
+      "We could have gone home.",
+      "We could, of course, go home.",
+      "I bought a can of beans.",
+      "The will of the people matters."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.MissingTo",
+    "source": "I want go home.",
+    "actual": "go",
+    "replacements": [
+      "to go"
+    ],
+    "valid": [
+      "I want to go home.",
+      "I want help.",
+      "I need work.",
+      "I want sleep.",
+      "I want Go lessons.",
+      "I need running shoes."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.DidPast",
+    "source": "Did she went home?",
+    "actual": "went",
+    "replacements": [
+      "go"
+    ],
+    "valid": [
+      "Did she go home?",
+      "I did read it.",
+      "She did saw wood.",
+      "We did cut the paper.",
+      "Did they work yesterday?",
+      "I did the work.",
+      "She had gone home.",
+      "I did not know."
+    ],
+    "additional": [
+      {
+        "source": "I did not understood the problem.",
+        "actual": "understood",
+        "replacements": [
+          "understand"
+        ]
+      },
+      {
+        "source": "Did they forked the repository?",
+        "actual": "forked",
+        "replacements": [
+          "fork"
+        ]
+      },
+      {
+        "source": "They did tried again.",
+        "actual": "tried",
+        "replacements": [
+          "try"
+        ]
+      },
+      {
+        "source": "It did logged the error.",
+        "actual": "logged",
+        "replacements": [
+          "log"
+        ]
+      },
+      {
+        "source": "I DID WENT HOME.",
+        "actual": "WENT",
+        "replacements": [
+          "GO"
+        ]
+      },
+      {
+        "source": "Did\r\nshe went home?",
+        "actual": "went",
+        "replacements": [
+          "go"
+        ]
+      },
+      {
+        "source": "I didn’t heard the bell.",
+        "actual": "heard",
+        "replacements": [
+          "hear"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.DoubleModal",
+    "source": "We will can finish.",
+    "actual": "will can",
+    "replacements": [],
+    "valid": [
+      "We will be able to finish.",
+      "She might could help.",
+      "It may have worked.",
+      "I can will myself to continue.",
+      "The will can be read later.",
+      "Can Will finish?",
+      "He may can join us, and you might could too."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.ModalBeAdjective",
+    "source": "We should happy with the result.",
+    "actual": "happy",
+    "replacements": [
+      "be happy"
+    ],
+    "valid": [
+      "We should be happy with the result.",
+      "We should ready the boat.",
+      "She can clear the table.",
+      "We may well leave.",
+      "They will free the hostages.",
+      "The result should work.",
+      "You could kind of see the result."
+    ],
+    "additional": [
+      {
+        "source": "They must ready.",
+        "actual": "ready",
+        "replacements": [
+          "be ready"
+        ]
+      },
+      {
+        "source": "You will able to help.",
+        "actual": "able",
+        "replacements": [
+          "be able"
+        ]
+      },
+      {
+        "source": "We could late.",
+        "actual": "late",
+        "replacements": [
+          "be late"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.OughtToBe",
+    "source": "He out to be here.",
+    "actual": "out",
+    "replacements": [
+      "ought"
+    ],
+    "valid": [
+      "He ought to be here.",
+      "It turned out to be useful.",
+      "We set out to be helpful.",
+      "I am out to be noticed.",
+      "They made him out to be a hero.",
+      "She helped him out to be kind."
+    ],
+    "additional": [
+      {
+        "source": "This is as it out to be.",
+        "actual": "out",
+        "replacements": [
+          "ought"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.LetToDo",
+    "source": "Please let him to go.",
+    "actual": "to go",
+    "replacements": [
+      "go"
+    ],
+    "valid": [
+      "Please let him go.",
+      "She lets us work here.",
+      "They let the flat to students.",
+      "I let it dry.",
+      "The flat is to let."
+    ],
+    "additional": [
+      {
+        "source": "She lets us to work here.",
+        "actual": "to work",
+        "replacements": [
+          "work"
+        ]
+      },
+      {
+        "source": "Please let them to\nleave.",
+        "actual": "to",
+        "replacements": []
+      },
+      {
+        "source": "Please let him to   go.",
+        "actual": "to   go",
+        "replacements": [
+          "go"
+        ]
+      },
+      {
+        "source": "We let anyone to help.",
+        "actual": "to help",
+        "replacements": [
+          "help"
+        ]
+      },
+      {
+        "source": "I let it to only load the file.",
+        "actual": "to only load",
+        "replacements": [
+          "only load"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ThereIsAgreement",
+    "source": "There is two problems.",
+    "actual": "is",
+    "replacements": [
+      "are"
+    ],
+    "valid": [
+      "There are two problems.",
+      "There is a problem.",
+      "There is a lot of work.",
+      "There is a cat and a dog.",
+      "If there were a chance, I would go.",
+      "Were there a chance, I would go.",
+      "There is no time.",
+      "There is some water.",
+      "There is two plus two.",
+      "There is a series of events.",
+      "There are sheep outside.",
+      "There is ten dollars on the table.",
+      "There lies the problem.",
+      "If there were a problem, I would fix it.",
+      "There is fish available.",
+      "There is a series of events."
+    ],
+    "additional": [
+      {
+        "source": "There are a problem.",
+        "actual": "are",
+        "replacements": [
+          "is"
+        ]
+      },
+      {
+        "source": "Is there two problems?",
+        "actual": "Is",
+        "replacements": [
+          "Are"
+        ]
+      },
+      {
+        "source": "Are there a problem?",
+        "actual": "Are",
+        "replacements": [
+          "Is"
+        ]
+      },
+      {
+        "source": "There was three errors.",
+        "actual": "was",
+        "replacements": [
+          "were"
+        ]
+      },
+      {
+        "source": "There’s two books.",
+        "actual": "There’s",
+        "replacements": [
+          "There are"
+        ]
+      },
+      {
+        "source": "There is 12 problems.",
+        "actual": "is",
+        "replacements": [
+          "are"
+        ]
+      },
+      {
+        "source": "There is people working.",
+        "actual": "is",
+        "replacements": [
+          "are"
+        ]
+      },
+      {
+        "source": "If there is packages available, use them.",
+        "actual": "is",
+        "replacements": [
+          "are"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.OneOfTheSingular",
+    "source": "This is one of the problem.",
+    "actual": "problem",
+    "replacements": [
+      "problems"
+    ],
+    "valid": [
+      "This is one of the problems.",
+      "He is one of the team.",
+      "She is one of the best.",
+      "It is one of the species.",
+      "I saw one of the sheep.",
+      "One of the staff can help.",
+      "This is one of the car parks.",
+      "This is one of the big red rubber balls.",
+      "It is one of the process main threads."
+    ],
+    "additional": [
+      {
+        "source": "He is one of the child.",
+        "actual": "child",
+        "replacements": [
+          "children"
+        ]
+      },
+      {
+        "source": "This is one of the best book.",
+        "actual": "book",
+        "replacements": [
+          "books"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.MassNouns",
+    "source": "I asked for an advice.",
+    "actual": "an advice",
+    "replacements": [
+      "a piece of advice"
+    ],
+    "valid": [
+      "I asked for advice.",
+      "This advice is helpful.",
+      "That information is correct.",
+      "We ordered two coffees.",
+      "The chef bought three breads.",
+      "The judge reviewed the researches.",
+      "They gave us pieces of equipment.",
+      "My clothing is ready.",
+      "A fun and fantastic trip awaits.",
+      "I need software.",
+      "Create each Furniture class instance.",
+      "A clothing shop opened downtown.",
+      "Additionally, less traffic leads to fewer traffic jams, resulting in a more fluent, thus more efficient, trip.",
+      "Every software component needs testing.",
+      "We use a software router.",
+      "Several information systems were installed.",
+      "The company has an infrastructure.",
+      "They discussed source codes.",
+      "They sold several real estates.",
+      "A software rendered game was released.",
+      "An information based system was tested."
+    ],
+    "additional": [
+      {
+        "source": "I received two advices.",
+        "actual": "advices",
+        "replacements": [
+          "pieces of advice"
+        ]
+      },
+      {
+        "source": "We need three equipment.",
+        "actual": "equipment",
+        "replacements": [
+          "pieces of equipment"
+        ]
+      },
+      {
+        "source": "I packed a clothing.",
+        "actual": "a clothing",
+        "replacements": [
+          "an item of clothing"
+        ]
+      },
+      {
+        "source": "They provided useful informations.",
+        "actual": "informations",
+        "replacements": [
+          "pieces of information"
+        ]
+      },
+      {
+        "source": "You gave me bad advices.",
+        "actual": "advices",
+        "replacements": [
+          "pieces of advice"
+        ]
+      },
+      {
+        "source": "We maintain these softwares.",
+        "actual": "softwares",
+        "replacements": [
+          "pieces of software"
+        ]
+      },
+      {
+        "source": "We need a software for analysis.",
+        "actual": "a software",
+        "replacements": [
+          "a piece of software"
+        ]
+      },
+      {
+        "source": "They use another software for editing.",
+        "actual": "another software",
+        "replacements": [
+          "another piece of software"
+        ]
+      },
+      {
+        "source": "Check every info about the device.",
+        "actual": "every info",
+        "replacements": [
+          "every piece of info"
+        ]
+      },
+      {
+        "source": "The tool prints several info in files.",
+        "actual": "info",
+        "replacements": [
+          "pieces of info"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CriteriaPhenomena",
+    "source": "This criteria matters.",
+    "actual": "criteria",
+    "replacements": [
+      "criterion"
+    ],
+    "valid": [
+      "This criterion matters.",
+      "These criteria matter.",
+      "The criteria are clear.",
+      "A phenomenon occurred.",
+      "Several phenomena occurred.",
+      "One of the criteria is clear."
+    ],
+    "additional": [
+      {
+        "source": "These criterion matter.",
+        "actual": "criterion",
+        "replacements": [
+          "criteria"
+        ]
+      },
+      {
+        "source": "One phenomena occurred.",
+        "actual": "phenomena",
+        "replacements": [
+          "phenomenon"
+        ]
+      },
+      {
+        "source": "Two phenomenon occurred.",
+        "actual": "phenomenon",
+        "replacements": [
+          "phenomena"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ItsPossessive",
+    "source": "The dog wagged it's tail.",
+    "actual": "it's",
+    "replacements": [
+      "its"
+    ],
+    "valid": [
+      "It's raining today.",
+      "It's a dog.",
+      "They doubt it's Tesla this year.",
+      "I know it's water.",
+      "I think it's time to go.",
+      "It's dinner.",
+      "It's running smoothly.",
+      "I like its running style.",
+      "It's many times harder to do this.",
+      "It's my 100th attempt.",
+      "It's 100th on the list.",
+      "It's called recursion.",
+      "It's named Manhattan.",
+      "The device reached its 100th cycle."
+    ],
+    "additional": [
+      {
+        "source": "We checked it’s location.",
+        "actual": "it’s",
+        "replacements": [
+          "its"
+        ]
+      },
+      {
+        "source": "It's cover is red.",
+        "actual": "It's",
+        "replacements": [
+          "Its"
+        ]
+      },
+      {
+        "source": "The device reached it's 100th cycle.",
+        "actual": "it's",
+        "replacements": [
+          "its"
+        ]
+      },
+      {
+        "source": "The company celebrated it's 50th anniversary.",
+        "actual": "it's",
+        "replacements": [
+          "its"
+        ]
+      },
+      {
+        "source": "The report saved it's 9th revision.",
+        "actual": "it's",
+        "replacements": [
+          "its"
+        ]
+      },
+      {
+        "source": "It's house is blue.",
+        "actual": "It's",
+        "replacements": [
+          "Its"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ItsContraction",
+    "source": "Its raining today.",
+    "actual": "Its",
+    "replacements": [
+      "It's"
+    ],
+    "valid": [
+      "Its running costs are low.",
+      "Its ready-to-use design is helpful.",
+      "Its red cover is attractive.",
+      "I like its being blue.",
+      "Its time has come.",
+      "Its happy owner waved.",
+      "Its ready, smiling owner waved.",
+      "Its Google integration is ready.",
+      "Its New York office is open.",
+      "We reviewed its Google integration.",
+      "Its called functions are cached.",
+      "Its named options include logging.",
+      "Its only available room is upstairs.",
+      "Its March report is ready.",
+      "Its running costs are high.",
+      "Its planning committee meets today.",
+      "Its answering service works well.",
+      "Its own story is interesting.",
+      "Its ￼ Katie.",
+      "Its\n\nKatie.",
+      "Its raining today surprised us.",
+      "Its going to be late was unexpected.",
+      "Its going to be served surprised us.",
+      "Its going to have been served worried us.",
+      "Its not going to be served today was unexpected.",
+      "Its going to not be served surprised us.",
+      "Its going to be carefully watched worried us.",
+      "Its going to be late worried us.",
+      "Its going to be ready surprised us.",
+      "Its going to have already been served surprised us."
+    ],
+    "additional": [
+      {
+        "source": "Its a good day.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its going to rain.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "We’re here because its raining.",
+        "actual": "its",
+        "replacements": [
+          "it’s"
+        ]
+      },
+      {
+        "source": "I hope its Katie.",
+        "actual": "its",
+        "replacements": [
+          "it's"
+        ]
+      },
+      {
+        "source": "We assume its Google.",
+        "actual": "its",
+        "replacements": [
+          "it's"
+        ]
+      },
+      {
+        "source": "She thinks its New York.",
+        "actual": "its",
+        "replacements": [
+          "it's"
+        ]
+      },
+      {
+        "source": "Its my favorite song.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its called recursion.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its named Manhattan.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its something worth keeping.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its in the kitchen.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its going to be late.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its going to be served.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its going to have been served.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its not going to be served today.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its going to not be served.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its going to be carefully watched.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ThereToTheir",
+    "source": "There dog is friendly.",
+    "actual": "There",
+    "replacements": [
+      "Their"
+    ],
+    "valid": [
+      "There lies the problem.",
+      "There are people outside.",
+      "We work there every day.",
+      "There goes the bus.",
+      "We left it there.",
+      "There stood a statue.",
+      "There could be a better approach.",
+      "There will be more questions."
+    ],
+    "additional": [
+      {
+        "source": "Please bring there notes.",
+        "actual": "there",
+        "replacements": [
+          "their"
+        ]
+      },
+      {
+        "source": "There work is excellent.",
+        "actual": "There",
+        "replacements": [
+          "Their"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TheirToThere",
+    "source": "Their is a problem.",
+    "actual": "Their",
+    "replacements": [
+      "There"
+    ],
+    "valid": [
+      "Their problem is clear.",
+      "Their work is excellent.",
+      "Their happy children waved.",
+      "They left their coats.",
+      "I put their books on the shelf.",
+      "Their warning was clear.",
+      "Their changes are ready.",
+      "Their meeting after work was useful.",
+      "We should meet their friends after work.",
+      "We wait their turn.",
+      "Their time has come.",
+      "Their being late surprised us.",
+      "Their going away was unexpected.",
+      "Their having been delayed changed the plan.",
+      "Their will should be respected.",
+      "Their is. A warning follows.",
+      "Their should be. A warning follows.",
+      "Their are\n\nchanges."
+    ],
+    "additional": [
+      {
+        "source": "I left it their.",
+        "actual": "their",
+        "replacements": [
+          "there"
+        ]
+      },
+      {
+        "source": "It is over their.",
+        "actual": "their",
+        "replacements": [
+          "there"
+        ]
+      },
+      {
+        "source": "Their are two books.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "Their aren't any tickets left.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "Their could be a better approach.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "Their should be a warning.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "Their has been a change.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "Their have been delays.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "Their isn't any time left.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "Their may be changes later.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "Their were fingerprints on the glass.",
+        "actual": "Their",
+        "replacements": [
+          "There"
+        ]
+      },
+      {
+        "source": "We should meet their after work.",
+        "actual": "their",
+        "replacements": [
+          "there"
+        ]
+      },
+      {
+        "source": "I've never been their, but I want to visit.",
+        "actual": "their",
+        "replacements": [
+          "there"
+        ]
+      },
+      {
+        "source": "I left my keys over their on the table.",
+        "actual": "their",
+        "replacements": [
+          "there"
+        ]
+      },
+      {
+        "source": "The answer is right their in the first paragraph.",
+        "actual": "their",
+        "replacements": [
+          "there"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TheirToTheyre",
+    "source": "Their waiting outside.",
+    "actual": "Their",
+    "replacements": [
+      "They're"
+    ],
+    "valid": [
+      "Their waiting room is crowded.",
+      "Their working conditions improved.",
+      "Their happy children waved.",
+      "Their right to vote matters.",
+      "Their time has come.",
+      "Tell them their invitation is ready.",
+      "I saw their running through the park.",
+      "I heard their moving to Denver was difficult.",
+      "Their planning a surprise party pleased us.",
+      "Their not answering any messages concerned me.",
+      "Their available rooms are upstairs.",
+      "Their cold, empty house was silent.",
+      "Their on the job training was useful.",
+      "Their two options remain open.",
+      "Their ￼ planning a party.",
+      "Their in the moment decision was useful.",
+      "Their not answering immediately worried us.",
+      "Their going to be late was unexpected.",
+      "Their going to be served surprised us.",
+      "Their going to have been served worried us.",
+      "Their not going to be served today was unexpected.",
+      "Their going to not be served surprised us.",
+      "Their going to be carefully watched worried us.",
+      "Their going to be late worried us.",
+      "Their going to be ready surprised us.",
+      "Their going to have already been served surprised us."
+    ],
+    "additional": [
+      {
+        "source": "Their ready.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their going to help.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Tell them their invited to the meeting.",
+        "actual": "their",
+        "replacements": [
+          "they're"
+        ]
+      },
+      {
+        "source": "Their planning a surprise party.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their not answering any messages.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their in the kitchen.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their on the way to the station.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their not available until Tuesday.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their the ones who approved it.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their far too cold for that.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their going to be late.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their going to be served.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their going to have been served.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their not going to be served today.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their going to not be served.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      },
+      {
+        "source": "Their going to be carefully watched.",
+        "actual": "Their",
+        "replacements": [
+          "They're"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TheyreToTheir",
+    "source": "Please bring they're coats.",
+    "actual": "they're",
+    "replacements": [
+      "their"
+    ],
+    "valid": [
+      "They're doctors.",
+      "They're good teachers.",
+      "They're working today.",
+      "They're the winners.",
+      "I know they're teachers.",
+      "They're leaving in five minutes.",
+      "They're not allowed to park here.",
+      "They're all over crumbs.",
+      "They're our closest friends.",
+      "They're leaving soon.",
+      "They're own goals for the other side."
+    ],
+    "additional": [
+      {
+        "source": "They’re car is outside.",
+        "actual": "They’re",
+        "replacements": [
+          "Their"
+        ]
+      },
+      {
+        "source": "I think they're house is blue.",
+        "actual": "they're",
+        "replacements": [
+          "their"
+        ]
+      },
+      {
+        "source": "We fought against they're own rules.",
+        "actual": "they're",
+        "replacements": [
+          "their"
+        ]
+      },
+      {
+        "source": "Each player places they're pawn on the board.",
+        "actual": "they're",
+        "replacements": [
+          "their"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.PossessiveYour",
+    "source": "You're book is ready.",
+    "actual": "You're",
+    "replacements": [
+      "Your"
+    ],
+    "valid": [
+      "You're welcome.",
+      "You're king now.",
+      "You're a teacher.",
+      "You're right about that.",
+      "I know you're tired.",
+      "You people are welcome.",
+      "You guys can help.",
+      "You children are welcome.",
+      "You might be ready.",
+      "You could be helpful.",
+      "You will be welcome.",
+      "You can be there.",
+      "It will follow you everywhere.",
+      "I will follow you anywhere.",
+      "You programmers are welcome.",
+      "You readers may disagree."
+    ],
+    "additional": [
+      {
+        "source": "Please bring you're notes.",
+        "actual": "you're",
+        "replacements": [
+          "your"
+        ]
+      },
+      {
+        "source": "You comments may appear here.",
+        "actual": "You",
+        "replacements": [
+          "Your"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.YourPredicateAdjective",
+    "source": "Your welcome.",
+    "actual": "Your",
+    "replacements": [
+      "You're"
+    ],
+    "valid": [
+      "Your welcome was warm.",
+      "Your right to vote matters.",
+      "Your happy children waved.",
+      "Your kind is welcome.",
+      "Your ready-made meal is here.",
+      "Try your best.",
+      "Your committed team is ready.",
+      "Your planning a surprise party pleased us.",
+      "Your awake, smiling baby looked happy.",
+      "Your own goals are clear.",
+      "Your US passport is ready.",
+      "Your IT team can help.",
+      "Your running today surprised us.",
+      "Your running in the park is fun.",
+      "Your going to be late was unexpected.",
+      "Your going to be served surprised us.",
+      "Your going to have been served worried us.",
+      "Your not going to be served today was unexpected.",
+      "Your going to not be served surprised us.",
+      "Your going to be carefully watched worried us.",
+      "Your going to be late worried us.",
+      "Your going to be ready surprised us.",
+      "Your going to have already been served surprised us."
+    ],
+    "additional": [
+      {
+        "source": "Your right about that.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your ready.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "You’re here and your welcome to stay.",
+        "actual": "your",
+        "replacements": [
+          "you’re"
+        ]
+      },
+      {
+        "source": "Your totally committed.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your barely awake.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your not available until Tuesday.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your in the kitchen.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your planning a surprise party.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your going to be late.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your going to be served.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your going to have been served.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your not going to be served today.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your going to not be served.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      },
+      {
+        "source": "Your going to be carefully watched.",
+        "actual": "Your",
+        "replacements": [
+          "You're"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ThenThan",
+    "source": "This is better then the old plan.",
+    "actual": "then",
+    "replacements": [
+      "than"
+    ],
+    "valid": [
+      "I felt better then.",
+      "We were younger then.",
+      "We had more then, before the crash.",
+      "This is better than the old plan.",
+      "First eat, then rest.",
+      "I would rather stay than leave."
+    ],
+    "additional": [
+      {
+        "source": "She is older then me.",
+        "actual": "then",
+        "replacements": [
+          "than"
+        ]
+      },
+      {
+        "source": "It cost more then two dollars.",
+        "actual": "then",
+        "replacements": [
+          "than"
+        ]
+      },
+      {
+        "source": "We were happy back than.",
+        "actual": "than",
+        "replacements": [
+          "then"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ToTwoToo",
+    "source": "I want too go home.",
+    "actual": "too",
+    "replacements": [
+      "to"
+    ],
+    "valid": [
+      "I want to go home.",
+      "It is too hot to drink.",
+      "The task is to clean the house.",
+      "They are to blame.",
+      "I want to consciously help.",
+      "Convert this to audio.",
+      "We travel to Nashville.",
+      "Talk to you later.",
+      "I am too ready to leave."
+    ],
+    "additional": [
+      {
+        "source": "The price is to high.",
+        "actual": "to",
+        "replacements": [
+          "too"
+        ]
+      },
+      {
+        "source": "She was to tired.",
+        "actual": "to",
+        "replacements": [
+          "too"
+        ]
+      },
+      {
+        "source": "We went too the park.",
+        "actual": "too",
+        "replacements": [
+          "to"
+        ]
+      },
+      {
+        "source": "I like it, to.",
+        "actual": "to",
+        "replacements": [
+          "too"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.NounVerbConfusion",
+    "source": "Please advice me.",
+    "actual": "advice",
+    "replacements": [
+      "advise"
+    ],
+    "valid": [
+      "Please advise me.",
+      "I need advice.",
+      "I took a deep breath.",
+      "They can effect change.",
+      "The clinician noted a flat affect.",
+      "Positive affect matters.",
+      "We need to practice.",
+      "The shop has a licence.",
+      "What side affects the results?",
+      "I do not know which side affects the import machinery.",
+      "We can better advise our clients.",
+      "You’d better believe this.",
+      "I believe in you.",
+      "She believes in fair treatment.",
+      "We advise our visitors to book ahead.",
+      "We weight samples before analysis.",
+      "How much do you weight each score?",
+      "How do you weight the responses?",
+      "I practice daily.",
+      "I practise daily.",
+      "They license the software.",
+      "They licence the software.",
+      "We emphasize the findings.",
+      "We emphasise the findings.",
+      "Her flat affect worried the doctor.",
+      "The positive affect of the patient was evident.",
+      "Her negative affect is unchanged.",
+      "Affect is an observable expression of emotion.",
+      "They effect change through negotiation.",
+      "We will effect a repair.",
+      "This effects a change in policy.",
+      "The sound affects sleep.",
+      "The side affects results.",
+      "We better advise her.",
+      "You had better breathe deeply.",
+      "I gave it breath.",
+      "She shows you breath samples.",
+      "I send you advice.",
+      "I want your advice.",
+      "I gave her advice.",
+      "The Book of Breath is on display.",
+      "My belief in you is strong.",
+      "Your intent is clear.",
+      "I want to. Breath is a noun.",
+      "I ￼ belief in you.",
+      "I\n\nbelief in you.",
+      "That decision will effect change.",
+      "The patient showed a strong affect on his face.",
+      "The order will effect everyone's release.",
+      "The medicine affects everyone."
+    ],
+    "additional": [
+      {
+        "source": "I can breath.",
+        "actual": "breath",
+        "replacements": [
+          "breathe"
+        ]
+      },
+      {
+        "source": "I took a deep breathe.",
+        "actual": "breathe",
+        "replacements": [
+          "breath"
+        ]
+      },
+      {
+        "source": "Please complaint politely.",
+        "actual": "complaint",
+        "replacements": [
+          "complain"
+        ]
+      },
+      {
+        "source": "This has side affects.",
+        "actual": "affects",
+        "replacements": [
+          "effects"
+        ]
+      },
+      {
+        "source": "The policy will take affect.",
+        "actual": "affect",
+        "replacements": [
+          "effect"
+        ]
+      },
+      {
+        "source": "It will effect me.",
+        "actual": "effect",
+        "replacements": [
+          "affect"
+        ]
+      },
+      {
+        "source": "Good advise is useful.",
+        "actual": "advise",
+        "replacements": [
+          "advice"
+        ]
+      },
+      {
+        "source": "Take a deep breathe.",
+        "actual": "breathe",
+        "replacements": [
+          "breath"
+        ]
+      },
+      {
+        "source": "I belief in you.",
+        "actual": "belief",
+        "replacements": [
+          "believe"
+        ]
+      },
+      {
+        "source": "She belief in fair treatment.",
+        "actual": "belief",
+        "replacements": [
+          "believes"
+        ]
+      },
+      {
+        "source": "We always advice our visitors to book ahead.",
+        "actual": "advice",
+        "replacements": [
+          "advise"
+        ]
+      },
+      {
+        "source": "Can you advice me about the route?",
+        "actual": "advice",
+        "replacements": [
+          "advise"
+        ]
+      },
+      {
+        "source": "Remember to breath slowly.",
+        "actual": "breath",
+        "replacements": [
+          "breathe"
+        ]
+      },
+      {
+        "source": "I never breath through my mouth.",
+        "actual": "breath",
+        "replacements": [
+          "breathe"
+        ]
+      },
+      {
+        "source": "Did you intent to leave?",
+        "actual": "intent",
+        "replacements": [
+          "intend"
+        ]
+      },
+      {
+        "source": "If you intent to stay, call us.",
+        "actual": "intent",
+        "replacements": [
+          "intend"
+        ]
+      },
+      {
+        "source": "I had no bad intend.",
+        "actual": "intend",
+        "replacements": [
+          "intent"
+        ]
+      },
+      {
+        "source": "She gave me a piece of advise.",
+        "actual": "advise",
+        "replacements": [
+          "advice"
+        ]
+      },
+      {
+        "source": "We need better advise.",
+        "actual": "advise",
+        "replacements": [
+          "advice"
+        ]
+      },
+      {
+        "source": "How much do you weight?",
+        "actual": "weight",
+        "replacements": [
+          "weigh"
+        ]
+      },
+      {
+        "source": "How much does it weight?",
+        "actual": "weight",
+        "replacements": [
+          "weigh"
+        ]
+      },
+      {
+        "source": "The policy comes into affect tomorrow.",
+        "actual": "affect",
+        "replacements": [
+          "effect"
+        ]
+      },
+      {
+        "source": "The placebo affect can be powerful.",
+        "actual": "affect",
+        "replacements": [
+          "effect"
+        ]
+      },
+      {
+        "source": "The change had a positive affect on attendance.",
+        "actual": "affect",
+        "replacements": [
+          "effect"
+        ]
+      },
+      {
+        "source": "We measured the affect of caffeine.",
+        "actual": "affect",
+        "replacements": [
+          "effect"
+        ]
+      },
+      {
+        "source": "Cause and affect are different.",
+        "actual": "affect",
+        "replacements": [
+          "effect"
+        ]
+      },
+      {
+        "source": "The special affects were convincing.",
+        "actual": "affects",
+        "replacements": [
+          "effects"
+        ]
+      },
+      {
+        "source": "The decision did not effect me.",
+        "actual": "effect",
+        "replacements": [
+          "affect"
+        ]
+      },
+      {
+        "source": "I BELIEF IN YOU.",
+        "actual": "BELIEF",
+        "replacements": [
+          "BELIEVE"
+        ]
+      },
+      {
+        "source": "That decision will effect everyone.",
+        "actual": "effect",
+        "replacements": [
+          "affect"
+        ]
+      },
+      {
+        "source": "The news had a strong affect on me.",
+        "actual": "affect",
+        "replacements": [
+          "effect"
+        ]
+      },
+      {
+        "source": "This could effect somebody.",
+        "actual": "effect",
+        "replacements": [
+          "affect"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.WereWhere",
+    "source": "We where ready.",
+    "actual": "where",
+    "replacements": [
+      "were"
+    ],
+    "valid": [
+      "We were ready.",
+      "Where are you?",
+      "Where they work is unknown.",
+      "Were they ready?",
+      "Where we lived was quiet.",
+      "Where they stood, flowers grew."
+    ],
+    "additional": [
+      {
+        "source": "Were are you?",
+        "actual": "Were",
+        "replacements": [
+          "Where"
+        ]
+      },
+      {
+        "source": "Where they happy?",
+        "actual": "Where",
+        "replacements": [
+          "Were"
+        ]
+      },
+      {
+        "source": "Do you know were they went?",
+        "actual": "were",
+        "replacements": [
+          "where"
+        ]
+      },
+      {
+        "source": "You where supposed to call me.",
+        "actual": "where",
+        "replacements": [
+          "were"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Everyday",
+    "source": "I walk everyday.",
+    "actual": "everyday",
+    "replacements": [
+      "every day"
+    ],
+    "valid": [
+      "I walk every day.",
+      "These are everyday clothes.",
+      "Our everyday make up stays in this drawer.",
+      "We study the everyday.",
+      "The word everyday is an adjective.",
+      "I work every day I can."
+    ],
+    "additional": [
+      {
+        "source": "This is every day life.",
+        "actual": "every day",
+        "replacements": [
+          "everyday"
+        ]
+      },
+      {
+        "source": "Everyday I walk.",
+        "actual": "Everyday",
+        "replacements": [
+          "Every day"
+        ]
+      },
+      {
+        "source": "This is something I do everyday.",
+        "actual": "everyday",
+        "replacements": [
+          "every day"
+        ]
+      },
+      {
+        "source": "It is an every day thing.",
+        "actual": "every day",
+        "replacements": [
+          "everyday"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Discuss",
+    "source": "We discussed about the plan.",
+    "actual": "discussed about",
+    "replacements": [
+      "discussed"
+    ],
+    "valid": [
+      "We discussed the plan.",
+      "We discuss about ten projects.",
+      "We discussed about 5 topics.",
+      "There is nothing to discuss about him.",
+      "We discussed about-turns."
+    ],
+    "additional": [
+      {
+        "source": "They are discussing about our plans.",
+        "actual": "discussing about",
+        "replacements": [
+          "discussing"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AskNoPreposition",
+    "source": "I asked to him.",
+    "actual": "to him",
+    "replacements": [
+      "him"
+    ],
+    "valid": [
+      "I asked him.",
+      "We asked to see the plan.",
+      "I have something to tell to him.",
+      "The story I told to him was true.",
+      "I asked to leave."
+    ],
+    "additional": [
+      {
+        "source": "She told to him the news.",
+        "actual": "to him",
+        "replacements": [
+          "him"
+        ]
+      },
+      {
+        "source": "Please ask to me.",
+        "actual": "to me",
+        "replacements": [
+          "me"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AllowTo",
+    "source": "This tool allows to edit notes.",
+    "actual": "to edit",
+    "replacements": [
+      "editing"
+    ],
+    "valid": [
+      "This tool allows editing notes.",
+      "We are allowed to edit notes.",
+      "They have been allowed to leave.",
+      "They were never allowed to go.",
+      "She got allowed to leave.",
+      "This allows us to edit."
+    ],
+    "additional": [
+      {
+        "source": "This tool allowed to edit notes.",
+        "actual": "to edit",
+        "replacements": []
+      },
+      {
+        "source": "We allow to swim here.",
+        "actual": "to swim",
+        "replacements": [
+          "swimming"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.WorthToDo",
+    "source": "It is worth to try.",
+    "actual": "to try",
+    "replacements": [
+      "trying"
+    ],
+    "valid": [
+      "It is worth trying.",
+      "What is it worth to you?",
+      "Its worth to science is clear.",
+      "It is worth a visit.",
+      "We know what it is worth."
+    ],
+    "additional": [
+      {
+        "source": "It is worth to see.",
+        "actual": "to see",
+        "replacements": [
+          "seeing"
+        ]
+      },
+      {
+        "source": "This is worth to make.",
+        "actual": "to make",
+        "replacements": [
+          "making"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ElsePossessive",
+    "source": "That is someone elses book.",
+    "actual": "elses",
+    "replacements": [
+      "else's"
+    ],
+    "valid": [
+      "That is someone else's book.",
+      "Nobody else knows.",
+      "Someone else's work is ready.",
+      "Who else is here?"
+    ],
+    "additional": [
+      {
+        "source": "I’m reading someone elses notes.",
+        "actual": "elses",
+        "replacements": [
+          "else’s"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.PluralDecades",
+    "source": "We met in the 1990's.",
+    "actual": "1990's",
+    "replacements": [
+      "1990s"
+    ],
+    "valid": [
+      "We met in the 1990s.",
+      "The 1990's music was distinctive.",
+      "That was 1990's biggest release.",
+      "The 1990’s economy changed.",
+      "The 1920's-era building is old."
+    ],
+    "additional": [
+      {
+        "source": "The 1980’s were busy.",
+        "actual": "1980’s",
+        "replacements": [
+          "1980s"
+        ]
+      },
+      {
+        "source": "During the 1970's, we moved.",
+        "actual": "1970's",
+        "replacements": [
+          "1970s"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.SubjectPronoun",
+    "source": "Me and Alex carried the ladder.",
+    "actual": "Me and Alex",
+    "replacements": [
+      "Alex and I"
+    ],
+    "valid": [
+      "Alex and I carried the ladder.",
+      "They thanked me and Alex.",
+      "Between me and Alex, we can finish.",
+      "Me and Alex, a portrait.",
+      "Me and Alex are the words in the title.",
+      "Me and ￼ Alex went home.",
+      "Me and\n\nAlex went home.",
+      "Me and eBay work together.",
+      "Me and iOS are different."
+    ],
+    "additional": [
+      {
+        "source": "Me and Casey have finished.",
+        "actual": "Me and Casey",
+        "replacements": [
+          "Casey and I"
+        ]
+      },
+      {
+        "source": "Me and Riley will help.",
+        "actual": "Me and Riley",
+        "replacements": [
+          "Riley and I"
+        ]
+      },
+      {
+        "source": "Me and Élodie went home.",
+        "actual": "Me and Élodie",
+        "replacements": [
+          "Élodie and I"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CompoundSubjectI",
+    "source": "My mother and me went home.",
+    "actual": "me",
+    "replacements": [
+      "I"
+    ],
+    "valid": [
+      "My mother and I went home.",
+      "Between my mother and me, it is settled.",
+      "They thanked my mother and me.",
+      "My mother and me, a portrait.",
+      "My mother and me, as usual, went home.",
+      "Your friend and ￼ me went home."
+    ],
+    "additional": [
+      {
+        "source": "Your friend and me are heading out.",
+        "actual": "me",
+        "replacements": [
+          "I"
+        ]
+      },
+      {
+        "source": "Our neighbor and me can help.",
+        "actual": "me",
+        "replacements": [
+          "I"
+        ]
+      },
+      {
+        "source": "Her manager and me have talked.",
+        "actual": "me",
+        "replacements": [
+          "I"
+        ]
+      },
+      {
+        "source": "MY BROTHER AND ME WILL HANDLE IT.",
+        "actual": "ME",
+        "replacements": [
+          "I"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.HavePronoun",
+    "source": "Has we finished the report?",
+    "actual": "Has",
+    "replacements": [
+      "Have"
+    ],
+    "valid": [
+      "Have we finished?",
+      "Has he arrived?",
+      "Has she finished?",
+      "Has it been fixed?",
+      "The system has we confused for a moment.",
+      "Has ￼ we finished?",
+      "Has\n\nwe finished?"
+    ],
+    "additional": [
+      {
+        "source": "Has I misunderstood?",
+        "actual": "Has",
+        "replacements": [
+          "Have"
+        ]
+      },
+      {
+        "source": "Has you arrived yet?",
+        "actual": "Has",
+        "replacements": [
+          "Have"
+        ]
+      },
+      {
+        "source": "Has they not finished?",
+        "actual": "Has",
+        "replacements": [
+          "Have"
+        ]
+      },
+      {
+        "source": "HAS WE FINISHED?",
+        "actual": "HAS",
+        "replacements": [
+          "HAVE"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.DoIAdjective",
+    "source": "Do I interested in music?",
+    "actual": "Do",
+    "replacements": [
+      "Am"
+    ],
+    "valid": [
+      "Am I interested in music?",
+      "Do I ready the equipment?",
+      "Do I calm the baby?",
+      "Do I calm myself first?",
+      "Do I look tired?",
+      "Do I get excited easily?",
+      "Do I want to help?",
+      "Do I ￼ ready yet?",
+      "Do I\n\nready yet?"
+    ],
+    "additional": [
+      {
+        "source": "Do I excited about the launch?",
+        "actual": "Do",
+        "replacements": [
+          "Am"
+        ]
+      },
+      {
+        "source": "Do I not ready yet?",
+        "actual": "Do",
+        "replacements": [
+          "Am"
+        ]
+      },
+      {
+        "source": "Do I comfortable sharing this?",
+        "actual": "Do",
+        "replacements": [
+          "Am"
+        ]
+      },
+      {
+        "source": "Do I calm now?",
+        "actual": "Do",
+        "replacements": [
+          "Am"
+        ]
+      },
+      {
+        "source": "Do I prepared to join?",
+        "actual": "Do",
+        "replacements": [
+          "Am"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.MultipleSequentialPronouns",
+    "source": "I we need to leave.",
+    "actual": "I we",
+    "replacements": [],
+    "valid": [
+      "I can lend you my car.",
+      "Tell me they have finished.",
+      "I told you I would help.",
+      "Give me it.",
+      "I gave him mine.",
+      "She cost him his job.",
+      "Our IT director can help.",
+      "My US passport is here.",
+      "In the US it may take longer.",
+      "I, you and she will go.",
+      "I ￼ we need to leave.",
+      "I\n\nwe need to leave.",
+      "My I statements are clear."
+    ],
+    "additional": [
+      {
+        "source": "My I want to leave.",
+        "actual": "My I",
+        "replacements": []
+      },
+      {
+        "source": "We they have finished.",
+        "actual": "We they",
+        "replacements": []
+      },
+      {
+        "source": "My I you want to leave.",
+        "actual": "My I you",
+        "replacements": []
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.LookingForwardTo",
+    "source": "I am looking forward to see you.",
+    "actual": "see",
+    "replacements": [
+      "seeing"
+    ],
+    "valid": [
+      "I am looking forward to seeing you.",
+      "I am looking forward to work.",
+      "She is looking forward to the visit.",
+      "We are looking forward to running together.",
+      "They look forward to rest.",
+      "We look forward to a reply."
+    ],
+    "additional": [
+      {
+        "source": "We look forward to meet you.",
+        "actual": "meet",
+        "replacements": [
+          "meeting"
+        ]
+      },
+      {
+        "source": "She was looking forward to make a cake.",
+        "actual": "make",
+        "replacements": [
+          "making"
+        ]
+      },
+      {
+        "source": "We are looking forward to run together.",
+        "actual": "run",
+        "replacements": [
+          "running"
+        ]
+      },
+      {
+        "source": "I look forward to hear from you.",
+        "actual": "hear",
+        "replacements": [
+          "hearing"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InterestedIn",
+    "source": "She is interested on music.",
+    "actual": "on",
+    "replacements": [
+      "in"
+    ],
+    "valid": [
+      "She is interested in music.",
+      "I am interested to hear more.",
+      "He was interested on Monday.",
+      "She became interested at the age of ten.",
+      "They are interested on behalf of their clients.",
+      "We are interested for different reasons."
+    ],
+    "additional": [
+      {
+        "source": "They are interested about gardening.",
+        "actual": "about",
+        "replacements": [
+          "in"
+        ]
+      },
+      {
+        "source": "We are interested at science.",
+        "actual": "at",
+        "replacements": [
+          "in"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.SinceDuration",
+    "source": "I have lived here since five years.",
+    "actual": "since",
+    "replacements": [
+      "for"
+    ],
+    "valid": [
+      "I have lived here for five years.",
+      "I have lived here since 2020.",
+      "I have lived here since five years ago.",
+      "I have known her since five years old.",
+      "Since five years is a long time, we should act.",
+      "Nothing has changed since two years of drought ended."
+    ],
+    "additional": [
+      {
+        "source": "She has waited since two hours.",
+        "actual": "since",
+        "replacements": [
+          "for"
+        ]
+      },
+      {
+        "source": "We have worked here since 12 months.",
+        "actual": "since",
+        "replacements": [
+          "for"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AdjectiveDoubleDegree",
+    "source": "This is more better.",
+    "actual": "more better",
+    "replacements": [
+      "better"
+    ],
+    "valid": [
+      "This is better.",
+      "This is the easiest route.",
+      "We need more better-trained nurses.",
+      "More cheaper chairs are needed.",
+      "Most best-selling books are available.",
+      "The most advanced method is ready."
+    ],
+    "additional": [
+      {
+        "source": "This is the most easiest route.",
+        "actual": "most easiest",
+        "replacements": [
+          "easiest"
+        ]
+      },
+      {
+        "source": "The new route is more cheaper than the old one.",
+        "actual": "more cheaper",
+        "replacements": [
+          "cheaper"
+        ]
+      },
+      {
+        "source": "THIS IS MORE BETTER.",
+        "actual": "MORE BETTER",
+        "replacements": [
+          "BETTER"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AllIntentsAndPurposes",
+    "source": "For all intensive purposes, the work is finished.",
+    "actual": "For all intensive purposes",
+    "replacements": [
+      "For all intents and purposes"
+    ],
+    "valid": [
+      "For all intents and purposes, the work is finished.",
+      "To all intents and purposes, it works.",
+      "The hospital provides intensive care.",
+      "The equipment serves all intended purposes."
+    ],
+    "additional": [
+      {
+        "source": "This is complete for all intense purposes.",
+        "actual": "for all intense purposes",
+        "replacements": [
+          "for all intents and purposes"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.BareInMind",
+    "source": "Please bare in mind the deadline.",
+    "actual": "bare in mind",
+    "replacements": [
+      "bear in mind"
+    ],
+    "valid": [
+      "Please bear in mind the deadline.",
+      "The walls are bare.",
+      "Keep that in mind."
+    ],
+    "additional": [
+      {
+        "source": "Bare in mind that the shop closes early.",
+        "actual": "Bare in mind",
+        "replacements": [
+          "Bear in mind"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.MootPoint",
+    "source": "It is a mute point.",
+    "actual": "mute point",
+    "replacements": [
+      "moot point"
+    ],
+    "valid": [
+      "It is a moot point.",
+      "The microphone is mute.",
+      "Point at the mute button."
+    ],
+    "additional": [
+      {
+        "source": "That point is mute.",
+        "actual": "point is mute",
+        "replacements": [
+          "point is moot"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.WaistWaste",
+    "source": "Digging with a toothpick is a waist of time.",
+    "actual": "waist",
+    "replacements": [
+      "waste"
+    ],
+    "valid": [
+      "It is a waste of time.",
+      "The waist of the dress is narrow.",
+      "Is a waist of 46 inches healthy?",
+      "Measure the waist of your trousers.",
+      "Measure the waist of space suits."
+    ],
+    "additional": [
+      {
+        "source": "That is a waist of money.",
+        "actual": "waist",
+        "replacements": [
+          "waste"
+        ]
+      },
+      {
+        "source": "A waist of resources helps nobody.",
+        "actual": "waist",
+        "replacements": [
+          "waste"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TheWhetherWeather",
+    "source": "I feel under the whether.",
+    "actual": "whether",
+    "replacements": [
+      "weather"
+    ],
+    "valid": [
+      "I feel under the weather.",
+      "I wonder whether we should leave.",
+      "We discussed the whether-or-not question.",
+      "The whether clause is subordinate.",
+      "We discussed the whether in this sentence."
+    ],
+    "additional": [
+      {
+        "source": "Please check the whether forecast.",
+        "actual": "whether",
+        "replacements": [
+          "weather"
+        ]
+      },
+      {
+        "source": "The whether in Madrid is sunny.",
+        "actual": "whether",
+        "replacements": [
+          "weather"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Itself",
+    "source": "The project, it self, was challenging.",
+    "actual": "it self",
+    "replacements": [
+      "itself"
+    ],
+    "valid": [
+      "The project itself was challenging.",
+      "We must make it self-sufficient.",
+      "We made it self sustaining.",
+      "The machine can turn itself off.",
+      "We made it self explanatory.",
+      "The robot made it self regulating."
+    ],
+    "additional": [
+      {
+        "source": "The box opens it self.",
+        "actual": "it self",
+        "replacements": [
+          "itself"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Misunderstood",
+    "source": "She miss understood the instructions.",
+    "actual": "miss understood",
+    "replacements": [
+      "misunderstood"
+    ],
+    "valid": [
+      "She misunderstood the instructions.",
+      "The instructions were understood.",
+      "The young miss understood everything.",
+      "We miss the old instructions."
+    ],
+    "additional": [
+      {
+        "source": "We have miss understood the request.",
+        "actual": "miss understood",
+        "replacements": [
+          "misunderstood"
+        ]
+      },
+      {
+        "source": "The request was miss understood.",
+        "actual": "miss understood",
+        "replacements": [
+          "misunderstood"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CorrectNumberSuffix",
+    "source": "This is my 21th birthday.",
+    "actual": "21th",
+    "replacements": [
+      "21st"
+    ],
+    "valid": [
+      "This is my 21st birthday.",
+      "She finished 11th, 12th, and 13th.",
+      "We meet on the 22nd and 23rd.",
+      "The version is v21th.",
+      "Read item_21th.",
+      "We use 1stChoice software."
+    ],
+    "additional": [
+      {
+        "source": "She finished 12nd.",
+        "actual": "12nd",
+        "replacements": [
+          "12th"
+        ]
+      },
+      {
+        "source": "We met on the 103th day.",
+        "actual": "103th",
+        "replacements": [
+          "103rd"
+        ]
+      },
+      {
+        "source": "THIS IS THE 111ST ITEM.",
+        "actual": "111ST",
+        "replacements": [
+          "111TH"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CapitalizePersonalPronouns",
+    "source": "i went home.",
+    "actual": "i",
+    "replacements": [
+      "I"
+    ],
+    "valid": [
+      "I went home.",
+      "I am ready.",
+      "The value is i + 1.",
+      "Use i for the index.",
+      "Chapter i discusses notation.",
+      "The imaginary unit i is useful.",
+      "If i is 0, stop.",
+      "Can i be negative?",
+      "When i equals j, stop."
+    ],
+    "additional": [
+      {
+        "source": "They know i went home.",
+        "actual": "i",
+        "replacements": [
+          "I"
+        ]
+      },
+      {
+        "source": "i'm ready.",
+        "actual": "i'm",
+        "replacements": [
+          "I'm"
+        ]
+      },
+      {
+        "source": "i’m ready.",
+        "actual": "i’m",
+        "replacements": [
+          "I’m"
+        ]
+      },
+      {
+        "source": "Can i leave?",
+        "actual": "i",
+        "replacements": [
+          "I"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CommaFixes",
+    "source": "Hello,world.",
+    "actual": ",",
+    "replacements": [
+      ", "
+    ],
+    "valid": [
+      "Hello, world.",
+      "The total is 1,000,000.",
+      "The value is 3,14159.",
+      "Use x,y coordinates.",
+      "Hello,\nworld.",
+      "Wait, then continue."
+    ],
+    "additional": [
+      {
+        "source": "Hello , world.",
+        "actual": " , ",
+        "replacements": [
+          ", "
+        ]
+      },
+      {
+        "source": "Hello ,world.",
+        "actual": " ,",
+        "replacements": [
+          ", "
+        ]
+      },
+      {
+        "source": "Café,mañana.",
+        "actual": ",",
+        "replacements": [
+          ", "
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.HyphenateNumberDay",
+    "source": "The company offers a 3 day training program.",
+    "actual": "3 day",
+    "replacements": [
+      "3-day"
+    ],
+    "valid": [
+      "The company offers a 3-day training program.",
+      "The course lasts 3 days.",
+      "We need 3 day nurses and 2 night nurses.",
+      "We booked a day trip.",
+      "The log has 3 day entries and 2 night entries."
+    ],
+    "additional": [
+      {
+        "source": "We booked a 5 day course.",
+        "actual": "5 day",
+        "replacements": [
+          "5-day"
+        ]
+      },
+      {
+        "source": "The 10 day trip was fun.",
+        "actual": "10 day",
+        "replacements": [
+          "10-day"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.IfWouldve",
+    "source": "If I would have known, I would have stayed.",
+    "actual": "would have",
+    "replacements": [],
+    "valid": [
+      "If I had known, I would have stayed.",
+      "I wonder if I would have enjoyed it.",
+      "Please tell me if she would have helped.",
+      "If you would be so kind, please wait.",
+      "If I would have enjoyed it is difficult to say."
+    ],
+    "additional": [
+      {
+        "source": "If she would've asked, we would have helped.",
+        "actual": "would've",
+        "replacements": []
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AMeansToAnEnd",
+    "source": "The tool is a mean to an end.",
+    "actual": "a mean to an end",
+    "replacements": [
+      "a means to an end"
+    ],
+    "valid": [
+      "The tool is a means to an end.",
+      "Calculate a mean to summarize the data.",
+      "The end is near."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AdNauseam",
+    "source": "We have discussed this as nauseam.",
+    "actual": "as nauseam",
+    "replacements": [
+      "ad nauseam"
+    ],
+    "valid": [
+      "We have discussed this ad nauseam.",
+      "The medicine caused nausea.",
+      "It was as noisy as ever."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Albeit",
+    "source": "The plan works, all be it slowly.",
+    "actual": "all be it",
+    "replacements": [
+      "albeit"
+    ],
+    "valid": [
+      "The plan works, albeit slowly.",
+      "Let us all be happy.",
+      "Let them all be it for one round.",
+      "They will all be it in the next game."
+    ],
+    "additional": [
+      {
+        "source": "The room is warm, al be it small.",
+        "actual": "al be it",
+        "replacements": [
+          "albeit"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AllOfASudden",
+    "source": "All of the sudden, the lights went out.",
+    "actual": "All of the sudden",
+    "replacements": [
+      "All of a sudden"
+    ],
+    "valid": [
+      "All of a sudden, the lights went out.",
+      "We recorded all of the sudden changes.",
+      "All of the sudden changes were documented.",
+      "All the sudden noises scared us."
+    ],
+    "additional": [
+      {
+        "source": "The lights went out all of sudden.",
+        "actual": "all of sudden",
+        "replacements": [
+          "all of a sudden"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AsFollows",
+    "source": "The main points are as follow:",
+    "actual": "as follow",
+    "replacements": [
+      "as follows"
+    ],
+    "valid": [
+      "The main points are as follows:",
+      "We use these as follow-up questions.",
+      "We use these as follow up questions.",
+      "Follow the instructions."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AtAllCosts",
+    "source": "We must avoid delays at all cost.",
+    "actual": "at all cost",
+    "replacements": [
+      "at all costs"
+    ],
+    "valid": [
+      "We must avoid delays at all costs.",
+      "We compared options at all cost levels.",
+      "The cost is reasonable."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.BatedBreath",
+    "source": "We waited with baited breath.",
+    "actual": "baited breath",
+    "replacements": [
+      "bated breath"
+    ],
+    "valid": [
+      "We waited with bated breath.",
+      "The hook was baited.",
+      "Take a deep breath."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.BeckAndCall",
+    "source": "I am at your back and call.",
+    "actual": "back and call",
+    "replacements": [
+      "beck and call"
+    ],
+    "valid": [
+      "I am at your beck and call.",
+      "Step back and call me.",
+      "Please go back and call again."
+    ],
+    "additional": [
+      {
+        "source": "The team is at his back and call.",
+        "actual": "back and call",
+        "replacements": [
+          "beck and call"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CaseInPoint",
+    "source": "A case and point is the recent outage.",
+    "actual": "case and point",
+    "replacements": [
+      "case in point"
+    ],
+    "valid": [
+      "A case in point is the recent outage.",
+      "Select a case and point to its label.",
+      "We discussed the case and point of law.",
+      "The case and point are separate objects."
+    ],
+    "additional": [
+      {
+        "source": "Case and point: the recent outage.",
+        "actual": "Case and point",
+        "replacements": [
+          "Case in point"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.FreeRein",
+    "source": "They gave us free reign to choose.",
+    "actual": "free reign",
+    "replacements": [
+      "free rein"
+    ],
+    "valid": [
+      "They gave us free rein to choose.",
+      "The reign of the king lasted years.",
+      "The story describes a free reign of imagination."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InLieuOf",
+    "source": "We accepted credit in lue of cash.",
+    "actual": "in lue of",
+    "replacements": [
+      "in lieu of"
+    ],
+    "valid": [
+      "We accepted credit in lieu of cash.",
+      "The cash is in the drawer.",
+      "Lieu is a surname."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InOfItself",
+    "source": "The idea is useful in of itself.",
+    "actual": "in of itself",
+    "replacements": [
+      "in and of itself"
+    ],
+    "valid": [
+      "The idea is useful in and of itself.",
+      "The idea is useful in itself.",
+      "It speaks for itself."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.OnTheSpurOfTheMoment",
+    "source": "We left on the spurt of the moment.",
+    "actual": "on the spurt of the moment",
+    "replacements": [
+      "on the spur of the moment"
+    ],
+    "valid": [
+      "We left on the spur of the moment.",
+      "A spurt of rain surprised us.",
+      "We rested at the spur of the hill."
+    ],
+    "additional": [
+      {
+        "source": "We decided in the spur of the moment.",
+        "actual": "in the spur of the moment",
+        "replacements": [
+          "on the spur of the moment"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.PeaceOfMind",
+    "source": "The backup gives me piece of mind.",
+    "actual": "piece of mind",
+    "replacements": [
+      "peace of mind"
+    ],
+    "valid": [
+      "The backup gives me peace of mind.",
+      "She gave him a piece of her mind.",
+      "The essay discusses the piece of mind represented in a painting."
+    ],
+    "additional": [
+      {
+        "source": "Keep a copy for piece of mind.",
+        "actual": "piece of mind",
+        "replacements": [
+          "peace of mind"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.PerSe",
+    "source": "The change is not harmful per say.",
+    "actual": "per say",
+    "replacements": [
+      "per se"
+    ],
+    "valid": [
+      "The change is not harmful per se.",
+      "Say what you mean.",
+      "The price per ticket is fixed."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.SneakPeekPreview",
+    "source": "Here is a sneak peak at the update.",
+    "actual": "sneak peak",
+    "replacements": [
+      "sneak peek"
+    ],
+    "valid": [
+      "Here is a sneak peek at the update.",
+      "The mountain peak is visible.",
+      "We will sneak past the guard."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.WhetYourAppetite",
+    "source": "This preview will wet your appetite.",
+    "actual": "wet your appetite",
+    "replacements": [
+      "whet your appetite"
+    ],
+    "valid": [
+      "This preview will whet your appetite.",
+      "Wet your hands first.",
+      "The rain will wet your coat."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Ado",
+    "source": "Without further adieu, we began.",
+    "actual": "further adieu",
+    "replacements": [
+      "further ado"
+    ],
+    "valid": [
+      "Without further ado, we began.",
+      "She said adieu and left.",
+      "A further adieu was unnecessary."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.DigestiveTract",
+    "source": "Food passes through the digestive track.",
+    "actual": "digestive track",
+    "replacements": [
+      "digestive tract"
+    ],
+    "valid": [
+      "Food passes through the digestive tract.",
+      "The digestive system works well.",
+      "Stay on the track."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ExplanationMark",
+    "source": "End the sentence with an explanation mark.",
+    "actual": "explanation mark",
+    "replacements": [
+      "exclamation mark"
+    ],
+    "valid": [
+      "End the sentence with an exclamation mark.",
+      "The explanation makes sense.",
+      "Mark the explanation clearly.",
+      "The explanation mark scheme awards ten points."
+    ],
+    "additional": [
+      {
+        "source": "The sentence ends with an explanation point.",
+        "actual": "explanation point",
+        "replacements": [
+          "exclamation point"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ExtendOrExtent",
+    "source": "I agree to some extend.",
+    "actual": "to some extend",
+    "replacements": [
+      "to some extent"
+    ],
+    "valid": [
+      "I agree to some extent.",
+      "We plan to extend the house.",
+      "The extension is ready."
+    ],
+    "additional": [
+      {
+        "source": "This is true to a certain extend.",
+        "actual": "a certain extend",
+        "replacements": [
+          "a certain extent"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.GetUsedTo",
+    "source": "You will get used of the noise.",
+    "actual": "get used of",
+    "replacements": [
+      "get used to"
+    ],
+    "valid": [
+      "You will get used to the noise.",
+      "The tools get used often.",
+      "We are used to the noise.",
+      "These materials get used of necessity.",
+      "The tools got used of late."
+    ],
+    "additional": [
+      {
+        "source": "She got used of the cold.",
+        "actual": "got used of",
+        "replacements": [
+          "got used to"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.GrindToAHalt",
+    "source": "The project ground to halt.",
+    "actual": "ground to halt",
+    "replacements": [
+      "ground to a halt"
+    ],
+    "valid": [
+      "The project ground to a halt.",
+      "Grind the beans to make coffee.",
+      "The ground is wet."
+    ],
+    "additional": [
+      {
+        "source": "Work is grinding to halt.",
+        "actual": "grinding to halt",
+        "replacements": [
+          "grinding to a halt"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InThisThatRegard",
+    "source": "We agree in this regards.",
+    "actual": "in this regards",
+    "replacements": [
+      "in this regard"
+    ],
+    "valid": [
+      "We agree in this regard.",
+      "Please send my regards.",
+      "In this, regards differ."
+    ],
+    "additional": [
+      {
+        "source": "The plan helps in that regards.",
+        "actual": "in that regards",
+        "replacements": [
+          "in that regard"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InflectionPoint",
+    "source": "The trend reached an infliction point.",
+    "actual": "infliction point",
+    "replacements": [
+      "inflection point"
+    ],
+    "valid": [
+      "The trend reached an inflection point.",
+      "The infliction of pain is wrong.",
+      "Point to the trend."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.LookForwardTo",
+    "source": "We look forward for the visit.",
+    "actual": "look forward for",
+    "replacements": [
+      "look forward to"
+    ],
+    "valid": [
+      "We look forward to the visit.",
+      "Look forward for a moment, then turn left.",
+      "The camera is looking forward for safety."
+    ],
+    "additional": [
+      {
+        "source": "She was looking forward for the holiday.",
+        "actual": "looking forward for",
+        "replacements": [
+          "looking forward to"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.MakeDoWith",
+    "source": "We can make due with this equipment.",
+    "actual": "make due with",
+    "replacements": [
+      "make do with"
+    ],
+    "valid": [
+      "We can make do with this equipment.",
+      "The payment is due tomorrow.",
+      "The balance was made due immediately."
+    ],
+    "additional": [
+      {
+        "source": "We made due with the old chairs.",
+        "actual": "made due with",
+        "replacements": [
+          "made do with"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ResponsibilityFor",
+    "source": "She took responsibility of managing the project.",
+    "actual": "responsibility of",
+    "replacements": [
+      "responsibility for"
+    ],
+    "valid": [
+      "She took responsibility for managing the project.",
+      "The responsibility of the manager is clear.",
+      "She assumed the responsibility of the manager."
+    ],
+    "additional": [
+      {
+        "source": "We take responsibility of the project.",
+        "actual": "responsibility of",
+        "replacements": [
+          "responsibility for"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.WreakHavoc",
+    "source": "The storm will wreck havoc.",
+    "actual": "wreck havoc",
+    "replacements": [
+      "wreak havoc"
+    ],
+    "valid": [
+      "The storm will wreak havoc.",
+      "The storm caused a wreck.",
+      "The shipwreck is old."
+    ],
+    "additional": [
+      {
+        "source": "The storm wrecked havoc.",
+        "actual": "wrecked havoc",
+        "replacements": [
+          "wreaked havoc"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.WroteToRote",
+    "source": "They learned the poem by wrote.",
+    "actual": "by wrote",
+    "replacements": [
+      "by rote"
+    ],
+    "valid": [
+      "They learned the poem by rote.",
+      "She wrote the poem.",
+      "The person standing by wrote a note."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.GetRidOf",
+    "source": "We need to get rid off the clutter.",
+    "actual": "get rid off",
+    "replacements": [
+      "get rid of"
+    ],
+    "valid": [
+      "We need to get rid of the clutter.",
+      "Get off the bus.",
+      "The clutter is gone."
+    ],
+    "additional": [
+      {
+        "source": "She got ride of the clutter.",
+        "actual": "got ride of",
+        "replacements": [
+          "got rid of"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.StatuteOfLimitations",
+    "source": "The statue of limitations has expired.",
+    "actual": "statue of limitations",
+    "replacements": [
+      "statute of limitations"
+    ],
+    "valid": [
+      "The statute of limitations has expired.",
+      "The statue of the writer is outside.",
+      "The limitations are clear."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TrialAndError",
+    "source": "We solved it through trail and error.",
+    "actual": "trail and error",
+    "replacements": [
+      "trial and error"
+    ],
+    "valid": [
+      "We solved it through trial and error.",
+      "The trail is steep.",
+      "An error occurred on the trail."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ThanksALot",
+    "source": "Thanks lot for your help.",
+    "actual": "Thanks lot",
+    "replacements": [
+      "Thanks a lot"
+    ],
+    "valid": [
+      "Thanks a lot for your help.",
+      "She thanks everyone.",
+      "A lot of help was available."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InAnIdealWorld",
+    "source": "In ideal world, everyone would agree.",
+    "actual": "In ideal world",
+    "replacements": [
+      "In an ideal world"
+    ],
+    "valid": [
+      "In an ideal world, everyone would agree.",
+      "We live in the real world.",
+      "This is ideal for us."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.OutOfSync",
+    "source": "The audio is out of sink with the video.",
+    "actual": "out of sink",
+    "replacements": [
+      "out of sync"
+    ],
+    "valid": [
+      "The audio is out of sync with the video.",
+      "Take the dishes out of the sink.",
+      "The plumber ran out of sink fittings."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Furthermore",
+    "source": "Further more, the room is quiet.",
+    "actual": "Further more",
+    "replacements": [
+      "Furthermore"
+    ],
+    "valid": [
+      "Furthermore, the room is quiet.",
+      "We should further more causes.",
+      "The room is further away."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Meanwhile",
+    "source": "Mean while, the team kept working.",
+    "actual": "Mean while",
+    "replacements": [
+      "Meanwhile"
+    ],
+    "valid": [
+      "Meanwhile, the team kept working.",
+      "Calculate the mean while varying the sample size.",
+      "She can be mean while tired."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Therefore",
+    "source": "There fore, the claim is false.",
+    "actual": "There fore",
+    "replacements": [
+      "Therefore"
+    ],
+    "valid": [
+      "Therefore, the claim is false.",
+      "There are two doors.",
+      "Look there, fore and aft."
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Misunderstand",
+    "source": "We may miss understand the instructions.",
+    "actual": "miss understand",
+    "replacements": [
+      "misunderstand"
+    ],
+    "valid": [
+      "We may misunderstand the instructions.",
+      "The young miss understands everything.",
+      "We miss our friends."
+    ],
+    "additional": [
+      {
+        "source": "I do not want to miss understand you.",
+        "actual": "miss understand",
+        "replacements": [
+          "misunderstand"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Misused",
+    "source": "The software was miss used.",
+    "actual": "miss used",
+    "replacements": [
+      "misused"
+    ],
+    "valid": [
+      "The software was misused.",
+      "The young miss used the software.",
+      "She used the software.",
+      "We miss used books.",
+      "I miss used bookshops."
+    ],
+    "additional": [
+      {
+        "source": "The tool has been miss used.",
+        "actual": "miss used",
+        "replacements": [
+          "misused"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.DoubleEdgedSword",
+    "source": "The change is a double edged sword.",
+    "actual": "double edged sword",
+    "replacements": [
+      "double-edged sword"
+    ],
+    "valid": [
+      "The change is a double-edged sword.",
+      "The sword has a sharp edge.",
+      "Double the number of swords."
+    ],
+    "additional": [
+      {
+        "source": "These tools are double edge swords.",
+        "actual": "double edge swords",
+        "replacements": [
+          "double-edged swords"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.BackhandedCompliment",
+    "source": "That was a back hand compliment.",
+    "actual": "back hand compliment",
+    "replacements": [
+      "backhanded compliment"
+    ],
+    "valid": [
+      "That was a backhanded compliment.",
+      "Her backhand is strong.",
+      "He accepted the compliment."
+    ],
+    "additional": [
+      {
+        "source": "She received a backhand compliment.",
+        "actual": "backhand compliment",
+        "replacements": [
+          "backhanded compliment"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.UseToUsedTo",
+    "source": "We are use to the noise.",
+    "actual": "use",
+    "replacements": [
+      "used"
+    ],
+    "valid": [
+      "We are used to the noise.",
+      "What did you use to open it?",
+      "We use tools to build things.",
+      "I did not use to live here.",
+      "The tool is of use to us.",
+      "There is use to be made of this.",
+      "Is use to be encouraged?"
+    ],
+    "additional": [
+      {
+        "source": "I'm use to waiting.",
+        "actual": "use",
+        "replacements": [
+          "used"
+        ]
+      },
+      {
+        "source": "She is getting use to the noise.",
+        "actual": "use",
+        "replacements": [
+          "used"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AccuseOf",
+    "source": "They accused him for stealing.",
+    "actual": "for",
+    "replacements": [
+      "of"
+    ],
+    "valid": [
+      "They accused him of stealing.",
+      "They thanked him for helping.",
+      "He was accused for reasons unknown.",
+      "You are a defense lawyer defending the accused for a murder case.",
+      "They paid for the accused.",
+      "We accuse him of theft.",
+      "She was accused for the first time yesterday."
+    ],
+    "additional": [
+      {
+        "source": "She was accused for cheating.",
+        "actual": "for",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "They got accused for theft.",
+        "actual": "for",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "That is what she was accused for.",
+        "actual": "for",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "We accuse him for it.",
+        "actual": "for",
+        "replacements": [
+          "of"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AspireTo",
+    "source": "I aspire for become a teacher.",
+    "actual": "for",
+    "replacements": [
+      "to"
+    ],
+    "valid": [
+      "I aspire to become a teacher.",
+      "Aspire for Windows is ready.",
+      "They aspire to greatness.",
+      "She aspires to greatness.",
+      "The aspirant left for work."
+    ],
+    "additional": [
+      {
+        "source": "She aspires for greatness.",
+        "actual": "for",
+        "replacements": [
+          "to"
+        ]
+      },
+      {
+        "source": "They aspire for learn new skills.",
+        "actual": "for",
+        "replacements": [
+          "to"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.GoodAt",
+    "source": "She is good in swimming.",
+    "actual": "in",
+    "replacements": [
+      "at"
+    ],
+    "valid": [
+      "She is good at swimming.",
+      "She is good in bed.",
+      "He is good in an emergency.",
+      "The food is good in summer."
+    ],
+    "additional": [
+      {
+        "source": "He is good in mathematics.",
+        "actual": "in",
+        "replacements": [
+          "at"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.FascinatedBy",
+    "source": "I am fascinated about astronomy.",
+    "actual": "about",
+    "replacements": [
+      "by"
+    ],
+    "valid": [
+      "I am fascinated by astronomy.",
+      "She is fascinated with music.",
+      "He is fascinated from childhood.",
+      "He was fascinated about an hour ago.",
+      "A fascinated observer stood about ten feet away."
+    ],
+    "additional": [
+      {
+        "source": "Fascinated about computer science, she kept studying.",
+        "actual": "about",
+        "replacements": [
+          "by"
+        ]
+      },
+      {
+        "source": "I am very fascinated about innovative ideas.",
+        "actual": "about",
+        "replacements": [
+          "by"
+        ]
+      },
+      {
+        "source": "He was fascinated about AIS applications.",
+        "actual": "about",
+        "replacements": [
+          "by"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.JealousOf",
+    "source": "She is jealous from him.",
+    "actual": "from",
+    "replacements": [
+      "of"
+    ],
+    "valid": [
+      "She is jealous of him.",
+      "He was jealous from childhood.",
+      "She felt jealous from an early age.",
+      "He was jealous from an early age.",
+      "She was jealous from Monday onwards.",
+      "He was jealous from being ignored."
+    ],
+    "additional": [
+      {
+        "source": "He grew jealous from the attention.",
+        "actual": "from",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "They felt jealous from sudden praise.",
+        "actual": "from",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "Jealous from success, he became bitter.",
+        "actual": "from",
+        "replacements": [
+          "of"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.PassionateAbout",
+    "source": "I am passionate of programming.",
+    "actual": "of",
+    "replacements": [
+      "about"
+    ],
+    "valid": [
+      "I am passionate about programming.",
+      "She is passionate of late.",
+      "The most passionate of the speakers won.",
+      "She is passionate about science.",
+      "The passionate of every generation gather here."
+    ],
+    "additional": [
+      {
+        "source": "Passionate of music, she joined the band.",
+        "actual": "of",
+        "replacements": [
+          "about"
+        ]
+      },
+      {
+        "source": "A researcher passionate of embodied AI wrote the paper.",
+        "actual": "of",
+        "replacements": [
+          "about"
+        ]
+      },
+      {
+        "source": "He is passionate of web mapping.",
+        "actual": "of",
+        "replacements": [
+          "about"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TakeCareOf",
+    "source": "Please take care about the children.",
+    "actual": "about",
+    "replacements": [
+      "of"
+    ],
+    "valid": [
+      "Please take care of the children.",
+      "Take care about how much you spend.",
+      "We care about children.",
+      "Take care about how you phrase that.",
+      "Take care about crossing the road.",
+      "They care about the children."
+    ],
+    "additional": [
+      {
+        "source": "She takes care about her daughter.",
+        "actual": "about",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "The service takes care about this.",
+        "actual": "about",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "She has taken care about making the labels.",
+        "actual": "about",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "They are taking care about analysis of output.",
+        "actual": "about",
+        "replacements": [
+          "of"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TakePrideIn",
+    "source": "They take pride of their work.",
+    "actual": "of",
+    "replacements": [
+      "in"
+    ],
+    "valid": [
+      "They take pride in their work.",
+      "The pride of the family is here.",
+      "They took pride of place.",
+      "It took pride of honour on the list.",
+      "The family takes pride of place in town."
+    ],
+    "additional": [
+      {
+        "source": "He took pride of helping.",
+        "actual": "of",
+        "replacements": [
+          "in"
+        ]
+      },
+      {
+        "source": "They took pride of well written code.",
+        "actual": "of",
+        "replacements": [
+          "in"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ReasonForDoing",
+    "source": "There is no reason of leaving.",
+    "actual": "of",
+    "replacements": [
+      "for"
+    ],
+    "valid": [
+      "There is no reason for leaving.",
+      "He won by reason of being ready.",
+      "The reason of man is limited.",
+      "whether for reasons of logging, monitoring, etc.",
+      "That said, and just for reasons of making the simple-openai code more robust, one could verify that it is not null and throw the appropriate exceptions",
+      "Ideally we don't want to reduce the idleTimeout (currently set to 120s) for the standard reasons of wanting to be able to handle bursty traffic.",
+      "We left for reason of illness.",
+      "For reasons of logging, we keep it.",
+      "For the standard reasons of wanting stability, we keep it.",
+      "By reason of being ill, he stayed home."
+    ],
+    "additional": [
+      {
+        "source": "What are your reasons of doing it?",
+        "actual": "of",
+        "replacements": [
+          "for"
+        ]
+      },
+      {
+        "source": "Any reasons of having another version?",
+        "actual": "of",
+        "replacements": [
+          "for"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InFavourOfDoing",
+    "source": "I am in favour helping.",
+    "actual": "favour",
+    "replacements": [
+      "favour of"
+    ],
+    "valid": [
+      "I am in favour of helping.",
+      "She spoke in favor of it.",
+      "We are in favor today."
+    ],
+    "additional": [
+      {
+        "source": "We are in favor waiting.",
+        "actual": "favor",
+        "replacements": [
+          "favor of"
+        ]
+      },
+      {
+        "source": "I am in favour doing nothing.",
+        "actual": "favour",
+        "replacements": [
+          "favour of"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CureFor",
+    "source": "We need a cure against cancer.",
+    "actual": "against",
+    "replacements": [
+      "for"
+    ],
+    "valid": [
+      "We need a cure for cancer.",
+      "The medicine cures cancer.",
+      "A cure against the clock is difficult.",
+      "They cure wood against future decay.",
+      "The remedy was cured against a hot surface.",
+      "A cure, against all odds, was found."
+    ],
+    "additional": [
+      {
+        "source": "They sought a cure against the stubborn illness.",
+        "actual": "against",
+        "replacements": [
+          "for"
+        ]
+      },
+      {
+        "source": "We trust the cure against the dreaded plague.",
+        "actual": "against",
+        "replacements": [
+          "for"
+        ]
+      },
+      {
+        "source": "Cure against that disease became their slogan.",
+        "actual": "against",
+        "replacements": [
+          "for"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ExceptOf",
+    "source": "With the except of John, everyone came.",
+    "actual": "except",
+    "replacements": [
+      "exception"
+    ],
+    "valid": [
+      "With the exception of John, everyone came.",
+      "Everything except of course the kitchen was clean."
+    ],
+    "additional": [
+      {
+        "source": "With the possible except of John, everyone came.",
+        "actual": "except",
+        "replacements": [
+          "exception"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TakeALookTo",
+    "source": "Please take a look to the report.",
+    "actual": "to",
+    "replacements": [
+      "at"
+    ],
+    "valid": [
+      "Take a look to see what happened.",
+      "Please take a look at the report.",
+      "We look to the future.",
+      "The ecosystem's UI certainly has a look to it but inside of your app you could implement a different look as long as it's consistent."
+    ],
+    "additional": [
+      {
+        "source": "She had a look to the picture.",
+        "actual": "to",
+        "replacements": [
+          "at"
+        ]
+      },
+      {
+        "source": "He took a look to it.",
+        "actual": "to",
+        "replacements": [
+          "at"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AwareOf",
+    "source": "We are aware about the problem.",
+    "actual": "about",
+    "replacements": [
+      "of"
+    ],
+    "valid": [
+      "We are aware of the problem.",
+      "The aware travelers walked about town."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.BewareOf",
+    "source": "Beware about the dog.",
+    "actual": "about",
+    "replacements": [
+      "of"
+    ],
+    "valid": [
+      "Beware of the dog.",
+      "Beware in the forest.",
+      "Beware at night.",
+      "Beware the dog.",
+      "Beware in the woods.",
+      "Beware on the icy road.",
+      "Beware among strangers.",
+      "Beware with every step.",
+      "Beware for your own sake.",
+      "Beware with a guide beside you."
+    ],
+    "additional": [
+      {
+        "source": "Beware about scams.",
+        "actual": "about",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "Beware with the loose wires.",
+        "actual": "with",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "Beware regarding the crumbling guardrail.",
+        "actual": "regarding",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "Beware concerning the expired coupon.",
+        "actual": "concerning",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "Beware against mixing these chemicals.",
+        "actual": "against",
+        "replacements": [
+          "of"
+        ]
+      },
+      {
+        "source": "Beware with regard to the rusted railing.",
+        "actual": "with regard to",
+        "replacements": [
+          "of"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CuriousAbout",
+    "source": "I am curious of why it happened.",
+    "actual": "of",
+    "replacements": [
+      "about"
+    ],
+    "valid": [
+      "I am curious about why it happened.",
+      "He was curious on Monday.",
+      "The most curious of the children asked.",
+      "The curious of every age attended.",
+      "She was curious on the journey."
+    ],
+    "additional": [
+      {
+        "source": "Curious on why it happened, she asked again.",
+        "actual": "on",
+        "replacements": [
+          "about"
+        ]
+      },
+      {
+        "source": "He started to get curious of how it worked.",
+        "actual": "of",
+        "replacements": [
+          "about"
+        ]
+      },
+      {
+        "source": "We are curious on recommended requirements.",
+        "actual": "on",
+        "replacements": [
+          "about"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InspiredBy",
+    "source": "She was inspired from the book.",
+    "actual": "from",
+    "replacements": [
+      "by"
+    ],
+    "valid": [
+      "She was inspired by the book.",
+      "She was inspired from an early age.",
+      "He was inspired from within."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.InsteadOf",
+    "source": "We walked in stead of driving.",
+    "actual": "in stead of",
+    "replacements": [
+      "instead of"
+    ],
+    "valid": [
+      "We walked instead of driving.",
+      "He stood in my stead."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.LaughOfAt",
+    "source": "They laughed of him.",
+    "actual": "of",
+    "replacements": [
+      "at"
+    ],
+    "valid": [
+      "They laughed at him.",
+      "The laugh of the baby was sweet.",
+      "It was a laugh of delight.",
+      "The laugh of John echoed.",
+      "Her laugh of disbelief surprised us.",
+      "We had a laugh of relief.",
+      "They heard a laugh of joy."
+    ],
+    "additional": [
+      {
+        "source": "Laugh of John while he waits.",
+        "actual": "of",
+        "replacements": [
+          "at"
+        ]
+      },
+      {
+        "source": "Do not laugh of your teammate.",
+        "actual": "of",
+        "replacements": [
+          "at"
+        ]
+      },
+      {
+        "source": "The crowd laughs of Mary.",
+        "actual": "of",
+        "replacements": [
+          "at"
+        ]
+      },
+      {
+        "source": "I was laughing of Alex.",
+        "actual": "of",
+        "replacements": [
+          "at"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.SimilarLike",
+    "source": "The result is similar like the original.",
+    "actual": "like",
+    "replacements": [
+      "to"
+    ],
+    "valid": [
+      "The result is similar to the original.",
+      "Similar like charges repel.",
+      "We noticed similar like behavior.",
+      "A similar likeness emerged.",
+      "They have similar likes."
+    ],
+    "additional": [
+      {
+        "source": "My idea is similar like yours.",
+        "actual": "like",
+        "replacements": [
+          "to"
+        ]
+      },
+      {
+        "source": "The sample feels similar like the old version.",
+        "actual": "like",
+        "replacements": [
+          "to"
+        ]
+      },
+      {
+        "source": "The proof seemed similar like every previous argument.",
+        "actual": "like",
+        "replacements": [
+          "to"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AwaitFor",
+    "source": "We await for the reply.",
+    "actual": "for the reply",
+    "replacements": [
+      "the reply"
+    ],
+    "valid": [
+      "We await the reply.",
+      "This is the answer we awaited for years.",
+      "She waited for the reply.",
+      "We await feedback.",
+      "We wait for feedback.",
+      "They await for now.",
+      "The answers we await for our report are late."
+    ],
+    "additional": [
+      {
+        "source": "They are awaiting for their results.",
+        "actual": "for their results",
+        "replacements": [
+          "their results"
+        ]
+      },
+      {
+        "source": "We await for requested feedback.",
+        "actual": "for requested feedback",
+        "replacements": [
+          "requested feedback"
+        ]
+      },
+      {
+        "source": "She is awaiting for a college course.",
+        "actual": "for a college",
+        "replacements": [
+          "a college"
+        ]
+      },
+      {
+        "source": "They have awaited for the rise of spring.",
+        "actual": "for the rise",
+        "replacements": [
+          "the rise"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.AsOpposedTo",
+    "source": "I chose tea as oppose to coffee.",
+    "actual": "as oppose to",
+    "replacements": [
+      "as opposed to"
+    ],
+    "valid": [
+      "I chose tea as opposed to coffee.",
+      "They oppose the plan."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.DueDiligence",
+    "source": "We did our do diligence.",
+    "actual": "do diligence",
+    "replacements": [
+      "due diligence"
+    ],
+    "valid": [
+      "We did our due diligence.",
+      "We will do diligence on this deal.",
+      "They do diligence reviews."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.EnMasse",
+    "source": "The workers resigned in masse.",
+    "actual": "in masse",
+    "replacements": [
+      "en masse"
+    ],
+    "valid": [
+      "The workers resigned en masse.",
+      "We work in mass production.",
+      "The change in mass was small.",
+      "They moved in mass production circles."
+    ],
+    "additional": [
+      {
+        "source": "The workers arrived on mass.",
+        "actual": "on mass",
+        "replacements": [
+          "en masse"
+        ]
+      },
+      {
+        "source": "They moved in mass yesterday.",
+        "actual": "in mass",
+        "replacements": [
+          "en masse"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.EnRoute",
+    "source": "We are in route to the airport.",
+    "actual": "in route",
+    "replacements": [
+      "en route"
+    ],
+    "valid": [
+      "We are en route to the airport.",
+      "We found an error in route planning.",
+      "The book on route maps is here."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.ForALongTime",
+    "source": "I waited for along time.",
+    "actual": "for along time",
+    "replacements": [
+      "for a long time"
+    ],
+    "valid": [
+      "I waited for a long time.",
+      "Walk along the river."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.HalfAnHour",
+    "source": "We waited half an our.",
+    "actual": "half an our",
+    "replacements": [
+      "half an hour"
+    ],
+    "valid": [
+      "We waited half an hour.",
+      "Our hour is over."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.InHindsight",
+    "source": "On hindsight, we should have waited.",
+    "actual": "On hindsight",
+    "replacements": [
+      "In hindsight"
+    ],
+    "valid": [
+      "In hindsight, we should have waited.",
+      "A book on hindsight bias is useful.",
+      "The animal has keen hind sight.",
+      "In hindsight, it was clear."
+    ],
+    "additional": [
+      {
+        "source": "In hind sight, this was obvious.",
+        "actual": "In hind sight",
+        "replacements": [
+          "In hindsight"
+        ]
+      },
+      {
+        "source": "On hind sight the cause was clear.",
+        "actual": "On hind sight",
+        "replacements": [
+          "In hindsight"
+        ]
+      },
+      {
+        "source": "It looked better in hind sight.",
+        "actual": "in hind sight",
+        "replacements": [
+          "in hindsight"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.InTheSameVein",
+    "source": "She spoke in the same vain.",
+    "actual": "in the same vain",
+    "replacements": [
+      "in the same vein"
+    ],
+    "valid": [
+      "She spoke in the same vein.",
+      "The vain man spoke.",
+      "They failed in vain.",
+      "Blood flows in the same veins.",
+      "They made a vain attempt.",
+      "She wore the same vain expression."
+    ],
+    "additional": [
+      {
+        "source": "We will work in same vein as before.",
+        "actual": "in same vein",
+        "replacements": [
+          "in the same vein"
+        ]
+      },
+      {
+        "source": "The work continues in same vain.",
+        "actual": "in same vain",
+        "replacements": [
+          "in the same vein"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.OneAndTheSame",
+    "source": "They are one in the same.",
+    "actual": "one in the same",
+    "replacements": [
+      "one and the same"
+    ],
+    "valid": [
+      "They are one and the same.",
+      "Put one in the same row.",
+      "They are one in the same room."
+    ],
+    "additional": [
+      {
+        "source": "It is one in the same as the original.",
+        "actual": "one in the same",
+        "replacements": [
+          "one and the same"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.OnceInAWhile",
+    "source": "We visit once and a while.",
+    "actual": "once and a while",
+    "replacements": [
+      "once in a while"
+    ],
+    "valid": [
+      "We visit once in a while.",
+      "Run once a while loop starts."
+    ],
+    "additional": [
+      {
+        "source": "We meet once awhile.",
+        "actual": "once awhile",
+        "replacements": [
+          "once in a while"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.RulesOfThumb",
+    "source": "We use several rule of thumbs.",
+    "actual": "rule of thumbs",
+    "replacements": [
+      "rules of thumb"
+    ],
+    "valid": [
+      "We use several rules of thumb.",
+      "We use a rule of thumb.",
+      "The rule of thumbs is unclear."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.PointsOfView",
+    "source": "We heard many point of views.",
+    "actual": "point of views",
+    "replacements": [
+      "points of view"
+    ],
+    "valid": [
+      "We heard many points of view.",
+      "A point of view is personal.",
+      "The point of views is unclear."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.PassersBy",
+    "source": "The passerbys stopped.",
+    "actual": "passerbys",
+    "replacements": [
+      "passersby"
+    ],
+    "valid": [
+      "The passersby stopped.",
+      "A passerby stopped.",
+      "Use passerbys_count and passerbys/name."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.StateOfTheArt",
+    "source": "The equipment is state of art.",
+    "actual": "state of art",
+    "replacements": [
+      "state of the art"
+    ],
+    "valid": [
+      "The equipment is state of the art.",
+      "The state of art education is worrying.",
+      "This is state of art education."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.OneFellSwoop",
+    "source": "It ended in one foul swoop.",
+    "actual": "one foul swoop",
+    "replacements": [
+      "one fell swoop"
+    ],
+    "valid": [
+      "It ended in one fell swoop.",
+      "One foul bird swooped."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.PiqueInterest",
+    "source": "The story peaked my interest.",
+    "actual": "peaked",
+    "replacements": [
+      "piqued"
+    ],
+    "valid": [
+      "The story piqued my interest.",
+      "We saw peak interest rates.",
+      "The bird peeked at me."
+    ],
+    "additional": [
+      {
+        "source": "The story will peek your interest.",
+        "actual": "peek",
+        "replacements": [
+          "pique"
+        ]
+      },
+      {
+        "source": "She peak my interest.",
+        "actual": "peak",
+        "replacements": [
+          "piques"
+        ]
+      },
+      {
+        "source": "They peaks my interest.",
+        "actual": "peaks",
+        "replacements": [
+          "pique"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.QuiteQuiet",
+    "source": "She is quiet often late.",
+    "actual": "quiet",
+    "replacements": [
+      "quite"
+    ],
+    "valid": [
+      "She is quite often late.",
+      "The quiet little village is lovely.",
+      "He is a quiet good boy.",
+      "She is quite good.",
+      "The quiet, impressive building remained.",
+      "A quiet remarkable child entered.",
+      "The room is quiet today."
+    ],
+    "additional": [
+      {
+        "source": "It is very quite here.",
+        "actual": "quite",
+        "replacements": [
+          "quiet"
+        ]
+      },
+      {
+        "source": "That was quiet remarkable.",
+        "actual": "quiet",
+        "replacements": [
+          "quite"
+        ]
+      },
+      {
+        "source": "The result is quiet impressive.",
+        "actual": "quiet",
+        "replacements": [
+          "quite"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.PrincipleToPrincipalRoleNoun",
+    "source": "She is the principle investigator.",
+    "actual": "principle",
+    "replacements": [
+      "principal"
+    ],
+    "valid": [
+      "She is the principal investigator.",
+      "The principle of equality matters.",
+      "A principle guides us.",
+      "This principle guides our work.",
+      "My principle day job pays the bills."
+    ],
+    "additional": [
+      {
+        "source": "My principle responsibility is safety.",
+        "actual": "principle",
+        "replacements": [
+          "principal"
+        ]
+      },
+      {
+        "source": "This principle focus is too narrow.",
+        "actual": "principle",
+        "replacements": [
+          "principal"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.ToLoseTooLoose",
+    "source": "I do not want to loose the game.",
+    "actual": "loose",
+    "replacements": [
+      "lose"
+    ],
+    "valid": [
+      "I do not want to lose the game.",
+      "They prepared to loose the arrows.",
+      "The ropes are loose."
+    ],
+    "additional": [
+      {
+        "source": "The belt is too lose.",
+        "actual": "lose",
+        "replacements": [
+          "loose"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.BoarderBorder",
+    "source": "The boarder between countries is closed.",
+    "actual": "boarder",
+    "replacements": [
+      "border"
+    ],
+    "valid": [
+      "The border between countries is closed.",
+      "The boarder with red hair arrived.",
+      "The boarder of the school paid.",
+      "The boarder between the two tourists smiled.",
+      "A boarder with a uniform entered.",
+      "They cross the boarder when they make noise.",
+      "The boarder on the left side paid first."
+    ],
+    "additional": [
+      {
+        "source": "The boarder between the two countries is closed.",
+        "actual": "boarder",
+        "replacements": [
+          "border"
+        ]
+      },
+      {
+        "source": "There is a thin boarder between the sections.",
+        "actual": "boarder",
+        "replacements": [
+          "border"
+        ]
+      },
+      {
+        "source": "Set the boarder with CSS.",
+        "actual": "boarder",
+        "replacements": [
+          "border"
+        ]
+      },
+      {
+        "source": "A boarder with a dashed style surrounds the text.",
+        "actual": "boarder",
+        "replacements": [
+          "border"
+        ]
+      },
+      {
+        "source": "Set the boarders with a uniform width.",
+        "actual": "boarders",
+        "replacements": [
+          "borders"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.SeamToSeem",
+    "source": "They seam to agree.",
+    "actual": "seam",
+    "replacements": [
+      "seem"
+    ],
+    "valid": [
+      "They seem to agree.",
+      "The seams to be sewn are marked.",
+      "We seam the fabric.",
+      "We all seam the fabric.",
+      "The seams hold the fabric.",
+      "A seam to the left needs repair.",
+      "They seam two layers together."
+    ],
+    "additional": [
+      {
+        "source": "He seams to understand.",
+        "actual": "seams",
+        "replacements": [
+          "seems"
+        ]
+      },
+      {
+        "source": "They seams to agree.",
+        "actual": "seams",
+        "replacements": [
+          "seem"
+        ]
+      },
+      {
+        "source": "He seam to understand.",
+        "actual": "seam",
+        "replacements": [
+          "seems"
+        ]
+      },
+      {
+        "source": "We all seam to agree.",
+        "actual": "seam",
+        "replacements": [
+          "seem"
+        ]
+      },
+      {
+        "source": "They both seam to work.",
+        "actual": "seam",
+        "replacements": [
+          "seem"
+        ]
+      },
+      {
+        "source": "I can't seam to finish.",
+        "actual": "seam",
+        "replacements": [
+          "seem"
+        ]
+      },
+      {
+        "source": "Everybody seams to care.",
+        "actual": "seams",
+        "replacements": [
+          "seems"
+        ]
+      },
+      {
+        "source": "It seams I cannot leave.",
+        "actual": "seams",
+        "replacements": [
+          "seems"
+        ]
+      },
+      {
+        "source": "Everything seams alright.",
+        "actual": "seams",
+        "replacements": [
+          "seems"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.DoesOrDose",
+    "source": "Dose he know?",
+    "actual": "Dose",
+    "replacements": [
+      "Does"
+    ],
+    "valid": [
+      "Does he know?",
+      "Take one dose, not two.",
+      "Dose it carefully.",
+      "The dose is correct.",
+      "What dose of medicine do I need?",
+      "What dose is considered safe?",
+      "I know what dose it takes.",
+      "We know how dose modifications affect the trial.",
+      "Please dose the patient carefully.",
+      "What dose the patient takes is unknown."
+    ],
+    "additional": [
+      {
+        "source": "He dose not know.",
+        "actual": "dose",
+        "replacements": [
+          "does"
+        ]
+      },
+      {
+        "source": "What dose it mean?",
+        "actual": "dose",
+        "replacements": [
+          "does"
+        ]
+      },
+      {
+        "source": "It dose work.",
+        "actual": "dose",
+        "replacements": [
+          "does"
+        ]
+      },
+      {
+        "source": "What dose a business analyst do?",
+        "actual": "dose",
+        "replacements": [
+          "does"
+        ]
+      },
+      {
+        "source": "What dose an ear infection feel like?",
+        "actual": "dose",
+        "replacements": [
+          "does"
+        ]
+      },
+      {
+        "source": "What dose this sign mean?",
+        "actual": "dose",
+        "replacements": [
+          "does"
+        ]
+      },
+      {
+        "source": "What dose that mean?",
+        "actual": "dose",
+        "replacements": [
+          "does"
+        ]
+      },
+      {
+        "source": "Where dose the password go?",
+        "actual": "dose",
+        "replacements": [
+          "does"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.SafeToSave",
+    "source": "Please try to safe the file.",
+    "actual": "safe",
+    "replacements": [
+      "save"
+    ],
+    "valid": [
+      "Please try to save the file.",
+      "The file is safe.",
+      "They need to safe the weapon.",
+      "They can safe the gun.",
+      "The file is definitely safe.",
+      "The safe contains money."
+    ],
+    "additional": [
+      {
+        "source": "We can safe money.",
+        "actual": "safe",
+        "replacements": [
+          "save"
+        ]
+      },
+      {
+        "source": "This will safe you time.",
+        "actual": "safe",
+        "replacements": [
+          "save"
+        ]
+      },
+      {
+        "source": "You should definitely safe your changes.",
+        "actual": "safe",
+        "replacements": [
+          "save"
+        ]
+      },
+      {
+        "source": "We can still safe the file.",
+        "actual": "safe",
+        "replacements": [
+          "save"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.SaveToSafe",
+    "source": "It is save to proceed.",
+    "actual": "save",
+    "replacements": [
+      "safe"
+    ],
+    "valid": [
+      "It is safe to proceed.",
+      "We save to buy a house.",
+      "The save is complete."
+    ],
+    "additional": [
+      {
+        "source": "Is it save to travel?",
+        "actual": "save",
+        "replacements": [
+          "safe"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.WasAloud",
+    "source": "She was aloud to leave.",
+    "actual": "aloud",
+    "replacements": [
+      "allowed"
+    ],
+    "valid": [
+      "She was allowed to leave.",
+      "She read aloud to the class.",
+      "The instruction was read aloud."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.SpinalChord",
+    "source": "The spinal chord was damaged.",
+    "actual": "chord",
+    "replacements": [
+      "cord"
+    ],
+    "valid": [
+      "The spinal cord was damaged.",
+      "She played a vocal chord.",
+      "The electric chord sounded loud.",
+      "The vocal chords in the song were beautiful.",
+      "The vocal chords sustain the melody.",
+      "They played electrical chord progressions."
+    ],
+    "additional": [
+      {
+        "source": "The umbilical chord was cut.",
+        "actual": "chord",
+        "replacements": [
+          "cord"
+        ]
+      },
+      {
+        "source": "The singer's vocal chords were sore.",
+        "actual": "chords",
+        "replacements": [
+          "cords"
+        ]
+      },
+      {
+        "source": "Electrical chord damage can start a fire.",
+        "actual": "chord",
+        "replacements": [
+          "cord"
+        ]
+      },
+      {
+        "source": "The electrical chords run along the wall.",
+        "actual": "chords",
+        "replacements": [
+          "cords"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.HopHope",
+    "source": "I hop that we win.",
+    "actual": "hop",
+    "replacements": [
+      "hope"
+    ],
+    "valid": [
+      "I hope that we win.",
+      "I hop on one foot.",
+      "The hop was long."
+    ],
+    "additional": [
+      {
+        "source": "She hopped that he would return.",
+        "actual": "hopped",
+        "replacements": [
+          "hoped"
+        ]
+      },
+      {
+        "source": "They hops that we win.",
+        "actual": "hops",
+        "replacements": [
+          "hope"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Notwithstanding",
+    "source": "We proceeded not withstanding the rain.",
+    "actual": "not withstanding",
+    "replacements": [
+      "notwithstanding"
+    ],
+    "valid": [
+      "We proceeded notwithstanding the rain.",
+      "We begin not with standing orders but with questions.",
+      "The wall is not withstanding the pressure."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.Henceforth",
+    "source": "Hence forth, we will wait.",
+    "actual": "Hence forth",
+    "replacements": [
+      "Henceforth"
+    ],
+    "valid": [
+      "Henceforth, we will wait.",
+      "We went forth."
+    ],
+    "additional": [
+      {
+        "source": "The rules apply hence forth.",
+        "actual": "hence forth",
+        "replacements": [
+          "henceforth"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Whereas",
+    "source": "I prefer tea, where as she prefers coffee.",
+    "actual": "where as",
+    "replacements": [
+      "whereas"
+    ],
+    "valid": [
+      "I prefer tea, whereas she prefers coffee.",
+      "This is where as a child I lived.",
+      "Where as a child did she live?",
+      "Put it where a cat sleeps.",
+      "Where as a child did you live?"
+    ],
+    "additional": [
+      {
+        "source": "Dogs play fetch, where as cats sleep.",
+        "actual": "where as",
+        "replacements": [
+          "whereas"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Beforehand",
+    "source": "We prepared before hand.",
+    "actual": "before hand",
+    "replacements": [
+      "beforehand"
+    ],
+    "valid": [
+      "We prepared beforehand.",
+      "Wash before hand surgery.",
+      "Inspect before hand washing.",
+      "We met before hand tools were common."
+    ],
+    "additional": [
+      {
+        "source": "Let me know before hand if you will attend.",
+        "actual": "before hand",
+        "replacements": [
+          "beforehand"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.Alongside",
+    "source": "We walked along side the river.",
+    "actual": "along side",
+    "replacements": [
+      "alongside"
+    ],
+    "valid": [
+      "We walked alongside the river.",
+      "We walked along side roads.",
+      "The long side is blue."
+    ],
+    "additional": [
+      {
+        "source": "They stood along side.",
+        "actual": "along side",
+        "replacements": [
+          "alongside"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.EveryTime",
+    "source": "It works everytime.",
+    "actual": "everytime",
+    "replacements": [
+      "every time"
+    ],
+    "valid": [
+      "It works every time.",
+      "Every time we meet, we smile.",
+      "Use everytime_value and path/everytime."
+    ],
+    "additional": []
+  },
+  {
+    "rule": "FigaroGrammar.OvertimeCompoundNoun",
+    "source": "They received their over time pay.",
+    "actual": "over time",
+    "replacements": [
+      "overtime"
+    ],
+    "valid": [
+      "They received their overtime pay.",
+      "Over time pay increased.",
+      "It improves over time.",
+      "We argued over time limits.",
+      "We saw growth over time.",
+      "We audit records over time.",
+      "She was paid over time for Sunday."
+    ],
+    "additional": [
+      {
+        "source": "They filed an over time claim.",
+        "actual": "over time",
+        "replacements": [
+          "overtime"
+        ]
+      },
+      {
+        "source": "We saw over time hours increase.",
+        "actual": "over time",
+        "replacements": [
+          "overtime"
+        ]
+      },
+      {
+        "source": "Managers audit over time details weekly.",
+        "actual": "over time",
+        "replacements": [
+          "overtime"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.LetsConfusion",
+    "source": "Lets go home.",
+    "actual": "Lets",
+    "replacements": [
+      "Let's"
+    ],
+    "valid": [
+      "Let's go home.",
+      "She lets him leave.",
+      "She lets go.",
+      "The referee lets play continue.",
+      "Let chance decide.",
+      "This lets staff restore files.",
+      "Let's all leave.",
+      "Then she lets him go."
+    ],
+    "additional": [
+      {
+        "source": "She let's him leave.",
+        "actual": "let's",
+        "replacements": [
+          "lets"
+        ]
+      },
+      {
+        "source": "The crutch let's him walk.",
+        "actual": "let's",
+        "replacements": [
+          "lets"
+        ]
+      },
+      {
+        "source": "So lets push the box.",
+        "actual": "lets",
+        "replacements": [
+          "let's"
+        ]
+      },
+      {
+        "source": "Then lets inspect the room.",
+        "actual": "lets",
+        "replacements": [
+          "let's"
+        ]
+      },
+      {
+        "source": "In the end lets mock the service.",
+        "actual": "lets",
+        "replacements": [
+          "let's"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.DoMistake",
+    "source": "I did a mistake.",
+    "actual": "did",
+    "replacements": [
+      "made"
+    ],
+    "valid": [
+      "I made a mistake.",
+      "Do the mistakes matter?",
+      "Does a mistake matter?",
+      "Did the mistakes cause harm?",
+      "When does a mistake become standard usage? ",
+      "How often does a mistake become common?",
+      "Why did a mistake occur?",
+      "The mistakes do matter."
+    ],
+    "additional": [
+      {
+        "source": "She is doing several mistakes.",
+        "actual": "doing",
+        "replacements": [
+          "making"
+        ]
+      },
+      {
+        "source": "I did that mistake too.",
+        "actual": "did",
+        "replacements": [
+          "made"
+        ]
+      },
+      {
+        "source": "She do a mistake.",
+        "actual": "do",
+        "replacements": [
+          "makes"
+        ]
+      },
+      {
+        "source": "They does a mistake.",
+        "actual": "does",
+        "replacements": [
+          "make"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.FriendOfMe",
+    "source": "She is a friend of me.",
+    "actual": "me",
+    "replacements": [
+      "mine"
+    ],
+    "valid": [
+      "She is a friend of mine.",
+      "She is a friend of us all.",
+      "She is a friend of him who won.",
+      "She is a friend of you and your family.",
+      "She is a friend of him and me.",
+      "He is an enemy of us both.",
+      "They are friends of mine.",
+      "She is a friend of my sister.",
+      "The photo of me is here."
+    ],
+    "additional": [
+      {
+        "source": "He is an enemy of them.",
+        "actual": "them",
+        "replacements": [
+          "theirs"
+        ]
+      },
+      {
+        "source": "A friend of me died last year.",
+        "actual": "me",
+        "replacements": [
+          "mine"
+        ]
+      },
+      {
+        "source": "Which friends of them are coming?",
+        "actual": "them",
+        "replacements": [
+          "theirs"
+        ]
+      },
+      {
+        "source": "It was made for friends of us.",
+        "actual": "us",
+        "replacements": [
+          "ours"
+        ]
+      },
+      {
+        "source": "Some friends of me arrived.",
+        "actual": "me",
+        "replacements": [
+          "mine"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.HaveAHardTime",
+    "source": "We have hard time sleeping.",
+    "actual": "hard",
+    "replacements": [
+      "a hard"
+    ],
+    "valid": [
+      "We have a hard time sleeping.",
+      "We have hard time limits.",
+      "They have hard time in prison.",
+      "We had some hard time finding it.",
+      "They had hard times together.",
+      "They have hard time limits."
+    ],
+    "additional": [
+      {
+        "source": "She had extremely hard time waiting.",
+        "actual": "extremely",
+        "replacements": [
+          "an extremely"
+        ]
+      },
+      {
+        "source": "We had hard time to investigate the problem.",
+        "actual": "hard",
+        "replacements": [
+          "a hard"
+        ]
+      },
+      {
+        "source": "She is having hard time to install the program.",
+        "actual": "hard",
+        "replacements": [
+          "a hard"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.HowDoesCompared",
+    "source": "How does it compared?",
+    "actual": "compared",
+    "replacements": [
+      "compare"
+    ],
+    "valid": [
+      "How does it compare?",
+      "How do they compare?"
+    ],
+    "additional": [
+      {
+        "source": "How do they compares?",
+        "actual": "compares",
+        "replacements": [
+          "compare"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.NounSubjectAgreement",
+    "source": "The spare chairs is ready.",
+    "actual": "is",
+    "replacements": [
+      "are"
+    ],
+    "valid": [
+      "The spare chairs are ready.",
+      "The team have finished.",
+      "The sheep is ready.",
+      "The sheep are ready.",
+      "If the chair were blue, I would buy it.",
+      "The chair and the table are ready.",
+      "The chairs in the room are ready.",
+      "The series is ready.",
+      "The news is good.",
+      "The chair covers are ready.",
+      "I require that the patient have rested.",
+      "I insist that the dog have eaten before leaving.",
+      "The border between the countries is closed.",
+      "The box with the tools is ready.",
+      "The shelf of books is dusty.",
+      "The chair that the children have painted is blue.",
+      "The school of fish is large.",
+      "The choice between two books is difficult.",
+      "The route through the mountains is closed.",
+      "The majority of the chairs are blue.",
+      "The chair near the stairs is broken.",
+      "The best of the paintings is here.",
+      "The poor are hungry.",
+      "The rich are here.",
+      "The young are ready.",
+      "The injured are safe.",
+      "The accused are present.",
+      "The dead are buried.",
+      "The blind are here.",
+      "The unemployed have left.",
+      "The elderly are waiting."
+    ],
+    "additional": [
+      {
+        "source": "The chair are ready.",
+        "actual": "are",
+        "replacements": [
+          "is"
+        ]
+      },
+      {
+        "source": "My books has arrived.",
+        "actual": "has",
+        "replacements": [
+          "have"
+        ]
+      },
+      {
+        "source": "Our dog have eaten.",
+        "actual": "have",
+        "replacements": [
+          "has"
+        ]
+      },
+      {
+        "source": "These tables was clean.",
+        "actual": "was",
+        "replacements": [
+          "were"
+        ]
+      }
+    ]
+  }
+]

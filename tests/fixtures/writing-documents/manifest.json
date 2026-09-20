@@ -1,0 +1,253 @@
+{
+  "version": 1,
+  "annotationStatus": "Agent-authored expectations frozen before baseline; not independent human gold labels",
+  "documents": [
+    {
+      "id": "serve-static",
+      "path": "third-party/serve-static.md",
+      "language": "en-US",
+      "genre": "technical reference",
+      "origin": "untouched published Markdown",
+      "source": "https://github.com/expressjs/serve-static/blob/74be78a8ffad679edfe135c457ce141114d96fcc/README.md",
+      "revision": "74be78a8ffad679edfe135c457ce141114d96fcc",
+      "license": "MIT",
+      "licensePath": "third-party/serve-static.LICENSE",
+      "licenseSHA256": "63b9a188d7d43e64b0558b7115255045b9fe20a5fc3ff483421cb899e7f52bcb",
+      "sha256": "a42b827162e00dd9abdd60ff9d6ff91de232fc542390fd269a9526d5dc751c8c",
+      "normalization": "none; exact downloaded UTF-8 bytes",
+      "retrieved": "2026-09-20",
+      "errors": [],
+      "controls": []
+    },
+    {
+      "id": "p-map",
+      "path": "third-party/p-map.md",
+      "language": "en-US",
+      "genre": "technical reference",
+      "origin": "untouched published Markdown",
+      "source": "https://github.com/sindresorhus/p-map/blob/f0c43e358a449584c2045c89d1b9ae3cd5a9f293/readme.md",
+      "revision": "f0c43e358a449584c2045c89d1b9ae3cd5a9f293",
+      "license": "MIT",
+      "licensePath": "third-party/p-map.LICENSE",
+      "licenseSHA256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+      "sha256": "df3cabe97595f6460012ab9afe236473d5089100b638b835cb6fc1753568b0f8",
+      "normalization": "none; exact downloaded UTF-8 bytes",
+      "retrieved": "2026-09-20",
+      "errors": [],
+      "controls": []
+    },
+    {
+      "id": "workshop",
+      "path": "workshop.md",
+      "language": "en-US",
+      "genre": "practical draft",
+      "origin": "original agent-authored document with seeded errors and pre-result negative controls",
+      "license": "GPL-3.0-or-later (repository license)",
+      "normalization": "UTF-8 LF; no normalization",
+      "sha256": "3a7e15126b940b55b65f597a96c321df9bb2c797ca05a92fc81baaf816e516f4",
+      "errors": [
+        {
+          "context": "Their going to be late",
+          "actual": "Their",
+          "replacement": "They're",
+          "fromUTF16": 123,
+          "toUTF16": 128
+        },
+        {
+          "context": "Your going to be welcomed",
+          "actual": "Your",
+          "replacement": "You're",
+          "fromUTF16": 233,
+          "toUTF16": 237
+        },
+        {
+          "context": "Its going to be useful",
+          "actual": "Its",
+          "replacement": "It's",
+          "fromUTF16": 367,
+          "toUTF16": 370
+        },
+        {
+          "context": "check teh printed",
+          "actual": "teh",
+          "replacement": "the",
+          "fromUTF16": 473,
+          "toUTF16": 476
+        },
+        {
+          "context": "an uniform",
+          "actual": "an",
+          "replacement": "a",
+          "fromUTF16": 525,
+          "toUTF16": 527
+        },
+        {
+          "context": "chairs is",
+          "actual": "is",
+          "replacement": "are",
+          "fromUTF16": 615,
+          "toUTF16": 617
+        },
+        {
+          "context": "the the pencils",
+          "actual": "the the",
+          "replacement": "the",
+          "fromUTF16": 774,
+          "toUTF16": 781
+        },
+        {
+          "context": "**recieve**",
+          "actual": "recieve",
+          "replacement": "receive",
+          "fromUTF16": 914,
+          "toUTF16": 921
+        }
+      ],
+      "controls": [
+        "Their going to be thanked surprised the helpers.",
+        "Your running today worried nobody",
+        "Their going home was expected."
+      ]
+    },
+    {
+      "id": "garden",
+      "path": "garden.md",
+      "language": "en-GB",
+      "genre": "acceptable field note",
+      "origin": "original agent-authored document with seeded errors and pre-result negative controls",
+      "license": "GPL-3.0-or-later (repository license)",
+      "normalization": "UTF-8 LF; no normalization",
+      "sha256": "41120fa864261bafe90ae2356b4edcb755530ee2994cf1dc93661eff77a32637",
+      "errors": [],
+      "controls": [
+        "colour",
+        "organised",
+        "grey",
+        "neighbour",
+        "Their going to be interviewed was unexpected.",
+        "Your going to have been selected surprised the whole group.",
+        "Their not going to be served immediately seemed reasonable.",
+        "request for the guide",
+        "postal address",
+        "response time"
+      ]
+    },
+    {
+      "id": "service-note",
+      "path": "service-note.md",
+      "language": "en-GB",
+      "genre": "technical draft",
+      "origin": "original agent-authored document with seeded errors and pre-result negative controls",
+      "license": "GPL-3.0-or-later (repository license)",
+      "normalization": "UTF-8 LF; no normalization",
+      "sha256": "5f4e9486e45cbae7b31f5637dad9f584a0b61f12c4e50a1995028f29657c89ad",
+      "errors": [
+        {
+          "context": "has went",
+          "actual": "went",
+          "replacement": "gone",
+          "fromUTF16": 449,
+          "toUTF16": 453
+        },
+        {
+          "context": "discuss about",
+          "actual": "discuss about",
+          "replacement": "discuss",
+          "fromUTF16": 594,
+          "toUTF16": 607
+        },
+        {
+          "context": "shorter then",
+          "actual": "then",
+          "replacement": "than",
+          "fromUTF16": 674,
+          "toUTF16": 678
+        },
+        {
+          "context": "Your going to be served",
+          "actual": "Your",
+          "replacement": "You're",
+          "fromUTF16": 734,
+          "toUTF16": 738
+        },
+        {
+          "context": "should of",
+          "actual": "should of",
+          "replacement": "should have",
+          "fromUTF16": 1086,
+          "toUTF16": 1095
+        },
+        {
+          "context": "look forward to meet",
+          "actual": "to meet",
+          "replacement": "to meeting",
+          "fromUTF16": 1142,
+          "toUTF16": 1149
+        },
+        {
+          "context": "let her to inspect",
+          "actual": "to inspect",
+          "replacement": "inspect",
+          "fromUTF16": 1212,
+          "toUTF16": 1222
+        },
+        {
+          "context": "more cheaper",
+          "actual": "more cheaper",
+          "replacement": "cheaper",
+          "fromUTF16": 1416,
+          "toUTF16": 1428
+        }
+      ],
+      "controls": [
+        "request body",
+        "response body",
+        "The team have finished"
+      ]
+    },
+    {
+      "id": "walk",
+      "path": "walk.md",
+      "language": "en-GB",
+      "genre": "narrative draft",
+      "origin": "original agent-authored document with seeded errors and pre-result negative controls",
+      "license": "GPL-3.0-or-later (repository license)",
+      "normalization": "UTF-8 LF; no normalization",
+      "sha256": "24d75510ca3e821af0bfc32c488847411e9682ba5c048f0939529d146a2526e6",
+      "errors": [
+        {
+          "context": "Its going to be closed",
+          "actual": "Its",
+          "replacement": "It's",
+          "fromUTF16": 361,
+          "toUTF16": 364
+        },
+        {
+          "context": "Your going to be given",
+          "actual": "Your",
+          "replacement": "You're",
+          "fromUTF16": 672,
+          "toUTF16": 676
+        },
+        {
+          "context": "seperate",
+          "actual": "seperate",
+          "replacement": "separate",
+          "fromUTF16": 982,
+          "toUTF16": 990
+        },
+        {
+          "context": "fewer time",
+          "actual": "fewer",
+          "replacement": "less",
+          "fromUTF16": 1031,
+          "toUTF16": 1036
+        }
+      ],
+      "controls": [
+        "their waiting quietly helped the clerk",
+        "Their going to have been told already was my first assumption."
+      ]
+    }
+  ]
+}

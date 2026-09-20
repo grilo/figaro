@@ -1,0 +1,1851 @@
+{
+  "priorConcurrentAttempts": [
+    {
+      "run": "final-0-baseline",
+      "errors": [],
+      "readyMs": 1164.601297
+    },
+    {
+      "run": "final-0-grammar",
+      "errors": [],
+      "readyMs": 1140.737552
+    },
+    {
+      "run": "final-1-baseline",
+      "errors": [
+        "context deadline exceeded\nB@wails://wails/wails/runtime.js:2:2711"
+      ],
+      "readyMs": 1431.952824
+    },
+    {
+      "run": "final-1-grammar",
+      "errors": [],
+      "readyMs": 1182.51169
+    },
+    {
+      "run": "final-2-baseline",
+      "errors": [],
+      "readyMs": 60795.842254
+    },
+    {
+      "run": "final-2-grammar",
+      "errors": [],
+      "readyMs": 1398.950385
+    }
+  ],
+  "date": "2026-09-19",
+  "referenceVersion": "Harper 2.10.0",
+  "scope": "Grammar context expansion, 49 to 54 selected IDs",
+  "comparison": {
+    "reviewed-positive": {
+      "cases": 120,
+      "baseline": 38,
+      "expanded": 120,
+      "harper": 90
+    },
+    "reviewed-negative": {
+      "cases": 209,
+      "baseline": 5,
+      "expanded": 0,
+      "harper": 40
+    },
+    "upstream-positive": {
+      "cases": 361,
+      "baseline": 125,
+      "expanded": 248,
+      "harper": 347
+    },
+    "upstream-negative": {
+      "cases": 184,
+      "baseline": 0,
+      "expanded": 0,
+      "harper": 1
+    }
+  },
+  "byRule": [
+    {
+      "rule": "CompoundSubjectI",
+      "cases": 9,
+      "baseline": 0,
+      "expanded": 9,
+      "harper": 9
+    },
+    {
+      "rule": "DoIAdjective",
+      "cases": 12,
+      "baseline": 0,
+      "expanded": 12,
+      "harper": 12
+    },
+    {
+      "rule": "HavePronoun",
+      "cases": 4,
+      "baseline": 0,
+      "expanded": 4,
+      "harper": 4
+    },
+    {
+      "rule": "ItsContraction",
+      "cases": 28,
+      "baseline": 9,
+      "expanded": 19,
+      "harper": 27
+    },
+    {
+      "rule": "ItsPossessive",
+      "cases": 20,
+      "baseline": 7,
+      "expanded": 16,
+      "harper": 20
+    },
+    {
+      "rule": "MultipleSequentialPronouns",
+      "cases": 3,
+      "baseline": 0,
+      "expanded": 2,
+      "harper": 3
+    },
+    {
+      "rule": "NounVerbConfusion",
+      "cases": 100,
+      "baseline": 12,
+      "expanded": 40,
+      "harper": 97
+    },
+    {
+      "rule": "PossessiveYour",
+      "cases": 3,
+      "baseline": 1,
+      "expanded": 1,
+      "harper": 2
+    },
+    {
+      "rule": "SubjectPronoun",
+      "cases": 10,
+      "baseline": 0,
+      "expanded": 10,
+      "harper": 10
+    },
+    {
+      "rule": "TheirToThere",
+      "cases": 51,
+      "baseline": 22,
+      "expanded": 43,
+      "harper": 51
+    },
+    {
+      "rule": "TheirToTheyre",
+      "cases": 43,
+      "baseline": 20,
+      "expanded": 30,
+      "harper": 36
+    },
+    {
+      "rule": "ThereToTheir",
+      "cases": 32,
+      "baseline": 25,
+      "expanded": 28,
+      "harper": 31
+    },
+    {
+      "rule": "TheyreToTheir",
+      "cases": 31,
+      "baseline": 23,
+      "expanded": 27,
+      "harper": 30
+    },
+    {
+      "rule": "YourPredicateAdjective",
+      "cases": 15,
+      "baseline": 6,
+      "expanded": 7,
+      "harper": 15
+    }
+  ],
+  "nativeStats": {
+    "baseline": {
+      "readyMedianMs": 1276.582519,
+      "readyRangeMs": [
+        1225.228293,
+        1282.676046
+      ],
+      "review": {
+        "1001": {
+          "medianMs": 42.000000000000114,
+          "rangeMs": [
+            37,
+            48
+          ]
+        },
+        "10010": {
+          "medianMs": 288.0,
+          "rangeMs": [
+            263,
+            315
+          ]
+        }
+      }
+    },
+    "grammar": {
+      "readyMedianMs": 1213.039956,
+      "readyRangeMs": [
+        1205.338025,
+        1221.406741
+      ],
+      "review": {
+        "1001": {
+          "medianMs": 44.5,
+          "rangeMs": [
+            40.99999999999977,
+            53
+          ]
+        },
+        "10010": {
+          "medianMs": 301.5,
+          "rangeMs": [
+            288.00000000000045,
+            321
+          ]
+        }
+      }
+    }
+  },
+  "sizes": {
+    "baseline": {
+      "bytes": 59491656,
+      "gzip9Bytes": 20365170,
+      "sha256": "73ceb99c7fcbff48776009e576d0ad427c98524c5456322e05b506d4d598799a"
+    },
+    "grammar": {
+      "bytes": 59524424,
+      "gzip9Bytes": 20375033,
+      "sha256": "428f7b5ed4f15c33e3910a89f023c51bbee39183d042a3c5200a30e124c6eff3"
+    }
+  },
+  "runs": {
+    "baseline": [
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 993,
+        "initializationMs": 139,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 14,
+                "findings": 53
+              },
+              {
+                "ms": 9,
+                "findings": 53
+              },
+              {
+                "ms": 9,
+                "findings": 53
+              },
+              {
+                "ms": 9,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 48,
+                "proseMs": 28,
+                "nativeMs": 11,
+                "resolveMs": 5,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 39,
+                "proseMs": 20.000000000000227,
+                "nativeMs": 10.999999999999773,
+                "resolveMs": 5.000000000000227,
+                "renderFrameMs": 2.9999999999997726,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 42,
+                "proseMs": 20,
+                "nativeMs": 14,
+                "resolveMs": 5,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 44,
+                "proseMs": 26,
+                "nativeMs": 11,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 191,
+                "findings": 555
+              },
+              {
+                "ms": 188,
+                "findings": 555
+              },
+              {
+                "ms": 189,
+                "findings": 555
+              },
+              {
+                "ms": 184,
+                "findings": 555
+              },
+              {
+                "ms": 164,
+                "findings": 555
+              },
+              {
+                "ms": 168,
+                "findings": 555
+              },
+              {
+                "ms": 180,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 315,
+                "proseMs": 77,
+                "nativeMs": 197,
+                "resolveMs": 34,
+                "renderFrameMs": 7,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 285,
+                "proseMs": 66,
+                "nativeMs": 183,
+                "resolveMs": 27.999999999999545,
+                "renderFrameMs": 8.000000000000455,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 291,
+                "proseMs": 62,
+                "nativeMs": 196,
+                "resolveMs": 26,
+                "renderFrameMs": 7,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 294,
+                "proseMs": 68,
+                "nativeMs": 185,
+                "resolveMs": 31,
+                "renderFrameMs": 10,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789853130707611600,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            6,
+            15,
+            10,
+            17,
+            16,
+            16,
+            17,
+            16,
+            16,
+            17,
+            16,
+            17
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 3,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789853129431029081,
+        "processToReadyMs": 1276.582519,
+        "reportToExitMs": 33.643572
+      },
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 942.0000000000001,
+        "initializationMs": 129,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 9.999999999999773,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 13,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 9,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 45.99999999999977,
+                "proseMs": 26,
+                "nativeMs": 10.999999999999773,
+                "resolveMs": 6,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 37,
+                "proseMs": 20,
+                "nativeMs": 10,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 46.00000000000023,
+                "proseMs": 26,
+                "nativeMs": 12,
+                "resolveMs": 4.000000000000227,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 45.99999999999977,
+                "proseMs": 24.999999999999773,
+                "nativeMs": 14,
+                "resolveMs": 3,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 170,
+                "findings": 555
+              },
+              {
+                "ms": 175,
+                "findings": 555
+              },
+              {
+                "ms": 168,
+                "findings": 555
+              },
+              {
+                "ms": 176,
+                "findings": 555
+              },
+              {
+                "ms": 168,
+                "findings": 555
+              },
+              {
+                "ms": 179,
+                "findings": 555
+              },
+              {
+                "ms": 185,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 278,
+                "proseMs": 63,
+                "nativeMs": 176,
+                "resolveMs": 32,
+                "renderFrameMs": 7,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 263,
+                "proseMs": 61,
+                "nativeMs": 165,
+                "resolveMs": 29,
+                "renderFrameMs": 8,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 282,
+                "proseMs": 69,
+                "nativeMs": 181,
+                "resolveMs": 25,
+                "renderFrameMs": 7,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 291,
+                "proseMs": 69,
+                "nativeMs": 187,
+                "resolveMs": 28,
+                "renderFrameMs": 7,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789853153055512000,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            7,
+            14,
+            9,
+            9,
+            17,
+            16,
+            16,
+            17,
+            16,
+            16,
+            17,
+            16
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 6.0000000000009095,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789853151830283707,
+        "processToReadyMs": 1225.228293,
+        "reportToExitMs": 0.349229
+      },
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 978,
+        "initializationMs": 146.9999999999999,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 12,
+                "findings": 53
+              },
+              {
+                "ms": 12,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 9,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 42,
+                "proseMs": 22,
+                "nativeMs": 11,
+                "resolveMs": 5,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 42.00000000000023,
+                "proseMs": 23,
+                "nativeMs": 12,
+                "resolveMs": 4,
+                "renderFrameMs": 3.0000000000002274,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 38.99999999999977,
+                "proseMs": 20,
+                "nativeMs": 11.999999999999773,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 41,
+                "proseMs": 21,
+                "nativeMs": 13,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 200,
+                "findings": 555
+              },
+              {
+                "ms": 182,
+                "findings": 555
+              },
+              {
+                "ms": 180,
+                "findings": 555
+              },
+              {
+                "ms": 182,
+                "findings": 555
+              },
+              {
+                "ms": 171,
+                "findings": 555
+              },
+              {
+                "ms": 173,
+                "findings": 555
+              },
+              {
+                "ms": 170.00000000000045,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 302,
+                "proseMs": 68,
+                "nativeMs": 185,
+                "resolveMs": 40.000000000000455,
+                "renderFrameMs": 8.999999999999545,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 294,
+                "proseMs": 70,
+                "nativeMs": 171.00000000000045,
+                "resolveMs": 40.99999999999909,
+                "renderFrameMs": 12.000000000000455,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 283.0000000000009,
+                "proseMs": 73,
+                "nativeMs": 175,
+                "resolveMs": 26,
+                "renderFrameMs": 9.00000000000091,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 272.9999999999991,
+                "proseMs": 62.99999999999909,
+                "nativeMs": 176,
+                "resolveMs": 25,
+                "renderFrameMs": 9,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789853160375759400,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            7,
+            16,
+            9,
+            12,
+            17,
+            15,
+            17,
+            16,
+            20,
+            13,
+            16,
+            17
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 3,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789853159093083354,
+        "processToReadyMs": 1282.676046,
+        "reportToExitMs": 3.896645
+      }
+    ],
+    "grammar": [
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 933,
+        "initializationMs": 139,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 12,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 13,
+                "findings": 53
+              },
+              {
+                "ms": 12,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 48.99999999999977,
+                "proseMs": 28.999999999999773,
+                "nativeMs": 12,
+                "resolveMs": 5,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 51,
+                "proseMs": 25,
+                "nativeMs": 17,
+                "resolveMs": 5,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 42,
+                "proseMs": 24,
+                "nativeMs": 11.000000000000227,
+                "resolveMs": 4,
+                "renderFrameMs": 2.9999999999997726,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 48,
+                "proseMs": 30,
+                "nativeMs": 10,
+                "resolveMs": 5,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 197,
+                "findings": 555
+              },
+              {
+                "ms": 221,
+                "findings": 555
+              },
+              {
+                "ms": 189,
+                "findings": 555
+              },
+              {
+                "ms": 182,
+                "findings": 555
+              },
+              {
+                "ms": 188,
+                "findings": 555
+              },
+              {
+                "ms": 164.00000000000045,
+                "findings": 555
+              },
+              {
+                "ms": 173.99999999999955,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 292.00000000000045,
+                "proseMs": 78,
+                "nativeMs": 171,
+                "resolveMs": 36,
+                "renderFrameMs": 7.000000000000455,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 290.9999999999991,
+                "proseMs": 70.99999999999955,
+                "nativeMs": 182.00000000000045,
+                "resolveMs": 29.99999999999909,
+                "renderFrameMs": 8,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 288.00000000000045,
+                "proseMs": 63.000000000000455,
+                "nativeMs": 185,
+                "resolveMs": 31,
+                "renderFrameMs": 9,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 289,
+                "proseMs": 74,
+                "nativeMs": 179,
+                "resolveMs": 27,
+                "renderFrameMs": 9,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789853137984555800,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            7,
+            14,
+            17.00000000000091,
+            16,
+            16.99999999999909,
+            16,
+            16,
+            17,
+            17,
+            16,
+            16,
+            17
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 1,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789853136779217775,
+        "processToReadyMs": 1205.338025,
+        "reportToExitMs": 33.198599
+      },
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 948.0000000000001,
+        "initializationMs": 134,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 15.999999999999773,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 14,
+                "findings": 53
+              },
+              {
+                "ms": 12,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 53,
+                "proseMs": 32,
+                "nativeMs": 12,
+                "resolveMs": 5,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 42.00000000000023,
+                "proseMs": 21,
+                "nativeMs": 12,
+                "resolveMs": 5.000000000000227,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 40.99999999999977,
+                "proseMs": 20,
+                "nativeMs": 11.999999999999773,
+                "resolveMs": 5,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 44,
+                "proseMs": 23,
+                "nativeMs": 11,
+                "resolveMs": 4,
+                "renderFrameMs": 6,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 186.99999999999977,
+                "findings": 555
+              },
+              {
+                "ms": 193,
+                "findings": 555
+              },
+              {
+                "ms": 177,
+                "findings": 555
+              },
+              {
+                "ms": 182,
+                "findings": 555
+              },
+              {
+                "ms": 186,
+                "findings": 555
+              },
+              {
+                "ms": 194,
+                "findings": 555
+              },
+              {
+                "ms": 189,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 303,
+                "proseMs": 74,
+                "nativeMs": 191.00000000000045,
+                "resolveMs": 29.999999999999545,
+                "renderFrameMs": 8,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 300,
+                "proseMs": 85,
+                "nativeMs": 180,
+                "resolveMs": 28,
+                "renderFrameMs": 7,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 289,
+                "proseMs": 67.00000000000091,
+                "nativeMs": 187.9999999999991,
+                "resolveMs": 28,
+                "renderFrameMs": 6,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 321,
+                "proseMs": 74,
+                "nativeMs": 209,
+                "resolveMs": 30,
+                "renderFrameMs": 8,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789853145452433700,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            6,
+            14.00000000000091,
+            18.99999999999909,
+            14,
+            13,
+            17,
+            16,
+            16,
+            17,
+            16,
+            16,
+            17
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 3,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789853144231026959,
+        "processToReadyMs": 1221.406741,
+        "reportToExitMs": 32.334995
+      },
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 946.0000000000001,
+        "initializationMs": 149.0000000000001,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 10.999999999999773,
+                "findings": 53
+              },
+              {
+                "ms": 10,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 12,
+                "findings": 53
+              },
+              {
+                "ms": 12,
+                "findings": 53
+              },
+              {
+                "ms": 11,
+                "findings": 53
+              },
+              {
+                "ms": 12,
+                "findings": 53
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 43,
+                "proseMs": 22,
+                "nativeMs": 11,
+                "resolveMs": 6,
+                "renderFrameMs": 4,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 45,
+                "proseMs": 23,
+                "nativeMs": 13,
+                "resolveMs": 6.000000000000227,
+                "renderFrameMs": 2.9999999999997726,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 44,
+                "proseMs": 25.000000000000227,
+                "nativeMs": 10.999999999999773,
+                "resolveMs": 5,
+                "renderFrameMs": 3,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              },
+              {
+                "ms": 47,
+                "proseMs": 27,
+                "nativeMs": 11,
+                "resolveMs": 4,
+                "renderFrameMs": 5,
+                "findings": 54,
+                "evidence": 93,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 180,
+                "findings": 555
+              },
+              {
+                "ms": 179.00000000000045,
+                "findings": 555
+              },
+              {
+                "ms": 170.99999999999955,
+                "findings": 555
+              },
+              {
+                "ms": 203.00000000000045,
+                "findings": 555
+              },
+              {
+                "ms": 185.99999999999955,
+                "findings": 555
+              },
+              {
+                "ms": 176,
+                "findings": 555
+              },
+              {
+                "ms": 204,
+                "findings": 555
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 320,
+                "proseMs": 76,
+                "nativeMs": 197,
+                "resolveMs": 33,
+                "renderFrameMs": 14,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 321,
+                "proseMs": 90,
+                "nativeMs": 192,
+                "resolveMs": 32,
+                "renderFrameMs": 7,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 319,
+                "proseMs": 100,
+                "nativeMs": 184,
+                "resolveMs": 27,
+                "renderFrameMs": 8,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              },
+              {
+                "ms": 306,
+                "proseMs": 84.00000000000091,
+                "nativeMs": 184.9999999999991,
+                "resolveMs": 29,
+                "renderFrameMs": 8,
+                "findings": 553,
+                "evidence": 976,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789853167777723000,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            5.0000000000009095,
+            14.99999999999909,
+            13,
+            12.00000000000091,
+            16.99999999999909,
+            16,
+            16,
+            16,
+            22,
+            11,
+            16,
+            16
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 3,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789853166564683044,
+        "processToReadyMs": 1213.039956,
+        "reportToExitMs": 32.528297
+      }
+    ]
+  },
+  "runtimeSourceSHA256": {
+    "assets_production.go": "86a09e3d360a9d614dbe31cff9999ddea1f37647ddd6ceb4e1ba70132b5130bf",
+    "cmd/devserver/main.go": "14b594de59c8867dd559065b042694b020a55fb5174e80f5aa1e095b40f22770",
+    "cmd/writing-profile/main.go": "a9007161e93730fb83166712bb23ef3baa41aa0321467abc0685aeb0993b4f7f",
+    "frontend/js/activity.js": "4c1f6af847fd0f014af45988e63b22a0e2c89c01cf1c38821264d0c0a789533a",
+    "frontend/js/activityGutter.js": "4de63add54133019bf50b6d0688c3954afa1c12447271309475b8a2c90f2256c",
+    "frontend/js/activityWorker.js": "2e1910e17d7cb3bfb9bd33c719428ad4c7731be75f2da1a2b489a9511bf5285c",
+    "frontend/js/activityWorkerClient.js": "538afc37ae47edd804a10c1654bbaecfbd6c82180af81b0656db6702854d6273",
+    "frontend/js/adapters/localStateStorage.js": "8c98e7ada9216190889156b85e0c0258bba9aaa8be0c35ec5e7171e27e43d6d1",
+    "frontend/js/app.js": "5a494e86cbd0ca7011aaf94d7bb141b33887b6a1a4e2d4dc3992af405d4a787b",
+    "frontend/js/authoringMacroCompletions.js": "29a858352f2fab7b28d0a533a0c474f85b93c746ce712e3ec50b55abd25124fa",
+    "frontend/js/automation.js": "3e780342049477359952642c007f7b04e4361219e80e5b105a899969d51b1651",
+    "frontend/js/backend.js": "bd6f74e88b556d83775f15e7e35d6c0b60cbf2ccbea89834edb8be531024fde2",
+    "frontend/js/backendContract.js": "eef42158589ccd295e4cbb4d3b8b7883d497af9e0b74f61ed6bccd3e0f60894b",
+    "frontend/js/backlinks.js": "c304cbd88a77229602600f62ac66baa544942c58393cbadbda9fc707b21a287b",
+    "frontend/js/blockControlVisibility.js": "ee6dfca7c41a815efabe095ead378251c132423e85a1bdf421063634fee1bd7f",
+    "frontend/js/blockWidget.js": "b1cd9583f2630d18131db0e69bf9045d47ff387e6a15c87bad29ddec790c6c07",
+    "frontend/js/bootstrap.js": "2661f0f6e43d40e0a37670081542120dee6c0797b65b2742266028d697d9a6a5",
+    "frontend/js/calendar.js": "c0c3c341d3c75b92072ca1ea8c1e1b4fb9221b1d6067493068b2426f784b4500",
+    "frontend/js/calendarDayTooltip.js": "eb041ff724da1204081087ab61db0d52f46fdbae517c7b62b56495cb4297f125",
+    "frontend/js/calendarLocale.js": "ad129dbc2d28e046a1ed54ef47d5fd60fc563d7ebb0d853d161576638d623eee",
+    "frontend/js/calendarTimeline.js": "9f187e9cb1c8b18bbee9365e38b60fb226bc11a68b3931f2533b414b7b3ca792",
+    "frontend/js/clipboardImage.js": "a2da4fab90cc8a3062ff69b7fc5edbab11f36d79d1675c0e2d4f12fe4c64e49b",
+    "frontend/js/clipboardPaste.js": "32075e99eedec786a0f276dd453bd904782c7bcbca26ceabc1f0b1612cf450d1",
+    "frontend/js/clipboardTable.js": "2117522568849cb5ff66188ef4ad0d3290f8d9d8f5997fcbe909948235085a9c",
+    "frontend/js/codeBlockInteraction.js": "b0a6e6a695be0dd2ef79e78680799d77887e56fe6918d274b89c77a401da0fc6",
+    "frontend/js/codeMirrorProfiles.js": "b8fb8665d392f8695c77c0d1759524979a886fbf31d66683e01a54bd2a015112",
+    "frontend/js/colorPalette.js": "2fc55779a3c58bee754db462f897740e51200e84aeadaa2b0bcec602e794585d",
+    "frontend/js/colorPalettePicker.js": "73acc705c8d5988c60f91fad2de9aa6674734f1269c338108308a4bacd144966",
+    "frontend/js/contextMenu.js": "5a9c1d09f77f7fe2b5d80e59ab4f1efb4c0734ab9bce763cb02c6630cf09d594",
+    "frontend/js/controllers/searchController.js": "85062dc17f81a7aa507a1e7f05d843f6ea1846d9f192e427d8085109567c88fd",
+    "frontend/js/core/activityModel.js": "4d7787b57c7924833246d40228b01a72cab6545e805b99d387f419068b25f4cf",
+    "frontend/js/core/applicationVersionModel.js": "5ec3ae9073f72e3180affcec38fa6d8a865c22dfca9ce4e9aa5cf06b2921b77f",
+    "frontend/js/core/authoringMacroModel.js": "021e03477b908868655de8da0d54eb12e0fcada1382445ede37234527f9b2569",
+    "frontend/js/core/blockControlVisibilityModel.js": "213a3fcf1808bb616e746c664239bc515017f7e0ba59fa17c42fbab5ab7b1842",
+    "frontend/js/core/bootstrapModel.js": "61de9f7fb08f89e03892ca1715ee3446307978c372b4e7f8ff736d6e47791556",
+    "frontend/js/core/calendarModel.js": "70d58f18005080e97d752f14bd065a2f18d5862acfab758075cceb6d83086ba1",
+    "frontend/js/core/calendarTimelineModel.js": "77b74270885cea4636d72b1f04afbc618fcbf909dce45c18b2452f5f9b399716",
+    "frontend/js/core/calendarWheelModel.js": "7a21000eff1f8eddd97a7cdea7bfd972122ca34a9fdbaab621d111fe9c9e2c80",
+    "frontend/js/core/codeBlockInteractionModel.js": "59f138cebff40863e3af8441700b3ff19095571263c7609a98e7326f608baf76",
+    "frontend/js/core/colorPaletteModel.js": "06ef36264e40534c146d65c2e3b9d21834ee9e53c400798c93da60d6fa3abca6",
+    "frontend/js/core/contextMenuModel.js": "21be7a2d1700e122f2d549f8c0efb712250c04a2e907467e8da295d3ac6f4d17",
+    "frontend/js/core/diagramRenderCacheModel.js": "807ffed701ecb1e2dbfcb9bf5f2b5d1b1d6e2ede8e4d7898fe750d78826f54a5",
+    "frontend/js/core/diagramSecurityModel.js": "b0501a88d9e1a4dc75df7d8e1dd37db0844d7e21f63bc521a5966c1c7a267200",
+    "frontend/js/core/drawioImageCreationModel.js": "7ca44dfc2794da736d066b90b680b46332a418f981088f8238f066b2f18ac3cf",
+    "frontend/js/core/dueDateModel.js": "eda810a094d56ff735644e3b24a64f366a5eb9678efe58982589d597c77455dc",
+    "frontend/js/core/editorBlockActionLayoutModel.js": "1a70c1a296076e9f2ee4afb0ed6f3679a093dd047f3ef5b78475cc3cd604179f",
+    "frontend/js/core/editorBreadcrumbModel.js": "aae74193ffb81807ce299b0e4dc2d310753730389fd2d695fc5436885bd7fb11",
+    "frontend/js/core/editorDocumentMountModel.js": "fa09dd4e2ca690063bde0d0510365b743068b5d471c7baef0f57a31e30136188",
+    "frontend/js/core/editorModalResizeModel.js": "42cf2a80eec78aa55f9c338be6ce4fa8ae590cee581be2bace293853e85eddc0",
+    "frontend/js/core/editorNavigationModel.js": "c73018e3091599139c992bddce716c2b279df39f42b1578c58fda033537047f0",
+    "frontend/js/core/editorTextScaleModel.js": "8b3e364018130dc2a4d376e18098fe3f5783e3a0a8335eb41b97a5a5ff2e9cc1",
+    "frontend/js/core/externalFileModel.js": "e977acb1a6cf6baa366f7ef7e9e0b9d3f20ef027288c77204417604445c0829a",
+    "frontend/js/core/fileIssueModel.js": "49bca1a4dcf6012a8e2181a32da837269fef423bbbaef314f4639240aac52898",
+    "frontend/js/core/fileTreeModel.js": "a753cd0298e78127f8e591c04e762bd411794c34bcd021035c83023000967d7c",
+    "frontend/js/core/fileTreeTransferModel.js": "1c11b7c8615a11db111b6da2d45dbd8214976a9476445286d267eee0353d45b5",
+    "frontend/js/core/floatingMenuModel.js": "89bbbe4a26bd5b44b44df20cb1eec93fe3930a2a53c98ddf2b9cfef1e9278d69",
+    "frontend/js/core/frontmatterPresentationModel.js": "ce9c5392bf28d6bffb065b11d96ff525aed141b1815d6dcb3fc5ea22f66311c3",
+    "frontend/js/core/frontmatterRegionModel.js": "b29d667822739de48c1a0d3d509ff1d70f7334298c8a094b0f3f9ac58e6829a2",
+    "frontend/js/core/ganttModel.js": "e8be6035fd5ab29ba7cf6c6ebd6be311705e260b80e5d5ce8c2d0573cff2f726",
+    "frontend/js/core/globalShortcutModel.js": "8ea13b306fb7e128b13c491f3f2680693a50873f258797f62389137c97142425",
+    "frontend/js/core/graphModel.js": "77e241a7893f39c02cb3c753dc211b16b42d18399d128921bf4e422b4f88c62f",
+    "frontend/js/core/helpSearchModel.js": "f82c458f9f7ff5e18e83dea21c9cfaf628e42b3af338432d03e37ba5c7115c5f",
+    "frontend/js/core/homeModel.js": "2c54f4fd1a8c3aa706112f8891ce905fd8543fd7a4a5f7a36296cbb0d746ad5f",
+    "frontend/js/core/kanbanKeyboardModel.js": "c2a6df1dd88b8db7fcc9f6f4d370d16d08a62422a54c9f48baac09a7a8f118e2",
+    "frontend/js/core/linkedNoteNavigationModel.js": "b63630d3961bb77520571bf27f7fc1f8dd820dcf2a88ceef16affa31b2eccaa7",
+    "frontend/js/core/markdownBlockGuideModel.js": "15fc3be3cd039a5f4bf5302513e2a9c031af5d8ae972109345ac8e0e4b0211d0",
+    "frontend/js/core/markdownFoldAnchorModel.js": "0e51dc4a6822d3370542d2f639162f0a22f034d5827b2814a7fecb0ff3eda37c",
+    "frontend/js/core/markdownImageModel.js": "b315865fc3ab30a262b29dcff8e8fc05ad5dfefe646015066ec5651825ca3380",
+    "frontend/js/core/markdownInlineFormatting.js": "9f4d99b76db7c90b1afd4a2d8f90248baaee5d36f5c1593e79ac1a16f8759076",
+    "frontend/js/core/markdownLinkPasteModel.js": "8f0f02eb110cd5e73185bfe1b3ec6a15b2609c42dee3880be4f56dd68eb6cf4c",
+    "frontend/js/core/markdownLintModel.js": "aaf8cee5c0677c313b8efa9acae30227e15d1f0cbf393904060c47e042493956",
+    "frontend/js/core/markdownStructuralEditing.js": "dcd6c0742025c907fb198c4c02743443013a2cc20e824b658b98cbc1a50bfad0",
+    "frontend/js/core/markdownTableEditing.js": "d2b598c48411720b8bb8380b17dd11e683db30e68beb0d7c9551bd98d7704e34",
+    "frontend/js/core/markdownTableEditorModel.js": "d790a116b134859ff9f56199c4c695ca6f1151f817f9f57aad1dca8c7b26998c",
+    "frontend/js/core/mermaidDiagramModel.js": "b9a3065899d06ba99fae2662d8a4b3d392a0165266a68ef8221e80a57343d582",
+    "frontend/js/core/mermaidEditorModel.js": "35d68819ddfdcee18dc0d185839f11098479910eca7c72696e91017dd0f46195",
+    "frontend/js/core/mermaidLintModel.js": "3db31dc6a71c844c5a104617cfc1e2f5507c3919256f86dc2c58cfce3511ac88",
+    "frontend/js/core/mermaidStyleEditorModel.js": "80549a7b21f3327103ce6324892c0a6a63cdfb9d4f77f3c9692f8a0ee0c16e2a",
+    "frontend/js/core/noteLinks.js": "4a0d111ea38772bd9083d3093381a4935e4b2f1ec810e6a35aeea8d5488a4c40",
+    "frontend/js/core/orderedListRenumberModel.js": "440bfc06c6f3720f9fbde16743d72cf1bd48d156babb1ec7b5c6f0204d93a2bc",
+    "frontend/js/core/outlineModel.js": "72f5596574cc82e8091b6f98199df88eefbdd358b776838eb143825ecb8d41f0",
+    "frontend/js/core/paneSeparatorModel.js": "337886587d87ae9c0e9a4347bb1992780ad557076c0f99810978c78d75bc45ea",
+    "frontend/js/core/pathRenameReferenceModel.js": "ec9fc4fc2545eccc1858ccf2f9a4c084291dda61060204f6be645f3193c0ecec",
+    "frontend/js/core/pdfPreviewImageModel.js": "9a6eb4bb15d4046653e5fcfdf5aedea8107e9ea623e53d83e5ea2ae4f4ab81b8",
+    "frontend/js/core/pickerModel.js": "60ba3a08643215ca7fb7591b9f726e372b8dc2a3f3742a61c9c730a6b86b4116",
+    "frontend/js/core/printableCodeHighlight.js": "b9e9b497a4e380a3674c89ae7ef1f1555215bbf563003ea99407243fb612bed1",
+    "frontend/js/core/printableTableModel.js": "a1d553f0133fd48decec9d446f6c9aff80e1906b08d33ccc50f2b13301678019",
+    "frontend/js/core/pureEditingChromeModel.js": "00a56c14dc1616ca993aee8cdf68949e4f3ac2d3e238d8e84f692484686636b0",
+    "frontend/js/core/pureWritingModel.js": "f071bc4719683cb327fce65933ac4af99732b1edb625b89a60039ba4d8cdf5e0",
+    "frontend/js/core/rawTextPreviewModel.js": "364849d78a00761ef809819f350618657bf41e89e30ee68d3f7e7e0b29f7cadc",
+    "frontend/js/core/relationshipModel.js": "872d95a408e20eb7a6b554056a393f0249b4f95be1d60c947ae925f1e84ddedf",
+    "frontend/js/core/relativeLineNumberModel.js": "269b81186527ea6c8ce33fda703993c35853dffa757e5f25110c374b8b5a04c8",
+    "frontend/js/core/richPasteModel.js": "2085ee1e12c56550fa49578f2c6717b91c16e648bf53a61fd9aed02d22f90875",
+    "frontend/js/core/rightPaneState.js": "f2efd5775e54a8eed1c24caba1a7bd7d663acab5542a929ec77ae34d42cfb46d",
+    "frontend/js/core/rightSidebarLayout.js": "381544653a15fcab68a99cdae53d832a76f3441f2d9a1f6a1d3b9535e8a081a0",
+    "frontend/js/core/saveModel.js": "90e636e0c022d33925795ddd04513b700913f88dd5a90bca14aa1ba7b9fb68ff",
+    "frontend/js/core/searchMatchModel.js": "96361fbc8c940e4ee0cfa7149f2bceb05d2b3397051cbf1bfa0fcd03efe64906",
+    "frontend/js/core/searchModel.js": "44106ff2a50480f33419595c0a030fb5ac17f7e12d070d4b37180f9e5aba84e0",
+    "frontend/js/core/sessionModel.js": "49b68a7310a3c42e7b7d48375d80263bced00ae991689c69def5062508a12940",
+    "frontend/js/core/sidebarLayoutModel.js": "5bba62fdc4988278e7e4eae34e972260cb439da840d9d0b9d838401e998fc45c",
+    "frontend/js/core/similarNotes.js": "018605c7c6fa63bff3adc9e80c861b825cb6e1a579e0cc36dd0be8659b9f94dc",
+    "frontend/js/core/sourceFootprintModel.js": "bf1040e13a809bc46acb595e6dd5f3474ce71097241bfa4faf2d2039169446a3",
+    "frontend/js/core/spellingDictionaryModel.js": "54e3887a912c3d09842f455e49d2665c1eec7656b473fcff6b91893f46ca09a0",
+    "frontend/js/core/spellingModel.js": "77a458f73a14bd223773b140c669f25410752619169fde561d19a0dd1855fbe0",
+    "frontend/js/core/spellingSuggestionsModel.js": "57d559a0afc260547d7cc298f394334a5b5ac2697920e2cd7e170b1d5806adde",
+    "frontend/js/core/spellingVocabulary.js": "631050df7d26583b3764deed94d1ec416f5f04de328ca8a75a209ab09a57fb02",
+    "frontend/js/core/statusBarPresentationModel.js": "da5779820646bbe02d59ba0f5c78b5c1c66df6f0295a42ceb9967798ac0fdac9",
+    "frontend/js/core/tabNavigationModel.js": "3b2a1846d3b46b0c580051456786e643481172171244d601e7e9355b122b4b27",
+    "frontend/js/core/tabOverflowModel.js": "eeac0dc1387fb49472685fdb427fca72a9237bdb9a019d351ce192c9709cbf23",
+    "frontend/js/core/tabPresentationModel.js": "babb2185cc7d5166b5e441c620a8829b3869fd2a5a91179829ebda8eba1c2d2b",
+    "frontend/js/core/tabReorderModel.js": "3f3c1c21aa820fb53b9814c73304ee10472207b4f6312ec79f68fe7a73c0982a",
+    "frontend/js/core/tabSizeModel.js": "daabe6078ea342252a7cd3b91030f2b55ffcfcb22aa484a0abc5b6ff6214dfc4",
+    "frontend/js/core/tabWheelModel.js": "a62481aaef53c026b1b6f9dd338f6cef020b55ecfe4b95aa39387970c47c3a8e",
+    "frontend/js/core/tablePreviewInteractionModel.js": "d1377a579d9231e3ab3de6a6b63f1326d38b2c783bf16f2aba4e7fba32182b60",
+    "frontend/js/core/taskCheckboxModel.js": "517dcaf2822727a0659a2b98a04d097ffd0dd62704664a2be272d2a5d2c9cf4c",
+    "frontend/js/core/taskDueDateCompletionModel.js": "62a0faad5e630f0c759d310c5a2211063891c1d03b4cdb4c575c989745a20fdf",
+    "frontend/js/core/taskDueMetadataModel.js": "72a2e06b2adc695c30e2b4b163dc7f53bbdb274f7325d818e0cdaa8712eb98b5",
+    "frontend/js/core/taskItemActionModel.js": "9fe6f71267794133086bdf935e060d0ccf43860493322df4c916caae566b6384",
+    "frontend/js/core/taskLineTokens.js": "cf31c8db6a4588e56995ea8dfb3aa653d053a115e1a0bba78f8f050f391eb062",
+    "frontend/js/core/timelineModel.js": "a6e9039aed6ccfac1e774e9d0f16390db1faec454adfe4bf982fc782452f21bd",
+    "frontend/js/core/tooltipModel.js": "02e38e56a4fc64296e27c17dd9e67ede70678789d8ba3b256b3ed9cf6845340b",
+    "frontend/js/core/vaultLoadingModel.js": "93b885a8b08a6dbdacc7696cd610ff422b5d91360f8e22591e8085c0debe7adc",
+    "frontend/js/core/vegaLiteChartEditorModel.js": "c57a333f4561619c8e26ed639bd0ee63bbac9b9abc5bdffd605da05a21cb47c3",
+    "frontend/js/core/verticalCursorModel.js": "cc9e78c2ac7b5fa08a6eaf2a9eb920cd2ad6744f436a0b162670ac6c60f014a0",
+    "frontend/js/core/vimClipboardModel.js": "4aaa9ca4ecda8bedd4913a4b00eaf84b364542eb6f95f068e0c0809393ab53ae",
+    "frontend/js/core/windowTitleModel.js": "0ed47b22c1319a6a4fb4b5f5eb8f935e8609255fcd705c8f1cedd9dbf3fddd8a",
+    "frontend/js/core/workspaceTabModel.js": "49422c2dc3da36b1792eae3506397eeb7f272ef40a0878aea051736882f52c9f",
+    "frontend/js/core/writingAdditionalRules.js": "25832ab0f99b8e82f018400f9acc3a38d156825d2576c1bf01dc642edefe203b",
+    "frontend/js/core/writingAnalysisModel.js": "f314b38f5c6f40be962b3a5df36eddcb8f7f1d1b4e95c7c82b2a12e841b05ab8",
+    "frontend/js/core/writingContextModel.js": "24839e37ea5a13704ba959a21d543207f6d16b2ea0ea4e73743d9c873fa857aa",
+    "frontend/js/core/writingDecisionsModel.js": "b4bc8081771a7c964652d7d2415fe7b1e931e5073676bfc47be1997be56044f3",
+    "frontend/js/core/writingFootnoteModel.js": "d6cf006356a9a76a71e43b21fe6d857cf2d71d84856ee639c86e866a5cf50879",
+    "frontend/js/core/writingGrammarModel.js": "a925236ad30c8a6978327d43b5778920abfa76d053fca68f6fa04a37d4e96754",
+    "frontend/js/core/writingIncrementalModel.js": "38722bec7f74ee03f4247dc4decd52aa363734579b45996eeb7cf15dfba60a99",
+    "frontend/js/core/writingInlineModel.js": "276ef27bd9040f7744e22aaf88a2d51098d24d308e21a413dad9a580904ed9b7",
+    "frontend/js/core/writingLensHelpModel.js": "884187b5326f535881042e8e0dfd4ad448a37176e315a1a1475968b79b9ccfcb",
+    "frontend/js/core/writingLensesModel.js": "b8d28b104bf433ec8a20b1586984975572c0a8e64d1f37ede38a4dd0997b4d0e",
+    "frontend/js/core/writingLinkModel.js": "2d3f6a8b089b55c8008e685930c8a19164caa8f47778fef434a6cf15dbd25481",
+    "frontend/js/core/writingPackagePolicy.js": "156a6cc835a3fe34f730de32323c2103c2aa6447d5927dc9d0c8417a15ea1543",
+    "frontend/js/core/writingParagraphModel.js": "b48e01e48c1d671acf1543ae218415ff1794db1b6f6f9079c91e47eabab9e6a0",
+    "frontend/js/core/writingPathModel.js": "8843f0564f0f2ccca1fd94b4156ba38925e19b2c11f592d3a19711c6a8337cb8",
+    "frontend/js/core/writingRetentionModel.js": "413590eab8ca327224b17b4daa8e0d856a030c3b26732e2255ceee0751085699",
+    "frontend/js/core/writingReviewModel.js": "53996fb01675f819fdf59d4c4ef933121234ecbf40561e2a3ea5b32837781187",
+    "frontend/js/core/writingReviewWork.js": "be645cc6637d891a3ea3436964471284f68ce848dc845bf824d7c25d6ad0970a",
+    "frontend/js/core/writingSloplessModel.js": "d6a36d54016e0e8fe0474c1a92d880bbea962e35db27f9de4fb9edff455feaa7",
+    "frontend/js/core/writingSuggestionModel.js": "d17481c9972cbe0ac531e6992676846a41bd43ea6b2427d2f4f6d94c6bf72ef7",
+    "frontend/js/core/writingTechnicalModel.js": "c9c66a804bd94e1a39582945c8a55b4a0dd292044ca0721310829a6ea41b7423",
+    "frontend/js/core/writingTextlintModel.js": "ed546ea3f90224d7ed7b5ced8aa6425d75f417efb274985f9fb31f618a08c70b",
+    "frontend/js/core/writingTokenCache.js": "1a5c89291b6020140eb9e78f104a6aecb15721d339a88bde2c6dd4a2cfaf4646",
+    "frontend/js/core/writingTypographyModel.js": "00297d16daadbde057255d12933abf582c6ca852cc376df5f4b93d00401ee664",
+    "frontend/js/core/writingWorkBudget.js": "1230653887bbd2abb7c24adb1b8213176b4ce035e91d5584e493e07d6d1bca2f",
+    "frontend/js/datePicker.js": "da9d91c2abd58e0e2b1f6ebc3864aaad3ffafe9251839f66ff60c075c16976e2",
+    "frontend/js/dateShortcutCompletions.js": "a3d237244529241720575389ffa50cc31dd2d99b092306417771d071d8615210",
+    "frontend/js/debugThemeAssets.js": "2755f8e390fd2a9c838e1363561492847c2e52a84ec753ec80bf231563788e12",
+    "frontend/js/diagramRenderer.js": "fe7873580d68ed5194d273260e782da7609d8142f07bea9cdaede0b9920194d4",
+    "frontend/js/dialogs.js": "43f2bb819a5c37bc630494a51ab0cd8602f80f711f47a7af346728ef4167ad8d",
+    "frontend/js/disclosure.js": "1bfcedb27c175236acb46f3af3b515023a413b5526724bebec40aca6ea5edd97",
+    "frontend/js/drawio.js": "7b27dc135359573c8470935d7188c9e8143849ab2be72a95d1394604c4665cf1",
+    "frontend/js/editor.js": "5851ed3c8ff031374a45da1c2e3db6b2ae2f2e77d4ad8b79620c64cc616cfe58",
+    "frontend/js/editorBlockActionLayout.js": "ca0a09fe9e61b43c92a962693a61c39898f17c41e26c284eb9ee8c190b6b5c67",
+    "frontend/js/editorBreadcrumb.js": "a58e8ecab2e34eb34e69c28d1b87f1a260d9a3e2139caa5505d27306b686c19b",
+    "frontend/js/editorGutterAccessibility.js": "744013ace198d84e8b4d2ba835c4b3d04471580ecdc1cf3846e382f9fe734abc",
+    "frontend/js/editorLinkCompletions.js": "a720efb95c36a5dcdd1334fd8bba8a63c34e022cba1eddd1405f58bb832dfa82",
+    "frontend/js/editorModalResize.js": "0c50a978c81b35ba819c90a791fd27010288b74f0d2da9cde1dd085283b190fc",
+    "frontend/js/editorNavigationPreferences.js": "f91ac98fd10b0f836776f72f326445fb3644f6aa785a1e5b3bdbcb4d1fdfc954",
+    "frontend/js/editorPreviewLaunchers.js": "e9c3763f62d1f7ffc5cb650c61014928c409e8fcf947c0a08ac5d1963818deff",
+    "frontend/js/editorTextScale.js": "f2370d35ae4f9c3ea87b1ef28f8c9619aa434cb44d9c8bec7bbb98e5ed51f866",
+    "frontend/js/externalFiles.js": "fa96c837aaaf2f4f3670d80d83471593358392354a3159193a5bf6959123bf23",
+    "frontend/js/fileIssues.js": "4f5a0166be84dedc906e1b2f29522ee682b534c5e1bde6b3db9322052b03ae7a",
+    "frontend/js/fileTree.js": "64d39467a71ec96b65dd2a7e828be15b66241576cfd157e3aa052014241f8262",
+    "frontend/js/floatingMenu.js": "c193106a33d8a94062afc7fe282c0a98ffc84261923041447ec325abeddd0c7c",
+    "frontend/js/footnotes.js": "c9e6524b997817a2617f49c91b524c2ae88f6e7f90c6f3744a87d7caf3491651",
+    "frontend/js/frontmatter.js": "f5d5fcce5a5f0c614c7a894f2ff97ec29b71eb39c0a6d5a627aa1163e490653f",
+    "frontend/js/frontmatterCompletions.js": "21c29ebe5a55832c5b3b599f99aa3e3be8639908acf7ea0d2b09aac7cccee121",
+    "frontend/js/frontmatterPlugin.js": "b6615651678f442ffc47683a2bae8f63ead1a85cd2b8a74bdef29a58c81c8c52",
+    "frontend/js/graphView.js": "d9268ea221e345a069ac2c94599b0eaf160c36f73b2a15fb5a2324d9999938e0",
+    "frontend/js/helpPopup.js": "7e40498b868de07c2226645ecf4ae6ecb94dfe9081b52c85da6f46f144193ec1",
+    "frontend/js/hexColorPlugin.js": "f717cf17319bf6a6ea31c904568c48e880b16c32fb3cc128ccf94c5df544c971",
+    "frontend/js/historyDiff.js": "df4bf14c465f13936f6ed3fc68e8bdfc8cd07614bc1c36594eed4a7bd68ea596",
+    "frontend/js/historyPaneTabs.js": "5d6d1473c27e4748f58909844795ef114b37858d45194b6ffe6c20fe7d75a50e",
+    "frontend/js/historyPanel.js": "1583e465b40f16145b86842392e4ec730baaa7cbc875076439e5c9bdb8bcec18",
+    "frontend/js/home.js": "14b7d5f63dac2a58233901317c7670aa6a04db094c60d5ae497d0c368b845ef0",
+    "frontend/js/icons.js": "345e3133d0e966e16bad854e24f39d6244fc7585be811dd3dbf3ad87f3c73216",
+    "frontend/js/kanban.js": "251e7805ec114b0494737310cf68e5392925a755e475ecd70f9fa2d2aa0677d6",
+    "frontend/js/kanbanGantt.js": "c8847bf56d78d8558acae91a69fea58fb6a4dfb3bffb438b2dfd76bdcbd9836a",
+    "frontend/js/katexRuntime.js": "502604633deee44f317c8a3f05f89b9dfcb73be72f26009c08e84a6be260f92a",
+    "frontend/js/languageSupport.js": "d3021da325520e0df39ef9281abb1dca226513c63910bad326a77e80d4bead22",
+    "frontend/js/linkCompletions.js": "088b7353e10722a4252a6877b6cb17b7ef5e21ff8c9c3d3d58f967428cfdac26",
+    "frontend/js/linkStyle.js": "6ad23f6363d84a7fbe1e7ed1be63ae7cff62e8766327430d4a671acd3fa6c681",
+    "frontend/js/liveDiagramPlugin.js": "41a1730da303c4c1c058e7c5ae33c40cc16f8113b9e8106ce9ea528440c3ffa2",
+    "frontend/js/liveMarkdownTablePlugin.js": "5d812efcaaee047d0e7707f3db7ac4ab55b2aac286a2e719337a531ba8861fac",
+    "frontend/js/log.js": "2c1c904a816a77bf3a4990b8e034135fc89873bcbb3351d52eaa9fc7a4f32085",
+    "frontend/js/lucideIcons.js": "6b7dc0e5f79b400aab95db6abea61998963e8b42ea753ea406a6b42e4b88ea51",
+    "frontend/js/markdownBlockGuides.js": "8951166de616696c2059b35da9ecca67bc3cc97b79653c92501e778ebec493bb",
+    "frontend/js/markdownHeadingFolding.js": "70e84f3273670a4fcbc3cb80a76f2b6b083dd6c493d9cfe367402d70964ec993",
+    "frontend/js/markdownImagePlugin.js": "14ed2ee63f043e6db52f20686e01e19c5c5b55ea9c07f328fe7ee84c212a25ff",
+    "frontend/js/markdownItRuntime.js": "c69ff8d495a303de455800f2659779d0d172a613912973e71a69f105c3c64aba",
+    "frontend/js/markdownTableConversion.js": "ba44e1ee2e9b9a12fd0031686b1f1afb2c04d90bcc6390b5d978b34e19a4985f",
+    "frontend/js/markdownTableEditor.js": "584b47072d5563e12dd045f7b639d59f3aff8764b3d8d6fdd0172a150555da8e",
+    "frontend/js/markdownTableRenderer.js": "e56ab88dda3efb9cef208bbd6cb66541c6122ebb21dbc9b26c8fecaf68e9ba6f",
+    "frontend/js/mathPlugin.js": "be683caaf652ebe8c158fc17309bf2be72de90bb65ffc181a0151bdc033dc34c",
+    "frontend/js/mermaidEditor.js": "2e581eb5e98c5de7241aa972ad52a07b53b6f2f71335437934fbea3e90d3c42f",
+    "frontend/js/mermaidPreviewNavigation.js": "15ac6af2e33a866855b38adac0e6e5a626e7b6a17e8dccb450a20d38d522d265",
+    "frontend/js/motion.js": "001fa2400b8090660c8c372d354ef7a56cd46801513815c2a0d0be76c8f32f41",
+    "frontend/js/orderedListRenumber.js": "5cd7aff20f22504080f658e42db90ba8a0d80ac746956a27716557d0c8913ee9",
+    "frontend/js/outline.js": "e56a18d1e2395b9f9f65f8133150c652a256a50df527b062ebc1a0fcf71ab57c",
+    "frontend/js/pdfExport.js": "fb32bd1bed4dda83cba605c581667a359a1a8fe563bf0fc01971a8fed4162199",
+    "frontend/js/pdfPreview.js": "e832e59a08f20e12dc03fa72afad6b7302bb0ec905c01b4ba9c834cb1f878006",
+    "frontend/js/pdfRenderWorker.js": "2e637c3d26df0092dc28b8162bf1db1f19645c6ca8e8add12199eecb7883864a",
+    "frontend/js/printMarkdownRenderer.js": "3a36278510396a3a193be0ff2fd481a7efaa84463bd6491b902786da942868e6",
+    "frontend/js/pureEditingChrome.js": "2846b73e63f78b7bb99cfc93328ff856ad9534daac208e6eda80116c362db3b2",
+    "frontend/js/pureWriting.js": "0919dadbc455ae4636cdb2a56b3defe363f84df2e0dd568668073a7f78ee45b4",
+    "frontend/js/rawTextPreview.js": "4251f21fa13758dacbdb6a2317d1d5439b386b94b78cf3836912c28b6baa908d",
+    "frontend/js/recentlyDeleted.js": "1a258bce0667eaeb2ccfef9088aa1f00fe8f99d6b14dc3bccf6f0429f9c81982",
+    "frontend/js/relativeLineNumbers.js": "bb06d8db002c4bf26bdc418ecaf8e9e1be329e8828079de9b77f7a6d7101448f",
+    "frontend/js/richPaste.js": "b57074f3cccb958e38a1077b614b37e4aa3f9f2caa7b8f0f5a29c8a41fe34b8e",
+    "frontend/js/rightPaneCoordinator.js": "8f9f2f6ea1bb5fbb22d65bb138c11398a89d12e1ef54a2500964fb3da18a8034",
+    "frontend/js/rightPaneLauncher.js": "f9cb5ce68de3410a633c9cb937fab5992f4c939360f3f5f787a5284cb5a2ed43",
+    "frontend/js/rightSidebarState.js": "3aa936aec644a155917320c0e72ca7f49ab506bfdd545bb866826bea80bfb1b9",
+    "frontend/js/search.js": "02c99a148055c540095df9442e7a8ad0abf26986c9cb4ba667c7642197d1d800",
+    "frontend/js/searchMatchStatus.js": "0170175b5d61ac00d8744aa7deff618ef8bd4ad5fa08af3855ccd07a238e220b",
+    "frontend/js/selectCombobox.js": "64ec4971c5d5a39ad525755865a1c157b0be7da54bfd16c3b46babc10c1c1443",
+    "frontend/js/session.js": "ff2ef80a849f455efb036da521a6a671079ef42c4fb94ff62ee8010d7d7d5e41",
+    "frontend/js/sessionTabs.js": "c6061d493f54c2e13a744bd7f376b429813602fd0b038488749c0e741aba228a",
+    "frontend/js/settingsNavigation.js": "23cdb00ef2c462654dbd28d1e7343615354f6b8cd5f7ef89532dadc777c77856",
+    "frontend/js/settingsPicker.js": "924f75c83de536c246cbad278d3b92a43bf44874d12abd39b941c61ce0ae739a",
+    "frontend/js/sidebarResizer.js": "efb0f5505cb0cb31523eca9eec124ebeae0165a9e81374928fbc81312898b60f",
+    "frontend/js/sourceFootprint.js": "e4be1f5027cfc88fb35d1ae03cf4fb67b3e6fd063e3d41f7125ea65ffbe52beb",
+    "frontend/js/spellcheck.js": "d33ee7a386ee0ca25886c5eb8b7c8f6d3bb2999d53349f3f1dde3aadb013127c",
+    "frontend/js/spellcheckPreference.js": "4ee68594f17bca82596ccc71dbda5bc205a48130a6f24d6f6de9261033884794",
+    "frontend/js/startupDiagnostics.js": "6ebdb722e9be3c3a5aebde3b01b0b7b9663482668538238b1b6716d82f11f666",
+    "frontend/js/state.js": "2ad868ce213a76f6b37e89612f46d08715ebba9efd5abeda828fa869b477d5e8",
+    "frontend/js/statusBar.js": "69367cb73ab84a1b47a223fd60b76ba806ce143733027401ffa3b9e1e52402c7",
+    "frontend/js/tabManager.js": "1f7a6be0865c37fde93494cde929e0c0ab3812438b94f224d378322b7bef1acf",
+    "frontend/js/tabSizePreference.js": "ba50f21b7f19da605652604869173732ba13da999952d87eab58e2bc839d8834",
+    "frontend/js/taskDueDateCompletions.js": "617186cd27fb0707e3f05649d85b5c24c08cc77c1e70813c9d08dc07da0c4619",
+    "frontend/js/taskDueMetadata.js": "d627fc8b0802db3c0add0c01ea6aab6203ae0a3f92864d122c9a47b4ca94b795",
+    "frontend/js/taskItemActionCompletions.js": "e5f52de788a253ca93212d35b6e4ffa797adbebfd6806b4cbf7c40272fb5789d",
+    "frontend/js/theme.js": "35f8bcf3d4c38b8dcf6d329de46deb98c6efa27b6ff508f5af6dfd9efe0e80aa",
+    "frontend/js/timelineViewport.js": "9b80cf6b8945a8c362c4a8780f41f4fbe0085af56dc23b5711b245378e9a78c6",
+    "frontend/js/tooltip.js": "fbab5f4b1afa74998fe13f79bde385385d23d2d0c32716e182fb7e2cd89863f2",
+    "frontend/js/usecases/activityReview.js": "05c72aff06e6efe6b4d4e9cd9c33680fefa64b68a2e48b5b96241e93662998af",
+    "frontend/js/usecases/createDrawioImage.js": "09714327b50f87a526033cb916320616693307c090b6580fe0e397675dd440b3",
+    "frontend/js/usecases/createLinkedNoteFromCompletion.js": "e64c7600817813b709cf08bd4a9be10a60d41a21fc8a6500b4d7c61dc468858b",
+    "frontend/js/usecases/diagramOutputReuse.js": "4072513a114f514e9de146f6bb9f5e835328bb9895df624404bc2d0a4c2d4813",
+    "frontend/js/usecases/diagramQuietScheduler.js": "b69732f707f253f1a6d6e39a867fd1c0d640a1cf0425ef5e31212328f50ac28c",
+    "frontend/js/usecases/diagramRenderQueue.js": "d3bb9fd970cc9545acb1bc28906e97cfb88da2b3a0ecf0fb6e01ae930277cdf7",
+    "frontend/js/usecases/documentSave.js": "eb7bf573de9d3d3171af7dce83a316edc7813caf1fe7d2b5b55ec387da8ca35d",
+    "frontend/js/usecases/editorDocumentSession.js": "7616c95d0f549a1f1600296b700826d0d1e65d2cedf9679b6ba0044c88924b50",
+    "frontend/js/usecases/editorSaveProtection.js": "0b3d3bdb0556d17234cb7edd77310bcffdd1f0cabab75ea06d347d1c74298b7a",
+    "frontend/js/usecases/fileTreeRefresh.js": "95463cb5e83d493e280646c0938853b24638762d1b740e08da9002c5385112b1",
+    "frontend/js/usecases/fileTreeTransfer.js": "422d2dd3afd1f32c953af233ca2158b510cbff8a02468f4f2e811b1ae04f784e",
+    "frontend/js/usecases/latestPreviewSession.js": "7eb2c477ee27a2f7f68632cef2855023487d544c17ad1a7ba3825872f506511e",
+    "frontend/js/usecases/linkedNoteNavigation.js": "4cdbcf6e95409a9b04e3f7ddd680ba7df714bd060e8f566eadd70157ac9c1aee",
+    "frontend/js/usecases/loadApplicationVersion.js": "3be3d25b5aeb57a752bf724464f88d479aaacc5cfddaa8fc1cb80efad2f1e84c",
+    "frontend/js/usecases/markdownDocumentLint.js": "8cfa6e6be4ba815b3b3df4ceee1083f3dd1e24c67d54e7b75249b4e4c66ba699",
+    "frontend/js/usecases/mermaidPreviewSession.js": "f4ffa41b975db25569c1816df3047b9cf385039b2dc7642a6e95a6420ccaa731",
+    "frontend/js/usecases/openTodayNote.js": "6265eb7c2d4e338b8e6e2575d1732df7757ff5614355bcaa3c7f09af99e72b0a",
+    "frontend/js/usecases/sessionPersistence.js": "e8ab135fc95a29b1616c139f9cfeeb1c18a280dfcbd41cd9fdb6717498810197",
+    "frontend/js/usecases/similarNoteReview.js": "0896c5a89d09c417cd1ace062fa1a675b05e9dbbaa88706e33be44489d6b9711",
+    "frontend/js/usecases/spellingDictionary.js": "e5e546e7f75915aeb8d2b4569c18b85605a119673b015032fa45970ce81e687c",
+    "frontend/js/usecases/startupHydration.js": "40663a30691e4b29ffdbc5af9670a74a9ed8cef184b77fdfecafc5708eb2f216",
+    "frontend/js/usecases/startupTimings.js": "715fe7d4249ffd7064c4890fcfbc8274845d5c37a1029306e1e5a1a67b7b03fe",
+    "frontend/js/usecases/vaultLoading.js": "b67f50965ebb8870b0c10044c19a2ad05e53bc9fd3e39ab12b440b88e118577e",
+    "frontend/js/usecases/windowClose.js": "8232fc6b84d5ac02aa2689310affe6c1afe09bb411b4ff9673fb1f4c262f622b",
+    "frontend/js/usecases/workspaceSearch.js": "db5a591bc657d464312c93092cef7918ac56fd57744b20ed16585a5426236249",
+    "frontend/js/usecases/writingAnalysis.js": "1d1583f2223c701ac6563c9076b7d17ea6ef5280b5439b7929286fb24d54fd65",
+    "frontend/js/usecases/writingDecisions.js": "18fb8d5318adb2c0fbdc3c634e510ce6ee93023d45215c1f83a7bd1e88156fbd",
+    "frontend/js/usecases/writingLensesApplyAll.js": "1d0508668f5c58d97ce7cfa04d0b020fed3ac1f081cdc18a55b422323cc86cf0",
+    "frontend/js/usecases/writingLensesPreferences.js": "645253e23040d8fdd4c25e06e6737a2443a660c062b1d0a281e2024ae03e8b20",
+    "frontend/js/usecases/writingParagraphChecks.js": "480ad9cfc25dfc436f3e53497acddd50080353f10775dcfd1f4c3e1c565526c0",
+    "frontend/js/usecases/writingPathContinuity.js": "98662cd1067a1e213ffa807751bf6cfdef71070a709fa65eefdfd0fb863f1534",
+    "frontend/js/usecases/writingProse.js": "85a7315601501d6e62fc8751f86f18b7b007e3bea00d5e457bc4183fdf8bf013",
+    "frontend/js/vaultEvents.js": "02e3744a88c62b87678f590ddfcb290ddb86e6f4483ce636a70c042321e700b9",
+    "frontend/js/vaultHealth.js": "46f9eb5fd6fd2986ef5966f9f46a086df765291a3bb2c74061538384a95f90b4",
+    "frontend/js/vegaLiteChartEditor.js": "ec6e9bc1c4f10708816410912a1cb4d91c8f5fc1561665afd24c781c6512d3d7",
+    "frontend/js/views/activityView.js": "1930d8f538eaa17ee3a8a8e5602dbdecd67828e7babb81d05ecaa6ad08b95f57",
+    "frontend/js/views/searchView.js": "b91a088091e1f9fbd063dbfac09534d6ac343a8a86ab4da7e918a839fe82d06b",
+    "frontend/js/views/startupLogsSettings.js": "1f710a7dd05b0fba80fa3b338ebcfb4fb02e2f9661a43a66e5d95581128f7433",
+    "frontend/js/views/startupView.js": "5e0b65027eadc9f040d731e83619c6ba9bac9dbf024e93af2a26997bc45bff6e",
+    "frontend/js/views/vaultLoadingView.js": "18b1a2d498151263b04bb030d11d41d246243a8c98b8e3977398b129b4688965",
+    "frontend/js/views/writingAlternativesView.js": "72120188fc8e3b8214c235e3c13a3b6f591a6c5b20083d0b1ffd7c35ca88c9f0",
+    "frontend/js/views/writingDecisionsView.js": "9caf1a13b943f8173362bf2d2abcac79229b04ddb0d2b45e56944029b102ef74",
+    "frontend/js/views/writingDetailsView.js": "5f626a043dc4eb26175179a867fb815352d8831fabbc945233ec597028516c8a",
+    "frontend/js/views/writingExamplesView.js": "a436415bd6e58aede79ed37248789c75e61c97be7c73d4e73fc37563c6a1d209",
+    "frontend/js/views/writingInlineView.js": "92ff43ad2e7bc802d0887f9b09abfef342a265e228c539f66b4c4bac24a6d5f8",
+    "frontend/js/views/writingLensHelpView.js": "1a15687dc608f8757dd1daa14e1aa35c72c1e41a9f5cc47084d0985feebea7ee",
+    "frontend/js/views/writingLensesView.js": "e7a3004ea8780985fa051109431b569bf7a5af2e6a83e2863a599c823314fe93",
+    "frontend/js/views/writingResultsView.js": "f23beaca76a732af01d3419b6e1d52f4adfb428cd7d9ec641051934a9eecac09",
+    "frontend/js/windowChrome.js": "c589ac30b3366671c49e1e55871310397d1ab3605521feae75375238d1c9d6d2",
+    "frontend/js/writingAdapters.js": "dd1e1c9b40ab14ece712354f9e581bd567dd8e2811c221e1e594059786a4c567",
+    "frontend/js/writingDecisionWorker.js": "048817a91e7d591349fa9746fd994e65f4d4b482007633e1efe47be69732d1ae",
+    "frontend/js/writingInline.js": "c1b4b5b3b9393b054f0012992a30499c2a1150d46e1d91e1262ddd84fecf0501",
+    "frontend/js/writingLenses.js": "917861398ef8a1006c4849aa274d1a02ab973ba038ba51973c85c1e8500549ff",
+    "frontend/js/writingLinkHints.js": "af27328d6db3387296d3a6085a63ee385bfba116c9621dea4acb75332a59cc6c",
+    "frontend/js/writingParagraphRule.js": "8073fb2ac63cb9c5b9fd775ed2f17ebc4397501b50c6516a53487995cdf2f06b",
+    "frontend/js/writingRuntime.js": "780564792ba3474bd1accd2c691542aa1c0c1d7b6263664657f781201f1a15a0",
+    "frontend/js/writingSloplessCache.js": "d680a85e80662812d7dba3b512f87188954fa442e2398de0d9cc8eda52c45a69",
+    "frontend/js/writingSloplessRuntime.js": "08d5a8f5369cbce00caac29c7e7f2819518154aa5e558e26bb0922664b7d0f71",
+    "frontend/js/writingSpellingWorker.js": "3e8fed8d3cdb5c98f047dec82a27548548422562d3f00cc0dbf8292b9d009b06",
+    "frontend/js/writingTextlintRuntime.js": "089fa0f56ee831b61e908c4f68d88d99a1ef14790c514dfe75abe06d34ac9051",
+    "frontend/js/writingWorker.js": "06aaee310f2093c02a086f0057b1f1318bac84328dba3fe4eb87c1af8f58cb5a",
+    "frontend/js/writingWorkerCheckpoint.js": "c758b771fc1b5ddcbd3ca17a838554770bc5c3503a60f43045933a7e1be7714d",
+    "frontend/js/writingWorkerClient.js": "2e2baf1a90c00b47036aacef57cf3d5de54666221341efc0b653de12034d1750",
+    "internal/activity/model.go": "8217f60ce3cdba852bb958e223cb0416f6ce3d881ab7a1c39718378b459530fa",
+    "internal/activity/paths.go": "adc63cfc872ac0875b5f850f3831f8b543f0647fcba91bb9a0d51dda7fa62c66",
+    "internal/appinfo/version.go": "d2e58b7333e561f4411d92d5ccdd2fcc306be30b4ef8f8629bd1927ae8d7187c",
+    "internal/desktop/activity_relocation.go": "b0218f3c7d3ad5b70eae24c1a34f31444dd0b14a1d086dafee552a8fe3a1e856",
+    "internal/desktop/app.go": "00181f6b134a02b6f623150d17abe367599d7f1ebdd171b06499e2d985de38ac",
+    "internal/desktop/app_calendar.go": "36487b141948ce1e37ad3fb5bc113fa29b184876951e0c238641ebed628197d1",
+    "internal/desktop/app_documents.go": "7e763e748b471806e94376a6ba6de6a26bb5e6bd044313f25918a4629c5ebf34",
+    "internal/desktop/app_external_import.go": "02bb562054f018da5fce1570e3187a43a00cb5a137802e575d81c358b8edadd0",
+    "internal/desktop/app_file_tree.go": "8967a25a7cd4874218a6cbbeaaf28856f7ca4fa3cc221bde4d1a2ac9b8493c77",
+    "internal/desktop/app_graph.go": "d41127cdd505ed978ddaa7e6f4eec00ff6243a8e9207bb29b0769cdcbd84f435",
+    "internal/desktop/app_kanban.go": "9ece9373db6cf41c16335fab4a2dcc6973744d2551c58af6bd745947fa24966f",
+    "internal/desktop/app_merge.go": "46bb3af4ddccdb4cbf4382e08fd81223f629cee6c9bf98316f4ea0ac871a4a7d",
+    "internal/desktop/app_preferences.go": "ef7858f4548b0d47d66fc431e6988005833b174dea05f73c0af4b046f82ec3b0",
+    "internal/desktop/app_print.go": "d809866873003ffc388f8c316cb1e6ebd3b99fa2201caebfcab3b24602fcb7bf",
+    "internal/desktop/app_reveal.go": "4d8f79925eea4e81cddaddb1e186b5f049463b18dde055b6c251db75f6c3ac79",
+    "internal/desktop/app_search.go": "31d8f54d8b47a9669a3d1f400303c6e318b5fa93a438d339780fc0dce1b507da",
+    "internal/desktop/app_session.go": "174cec7f373a25ce5e8f3b013cf0ab9bd96d01e47b5aab5b8a52af40dd850d05",
+    "internal/desktop/app_settings.go": "7cef5ebb21fcf45d6cc3d4e21feb798b3285f41d65d5f1804a4fc7c025e98c47",
+    "internal/desktop/app_spelling_dictionary.go": "06140842eefb432c876b97b897daa3790ac4e8481a620bc11b9dada0f1f805df",
+    "internal/desktop/app_vault_mutations.go": "07eb9f739d253224565c6fa302f89e4a86ab63520fff18e8bf711ddd873b6983",
+    "internal/desktop/app_window.go": "d5fb73bcbdd62628e7999308878637b2337ac4cd3465a9a93f0869508ed4df79",
+    "internal/desktop/app_writing_analysis.go": "5ff301612841b5e61585a564d3341ac43c417094f686114b41aa0ff7ce1a4615",
+    "internal/desktop/app_writing_decisions.go": "fed40bba42db9ccf6c93109f223faf7e0469eb6b30999de27418178f8839edc6",
+    "internal/desktop/app_writing_lenses.go": "b4cf24afe95d8b5b1a58272f92983776e0dff0e0e290d057b61aff3ac3366537",
+    "internal/desktop/backlink_rewrite.go": "c8d0df40b2f5215e59b450bd5b3694c86eec6cdc42b1389aea4ebb0da75e3c19",
+    "internal/desktop/calendar_index.go": "de5672953a2d858c32afc6753ec9c44a381a04897405cf2b7009a67ad41a14d2",
+    "internal/desktop/desktop_linux.go": "628319f76ff98feb80197db9f1ddcaf2cdad33524196694e0dcda9c661399a8c",
+    "internal/desktop/desktop_other.go": "0235803cfd120438a75fac0684ef30c5169032d19086fef0f2cb3a4684dcd9e2",
+    "internal/desktop/drawio.go": "3627f649e24021c70b80462047e3f0d8511757b97d86c3924e606307f5d567bc",
+    "internal/desktop/external_file_registry.go": "dcd583d7f1f6e7baf66b7d1f4ad9f535de8b9fea2b6ff631ef8040034d789a4c",
+    "internal/desktop/file_issues.go": "bf38a772b70a55997735bfdd2a489ccb80ebf3fa7d2cb37d71bb70ceed1b6e61",
+    "internal/desktop/file_save_followup.go": "14b3a551ebbf729e69a39bbe4338857f500cbf4dd4f4ca2ac84a35b3639a8526",
+    "internal/desktop/file_tree_styles.go": "9cd74b704cd46e4ab19f783b0c86462ad5201c3ac8eb552f2c1414f830e28a58",
+    "internal/desktop/history_service.go": "43786acc851906ad796eab6eb27d60b2ab017c667c1454fce81c5f7adc140c1a",
+    "internal/desktop/kanban_due.go": "064757bee31ee6f81da2e7536c972eb7c2f64ff41e7235f961a72e38318c94e7",
+    "internal/desktop/kanban_order.go": "f4a7b44406503f2ed45a84d00acd303ab315fe4716481e311e6b89955c759385",
+    "internal/desktop/link_style.go": "7b0ff490a0f23e1c7aaa5918757603a9d129c76ba432c5e447d699a3e2a94292",
+    "internal/desktop/machine_settings.go": "7f405e01537affe7c5a3a30dadcb449d56c66da9a3abaed6a919b4b7808d360e",
+    "internal/desktop/pdf_export.go": "82f7d422b42933d967e2bafa67ada099e422db4e82b57659d6d320fdc65b3a76",
+    "internal/desktop/pdf_safari_darwin.go": "029516f42ae33306d8195bfa4a6731466571eed7c2ae25c35f0928f02db0a250",
+    "internal/desktop/pdf_safari_darwin_nocgo.go": "9d1f6a72f0264723c5379d31b7d8165b5259f172968991b26ed9a8deab939886",
+    "internal/desktop/pdf_safari_stub.go": "75e88b4bb2d830d814e8dcc4bef50add6641544a852dd2e85c8ecea6bbc1cda5",
+    "internal/desktop/pdf_viewer_darwin.go": "86dff26d471c6b1d1041a003fd72a8d561096ffb4f8b7239653d3f0d372add53",
+    "internal/desktop/pdf_viewer_linux.go": "3ffc53403f7ed6d65c03e39a18226dda88186c7e05742277261ea76ad18551b0",
+    "internal/desktop/pdf_viewer_other.go": "44d669a9c9313754abe7526af00e044938b544341a3b16d3a1b9e70538e6e608",
+    "internal/desktop/pdf_viewer_start.go": "2c36b2dbc2995f1517f18a5d257f48a3bf07863c4bd46018bcf425c44cee58dc",
+    "internal/desktop/pdf_viewer_windows.go": "4797684eb20ce201c736be8e1f10c41d27a1ae3fd58cc922bc6383bbfcddc97b",
+    "internal/desktop/recently_deleted.go": "e68f0f6b9a59d941f8603dff3835378ad7b74099ba0c5a5b517bbeb85e4b2676",
+    "internal/desktop/relationship_paths.go": "d5cfc2e74a0bf0b38abaab9831dc19241d0fc5111dc0bc2645a0bb6aec381ed6",
+    "internal/desktop/relationships.go": "68104f8b933fb6df35c93677891cfb76af65b385a3f1533e816724e931e8a74f",
+    "internal/desktop/run.go": "587301a316df178d6992fe064f630fe2c043da57aab5d8b830de7aabbca6c646",
+    "internal/desktop/runtime_bridge.go": "e66e810b1251a41a5e528527e4408c7d95f7414430a93b1c9aa42453477d8750",
+    "internal/desktop/startup_logs.go": "04a28bc6b8932076fdce7f4c00892b88ddf555e4223a53eedf16ce27b40a806d",
+    "internal/desktop/task_schedule_changes.go": "33db9c1b61f5ea6788a41c60fcf9c6452083201cbf5e598c0fb07b5f63836017",
+    "internal/desktop/task_schedule_projection.go": "f1480cf8833f8cf2aef4772f093b51ba589794db16752129300be61a9aed8d6d",
+    "internal/desktop/task_schedules.go": "3ad09328abf658eeae878346ab5a7b4405a5f3f3c0661e8fa3ea44ab30de7128",
+    "internal/desktop/vault_health.go": "9012a8ac3fdd3d35cab36bd45b1920b7b080be8b0ac9f558a9589f91a803cf98",
+    "internal/desktop/vault_index.go": "e973e2c645d80d4a568de76adc04a680b28ad7aeafda69b779a1301c4f482e72",
+    "internal/desktop/vault_index_startup.go": "05ebe0f0c6dcef9c93808dd889c63060eedc1675bbf66f56aa05207f22b6882d",
+    "internal/desktop/vault_loading.go": "07a1cd0acecfcfb5aa8503bdd1f65ea90fc87e7022bb17a0793b4925813c283c",
+    "internal/desktop/vault_watcher.go": "8e977dd5b8ca4763d539679bf31733cc17b50396614fce0dbdea9c906945fe81",
+    "internal/desktop/vault_watcher_index.go": "203f6ab7b5286640c2c01208578dd03734474f7a10bd298b829334c5d392d935",
+    "internal/desktop/vaultfs.go": "5d8a1cfbf22e3580d119d6d5304f3a034df8aa0a197e377f9d961428291b0456",
+    "internal/desktop/window_resize.go": "92273560d8e43343766007228e6323053cc01ba4e27db1f6ec532ccd8be948ff",
+    "internal/desktop/window_runtime.go": "b9b6f2b6d25dd0777927610febeae35bd9022792c3a054b75e4510a1f6086cd4",
+    "internal/desktop/window_state.go": "a1b1c4033e19f1a6506b49fc05b91cb82afbcee5107a361da0cd642dd822802b",
+    "internal/desktop/writing_relocation.go": "511e7009e7b5bbb49e0572c90e826bde90ab3a88d7d155e15153e64dcf49cc80",
+    "internal/history/activity.go": "c52ef2350d2ce6160401cbb3a8a966e03bf9f7c62b19633c2cd3712546798123",
+    "internal/history/activity_paths.go": "d035b4b230ec1843e18e33de1bb38a3ad71140dfb2ec1cf283dc5ed246de82d8",
+    "internal/history/commit_file.go": "7713076f598b9244aa99294a6d577544a1aaf897b3c03a2d121e05faca6a9151",
+    "internal/history/commit_plan.go": "b259049e5533f482060ebd79efa0a3eb6736ee3a638d5050a0f0058e95b19800",
+    "internal/history/ignore_plan.go": "777851c30cb6fc5be11a6c4d325c0b5e455a09fe0a636229b33340750dcdab90",
+    "internal/history/path_status.go": "1148320879a0d803df758d46b28081afad3f16c970a745566687a43d8fb548b9",
+    "internal/history/service.go": "d32b4ea48262f66fb0ec1c62ba53a495c95544879e0e5ea22a0b5919c82b3f5f",
+    "internal/links/convert.go": "863b03ec7f29eb2fac0a8866368e3109cb41c8f0845a20962f48d4e9743d2da8",
+    "internal/links/rewrite.go": "e63c003b6ebae96a50c0f19c6aaa3c2a45a2a6fa900da55f9e655bf17a8e332c",
+    "internal/mutations/plan.go": "490b8094f7775b7b571919974fa2ee6a501d2fbd2df3339e3b4c8f2b1de954d8",
+    "internal/notenames/notenames.go": "273ce761cb095b199cfcf91f1800bb381d7915c2dae9abd4d2db4de2cab3c65c",
+    "internal/notes/save.go": "f7ff5cf02c5e05260241731672b502dfc9e2fc434083c1a3a99eddf0eff29314",
+    "internal/pdfexport/browser.go": "f93e443717b2b74631e2b7ebf54d024cc9891a09aec00267beafff298445ccef",
+    "internal/pdfexport/cdp.go": "00553ae4fb7e78010a888a3f438a01a9516db1287f03640ac740d3121e579949",
+    "internal/pdfexport/toc_pages.go": "dccdae479e138d39f82d49eb5d09da3e863c9b133c4cf864358f02674e375717",
+    "internal/recovery/model.go": "b28e4bdd4389bffe3622c3fb9e5d397aa45697cb7e44d9e88007d511191cc710",
+    "internal/search/model.go": "09393bcf4b433b548df09ba02808f886fa13d15fffdf2c9a5c7b306b90db5470",
+    "internal/settings/model.go": "fcc28ea2e2932aecc791e3184285f000f0c1b791d26d00bc85531ac2ad5bf5a7",
+    "internal/settings/spelling_words.go": "5360579f05b6649a6ef0813691de25a117786d3a40fa67dd62a116ac20fdd0a7",
+    "internal/settings/writing_decisions.go": "830981a93ac9e1f2781b5a49dca7b1d01e81b45b60425541420dba7df546cf03",
+    "internal/settings/writing_lenses.go": "caacd2735b70bed47118bd36637207809b5a5510ca960df0326770e0bc6f8dac",
+    "internal/settings/writing_relocation.go": "bb4fbd83616e7b1b3102119242583750a7f2fe4484b807520be71f3d8d0a9144",
+    "internal/startup/sink.go": "ff1c8cf4d8aec7a5fb28d1fa554b7880bc99a96e80743072eb5e5e3f9558f994",
+    "internal/startup/timing.go": "1bd165e0e45d77a4a84f1cf5cfd4d58b56c4d6ab02a3b72addbdc587d9de7967",
+    "internal/taskschedule/commit.go": "3cef8f6b3c4a4c2b7d736a53529d9bf52d5431b468e10fc474cc3de7d0eadcc3",
+    "internal/taskschedule/date_edits.go": "6a5c3a4624e494621f5fb81f3fbfd2e24fa1fe63bc0574c90286590f6379670c",
+    "internal/taskschedule/model.go": "65ec2372c3c55a5e251cc1dca0de251fd3b1b15378ba5290d435be4bc686378c",
+    "internal/taskschedule/transitions.go": "99bfdc04754bada01e79bc5a4e3eb5e2a27d10ed025431b5729e84506e9fe281",
+    "internal/vault/root.go": "68cf291340f72a9bb071b98fe5da68d7b7116b16bc33faefef411376a32a4706",
+    "internal/writing/budget.go": "7592d65b339e02573c92b46fc4067e66618bd878948304a927944a676204a4b0",
+    "internal/writing/grammar/context.go": "e9316dc5fa5cb5b44faadf84eba6aed86aab8914c05f8407a6d9540146dd05a0",
+    "internal/writing/grammar/grammar.go": "c33bf5caedb8d11c1520d97c1c7827722b56d9dad45b2dbdb16f4b5d18308497",
+    "internal/writing/grammar/homophone_context.go": "06c26c03f0aa5d3c748e9d8110e62be721a0d84dbea0d4cfa8e0542fd339aa10",
+    "internal/writing/grammar/homophones.go": "dce26105a11941a010ae56d574ea345979dbc63c87b331be690e8a54f126632b",
+    "internal/writing/grammar/morphology.go": "0945e639c24a27099226db8c471b5de62bcce8fe4fbddf8f3581c938c5c33ca2",
+    "internal/writing/grammar/noun_verb.go": "4977dc0cc452ebf978c231945ce2090902d7f284ef40902a64c5768bd7e35d5c",
+    "internal/writing/grammar/nouns.go": "133d46bb07a530737912e62f25f5d07a38b0a49f11372663645c298cc96f653e",
+    "internal/writing/grammar/pronouns.go": "c35bee3264df73b473a01bc75aa9a2fcdf631bdbc94e24152dbb93fc673216bb",
+    "internal/writing/grammar/verbs.go": "bf87e66b18c66f5be2e250aef15400caf6911a568a64449052eb168b12243f2a",
+    "internal/writing/grammar/word_choice.go": "a80f5e0979d61af49fd6737a0db5c98b22d016e29c87e04fb0a5a7e75c3f8732",
+    "internal/writing/grammar_adapter.go": "25c4a63bd0ed5ecc2b7221512a338b82c3977312df2bce11387f219134a05344",
+    "internal/writing/grammar_alerts.go": "69f6b6db284d1cf77e843d7f48ef1f9819aa8943583c160008aea57b12132b20",
+    "internal/writing/relocation.go": "a2c00f01dccc334d9aa4a22a374d89df4a57bb2e2aa6e30c175772bd2a457143",
+    "internal/writing/vale.go": "7adae592711bfc99663dc854f5b0daef9e825a1de3d5b7f6ecb9e8a9b682f687",
+    "main.go": "b8538e40627619cc29419be952e182fc4ec79ec5614ea379839214bd2704655c",
+    "third_party/vale/embedded/engine.go": "9e0618979190b5044e0f88bc0051fc9a3333370204e054258fc3f585c7e9abeb",
+    "third_party/vale/internal/check/action.go": "c419c34e3b373ae5b9836e85282b4733ad2d5549a443989da9b7bda8cc2af1a1",
+    "third_party/vale/internal/check/anchor.go": "969d06270ec0002e27b13e7cb350a723af4cb45107b05bb29a9d8390ef524dde",
+    "third_party/vale/internal/check/conditional.go": "55c33ca95f14f495f723ef85002cebc581c74923a950b1eda6a7789b4e48b12c",
+    "third_party/vale/internal/check/consistency.go": "ac65fe97bfa64f782f5dbd6411a5108ce122cf7aa6c2e9998c05753f60288c31",
+    "third_party/vale/internal/check/definition.go": "46999d4b82bdab32b1259861252f497d17b1a6296cb59218792445029511a0a8",
+    "third_party/vale/internal/check/doc.go": "7a55a0cae6653adf950a716c452580782beba2a93ba520d309b26057eccc535a",
+    "third_party/vale/internal/check/existence.go": "81e687540e0dc374712cd78090ddb51d784061a67c7693c4367e38ddd89c0adc",
+    "third_party/vale/internal/check/figaro_memory.go": "c1978506076320ed7a1e178cb562623235ffeea81dfd290ea32d290d257ad13c",
+    "third_party/vale/internal/check/manager.go": "f700e5a3a85dff44407075a8681de2347486feffd37818bfdf34a259d5ac2a7b",
+    "third_party/vale/internal/check/matchcase.go": "f5e4205e5846a9e65845e5a9cfb89f2baffea2bfeb4ba8f5ee63538d074ecca1",
+    "third_party/vale/internal/check/occurrence.go": "7b77383cfe7215d4864020db63c9184673f9ae6502d47c4ad31dcd7b62070734",
+    "third_party/vale/internal/check/repetition.go": "a8e90a997c9e373e54ba61e75c119cd1ec1f0398b29c19d2e7bdfd5ce335625a",
+    "third_party/vale/internal/check/scope.go": "6471aa943175a0aed0bb53410e59a0ed7ecf768417aee9dfbebd5649ad1cfd9d",
+    "third_party/vale/internal/check/sequence.go": "76ac40ca517dcf87f5cb5f29e81ddb58053722464513f0c789ac8b09b100d359",
+    "third_party/vale/internal/check/substitution.go": "1ac5ca241fc4e6bfc3495d527a8daea5d29bce93b9bd893c91f438d611474524",
+    "third_party/vale/internal/check/upos.go": "4788cbdf91aef0facb87efcf2f7698a0f3b5d428e650c2b1c1c469474fb6b773",
+    "third_party/vale/internal/check/variables.go": "7001a67b1d6fc09260782b2036559a82bc47a95aa3ed9a536afb2a5cb33efd49",
+    "third_party/vale/internal/core/alert.go": "a756619e1cd32f5a7c63bc5a4264dffdc11c1fce431e560b82ca2597ddbd4031",
+    "third_party/vale/internal/core/config.go": "84abf32c1517b4e8b9669101653487b72657744dbc1409dd8c4fe94705666eae",
+    "third_party/vale/internal/core/doc.go": "5e046cb9bfdc2af05b627b516c3fdea45c691939bb750b7e4a39b228f91fa424",
+    "third_party/vale/internal/core/error.go": "275d735ff8dbb149702437efaf4745301b14bd912f888b0125322eb588d3d1a3",
+    "third_party/vale/internal/core/execution.go": "5eb646e7cfbf98259c040c98ebd372784c8438f8b57d21872be7eb4b28cb2e25",
+    "third_party/vale/internal/core/file.go": "4d0c8970541c51a4823c65009a819e6a20e92bfe6d8666a3d5d9dcd601dabf64",
+    "third_party/vale/internal/core/format.go": "9847cc820767aef0ff149763bf514878120e12d060affc4dabf3a918c02c7942",
+    "third_party/vale/internal/core/location.go": "ae7855df35e9f429fcb0532f940379a851ab8f2366a8126790dab7de70148a91",
+    "third_party/vale/internal/core/markup.go": "c975e20f79ebffe38cb9bd53778c09e4c42ea13792bef602056e52342ed4aad9",
+    "third_party/vale/internal/core/util.go": "80da659cdff79b8df91c14f0670b1a2d9b5cca3768cf2e7ef9450e81d8c4a41a",
+    "third_party/vale/internal/glob/glob.go": "3f4ca256bb3c84a18953d8c949d4558f9392d83d8653affc3186cc8fa9300bf9",
+    "third_party/vale/internal/lint/figaro_context.go": "e88285ca7fc5ede020b32814ddf7005e8beba8926b677d1360b57bfb2200257b",
+    "third_party/vale/internal/lint/lint.go": "846f58253d009e04b85f3b247afa7cd733dcf7e51128a2dfbc9e5764b04e9c47",
+    "third_party/vale/internal/nlp/doc.go": "5730fdb809b3dda5cdb1310c6297f0da8c80446b000c06d7ff83a0927f25dc9f",
+    "third_party/vale/internal/nlp/http.go": "52d72a35b66d4a34fc3bc18ccbe9a5fea2ef7fb5b5bf4f19878cac6a6cf6efc0",
+    "third_party/vale/internal/nlp/prose.go": "c23121ec5a8eee2ae00d684ccbb9c11883921257efa93ae82cbdbb9c3bed7f99",
+    "third_party/vale/internal/nlp/provider.go": "bc360a7ed7e51c0e11e606f73d6baf3024c575fba131edc5820f86f5db1298e2",
+    "third_party/vale/internal/nlp/tokenize.go": "ff470cb4946596a02e9bfa7109619109258fe7803e65dd1cb43f8c6a0f500df2",
+    "third_party/vale/internal/nlp/util.go": "489611b991c56f1ff5826b33d9a1545bdb23b63a24c38acde0bc582312404c0c",
+    "third_party/vale/internal/nlp/var.go": "033f99c87a8851ad81ed1295f7a1e3c8da60a7ea54d575eefc287c5096c1150a",
+    "third_party/vale/internal/regex/prefilter.go": "035e018a95912ef956355626481f5956e32807272bc3e5db590d6839a9273647",
+    "third_party/vale/internal/regex/regex.go": "2438a0c77fb8504c2aecf2652ac0453626bd01df0391cd041f9713a6490700ca",
+    "third_party/vale/internal/system/cmd.go": "d16b51547a980b5ba8953202762516590fab033714ce32d0be2d57c7f5fb1dab",
+    "third_party/vale/internal/system/dir.go": "a1639c199ea4ff7b72e561f61f82ed716d0a40c92aa8bcca528d6df184fbbbde",
+    "third_party/vale/internal/system/file.go": "1423598d839f69ff1cc23921a53e4697d86d91cd200e883afb492740960c8d05",
+    "third_party/vale/internal/system/path.go": "26b24f733f545cfc319c06259055968b519149d5ce9a46e054a9d3e64ffc9745",
+    "third_party/vale/internal/system/system.go": "4cd1edd5ba656cb2b2d9612cdb16a4b062fab81aab1de794af621dc936597efe",
+    "third_party/vale/internal/system/walk.go": "8e46a04908ef686e0777124c1acbe1265e557eb2a17d20397e4254dae6d4f4da",
+    "third_party/vale/internal/system/zip.go": "eddfee7dd32125d2cc36d0d636961680fcdb046affb0e588c3c603ac9dd01f58"
+  },
+  "verificationInputsSHA256": {
+    "tests/fixtures/writing-grammar.json": "3c3406f2222c6e57fea3fd56ba2eb10f5079ad8e2f4d9197a2e5b81b6efb1236",
+    "tests/fixtures/writing-grammar-native.json": "a91810cf3030ff3cac5537bf94c762f2beeb4dce15a513c117112d32852496c1",
+    "internal/writing/grammar/SOURCE.json": "2bb3ded0d7db9bab1e46bd900dd75eff2236efd9ac63fb68eb875229984b4998",
+    "internal/writing/grammar/corpus_test.go": "842f59ea8f1d437128518b09cd89cd8c5d9d46f4da16b5cea9238b0b5c081e83",
+    "internal/writing/grammar_test.go": "4ef4346975a73e3cea38348042b3c47f82e586b6d9e92da447c2653c825a23be",
+    "tests/frontend/unit/writingGrammarIntegration.test.js": "55e5e21b1f4b15b10ff346092ea67ac77058e8c7a1ad43568ba8bfa691606596"
+  },
+  "artifacts": "/home/grilo/benchmarks/figaro-grammar-context-20260919"
+}

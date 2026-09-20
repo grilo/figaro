@@ -2,6 +2,25 @@ const HEADING = /^(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/;
 const FENCE = /^\s*(`{3,}|~{3,})/;
 const SETEXT = /^\s*(=+|-+)\s*$/;
 
+/** Ordinary single-line prose edits can only shift existing heading offsets. */
+export function outlineEditNeedsParse({ beforeLine, afterLine, beforeNextLine = '', afterNextLine = '' }) {
+    const special = line => /[\r\n]/u.test(line)
+        || /^\s*(?:#|`{3,}|~{3,}|(?:=+|-+)\s*$|\.\.\.\s*$)/u.test(line);
+    return special(beforeLine) || special(afterLine)
+        || SETEXT.test(beforeNextLine) || SETEXT.test(afterNextLine);
+}
+
+/** Map untouched headings through sorted, non-overlapping source changes. */
+export function mapOutlineHeadings(headings, changes) {
+    return headings.map(heading => {
+        let from = heading.from;
+        for (const change of changes) {
+            if (change.to <= heading.from) from += change.insertedLength - (change.to - change.from);
+        }
+        return from === heading.from ? heading : { ...heading, from };
+    });
+}
+
 export const OUTLINE_AVAILABLE_TOOLTIP = 'Show document outline';
 export const OUTLINE_EMPTY_TOOLTIP = 'Document outline unavailable: this note has no headings';
 
@@ -105,19 +124,29 @@ export function advanceOutlineHeadingAlignment(previous, height) {
     return { height, adjustments, realign, pending: adjustments < 6 };
 }
 
-/** Return every active ancestor, including the current heading. */
-export function activeOutlineHeadingHierarchy(headings, position) {
+/** Build parent and following section boundaries in one pass over heading levels. */
+export function outlineHeadingStructure(headings) {
+    const parents = [], next = Array(headings.length).fill(-1), stack = [];
+    for (let index = 0; index < headings.length; index++) {
+        const level = headings[index].level;
+        while (stack.length && stack[stack.length - 1].level >= level) {
+            next[stack.pop().index] = index;
+        }
+        parents.push(stack.length ? stack[stack.length - 1].index : -1);
+        stack.push({ index, level });
+    }
+    return { parents, next };
+}
+
+/** Return at most six active ancestors, using the document's retained structure. */
+export function activeOutlineHeadingHierarchy(headings, position, structure = outlineHeadingStructure(headings)) {
     const activeIndex = activeOutlineHeadingIndex(headings, position);
     if (activeIndex < 0) return [];
     const hierarchy = [];
-    for (let index = 0; index <= activeIndex; index += 1) {
-        const heading = headings[index];
-        while (hierarchy.length && hierarchy[hierarchy.length - 1].level >= heading.level) {
-            hierarchy.pop();
-        }
-        hierarchy.push(heading);
+    for (let index = activeIndex; index >= 0; index = structure.parents[index]) {
+        hierarchy.push(headings[index]);
     }
-    return hierarchy;
+    return hierarchy.reverse();
 }
 
 /**

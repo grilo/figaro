@@ -75,6 +75,35 @@ describe('Editor Module - CodeMirror Initialization', () => {
         });
     });
 
+    test.each([['existing note', false], ['new note and tree refresh', true]])('rendered linked-note clicks wire %s through workspace adapters', async (_scenario, create) => {
+        document.body.innerHTML = '<div id="editor-container"></div>';
+        const ports = await configureTaskWorkspace();
+        const { setState } = await import('../frontend/js/state.js');
+        setState('openTabs', []);
+        setState('fileTreeData', []);
+        const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+        await initEditor();
+        const view = createEditorView();
+        window.go.desktop.App.ReadFile.mockResolvedValueOnce(create ? null : { content: '# Target', mtime: 7 });
+        if (create) window.go.desktop.App.CreateFile.mockResolvedValueOnce({ success: true, mtime: 7 });
+        try {
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'Above\n\n[a link]\n\nBelow\n\n[a link]: notes/Target.md' }, selection: { anchor: 0 } });
+            const link = view.dom.querySelector('.cm-reference-link-widget');
+            expect(link).not.toBeNull();
+            link.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+            await new Promise(resolve => setTimeout(resolve, 0));
+            if (create) {
+                expect(window.go.desktop.App.CreateFile).toHaveBeenCalledWith('notes/Target.md', '# Target\n\n');
+                expect(ports.openTab).toHaveBeenCalledWith('notes/Target.md', 'Target.md', 'file', { path: 'notes/Target.md', mtime: 7 }, true);
+                expect(ports.refreshFileTree).toHaveBeenCalledTimes(1);
+                expect(ports.openTab.mock.invocationCallOrder[0]).toBeLessThan(ports.refreshFileTree.mock.invocationCallOrder[0]);
+            } else {
+                expect(ports.replaceActiveFileTab).toHaveBeenCalledWith('notes/Target.md', 'Target.md', 'file', { path: 'notes/Target.md', mtime: 7 });
+                expect(ports.refreshFileTree).not.toHaveBeenCalled();
+            }
+        } finally { view.destroy(); }
+    });
+
     test('protects literal Markdown contexts from rich-paste conversion', async () => {
         const { EditorState } = await import('@codemirror/state');
         const { markdownLanguage } = await import('@codemirror/lang-markdown');
@@ -808,7 +837,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
             )).toBeNull();
         });
 
-        test('schedules a second CodeMirror measure after keyboard viewport motion', async () => {
+        test('coalesces vertical key bursts and reconciles after paint without a third coordinate pass', async () => {
             const { initEditor, requestVerticalViewportMeasure } = await import('../frontend/js/editor.js');
             await initEditor();
 
@@ -844,6 +873,10 @@ describe('Editor Module - CodeMirror Initialization', () => {
                 write: expect.any(Function),
             }));
 
+            for (let repeat = 0; repeat < 20; repeat++) requestVerticalViewportMeasure(view);
+            expect(view.win.requestAnimationFrame).toHaveBeenCalledTimes(1);
+            expect(requestMeasure).toHaveBeenCalledTimes(1);
+
             const request = requestMeasure.mock.calls[0][0];
             expect(request.read(view)).toBe(25);
             request.write(25, view);
@@ -851,6 +884,13 @@ describe('Editor Module - CodeMirror Initialization', () => {
 
             deferredMeasure();
             expect(requestMeasure).toHaveBeenCalledTimes(3);
+            expect(view.coordsAtPos).toHaveBeenCalledTimes(2);
+            expect(requestMeasure.mock.calls[2]).toEqual([]);
+            expect(requestVerticalViewportMeasure(view)).toBe(true);
+            expect(view.win.requestAnimationFrame).toHaveBeenCalledTimes(2);
+            view.isDestroyed = true;
+            deferredMeasure();
+            expect(view.coordsAtPos).toHaveBeenCalledTimes(2);
         });
 
         test('repairs a bad engine cursor result after normal vertical movement', async () => {

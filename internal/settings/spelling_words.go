@@ -6,12 +6,14 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"golang.org/x/text/unicode/norm"
 )
 
-var spellingWordPattern = regexp.MustCompile(`^[\p{L}\p{M}]+(?:['-][\p{L}\p{M}]+)*$`)
+var spellingWordPattern = regexp.MustCompile(`^[\p{L}\p{M}]+(?:['-][\p{L}\p{M}]+)*(?:s')?$`)
 
 func spellingWordKey(word string) (string, error) {
-	word = strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(strings.TrimSpace(word)), "’", "'"), "‘", "'")
+	word = norm.NFC.String(strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(strings.TrimSpace(word)), "’", "'"), "‘", "'"))
 	if len(word) > 256 || !spellingWordPattern.MatchString(word) {
 		return "", fmt.Errorf("add a single spelling word")
 	}

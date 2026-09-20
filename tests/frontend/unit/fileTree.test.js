@@ -90,6 +90,24 @@ function deferred() {
 const moveWritingPaths = jest.fn(operation => operation());
 
 describe('File Tree', () => {
+    let timerSpy;
+    let scheduledTimers;
+    beforeEach(() => {
+        scheduledTimers = new Set();
+        const schedule = globalThis.setTimeout;
+        timerSpy = jest.spyOn(globalThis, 'setTimeout').mockImplementation((...args) => {
+            const timer = schedule(...args);
+            scheduledTimers.add(timer);
+            return timer;
+        });
+    });
+    afterEach(() => {
+        // Transient Ready messages belong to their scenario, not the next one.
+        // Real-clock status timers otherwise race the staged rename assertions.
+        for (const timer of scheduledTimers) clearTimeout(timer);
+        timerSpy.mockRestore();
+    });
+
     beforeEach(() => {
         configureFileTreeWorkspace({
             closeTab,
@@ -1358,6 +1376,35 @@ describe('File Tree', () => {
         expect(handleFileOpen).toHaveBeenCalledWith('Archive.md');
     });
 
+    test('cursor-only tab publications leave mounted tree DOM alone while dirty markers still update', () => {
+        state.fileTreeData = [{ name: 'note.md', path: 'note.md', type: 'file', mtime: 1 }];
+        const original = [{ id: 'note.md', path: 'note.md', type: 'file', dirty: false }];
+        state.openTabs = original;
+        initFileTree();
+        renderFileTree();
+        const notify = subscribe.mock.calls.find(([key]) => key === 'tabPresentation')[1];
+        const tree = document.getElementById('file-tree');
+        const query = jest.spyOn(tree, 'querySelectorAll');
+        try {
+            for (let head = 1; head <= 100; head++) {
+                const previous = state.openTabs;
+                state.openTabs = [{ ...original[0], cursorState: { anchor: head, head } }];
+                notify(state.openTabs, previous);
+            }
+            expect(query).not.toHaveBeenCalled();
+            const previous = state.openTabs;
+            state.openTabs = [{ ...previous[0], dirty: true }];
+            notify(state.openTabs, previous);
+            const node = tree.querySelector('.file-tree-node');
+            expect(node.classList.contains('dirty-buffer')).toBe(true);
+            expect(node.querySelector('.node-dirty-status').textContent).toBe('Unsaved changes');
+            state.openTabs = original;
+            notify(original, [{ ...original[0], dirty: true }]);
+            expect(node.classList.contains('dirty-buffer')).toBe(false);
+            expect(node.querySelector('.node-dirty-status')).toBeNull();
+        } finally { query.mockRestore(); }
+    });
+
     test('keeps every row reachable while bounding a large mounted tree window', async () => {
         state.fileTreeData = Array.from({ length: 600 }, (_, index) => ({
             name: `note-${String(index).padStart(3, '0')}.md`,
@@ -1798,6 +1845,67 @@ describe('File Tree', () => {
         expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith(['notes/references.md']);
         expect(state.selectedFilePath).toBe('notes/final.md');
         expect(state.selectedTreePaths).toEqual(['notes/final.md']);
+    });
+
+    test('reports each pending stage of a CSS rename without an incoming-reference dialog', async () => {
+        const saves = deferred(), preview = deferred(), writing = deferred(), rename = deferred(), refresh = deferred();
+        state.fileTreeData = [{ name: 'print.css', path: 'styles/print.css', type: 'file' }];
+        renamePathDialog.mockResolvedValueOnce('report.css');
+        prepareTabsForPathMove.mockReturnValueOnce(saves.promise);
+        window.go.desktop.App.PreviewRenamePath.mockReturnValueOnce(preview.promise);
+        moveWritingPaths.mockImplementationOnce(async operation => { await writing.promise; return operation(); });
+        window.go.desktop.App.RenamePathWithLinkUpdates.mockReturnValueOnce(rename.promise);
+        window.go.desktop.App.GetFileTree.mockResolvedValueOnce([
+            { name: 'report.css', path: 'styles/report.css', type: 'file' },
+        ]);
+        refreshTabsForUpdatedLinks.mockReturnValueOnce(refresh.promise);
+        initFileTree();
+        renderFileTree();
+        document.querySelector('.file-tree-node').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+        document.querySelector('.context-menu [data-action="rename"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(statusBar.set).toHaveBeenLastCalledWith('Saving open files before renaming “print.css”…');
+        expect(window.go.desktop.App.PreviewRenamePath).not.toHaveBeenCalled();
+        saves.resolve({ success: true });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(statusBar.set).toHaveBeenLastCalledWith('Checking references to “print.css”…');
+        expect(window.go.desktop.App.PreviewRenamePath).toHaveBeenCalledWith('styles/print.css', 'styles/report.css');
+        expect(moveWritingPaths).not.toHaveBeenCalled();
+        preview.resolve({ success: true, updated_links: [] });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(statusBar.set).toHaveBeenLastCalledWith('Waiting for writing data before renaming “print.css”…');
+        expect(window.go.desktop.App.RenamePathWithLinkUpdates).not.toHaveBeenCalled();
+        writing.resolve();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(statusBar.set).toHaveBeenLastCalledWith('Renaming “print.css”…');
+        expect(window.go.desktop.App.RenamePathWithLinkUpdates).toHaveBeenCalledWith('styles/print.css', 'styles/report.css', false);
+        expect(updateTabsForMovedPath).not.toHaveBeenCalled();
+        rename.resolve({ success: true, old_path: 'styles/print.css', path: 'styles/report.css', updated_links: [] });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(statusBar.set).toHaveBeenLastCalledWith('Refreshing open files after renaming “print.css”…');
+        expect(updateTabsForMovedPath).toHaveBeenCalledWith('styles/print.css', 'styles/report.css');
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('true');
+        refresh.resolve();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(statusBar.set).toHaveBeenLastCalledWith('Renamed “print.css” to “report.css”');
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
+        expect(confirmDialog).not.toHaveBeenCalled();
+    });
+
+    test('clears CSS rename progress when reference inspection fails before any path mutation', async () => {
+        state.fileTreeData = [{ name: 'print.css', path: 'print.css', type: 'file' }];
+        renamePathDialog.mockResolvedValueOnce('report.css');
+        window.go.desktop.App.PreviewRenamePath.mockResolvedValueOnce({ success: false, error: 'Cannot read references' });
+        initFileTree();
+        renderFileTree();
+        document.querySelector('.file-tree-node').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+        document.querySelector('.context-menu [data-action="rename"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(statusBar.set).toHaveBeenLastCalledWith('Rename failed');
+        expect(errorDialog).toHaveBeenCalledWith('Couldn’t inspect file references', 'Cannot read references', expect.any(String));
+        expect(window.go.desktop.App.RenamePathWithLinkUpdates).not.toHaveBeenCalled();
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
     });
 
     test('can rename a referenced file while deliberately keeping Markdown references unchanged', async () => {

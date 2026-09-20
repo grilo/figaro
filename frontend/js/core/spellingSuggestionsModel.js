@@ -33,6 +33,7 @@ const reviewedEnglishCorrections = new Map([
 ]);
 
 export function reviewedSpellingCorrection(word, languages) {
+    word = word.normalize('NFC');
     const possessive = spellingPossessive(word, languages);
     if (possessive) {
         const stem = reviewedSpellingCorrection(possessive.stem, languages);
@@ -58,9 +59,12 @@ function isDictionarySuggestion(checker, suggestion) {
 }
 
 export function isCorrectlySpelledProseWord(word, checkers, languages) {
+    word = word.normalize('NFC');
     const possessive = spellingPossessive(word, languages);
     if (reviewedSpellingWord(word, languages) || possessive && reviewedSpellingWord(possessive.stem, languages)) return true;
     return checkers.some(checker => {
+        const acronym = /^([A-Z]{2,})s$/u.exec(possessive?.stem || word);
+        if (acronym && checker.correct(acronym[1])) return true;
         if (checker.correct(word)) return true;
         if (possessive) {
             // Dictionaries often omit terminal apostrophes on valid plurals/names.
@@ -142,6 +146,8 @@ function sharedBoundaryLetters(left, right) {
 }
 
 export function highConfidenceSuggestions(word, checkers, languages) {
+    word = word.normalize('NFC');
+    if (reviewedSpellingWord(word, languages)) return [];
     const possessive = spellingPossessive(word, languages);
     if (possessive) {
         return highConfidenceSuggestions(possessive.stem, checkers, languages)
@@ -163,22 +169,31 @@ export function highConfidenceSuggestions(word, checkers, languages) {
     }
 
     const maximumDistance = Array.from(normalizedWord).length >= 7 ? 2 : 1;
+    const ordinaryCase = /^\p{Lu}\p{Ll}+$/u.test(word) || word === word.toLocaleUpperCase();
+    const query = ordinaryCase ? normalizedWord : word;
     const candidates = new Map();
     for (const checker of checkers) {
-        for (const suggestion of checker.suggest?.(word) || []) {
+        for (const suggestion of checker.suggest?.(query) || []) {
             const value = String(suggestion || '').trim();
             const key = value.toLocaleLowerCase();
             if (!value || key === normalizedWord || candidates.has(key)
                 || !isDictionarySuggestion(checker, value) || !isProseLikeSuggestion(value)) continue;
+            // A dictionary can know the singular without listing a valid plural.
+            // Deleting only its final s is not evidence of a spelling mistake.
+            if (languages.some(language => ['en-US', 'en-GB'].includes(language))
+                && normalizedWord === key + 's') continue;
             // A plural spelling candidate must not silently become possession.
             // Missing contraction apostrophes have a separately reviewed shape.
             if (/['’]/u.test(value) && !/['’]/u.test(word)
                 && !(contractionSpellings.has(key.replace(/’/gu, '\'')) && key.replace(/['’]/gu, '') === normalizedWord)) continue;
             const distance = damerauLevenshteinDistance(normalizedWord, key);
             if (distance > maximumDistance) continue;
-            // Unknown names and mixed-case identifiers need author knowledge;
-            // do not turn a similar ordinary dictionary word into their name.
-            if (/[A-Z]/u.test(word) && !isSingleAdjacentTransposition(word, value)) continue;
+            // Ordinary sentence/title capitals get the same alternatives as
+            // lowercase prose. Keep uncertain name-only and mixed-case guesses
+            // conservative; dictionary entries such as Hennessy are not proof
+            // that an unfamiliar author's name was a typo.
+            if (/\p{Lu}/u.test(word) && (!ordinaryCase || !isDictionarySuggestion(checker, value.toLowerCase()))
+                && !isSingleAdjacentTransposition(word, value)) continue;
             candidates.set(key, {
                 value,
                 distance,

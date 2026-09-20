@@ -1,5 +1,5 @@
 import { initWindowChrome, resetWindowChromeForTests } from '../frontend/js/windowChrome.js';
-import { setState } from '../frontend/js/state.js';
+import { getState, setState } from '../frontend/js/state.js';
 
 describe('native window chrome', () => {
     beforeEach(() => {
@@ -67,5 +67,30 @@ describe('native window chrome', () => {
         setState('activeTabId', null);
         expect(document.title).toBe('Figaro');
         expect(window.go.desktop.App.WindowSetTitle).toHaveBeenLastCalledWith('Figaro');
+    });
+
+    test('cursor and buffer publications do not cross the native title boundary again', () => {
+        setState('openTabs', [{ id: 'note', title: 'Note.md', type: 'file' }]);
+        setState('activeTabId', 'note');
+        initWindowChrome();
+        const title = window.go.desktop.App.WindowSetTitle;
+        title.mockClear();
+        for (let head = 1; head <= 20; head++) {
+            setState('openTabs', [{ ...getState('openTabs')[0], cursorState: { anchor: head, head }, _content: `Edit ${head}` }]);
+        }
+        expect(title).not.toHaveBeenCalled();
+        setState('openTabs', [{ ...getState('openTabs')[0], title: 'Renamed.md' }]);
+        expect(title).toHaveBeenCalledTimes(1);
+        expect(title).toHaveBeenLastCalledWith('Renamed.md — Figaro');
+    });
+
+    test('a failed native title update can retry on the next publication', async () => {
+        const title = window.go.desktop.App.WindowSetTitle;
+        title.mockRejectedValueOnce(new Error('Window is not ready'));
+        initWindowChrome();
+        await Promise.resolve();
+        setState('activeTabId', 'workspace-home');
+        expect(title).toHaveBeenCalledTimes(2);
+        expect(document.title).toBe('Figaro');
     });
 });

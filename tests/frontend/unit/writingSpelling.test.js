@@ -1,13 +1,77 @@
-import { writingSpellingObservations, spellcheckSuggestionsAtPosition } from '../../../frontend/js/spellcheck.js';
+import { writingSpellingObservations, spellcheckSuggestionsAtPosition, spellcheckDiagnostics } from '../../../frontend/js/spellcheck.js';
 import fs from 'node:fs';
 import nspell from '../../../frontend/vendored/spellcheck/nspell.js';
 import { resolveWritingFindings } from '../../../frontend/js/core/writingAnalysisModel.js';
 import { createWritingResultsView } from '../../../frontend/js/views/writingResultsView.js';
 import { spellingPossessive } from '../../../frontend/js/core/spellingModel.js';
+import { acceptedSpelling } from '../../../frontend/js/core/spellingDictionaryModel.js';
 
 const dictionary = language => nspell({
     aff: fs.readFileSync(`frontend/vendored/spellcheck/${language}.aff`, 'utf8'),
     dic: fs.readFileSync(`frontend/vendored/spellcheck/${language}.dic`, 'utf8'),
+});
+
+test.each(['en-US', 'en-GB'])('%s capitalized and all-caps prose receive case-matched spelling alternatives', async language => {
+    const checker = dictionary(language);
+    const source = 'Speling SPELING TEH API APIs CPU CPUs Hennessey';
+    const observations = await writingSpellingObservations(source, language, async () => checker);
+    expect(observations.map(item => item.actual)).toEqual(['Speling', 'SPELING', 'TEH', 'Hennessey']);
+    for (const [word, expected] of [['Speling', 'Spelling'], ['SPELING', 'SPELLING'], ['TEH', 'THE']]) {
+        const item = observations.find(item => item.actual === word);
+        expect(item.replacements).toContain(expected);
+        expect(await spellcheckSuggestionsAtPosition(source, item.from + 1, language, async () => checker))
+            .toMatchObject({ suggestions: item.replacements });
+    }
+    expect(observations.find(item => item.actual === 'Hennessey').replacements).toEqual([]);
+});
+
+test('ambiguous slash and dot prose stays spellchecked while actual technical ranges stay protected', async () => {
+    const source = 'writting/editting writting.editting `teh` src/file.md ../teh person@teh.com https://teh.com';
+    const checker = dictionary('en-US');
+    const items = await writingSpellingObservations(source, 'en-US', async () => checker);
+    expect(items.map(item => item.actual)).toEqual(['writting', 'editting', 'writting', 'editting']);
+    for (const item of items) expect(source.slice(item.from, item.to)).toBe(item.actual);
+});
+
+test('canonical Unicode lookup keeps accents and exact original UTF-16 source ranges', async () => {
+    const checker = dictionary('es');
+    const source = '😀 café cafe\u0301\r\naccio\u0301nn';
+    const items = await writingSpellingObservations(source, 'es', async () => checker);
+    expect(items).toHaveLength(1);
+    expect(items[0].actual).toBe('accio\u0301nn');
+    expect(items[0].replacements).toContain('acción');
+    expect(source.slice(items[0].from, items[0].to)).toBe('accio\u0301nn');
+    const hints = await spellcheckDiagnostics(source, 'es', async () => checker);
+    expect(hints.map(item => [item.from, item.to])).toEqual(items.map(item => [item.from, item.to]));
+    expect(await spellcheckSuggestionsAtPosition(source, source.indexOf('cafe') + 1, 'es', async () => checker)).toBeNull();
+});
+
+test('personal spelling uses the same eagerly mapped nspell package in source and production builds', () => {
+    const index = fs.readFileSync('frontend/index.html', 'utf8');
+    const imports = JSON.parse(index.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]).imports;
+    expect(imports.nspell).toBe('/vendored/spellcheck/nspell.js');
+    expect(JSON.parse(fs.readFileSync('frontend/vendored/importmap.json', 'utf8')).imports.nspell).toBe('./spellcheck/nspell.js');
+    expect(fs.readFileSync('scripts/vendor.sh', 'utf8')).toContain('"nspell": "./spellcheck/nspell.js"');
+});
+
+test.each(['en-US', 'en-GB'])('personal noun forms agree with the bundled %s Hunspell model without inheriting verb rules', language => {
+    const checker = dictionary(language);
+    const roots = ['figaroword', 'glinterbox', 'glinterberry', 'glinterday', 'glinter-bush'];
+    roots.forEach(word => checker.add(word, 'cat'));
+    const accepts = acceptedSpelling(roots, language);
+    for (const word of ['figaroword', 'figarowords', "figaroword's", 'glinterboxes', 'glinterberries', 'glinterdays',
+        'glinter-bushes', 'figaroworded', 'figarowording', 'figarwords', 'glinterberrys']) {
+        expect([word, accepts(word)]).toEqual([word, checker.correct(word)]);
+    }
+});
+
+test('spelling protects defined and undefined footnote identifiers but checks their body and inline-note prose', async () => {
+    const source = '😀 A note[^markdownreferences] and [^teh].\r\n\r\n[^teh]: A teh typo.\r\n\r\nAn inline note ^[teh].';
+    const observations = await writingSpellingObservations(source, 'en-US', async () => dictionary('en-US'));
+    expect(observations.map(item => [item.actual, item.from])).toEqual([
+        ['teh', source.indexOf('A teh') + 2], ['teh', source.lastIndexOf('teh')],
+    ]);
+    await expect(spellcheckSuggestionsAtPosition(source, source.indexOf('markdownreferences') + 1, 'en-US', async () => dictionary('en-US'))).resolves.toBeNull();
 });
 
 test.each(['en-US', 'en-GB'])('real %s spelling preserves valid plural/name possessives and corrects stems without changing possession', async language => {

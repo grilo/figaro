@@ -36,6 +36,9 @@ When renaming a referenced note, Figaro asks what to do with incoming Markdown
 links. Update them, keep their authored destinations, or cancel. Folder moves
 preserve links. **Merge Notes** needs at least two Markdown notes selected in
 the tree. Copying and importing preserve existing files when names collide.
+Rename progress shows the current save, reference-check, writing-data, rename,
+or refresh step. A CSS file without incoming Markdown links needs no reference
+question.
 
 **Settings → Vault care** offers checks for similar notes and repeated
 filenames. Its **Recently deleted** list restores archived items without
@@ -66,6 +69,9 @@ another column, or use its keyboard controls:
 
 The start and due pills open the date picker. The card menu can clear dates or
 remove the card from the board. Removing a column tag leaves the task text.
+Task changes appear from the unsaved note. Editing unrelated prose keeps the
+existing cards in place; inserting lines before a task still updates its source
+location so opening the card returns to the correct line.
 
 ## Add dates and schedules
 

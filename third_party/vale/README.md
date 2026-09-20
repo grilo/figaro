@@ -14,16 +14,21 @@ the application release also ships `THIRD_PARTY_NOTICES.md`.
 ## Included behavior
 
 The library receives the existing Markdown-to-prose projection and loads the
-27 pinned YAML rules from `internal/writing/styles` through `embed.FS`. It uses
+42 pinned YAML rules from `internal/writing/styles` through `embed.FS`. It uses
 the original plain-text linting, Unicode coordinate mapping, sentence splitting,
-and six rule types: existence, substitution, conditional, consistency,
-repetition, and occurrence. The JSON alert contract remains unchanged.
+and seven rule types: existence, substitution, conditional, consistency,
+repetition, occurrence, and sequence. The JSON alert contract remains unchanged.
 
 The CLI, executable assets, filesystem configuration loader, structured-data
 views, markup converters, tree-sitter/C parsers, spelling dictionary package,
 scripts, and unused rule implementations are omitted. Some upstream core and
 NLP helpers remain to keep the adaptation small; the restricted facade never
-exposes filesystem assets, custom configurations, remote NLP, or POS rules.
+exposes filesystem assets, custom configurations, remote NLP, arbitrary POS rules, or host dictionaries. Sequence rules use only
+the eagerly loaded, content-addressed Harper dictionary from the supplied fs.FS.
+The selected rule set and reviewed adaptations are described in
+[the grammar contract](../../docs/WRITING_HARPER.md). The separate pure Figaro
+package now supplies 99 reviewed grammar checks, including contextual homophones;
+this does not add another runtime or load unreviewed Vale-port rules.
 Source strings are always text, including strings naming existing files.
 Rule errors report embedded asset names without opening host files.
 
@@ -37,10 +42,12 @@ Rule errors report embedded asset names without opening host files.
   promptly to cancelled/timed-out callers. The library serializes actual scans
   and runs at most two independent rules concurrently within a scan.
 - Input and serialized output are limited to 4 MiB each. Intermediate work is
-  limited to 65,536 regex matches per walk, 65,536 derived NLP blocks, and 32,768
+  limited to 65,536 regex matches per walk, 65,536 derived NLP blocks, 65,536 tagged tokens per block, and 32,768
   alerts. Regex matches have a 100 ms approximate timeout; match walks check a
   one-second budget every 64 matches. Crossing a limit returns an error and
   discards the scan, never a silently truncated successful result.
+- Sequence expansion is limited to 256 slots with bounded repeat/skip values.
+  Matching advances an anchor cursor instead of rescanning all earlier candidates.
 - Cancellation checkpoints cover lint stages, rule loops, block creation, and
   source mapping. Already-running segmentation, allocation, or regex work is
   cooperative; there is no process-level hard kill or isolation from fatal

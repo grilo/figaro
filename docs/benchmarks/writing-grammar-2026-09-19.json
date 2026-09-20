@@ -1,0 +1,1217 @@
+{
+  "date": "2026-09-19",
+  "methods": {
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.43",
+    "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+    "runsPerBuild": 3,
+    "statistics": "Median of per-process medians for analysis; median of fresh-process startup times. OS file caches were not flushed.",
+    "scope": "Actual Wails/WebKitGTK production-mode app on a private headless Wayland display. Full prose review includes projection, native analysis, required worker resolution, real bounded card rendering and next animation frame. It excludes spelling. No private notes used.",
+    "startup": "Instrumented app process launch to all startup work ready; initialization overlaps worker startup.",
+    "sizes": "Separate uninstrumented stripped Linux x86-64 binaries, trimpath, production/webkit2_41; deterministic tar+gzip level 9, not a release installer.",
+    "coverage": "Native findings differ deliberately. This corpus measures cost, not general grammar accuracy.",
+    "nativeInput": "DOM interaction and CodeMirror keyboard events in the native webview, not hardware input injection.",
+    "earlierHarnessCorrection": "The previous Harper comparison omitted proseRequired on its resolve call. Its combined column excluded real review resolution (zero baseline findings); startup, isolated checks and sizes are unaffected."
+  },
+  "summary": {
+    "baseline": {
+      "startupMs": 1162.088228,
+      "startupRangeMs": [
+        1160.323543,
+        1175.545085
+      ],
+      "initializationMs": 58.000000000000114,
+      "workloads": [
+        {
+          "words": 1001,
+          "nativeMs": 8,
+          "reviewMs": 36.0,
+          "findings": 40,
+          "evidence": 79
+        },
+        {
+          "words": 10010,
+          "nativeMs": 232,
+          "reviewMs": 327.0,
+          "findings": 421,
+          "evidence": 844
+        }
+      ],
+      "qaPassed": true,
+      "typingMedianMs": 18.5,
+      "cancelMedianMs": 1.0000000000009095
+    },
+    "grammar": {
+      "startupMs": 1153.864829,
+      "startupRangeMs": [
+        1144.920553,
+        1177.900358
+      ],
+      "initializationMs": 121,
+      "workloads": [
+        {
+          "words": 1001,
+          "nativeMs": 9,
+          "reviewMs": 40.0,
+          "findings": 51,
+          "evidence": 90
+        },
+        {
+          "words": 10010,
+          "nativeMs": 167,
+          "reviewMs": 270.0,
+          "findings": 520,
+          "evidence": 943
+        }
+      ],
+      "qaPassed": true,
+      "typingMedianMs": 16.0,
+      "cancelMedianMs": 1
+    }
+  },
+  "sizes": {
+    "baseline": {
+      "bytes": 57418984,
+      "gzip9Bytes": 19849884,
+      "sha256": "2b70850c98d03b8bea8c4fdc5fd04ba9340d7f4d0aabebbefd8477c2aeeb066b"
+    },
+    "grammar": {
+      "bytes": 59413800,
+      "gzip9Bytes": 20334834,
+      "sha256": "623d6b82203dded7013bf53f075be16292cc78be74b2b239801d9fd7ef03cb59"
+    }
+  },
+  "runs": {
+    "baseline": [
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 893,
+        "initializationMs": 58.000000000000114,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 9,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 9,
+                "findings": 39
+              },
+              {
+                "ms": 7,
+                "findings": 39
+              },
+              {
+                "ms": 10,
+                "findings": 39
+              },
+              {
+                "ms": 7.000000000000227,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 42,
+                "proseMs": 27,
+                "nativeMs": 8,
+                "resolveMs": 5,
+                "renderFrameMs": 2,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 34.00000000000023,
+                "proseMs": 20,
+                "nativeMs": 8.000000000000227,
+                "resolveMs": 4,
+                "renderFrameMs": 2,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 34.99999999999977,
+                "proseMs": 20.999999999999773,
+                "nativeMs": 8,
+                "resolveMs": 4,
+                "renderFrameMs": 2,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 33,
+                "proseMs": 19,
+                "nativeMs": 8,
+                "resolveMs": 4,
+                "renderFrameMs": 2,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 244,
+                "findings": 423
+              },
+              {
+                "ms": 240,
+                "findings": 423
+              },
+              {
+                "ms": 235,
+                "findings": 423
+              },
+              {
+                "ms": 216,
+                "findings": 423
+              },
+              {
+                "ms": 251,
+                "findings": 423
+              },
+              {
+                "ms": 254,
+                "findings": 423
+              },
+              {
+                "ms": 235,
+                "findings": 423
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 360.0000000000009,
+                "proseMs": 80.00000000000045,
+                "nativeMs": 246.99999999999955,
+                "resolveMs": 30,
+                "renderFrameMs": 3.0000000000009095,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 346.9999999999991,
+                "proseMs": 67.99999999999909,
+                "nativeMs": 249,
+                "resolveMs": 27,
+                "renderFrameMs": 3,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 326,
+                "proseMs": 66,
+                "nativeMs": 229,
+                "resolveMs": 27,
+                "renderFrameMs": 4,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 359.0000000000009,
+                "proseMs": 85.00000000000091,
+                "nativeMs": 243.9999999999991,
+                "resolveMs": 26,
+                "renderFrameMs": 4.0000000000009095,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789823079120898000,
+        "qa": {
+          "typingFrameMs": [
+            11,
+            28,
+            33,
+            22,
+            21,
+            20,
+            18,
+            15,
+            16,
+            17,
+            16,
+            16
+          ],
+          "savedWhileAnalyzing": true,
+          "cancelMs": 0.9999999999990905,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789823077960574457,
+        "processToReadyMs": 1160.323543,
+        "reportToExitMs": 0.35619
+      },
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 901,
+        "initializationMs": 58.000000000000114,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 9,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 7,
+                "findings": 39
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 47,
+                "proseMs": 30,
+                "nativeMs": 9,
+                "resolveMs": 5,
+                "renderFrameMs": 3,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 33.00000000000023,
+                "proseMs": 18,
+                "nativeMs": 9.000000000000227,
+                "resolveMs": 4,
+                "renderFrameMs": 2,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 38.99999999999977,
+                "proseMs": 23.999999999999773,
+                "nativeMs": 8,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 33,
+                "proseMs": 19,
+                "nativeMs": 8,
+                "resolveMs": 3,
+                "renderFrameMs": 3,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 238,
+                "findings": 423
+              },
+              {
+                "ms": 215,
+                "findings": 423
+              },
+              {
+                "ms": 216,
+                "findings": 423
+              },
+              {
+                "ms": 231,
+                "findings": 423
+              },
+              {
+                "ms": 209,
+                "findings": 423
+              },
+              {
+                "ms": 245,
+                "findings": 423
+              },
+              {
+                "ms": 243.00000000000045,
+                "findings": 423
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 359.99999999999955,
+                "proseMs": 89,
+                "nativeMs": 236.00000000000045,
+                "resolveMs": 32,
+                "renderFrameMs": 2.9999999999990905,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 315,
+                "proseMs": 69,
+                "nativeMs": 217,
+                "resolveMs": 25,
+                "renderFrameMs": 4,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 323.0000000000009,
+                "proseMs": 62,
+                "nativeMs": 233,
+                "resolveMs": 25,
+                "renderFrameMs": 3.0000000000009095,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 324.9999999999991,
+                "proseMs": 61.99999999999909,
+                "nativeMs": 235,
+                "resolveMs": 25,
+                "renderFrameMs": 3,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789823100852616400,
+        "qa": {
+          "typingFrameMs": [
+            10,
+            27,
+            22,
+            22.00000000000091,
+            20.99999999999909,
+            20,
+            28,
+            19,
+            16,
+            16,
+            16,
+            17
+          ],
+          "savedWhileAnalyzing": true,
+          "cancelMs": 1.0000000000009095,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789823099690528172,
+        "processToReadyMs": 1162.088228,
+        "reportToExitMs": 0.372143
+      },
+      {
+        "kind": "baseline",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 915,
+        "initializationMs": 44.000000000000114,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 9,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              },
+              {
+                "ms": 8.999999999999773,
+                "findings": 39
+              },
+              {
+                "ms": 8,
+                "findings": 39
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 46,
+                "proseMs": 24,
+                "nativeMs": 10,
+                "resolveMs": 9.000000000000227,
+                "renderFrameMs": 2.9999999999997726,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 35,
+                "proseMs": 20,
+                "nativeMs": 7,
+                "resolveMs": 5,
+                "renderFrameMs": 3,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 38,
+                "proseMs": 19,
+                "nativeMs": 8,
+                "resolveMs": 8,
+                "renderFrameMs": 3,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              },
+              {
+                "ms": 33,
+                "proseMs": 18,
+                "nativeMs": 8,
+                "resolveMs": 5,
+                "renderFrameMs": 2,
+                "findings": 40,
+                "evidence": 79,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 238,
+                "findings": 423
+              },
+              {
+                "ms": 234,
+                "findings": 423
+              },
+              {
+                "ms": 217,
+                "findings": 423
+              },
+              {
+                "ms": 234,
+                "findings": 423
+              },
+              {
+                "ms": 229,
+                "findings": 423
+              },
+              {
+                "ms": 215,
+                "findings": 423
+              },
+              {
+                "ms": 232,
+                "findings": 423
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 316,
+                "proseMs": 63,
+                "nativeMs": 220.00000000000045,
+                "resolveMs": 28.999999999999545,
+                "renderFrameMs": 4,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 338,
+                "proseMs": 62,
+                "nativeMs": 240,
+                "resolveMs": 27,
+                "renderFrameMs": 9,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 351,
+                "proseMs": 76,
+                "nativeMs": 246,
+                "resolveMs": 24,
+                "renderFrameMs": 5,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              },
+              {
+                "ms": 308.0000000000009,
+                "proseMs": 58,
+                "nativeMs": 222,
+                "resolveMs": 25,
+                "renderFrameMs": 3.0000000000009095,
+                "findings": 421,
+                "evidence": 844,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789823108278060500,
+        "qa": {
+          "typingFrameMs": [
+            12,
+            28,
+            23,
+            23,
+            41,
+            22,
+            20,
+            11,
+            16,
+            16,
+            17,
+            16
+          ],
+          "savedWhileAnalyzing": true,
+          "cancelMs": 1.0000000000009095,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789823107102515415,
+        "processToReadyMs": 1175.545085,
+        "reportToExitMs": 0.315263
+      }
+    ],
+    "grammar": [
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 883,
+        "initializationMs": 131,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 11,
+                "findings": 50
+              },
+              {
+                "ms": 8,
+                "findings": 50
+              },
+              {
+                "ms": 9,
+                "findings": 50
+              },
+              {
+                "ms": 10,
+                "findings": 50
+              },
+              {
+                "ms": 10.000000000000227,
+                "findings": 50
+              },
+              {
+                "ms": 10,
+                "findings": 50
+              },
+              {
+                "ms": 8.999999999999773,
+                "findings": 50
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 48,
+                "proseMs": 27,
+                "nativeMs": 13,
+                "resolveMs": 5,
+                "renderFrameMs": 3,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 37,
+                "proseMs": 18.000000000000227,
+                "nativeMs": 10,
+                "resolveMs": 6,
+                "renderFrameMs": 2.9999999999997726,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 41,
+                "proseMs": 24,
+                "nativeMs": 10,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 35,
+                "proseMs": 18,
+                "nativeMs": 10,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 170,
+                "findings": 522
+              },
+              {
+                "ms": 171,
+                "findings": 522
+              },
+              {
+                "ms": 156.00000000000045,
+                "findings": 522
+              },
+              {
+                "ms": 158,
+                "findings": 522
+              },
+              {
+                "ms": 155,
+                "findings": 522
+              },
+              {
+                "ms": 188,
+                "findings": 522
+              },
+              {
+                "ms": 167,
+                "findings": 522
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 265,
+                "proseMs": 62,
+                "nativeMs": 161,
+                "resolveMs": 34,
+                "renderFrameMs": 8,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 268,
+                "proseMs": 68.00000000000045,
+                "nativeMs": 157.99999999999955,
+                "resolveMs": 31,
+                "renderFrameMs": 11,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 271.00000000000045,
+                "proseMs": 73,
+                "nativeMs": 162,
+                "resolveMs": 28.000000000000455,
+                "renderFrameMs": 8,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 273.99999999999955,
+                "proseMs": 64,
+                "nativeMs": 171.99999999999955,
+                "resolveMs": 29,
+                "renderFrameMs": 9,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789823086771384000,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            6,
+            13,
+            17,
+            16,
+            17,
+            16,
+            16,
+            17,
+            16.00000000000091,
+            16.99999999999909,
+            16,
+            16
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 1,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789823085626463447,
+        "processToReadyMs": 1144.920553,
+        "reportToExitMs": 16.574415
+      },
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 913,
+        "initializationMs": 121,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 9,
+                "findings": 50
+              },
+              {
+                "ms": 9,
+                "findings": 50
+              },
+              {
+                "ms": 13,
+                "findings": 50
+              },
+              {
+                "ms": 9.000000000000227,
+                "findings": 50
+              },
+              {
+                "ms": 8.999999999999773,
+                "findings": 50
+              },
+              {
+                "ms": 9,
+                "findings": 50
+              },
+              {
+                "ms": 8,
+                "findings": 50
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 48,
+                "proseMs": 28,
+                "nativeMs": 11.000000000000227,
+                "resolveMs": 4.999999999999773,
+                "renderFrameMs": 4,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 38,
+                "proseMs": 22,
+                "nativeMs": 10,
+                "resolveMs": 4,
+                "renderFrameMs": 2,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 43,
+                "proseMs": 26,
+                "nativeMs": 10,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 37.00000000000023,
+                "proseMs": 19,
+                "nativeMs": 11,
+                "resolveMs": 4,
+                "renderFrameMs": 3.0000000000002274,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 165,
+                "findings": 522
+              },
+              {
+                "ms": 196,
+                "findings": 522
+              },
+              {
+                "ms": 167,
+                "findings": 522
+              },
+              {
+                "ms": 171,
+                "findings": 522
+              },
+              {
+                "ms": 155.00000000000045,
+                "findings": 522
+              },
+              {
+                "ms": 163.99999999999955,
+                "findings": 522
+              },
+              {
+                "ms": 157,
+                "findings": 522
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 269,
+                "proseMs": 70,
+                "nativeMs": 160,
+                "resolveMs": 31,
+                "renderFrameMs": 8,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 283,
+                "proseMs": 76,
+                "nativeMs": 171,
+                "resolveMs": 28,
+                "renderFrameMs": 8,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 296,
+                "proseMs": 69,
+                "nativeMs": 187,
+                "resolveMs": 34,
+                "renderFrameMs": 6,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 307,
+                "proseMs": 72,
+                "nativeMs": 179,
+                "resolveMs": 49,
+                "renderFrameMs": 7,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789823093776933400,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            9.00000000000091,
+            14.99999999999909,
+            11,
+            10,
+            16,
+            17.00000000000091,
+            16,
+            16.99999999999909,
+            16,
+            16,
+            17,
+            16
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 3,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789823092599033042,
+        "processToReadyMs": 1177.900358,
+        "reportToExitMs": 32.651963
+      },
+      {
+        "kind": "grammar",
+        "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+        "appReadyWebviewMs": 888,
+        "initializationMs": 118,
+        "measures": [
+          {
+            "words": 1001,
+            "isolated": [
+              {
+                "ms": 9,
+                "findings": 50
+              },
+              {
+                "ms": 9,
+                "findings": 50
+              },
+              {
+                "ms": 10,
+                "findings": 50
+              },
+              {
+                "ms": 9,
+                "findings": 50
+              },
+              {
+                "ms": 9,
+                "findings": 50
+              },
+              {
+                "ms": 10.000000000000227,
+                "findings": 50
+              },
+              {
+                "ms": 10,
+                "findings": 50
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 45,
+                "proseMs": 27,
+                "nativeMs": 10,
+                "resolveMs": 5,
+                "renderFrameMs": 3,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 39,
+                "proseMs": 18.000000000000227,
+                "nativeMs": 12.999999999999773,
+                "resolveMs": 4,
+                "renderFrameMs": 4,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 41,
+                "proseMs": 24,
+                "nativeMs": 11,
+                "resolveMs": 4,
+                "renderFrameMs": 2,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              },
+              {
+                "ms": 34,
+                "proseMs": 18,
+                "nativeMs": 9,
+                "resolveMs": 4,
+                "renderFrameMs": 3,
+                "findings": 51,
+                "evidence": 90,
+                "mountedCards": 4
+              }
+            ]
+          },
+          {
+            "words": 10010,
+            "isolated": [
+              {
+                "ms": 165.99999999999977,
+                "findings": 522
+              },
+              {
+                "ms": 188,
+                "findings": 522
+              },
+              {
+                "ms": 184,
+                "findings": 522
+              },
+              {
+                "ms": 168,
+                "findings": 522
+              },
+              {
+                "ms": 171,
+                "findings": 522
+              },
+              {
+                "ms": 155.00000000000045,
+                "findings": 522
+              },
+              {
+                "ms": 156.99999999999955,
+                "findings": 522
+              }
+            ],
+            "pipeline": [
+              {
+                "ms": 266,
+                "proseMs": 76.99999999999955,
+                "nativeMs": 154,
+                "resolveMs": 29,
+                "renderFrameMs": 6.000000000000455,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 276.99999999999955,
+                "proseMs": 69.99999999999955,
+                "nativeMs": 174,
+                "resolveMs": 27,
+                "renderFrameMs": 6,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 262,
+                "proseMs": 61,
+                "nativeMs": 168.00000000000045,
+                "resolveMs": 26,
+                "renderFrameMs": 6.999999999999545,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              },
+              {
+                "ms": 274,
+                "proseMs": 82,
+                "nativeMs": 158,
+                "resolveMs": 26,
+                "renderFrameMs": 8,
+                "findings": 520,
+                "evidence": 943,
+                "mountedCards": 4
+              }
+            ]
+          }
+        ],
+        "errors": [],
+        "readyUnixNano": 1789823115667038700,
+        "qa": {
+          "visibleSuggestion": true,
+          "applyPreservesMarkdown": true,
+          "keyboardUndo": true,
+          "ignorePersisted": true,
+          "typingFrameMs": [
+            5,
+            13,
+            15,
+            16,
+            17,
+            16,
+            16,
+            17,
+            16,
+            17,
+            16,
+            16
+          ],
+          "analysisPendingBeforeSave": true,
+          "analysisPendingAfterSave": true,
+          "savedWhileAnalyzing": true,
+          "cancelMs": 1,
+          "cancelOutcome": "Error: context canceled",
+          "reuse": true,
+          "postReadyModuleRequests": [],
+          "shutdownWithWork": true
+        },
+        "launchUnixNano": 1789823114513173871,
+        "processToReadyMs": 1153.864829,
+        "reportToExitMs": 16.832413
+      }
+    ]
+  }
+}

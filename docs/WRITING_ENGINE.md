@@ -41,7 +41,8 @@ with the note’s selected analysis language. There is no automatic language det
 
 | Dependency / immutable pin | Upstream and notices | Emitted checks / scope | Fix support |
 | --- | --- | --- | --- |
-| Vale 3.20.0 | [Vale release](https://github.com/vale-cli/vale/releases/tag/v3.20.0), MIT in `third_party/vale/LICENSE` | Embedded Go library; in-memory Figaro rules, projected prose, compatible JSON output | Selected rules are advisory; no native generated actions |
+| Vale 3.20.0 | [Vale release](https://github.com/vale-cli/vale/releases/tag/v3.20.0), MIT in `third_party/vale/LICENSE` | Embedded Go library; in-memory Figaro rules, projected prose, compatible JSON output | Style rules are advisory; reviewed grammar actions require exact source validation |
+| Harper port 0.1.0 + Figaro grammar 7 | Apache-2.0 rules/dictionary in `internal/writing/styles/Harper`; [reviewed scope](WRITING_HARPER.md) | Fifteen selected YAML rules and 160 pure Go checks in the existing native worker | Bounded allowlisted literal replacements; exact, editable source only |
 | write-good `c9ceca7f574248a201d5524b001099c5626c7519` | [Pinned style source](https://github.com/vale-cli/write-good/tree/c9ceca7f574248a201d5524b001099c5626c7519), MIT in `internal/writing/styles/LICENSE` | Seven rules: Passive, TooWordy, Cliches, Illusions, So, ThereIs, Weasel; E-Prime and Vale built-ins disabled | Detection only; compatible retext evidence can contribute a phrase fix |
 | retext-passive 5.0.0 | [Source](https://github.com/retextjs/retext-passive), MIT | `retext-passive` plus native rule IDs; participle-based possible passive detection | Advisory only |
 | retext-simplify 8.0.0 | [Source](https://github.com/retextjs/retext-simplify), MIT | `retext-simplify` plus native message subtypes; all native phrases map to contextual wordiness or vocabulary advice | Seven reviewed phrase forms offer verified alternatives, case matched, contiguous source only |
@@ -124,8 +125,9 @@ requires completed prose evidence when selected checks need it.
 inside a replacement worker after failure. If rebuilding fails, it returns
 independent spelling results with an explicit failure and excludes unmappable
 Vale output. The coordinator keeps partial status and Retry analysis until a
-full recovery succeeds; a later spelling completion cannot silently clear it. Source edits still clear
-stale marks immediately, and explicit Apply validates current source before its
+full recovery succeeds; a later spelling completion cannot silently clear it. Source edits immediately invalidate touched-paragraph and document-dependent
+marks, while other paragraph marks remain mapped and read-only. Structural
+Markdown edits invalidate all marks. Explicit Apply validates current source before its
 normal undoable editor transaction. UI rendering remains bounded to the requested
 card page; saved-decision rows consume background activity results.
 
@@ -145,7 +147,7 @@ Plain language exposes all native simplification matches as contextual advice. A
 Other simplification observations remain visible without Apply. The known noun
 “request” → “ask” problem restricts editing, not the availability of contextual
 advice. The redundant-acronym package separately supplies its reviewed acronym
-alternatives. Native Vale and Slopless substitutions never become edits directly.
+alternatives. Native style and Slopless substitutions never become edits directly. The separate reviewed grammar allowlist admits only bounded literal replacements after exact-match and source-mapping validation.
 
 Selecting Directness enables an invitation to consider naming the actor,
 without an additional profile gate. Selected proselint qualifying-phrase and emphatic-punctuation advice is also
@@ -187,7 +189,8 @@ names including MongoDB, PowerShell, WordPress, OpenAPI, and Cloudflare. The
 complete 29-name list is in `core/writingTextlintModel.js`. It offers the exact
 canonical case even for an uppercase source such as “JAVASCRIPT.” Other default
 terms, preferred regional spellings, and subjective substitutions are disabled.
-Quoted text, code, links' destinations, paths, and identifiers stay protected.
+Quoted text, code, links' destinations, explicit paths, recognized filenames,
+and identifiers stay protected.
 Encoded or discontinuous Markdown can receive advice but never a destructive fix.
 
 Grammar & punctuation uses pinned article and contraction analysis, spaces before comma,
@@ -198,12 +201,12 @@ retain the chosen form. Contractions repair missing/misplaced apostrophes while
 preserving the existing style, or using the prevailing convention if absent.
 Correct straight/curly contraction typography belongs to Consistency or optional Formulaic style advice, rather than Grammar. Ellipses and expressive punctuation remain unchanged.
 
-Editorial policy version 4 retains the correction to the upstream article treatment for reviewed
+Editorial policy version 5 retains the correction to the upstream article treatment for reviewed
 consonant-sounding vowels (“a unicorn,” “a European”) and silent consonants
 (“an hour,” “an honest answer”). Unknown `u`/`eu` families and dialect-dependent
 `herb`/`historic`, SQL, and URL pronunciations are withheld. Reviewed cases can
 span a soft wrap within eligible prose; context cannot cross protected spans.
-These are selected rules, not complete agreement or contextual-homophone checks.
+Fifteen reviewed Harper-port rules and 160 pure Go checks add conservative agreement, infinitive, auxiliary, number, possessive, homophone, word-choice, compound-subject, question, phrase, word-boundary, ordinal, capitalization, and comma coverage (175 IDs). Reviewed preposition/word-choice contexts and determiner-led noun-subject auxiliaries add usage coverage; fewer → less preserves countable noun compounds. Selected adjacent-pronoun conflicts remain advisory. These are selected patterns, not complete grammar analysis; see [the grammar contract](WRITING_HARPER.md). Blocks with masked quotation/code/technical context are withheld from the new checks.
 
 The unmatched-pair rule flags supported opening marks left without a matching
 closer, including parentheses, brackets, braces, and straight double quotes.
@@ -227,11 +230,11 @@ length findings from Figaro and Microsoft retain both native sources. Microsoft
 uses the same threshold; its native anchor expands only when the mapped sentence itself exceeds 30 words. The local check preserves eligible long-sentence coverage when native sentence boundaries disagree. The explanation distinguishes measured length from formula
 estimates and includes a general splitting/simplifying example; no automatic
 rewrite or reading-grade score is offered, and the estimates do not measure
-writing quality. Mapping/configuration version 11 includes package pins, editorial policy version 4, spelling vocabulary version 1,
+writing quality. Mapping/configuration version 20 includes package pins, editorial policy version 5, spelling vocabulary version 3,
 reviewed terms/acronym exceptions, and formula options so stale findings cannot survive a policy change. All prose
 lenses support English US/UK, save independently with the existing version 3
 preferences, and reuse dotted marks, grouped cards, Ignore, and guarded fixes.
-Vale runs when Plain language, Directness, Repetition, Consistency, or Readability needs it. Enabling one of these check families through its UI group
+Vale runs when Plain language, Directness, Repetition, Consistency, Readability, or Grammar & punctuation needs it. Enabling one of these check families through its UI group
 after another prose lens requests missing native evidence before reuse.
 
 Plain language adds redundant acronyms, clichés, and corporate jargon. Identical
@@ -281,8 +284,16 @@ in-word apostrophes remain ordinary prose, and unmatched quotes remain analyzabl
 is a bounded syntax rule, not attribution or language inference. Frontmatter,
 code, diagram bodies, math, link destinations, URL/path tokens, and recognized
 technical identifiers are protected. Existing spelling exclusions remain separate.
+Both paths use `core/writingFootnoteModel.js` to protect footnote identifiers,
+including undefined markers. Prose projection hides their mapped units; spelling
+neutralizes the opening bracket for parsing so CommonMark cannot swallow the
+definition body as a link definition, then masks the original marker. UTF-16
+offsets stay unchanged. Footnote body/inline-note prose remains eligible, escaped
+literal brackets remain prose, and missing-definition diagnostics are separate.
 
 All issue/edit ranges are half-open UTF-16 offsets into the owned immutable source.
+Footnote protection is covered independently in both the runtime projection and
+real dictionary regressions, including Unicode/CRLF source offsets.
 Vale reports one-based inclusive code-point columns; real Unicode adapter tests
 establish the conversion. Markdown extraction records each projected unit's exact
 source range. Entities, escapes, line endings, and markup may produce explanation-
@@ -306,7 +317,7 @@ The former profile gate is removed. Proofreading and the analysis language are t
 spelling controls; old Settings and YAML values are preserved but ignored.
 
 Spelling eligibility uses the existing pure Lezer Markdown parser through
-`core/spellingModel.js`. It excludes explicit reference IDs, definitions and
+`core/spellingModel.js`. It excludes explicit link-reference IDs/definitions, footnote identifiers and
 indented code (including nested blocks), preserves exact UTF-16 offsets, and
 shares unfinished/closed YAML boundaries with metadata. The spelling adapter,
 context-menu lookup and worker resolver use the same ranges; protected or
@@ -323,12 +334,23 @@ cannot merely remove or relocate possession. Spanish keeps its own dictionary
 policy. Parsed emphasis marks are separated before technical-token masking;
 underscores do not hide prose or truncate possessives. Closing single quotes
 are outside spelling tokens, and numeric compounds remain intact. The reviewed
-English vocabulary recognizes common technical terms and acronym plurals.
-Unreviewed capitalized-word alternatives require an adjacent transposition;
+English vocabulary recognizes common technical terms; acronym plurals require a
+recognized acronym stem. All-caps words are checked instead of exempted by shape.
+The vocabulary includes async, dotfiles, etags, fallbacks and middleware.
+Forward/reverse definitions in visible spelling prose recognize three-to-five-letter
+acronyms for the current note only. Adding or removing a definition immediately
+changes eligibility without storing document context in the word-suggestion cache.
+Shared technical masking protects URLs, email, explicit paths, known filename
+extensions, and identifiers including lower camel case; slash/dot-separated prose stays eligible. NFC lookup
+normalization changes comparisons only, preserving source text and ranges.
+Ordinary title/sentence capitals and all-caps words receive case-matched
+lowercase-dictionary alternatives. Unreviewed mixed-case or name-only alternatives
+still require an adjacent transposition;
 invented possessive apostrophes are withheld, while reviewed contraction shapes
-remain available. Recognition of a term never
+remain available. Generated English alternatives cannot merely remove a final
+plural `s` from an unknown word. Recognition of a term never
 authorizes a rewrite. Analysis parsing and resolution remain worker-only; no scans are added
-to input handlers. Mapping/configuration version 11 invalidates older evidence.
+to input handlers. Mapping/configuration version 20 invalidates older evidence.
 
 ## Corpus context guards
 
@@ -341,13 +363,23 @@ clarity. Surviving tone advice explains the reader assumption specifically.
 URL masking preserves surrounding punctuation and balanced internal parentheses.
 All checks remain in the asynchronous worker architecture.
 
+The later [quality follow-up](WRITING_CORPUS_FIXES.md#september-quality-follow-up)
+also guards web addresses, technical options and limits, forwarding, emotional
+states and literal end-of-day instructions. Visible balanced punctuation is
+verified within one projection block before retaining an unmatched-pair warning.
+Equivalent “there is/are” advice merges across Plain language and Directness,
+preserving independent selection, every source and legacy occurrence Ignore
+decisions. Grammar policy 7 broadens existing contexts without adding rule IDs.
+
 ## Inline review and personal spelling words
 
 Current findings decorate their existing source text with the same dotted
 underline as spellcheck. Hover opens an explanation, before/after wording for available fixes, and applicable Apply/Ignore
 actions; Ctrl/Cmd+. opens and focuses the popup at the caret, Tab/Shift+Tab
 traverse its buttons, and Escape restores editor focus. The popup works with the
-pane closed and in Pure mode. Source edits clear it and its marks immediately;
+pane closed and in Pure mode. Source edits close the popup and invalidate affected marks immediately;
+unaffected paragraph marks remain display-only while refreshing, with disabled
+actions in reopened popups;
 its actions retain the displayed snapshot and share pane source guards. Marks
 do not replace source or change printable Markdown. Multiple findings at the
 same position share a popup. Rendered ordinary-link labels, explicit wiki aliases,
@@ -359,9 +391,23 @@ the complete widget range, so the pointer can enter the review popup. Passive ad
 without manufacturing a document-specific actor or fix. The pane separates each
 suggestion using a rounded borderless theme surface.
 
-Spelling additionally offers Add to dictionary. Accepted whole words persist
+Spelling additionally offers Add to dictionary. Accepted words persist
 per vault in version 1 `.config/spelling-dictionary.json`, with case-insensitive
-matching and normalized apostrophes across spelling languages. Inline review and the existing context menu filter these words; the Spelling
+matching and normalized apostrophes across spelling languages. English US/UK
+also accept regular noun plurals (`-s`, `-es`, consonant-`y` to `-ies`) and
+singular/plural possessives, including straight/curly terminal apostrophes.
+This applies to existing saved words without rewriting the dictionary. Adding a
+singular possessive accepts its base and regular plural family. Adding an
+s-ending terminal possessive accepts the unpossessed spelling without guessing
+a singular; internal-apostrophe words remain exact entries. Irregular plurals,
+verb endings, and prefixes are not inferred. Spanish keeps exact-word matching.
+Lookup keys use NFC Unicode normalization, retaining original source offsets and
+text. The Go store normalizes equivalent accent encodings and accepts terminal
+apostrophes after s; loading old data does not rewrite it.
+`core/spellingDictionaryModel.js` uses nspell with only the pinned English S/M
+affix subset in a fresh personal checker, shared by review resolution and
+context-menu/standalone spelling. Its terminal-apostrophe check requires an
+accepted s-ending base or regular plural. Inline review and the existing context menu filter these words; the Spelling
 lens owns both paths and deselecting it turns off spelling for this note. Saves
 are serialized and pessimistic, and the rooted adapter preserves unknown fields,
 rejects invalid/newer files and outside symlinks, and writes atomically. Failure
@@ -435,7 +481,7 @@ removes one occurrence decision; **Review acronym again** removes one acronym
 acceptance. Reversal is available even with disabled lenses or changed text.
 The controls show saving/errors and preserve accessible focus. Successful async
 inline actions restore focus only while the originating editor/source still
-owns it. The decisions participate in mapping/configuration version 11; adding
+owns it. The decisions participate in mapping/configuration version 20; adding
 or removing them reuses current analyzer evidence and invalidates stale actions.
 
 ## Bounded review and bulk changes
@@ -737,6 +783,10 @@ production suggestion view for Inclusive language.
 
 ## Harper evaluation
 
+The following records the September 6 evaluation of original Harper/Wasm.
+The later [curated Go-port integration](WRITING_HARPER.md) enables a reviewed
+subset with context guards; it does not bundle the original Harper runtime.
+
 Harper 2.7.0 (Apache-2.0) was evaluated in an isolated npm directory and is **not
 bundled**. Its [JavaScript documentation](https://writewithharper.com/docs/harperjs/introduction)
 labels the API early access. The reproducible probe uses its local Wasm files,
@@ -766,7 +816,7 @@ full-binary setup also initializes its slim glue. No runtime network dependency
 is inherent, but shipping it would require explicit worker startup, asset and
 notice packaging, bounded cancellation, an allowlisted rule mapping, protected
 context guards, and real webview validation. The existing local writing engine
-continues to ship. A selected-rule Harper integration is deferred until those
+continues to ship. At that evaluation, selected-rule Harper integration was deferred until those
 editorial and adapter boundaries are established.
 
 Reproduce without installing Harper into the application:
@@ -1171,3 +1221,36 @@ prose scan, 754 ms for a cold incremental scan and 67 ms after changing one
 paragraph. The edit rescanned one paragraph and reused 599. Findings were equal.
 These are indicative Linux/Node worker-engine timings, excluding Vale, spelling,
 rendering and laptop input-to-paint; they are not a Windows responsiveness claim.
+
+
+## Retained results while editing — 10 September 2026
+
+The analysis coordinator keeps previous results and their original snapshot while
+replacement engines settle. Cards stay visible with disabled actions and an
+explicit refresh status; an early empty spelling reply cannot clear retained prose.
+The editor independently maps paragraph-local underlines through changes, removes
+affected-paragraph and document-dependent advice, and treats remaining marks as
+read-only. Structural Markdown edits clear retained underlines conservatively.
+This changes presentation and invalidation, not engine scopes or debounce timing.
+
+An isolated production-tagged WebKitGTK 2.52.6 build passed wrapped-row Mermaid
+entry, mouse/drag, boundary navigation, and retained-results checks. The
+[recorded synthetic profile](benchmarks/writing-retained-results-2026-09-10.json)
+uses an isolated 1280×1000 Weston software display and 30 scripted insertions per
+run, with Directness off/on/on/off. At 1,105 words, next-frame medians were 4–5 ms
+off and 4 ms on. At 11,050 words, medians were 4–5 ms off and 5–7 ms on; run p95
+values were 5–7 ms off and 7–9 ms on. These measure dispatch to the next animation
+frame callback, not completed presentation or physical typing latency. They show
+a modest lens cost in this fixture and do not explain every report of sluggishness
+or establish Windows/WebView2 or macOS/WKWebView performance.
+
+## Native typing follow-up — 11 September 2026
+
+The [trusted native input profile](benchmarks/typing-input-2026-09-11.md)
+compares all five lens groups with no lenses, with and without Mermaid, in
+standard editing and Vim Insert. It received all 840 keys and measured modest
+additional lens/diagram cost on this Linux desktop. A separate main-thread
+CPU trace points first to source-footprint layout reads, with smaller retained
+underline mapping cost. Neither run establishes physical display latency or
+resolves the user's remaining subjective sluggishness. Full methodology,
+samples, limitations and the next targeted experiment are in the report.

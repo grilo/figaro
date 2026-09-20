@@ -87,3 +87,38 @@ describe('session persistence use case', () => {
         await secondSave;
     });
 });
+
+
+test.each([false, true])('slow session writes coalesce to the latest snapshot and recover (failure=%s)', async (fail) => {
+    const held = deferred();
+    const failure = new Error('slow disk failed');
+    let head = 0;
+    const reportFailure = jest.fn();
+    const writeSession = jest.fn().mockImplementationOnce(async () => {
+        await held.promise;
+        if (fail) throw failure;
+    }).mockResolvedValue(undefined);
+    const persistence = createSessionPersistence({
+        writeSession, reportFailure,
+        readWorkspace: () => ({
+            openTabs: [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', cursorState: { anchor: head, head } }],
+            activeTabId: 'note.md',
+        }),
+    });
+    const first = persistence.save();
+    const pending = [];
+    for (head = 1; head <= 100; head++) pending.push(persistence.save());
+    expect(writeSession).toHaveBeenCalledTimes(1);
+    expect(new Set(pending).size).toBe(1);
+    held.resolve();
+    await Promise.all([first, ...pending]);
+    expect(writeSession).toHaveBeenCalledTimes(2);
+    expect(writeSession.mock.calls[0][0].cursorStates['note.md'].head).toBe(0);
+    expect(writeSession.mock.calls[1][0].cursorStates['note.md'].head).toBe(100);
+    expect(reportFailure).toHaveBeenCalledTimes(fail ? 1 : 0);
+    if (fail) expect(reportFailure).toHaveBeenCalledWith('save', failure);
+    head = 200;
+    await persistence.save();
+    expect(writeSession).toHaveBeenCalledTimes(3);
+    expect(writeSession.mock.calls[2][0].cursorStates['note.md'].head).toBe(200);
+});

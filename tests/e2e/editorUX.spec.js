@@ -553,10 +553,6 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
         const selection = editor.getEditorView().state.selection.main;
         return { anchor: selection.anchor, head: selection.head };
     })).toEqual(expectedCursor);
-    await expect.poll(() => page.evaluate(async () => {
-        const state = await import('/js/state.js');
-        return state.getState('openTabs').find(tab => tab.id === 'Welcome.md').cursorState;
-    })).toEqual(expectedCursor);
 });
 
 test('lets Pure editing fill the window with only word count and no outline', async ({ page }) => {
@@ -2691,6 +2687,38 @@ test('keeps rendered block source footprints stable and chains code wheel input 
     await expect(renderedCode).toHaveCount(1);
     expect(await page.evaluate(() => window.__sourceFootprintView.state.selection.main.head))
         .toBe(selectionBeforeWheel);
+
+    // Browser-only boundary: a mapped decoration can leave the physical viewport
+    // and remount from its original widget payload before a real pointer click.
+    const retainedSource = 'Ordinary **bold** prose.\n\n' + fence + 'js\nconst restored = true;\n' + fence
+        + '\n\n| A | B |\n| - | - |\n| x | y |\n\n' + 'A distant paragraph.\n\n'.repeat(1000);
+    await page.evaluate(async source => {
+        const { ensureSyntaxTree } = await import('/vendored/codemirror/language/index.js');
+        const view = window.__sourceFootprintView;
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source }, selection: { anchor: 5 } });
+        ensureSyntaxTree(view.state, view.state.doc.length, 10000);
+        view.dispatch({});
+        view.scrollDOM.scrollTop = 0;
+        view.focus();
+    }, retainedSource);
+    await expect(renderedCode).toBeVisible();
+    await page.evaluate(() => { window.__mappedCode = document.querySelector('.cm-codeblock-widget'); });
+    await page.keyboard.type('extra');
+    expect(await page.evaluate(() => window.__mappedCode === document.querySelector('.cm-codeblock-widget'))).toBe(true);
+    await page.evaluate(() => { const view = window.__sourceFootprintView; view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight; });
+    await expect(renderedCode).toHaveCount(0);
+    await page.evaluate(() => { window.__sourceFootprintView.scrollDOM.scrollTop = 0; });
+    await expect(renderedCode).toBeVisible();
+    await renderedCode.locator('.cm-codeblock-line[data-line-index="0"]').click({ position: { x: 2, y: 8 } });
+    expect(await page.evaluate(() => {
+        const view = window.__sourceFootprintView;
+        return view.state.doc.lineAt(view.state.selection.main.head).text;
+    })).toBe('const restored = true;');
+    await page.locator('.cm-live-table td').first().click();
+    expect(await page.evaluate(() => {
+        const view = window.__sourceFootprintView;
+        return view.state.doc.lineAt(view.state.selection.main.head).text;
+    })).toBe('| x | y |');
 });
 
 test('coalesces rapid editor observer updates without losing the dirty buffer', async ({ page }) => {
@@ -3281,8 +3309,8 @@ test('inline writing suggestions support hover actions, keyboard focus, cursor p
     await content.focus(); await content.press('Control+z');
     await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe(source);
     await expect(navigate).toBeVisible();
-    // Deferred refresh leaves old cards inert until current results return.
-    await expect(pane.locator('.writing-results')).toHaveJSProperty('inert', false);
+    // Deferred refresh leaves old cards visible with disabled actions until current results return.
+    await expect(navigate).toBeEnabled();
     await navigate.focus(); await expect(navigate).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(content).toBeFocused();
@@ -3343,7 +3371,7 @@ test('inline writing suggestions support hover actions, keyboard focus, cursor p
     await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe('We utilize ordinary tools. We utilize ordinary words.');
     // Browser-only boundary: writing paint and hover must survive link widgets,
     // and mouse/arrow transitions must still reveal the exact editable source.
-    const linked = 'Before\n\n[utilize](https://example.com/utilize "Reference")\n\nAfter';
+    let linked = 'Before\n\n[utilize](https://example.com/utilize "Reference")\n\nAfter';
     await page.evaluate(markdown => {
         const view = window.__writingView;
         view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: markdown }, selection: { anchor: 0 } });
@@ -3358,6 +3386,14 @@ test('inline writing suggestions support hover actions, keyboard focus, cursor p
     await page.evaluate(() => { window.__openedWritingLink = null; window.open = url => { window.__openedWritingLink = url; }; });
     await label.click();
     expect(await page.evaluate(() => window.__openedWritingLink)).toBe('https://example.com/utilize');
+    // Retained decoration geometry must survive an edit in a different paragraph,
+    // including when the underline is painted inside a replacement link widget.
+    await page.evaluate(() => { const view = window.__writingView; view.dispatch({ selection: { anchor: 0 } }); view.focus(); });
+    await page.keyboard.type('New ', { delay: 25 });
+    linked = 'New ' + linked;
+    await expect(label).toHaveText('utilize');
+    await expect(label).toHaveCSS('background-size', '4px 2px');
+
     const beforeLink = await page.evaluate(() => { const r = window.__writingView.coordsAtPos(0); return { x: r.left + 1, y: (r.top + r.bottom) / 2 }; });
     await page.mouse.click(beforeLink.x, beforeLink.y); await expect(content).toBeFocused();
     await content.press('ArrowDown'); await content.press('ArrowDown');

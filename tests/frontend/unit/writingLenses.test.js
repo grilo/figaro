@@ -1,3 +1,4 @@
+import { publishEditorUpdate } from '../frontend/js/editorUpdates.js';
 import { writingTestPorts } from '../support/writingPorts.js';
 import { initWritingLenses } from '../../../frontend/js/writingLenses.js';
 import { claimRightPane, registerRightPaneMode, resetRightPaneModesForTests } from '../../../frontend/js/rightPaneCoordinator.js';
@@ -112,7 +113,7 @@ test('writing pane restores findings after immediate Undo to the same document o
     document.body.innerHTML = '<div id="app"><button id="writing-lenses-toggle"></button><button id="writing-lenses-quick-toggle"></button><aside id="right-sidebar"><span id="right-sidebar-title"></span><div id="right-sidebar-content"></div></aside><div id="editor-test"></div></div>';
     const source = 'We utilize **ordinary words**.';
     const view = new EditorView({ parent: document.getElementById('editor-test'), state: EditorState.create({ doc: source, extensions: [history(), EditorView.updateListener.of(update => {
-        if (update.docChanged) document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true, documentTabId: 'memo' } }));
+        if (update.docChanged) publishEditorUpdate({ docChanged: true, documentTabId: 'memo' });
     })] }) });
     const ports = { ...writingTestPorts, retext: { analyze: async text => analyzeRetext(text), cancel() {} }, vale: { analyze: async () => '{}', cancel() {} }, spelling: async () => [], ready: Promise.resolve(), destroy() {} };
     const controller = initWritingLenses({ getActiveTab: () => ({ id: 'memo', type: 'file', path: 'Memo.md' }), getEditorDocumentTabId: () => 'memo', getView: () => view, getSpellingPreferences: () => ({ enabled: false, language: 'es' }), focusEditor: () => view.focus(), loadPreferences: async () => ({ primary: 'plain', language: 'en-US' }), savePreferences: jest.fn(async () => {}), analysisPorts: ports });
@@ -124,12 +125,12 @@ test('writing pane restores findings after immediate Undo to the same document o
         controller.refresh(); await jest.advanceTimersByTimeAsync(600);
         const { inlineWritingState } = await import('../../../frontend/js/writingInline.js');
         expect(view.state.field(inlineWritingState).findings).not.toHaveLength(0);
-        expect(document.querySelector('.writing-results').inert).toBe(false);
+        expect(document.querySelector('.writing-results').hasAttribute('aria-busy')).toBe(false);
         const stale = document.querySelector('[aria-label="Replace “utilize” with “use”"]');
         view.dispatch({ changes: { from: 0, insert: 'Now ' } });
         stale.click();
         expect(view.state.doc.toString()).toBe('Now ' + source);
-        expect(document.querySelector('.writing-results [role="status"]').textContent).toContain('needs refreshing');
+        expect(document.querySelector('.writing-results [role="status"]').textContent).toContain('Refreshing suggestions');
     } finally { controller.destroy(); view.destroy(); jest.useRealTimers(); }
 });
 
@@ -206,7 +207,7 @@ test('programmatic document replacement refreshes asynchronous lenses even witho
         await controller.ready; controller.toggle(); await jest.advanceTimersByTimeAsync(0);
         expect(document.querySelector('[aria-label="Replace “utilize” with “use”"]')).toBeNull();
         view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'We utilize ordinary words.' } });
-        document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true, documentTabId: 'memo' } }));
+        publishEditorUpdate({ docChanged: true, documentTabId: 'memo' });
         await jest.advanceTimersByTimeAsync(600);
         expect(document.querySelector('[aria-label="Replace “utilize” with “use”"]')).not.toBeNull();
     } finally { controller.destroy(); view.destroy(); jest.useRealTimers(); }
@@ -235,11 +236,11 @@ test('sustained typing defers lens snapshots, closed-pane cards and status-only 
         for (let at = 0; at < 20; at++) {
             view.dispatch({ changes: { from: view.state.doc.length, insert: 'x' } });
             readers.push(jest.spyOn(view.state.doc, 'toString'));
-            document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true, documentTabId: 'memo' } }));
+            publishEditorUpdate({ docChanged: true, documentTabId: 'memo' });
             await jest.advanceTimersByTimeAsync(30);
         }
         expect(analyze).not.toHaveBeenCalled();
-        expect(document.querySelector('.writing-results').inert).toBe(true);
+        expect(document.querySelector('.writing-results').hasAttribute('aria-busy')).toBe(true);
         expect(readers.every(read => read.mock.calls.length === 0)).toBe(true);
         await jest.advanceTimersByTimeAsync(600);
         expect(analyze).toHaveBeenCalledTimes(1);
@@ -249,7 +250,7 @@ test('sustained typing defers lens snapshots, closed-pane cards and status-only 
         expect(document.querySelector('.writing-result-group')).toBeNull();
         controller.toggle();
         expect(document.querySelector('.writing-result-group')).not.toBeNull();
-        expect(document.querySelector('.writing-results').inert).toBe(false);
+        expect(document.querySelector('.writing-results').hasAttribute('aria-busy')).toBe(false);
         readers.forEach(read => read.mockRestore());
     } finally { controller.destroy(); view.destroy(); jest.useRealTimers(); }
 });
@@ -277,4 +278,30 @@ test('renaming an open note retains its mounted lens choices and reversible revi
         for (let i = 0; i < 15; i++) await Promise.resolve();
         expect(change).toHaveBeenCalledWith('Archive/Note.md', { action: 'remove', id: 'accepted' });
     } finally { controller.destroy(); }
+});
+
+test('mouse-opened writing pane preserves editor focus while keyboard activation enters its controls', async () => {
+    const { EditorState } = await import('@codemirror/state');
+    const { EditorView } = await import('@codemirror/view');
+    resetRightPaneModesForTests();
+    document.body.innerHTML = '<div id="app"><button id="writing-lenses-toggle"></button><button id="writing-lenses-quick-toggle"></button><aside id="right-sidebar"><span id="right-sidebar-title"></span><div id="right-sidebar-content"></div></aside></div>';
+    const view = new EditorView({ parent: document.body, state: EditorState.create({ doc: 'Draft text.' }) });
+    const controller = initWritingLenses({ getActiveTab: () => ({ id: 'memo', type: 'file', path: 'Memo.md' }), getEditorDocumentTabId: () => 'memo', getView: () => view,
+        loadPreferences: async () => ({ lenses: ['plain'], language: 'en-US' }), savePreferences: async () => {} });
+    try {
+        await controller.ready;
+        view.dispatch({ selection: { anchor: 4 } }); view.focus();
+        const button = document.getElementById('writing-lenses-toggle');
+        const pointerClick = () => {
+            button.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+            button.dispatchEvent(new MouseEvent('click', { detail: 1, bubbles: true }));
+        };
+        pointerClick();
+        expect(document.getElementById('writing-lenses-panel').hidden).toBe(false);
+        expect(view.hasFocus).toBe(true); expect(view.state.selection.main.head).toBe(4);
+        pointerClick(); expect(view.hasFocus).toBe(true);
+        button.focus(); button.click();
+        expect(document.getElementById('writing-lenses-panel').contains(document.activeElement)).toBe(true);
+        expect(view.state.doc.toString()).toBe('Draft text.');
+    } finally { controller.destroy(); view.destroy(); }
 });

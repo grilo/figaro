@@ -1,3 +1,4 @@
+import { countEditorWork, deferEditorWork } from './editorDiagnostics.js';
 import {
     graphicFootprintPlan,
     normalizeSourceLineCount,
@@ -45,8 +46,7 @@ function sourceMeasurementMetrics(view) {
     };
 }
 
-function measureWrappedSourceHeight(view, sourceText, metrics) {
-    if (!metrics.width) return 0;
+function createSourceRuler(sourceText, metrics) {
     const sizer = document.createElement('div');
     sizer.className = 'cm-source-footprint-sizer cm-source-footprint-sizer-line';
     sizer.setAttribute('aria-hidden', 'true');
@@ -59,62 +59,74 @@ function measureWrappedSourceHeight(view, sourceText, metrics) {
     sizer.style.whiteSpace = metrics.whiteSpace;
     sizer.style.wordBreak = metrics.wordBreak;
     sizer.textContent = sourceText || '\u200b';
-    // Keep the temporary ruler outside CodeMirror's contentDOM. CodeMirror
-    // owns that subtree and may interpret foreign children as editor input.
-    view.dom.appendChild(sizer);
-    const height = sizer.getBoundingClientRect().height;
-    sizer.remove();
-    return height;
+    return sizer;
 }
 
-function cachedWrappedSourceHeight(view, element, sourceText, metrics) {
-    const metricsKey = [
-        metrics.width,
-        metrics.font,
-        metrics.lineHeight,
-        metrics.letterSpacing,
-        metrics.overflowWrap,
-        metrics.tabSize,
-        metrics.whiteSpace,
-        metrics.wordBreak,
-    ].join('\u0000');
-    const cached = sourceHeightCache.get(element);
-    if (cached?.sourceText === sourceText && cached.metricsKey === metricsKey) return cached.height;
-    const height = measureWrappedSourceHeight(view, sourceText, metrics);
-    sourceHeightCache.set(element, { sourceText, metricsKey, height });
-    return height;
+function authoredFootprintHeight(element) {
+    const height = Number(element.dataset.figaroDiagramHeight || element.dataset.figaroChartHeight);
+    return Number.isFinite(height) && height > 0 ? height + 44 : 0;
 }
 
 function refreshWrappedSourceFootprints(view) {
     if (!view?.contentDOM) return;
-    const metrics = sourceMeasurementMetrics(view);
+    const elements = [...view.contentDOM.querySelectorAll('.cm-source-footprint[data-source-lines]')];
+    // Ordinary prose and explicitly sized charts do not need wrapping rulers.
+    if (!elements.length) return;
+    const wrapped = elements.filter(element => !authoredFootprintHeight(element)
+        && typeof element[SOURCE_TEXT_PROPERTY] === 'string');
+    const heights = new Map();
+    if (wrapped.length) {
+        countEditorWork('geometry.footprintMetrics');
+        const metrics = sourceMeasurementMetrics(view);
+        const metricsKey = [metrics.width, metrics.font, metrics.lineHeight, metrics.letterSpacing,
+            metrics.overflowWrap, metrics.tabSize, metrics.whiteSpace, metrics.wordBreak].join('\u0000');
+        const pending = [];
+        for (const element of wrapped) {
+            const sourceText = element[SOURCE_TEXT_PROPERTY];
+            const cached = sourceHeightCache.get(element);
+            if (cached?.sourceText === sourceText && cached.metricsKey === metricsKey) {
+                heights.set(element, cached.height);
+            } else if (metrics.width) {
+                pending.push({ element, sourceText, ruler: createSourceRuler(sourceText, metrics) });
+            }
+        }
+        if (pending.length) {
+            // Mount every ruler before any read. Never mix these temporary
+            // nodes into CodeMirror's owned contentDOM or interleave layout
+            // reads with a ruler insertion/removal for each block.
+            const fragment = document.createDocumentFragment();
+            for (const { ruler } of pending) fragment.append(ruler);
+            view.dom.append(fragment);
+            try {
+                for (const { element, sourceText, ruler } of pending) {
+                    countEditorWork('geometry.sourceRuler');
+                    const height = ruler.getBoundingClientRect().height;
+                    heights.set(element, height);
+                    sourceHeightCache.set(element, { sourceText, metricsKey, height });
+                }
+            } finally {
+                for (const { ruler } of pending) ruler.remove();
+            }
+        }
+    }
     let changed = false;
-    view.contentDOM.querySelectorAll('.cm-source-footprint[data-source-lines]').forEach(element => {
-        const measured = typeof element[SOURCE_TEXT_PROPERTY] === 'string'
-            ? cachedWrappedSourceHeight(view, element, element[SOURCE_TEXT_PROPERTY], metrics)
-            : 0;
+    for (const element of elements) {
         const lines = normalizeSourceLineCount(element.dataset.sourceLines);
-        const diagramHeight = Number(element.dataset.figaroDiagramHeight || element.dataset.figaroChartHeight);
-        const authoredDiagramFootprint = Number.isFinite(diagramHeight) && diagramHeight > 0
-            ? diagramHeight + 44
-            : 0;
-        // Managed Figaro charts author their visible geometry directly. Their
-        // compact JSON source is deliberately kept on non-wrapping lines and
-        // receives a matching placeholder while revealed, so measuring that
-        // JSON with the ordinary wrapped-line ruler would incorrectly make
-        // the rendered chart hundreds of pixels taller than requested.
-        const height = authoredDiagramFootprint || measured || lines * view.defaultLineHeight;
+        const height = authoredFootprintHeight(element) || heights.get(element) || lines * view.defaultLineHeight;
+        heights.set(element, height);
         const value = `${height}px`;
         if (element.style.getPropertyValue('--cm-source-footprint-height') !== value) {
+            countEditorWork('dom.footprintHeight');
             element.style.setProperty('--cm-source-footprint-height', value);
             changed = true;
         }
-        if (element.classList.contains('cm-source-footprint--scroll')) {
-            element.dataset.sourceFootprintState = element.scrollHeight > height + 1
-                ? 'overflow'
-                : 'underflow';
-        }
-    });
+    }
+    // Finish all height writes before reading overflow, then publish statuses.
+    const overflow = elements.filter(element => element.classList.contains('cm-source-footprint--scroll'))
+        .map(element => [element, element.scrollHeight > heights.get(element) + 1 ? 'overflow' : 'underflow']);
+    for (const [element, state] of overflow) {
+        if (element.dataset.sourceFootprintState !== state) element.dataset.sourceFootprintState = state;
+    }
     if (changed) view.requestMeasure();
 }
 
@@ -163,10 +175,10 @@ export const sourceFootprintExtension = ViewPlugin.fromClass(class {
     schedule() {
         if (this.scheduled) return;
         this.scheduled = true;
-        queueMicrotask(() => {
+        queueMicrotask(deferEditorWork('footprints', 'document, viewport or geometry', () => {
             this.scheduled = false;
             if (!this.view.isDestroyed) refreshWrappedSourceFootprints(this.view);
-        });
+        }, 'microtask'));
     }
 
     update(update) {
@@ -266,7 +278,10 @@ export function requestSourceFootprintMeasure(view) {
                 const height = Number.isFinite(diagramHeight) && diagramHeight > 0
                     ? diagramHeight + 44
                     : lines * lineHeight;
-                element.style.setProperty('--cm-source-footprint-height', `${height}px`);
+                if (element.style.getPropertyValue('--cm-source-footprint-height') !== `${height}px`) {
+                    element.style.setProperty('--cm-source-footprint-height', `${height}px`);
+                }
+                sourceHeightCache.delete(element);
             });
             queueMicrotask(() => {
                 if (!view.isDestroyed && view.contentDOM) refreshWrappedSourceFootprints(view);

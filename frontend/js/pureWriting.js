@@ -4,6 +4,7 @@ import { syntaxTree } from '@codemirror/language';
 import {
     adaptiveTypographyPlan,
     pureFocusRange,
+    preparePurePhraseRanges,
     shouldRunTypewriterScroll,
     typewriterMotionPlan,
     typewriterScrollTarget,
@@ -34,8 +35,7 @@ function enclosingMarkdownBlock(state, position) {
     return { from: line.from, to: line.to };
 }
 
-function localePhraseRanges(source, block) {
-    const text = source.slice(block.from, block.to);
+function localePhraseRanges(text, block) {
     if (!text) return [block];
 
     if (typeof Intl?.Segmenter === 'function') {
@@ -59,21 +59,31 @@ function localePhraseRanges(source, block) {
     return ranges.length ? ranges : [block];
 }
 
-function activeFocusRange(view, options) {
+function activeFocusRange(view, options, cache) {
     if (!options.isMarkdown() || !options.isPureActive()) return null;
     const scope = options.focusScope();
     const selection = view.state.selection.main;
     if (scope === 'off' || !selection.empty || options.pointerSelecting(view.state)
         || options.searchOpen(view.state)) return null;
 
-    const source = view.state.doc.toString();
+    const doc = view.state.doc;
+    // Resolve structure even inside the previous range: nested list items can
+    // select a smaller block without leaving their parent. Only text/phrases cache.
     const block = enclosingMarkdownBlock(view.state, selection.head);
+    if (cache.document !== doc || cache.block?.from !== block.from || cache.block?.to !== block.to) {
+        cache.document = doc;
+        cache.block = block;
+        cache.phrases = null;
+    }
+    if (scope === 'phrase' && !cache.phrases) {
+        cache.phrases = preparePurePhraseRanges(localePhraseRanges(doc.sliceString(block.from, block.to), block), doc.length);
+    }
     return pureFocusRange({
-        source,
+        documentLength: doc.length,
         position: selection.head,
         scope,
         blockRange: block,
-        phraseRanges: scope === 'phrase' ? localePhraseRanges(source, block) : [],
+        phraseIndex: scope === 'phrase' ? cache.phrases : null,
     });
 }
 
@@ -122,11 +132,8 @@ function syncBlockWidgetFocus(view, range) {
 function updateViewPresentation(view, options, previousTier = 'regular') {
     const pureActive = options.isPureActive() && options.isMarkdown();
     const typewriter = pureActive && options.typewriterEnabled();
-    const selection = view.state.selection.main;
     view.dom.classList.toggle('cm-pure-writing', pureActive);
     view.dom.classList.toggle('cm-pure-typewriter', typewriter);
-    view.dom.classList.toggle('cm-pure-caret-at-start', pureActive
-        && selection.empty && view.state.doc.lineAt(selection.head).number === 1);
 
     const scrollerHeight = Math.max(0, view.scrollDOM.clientHeight || 0);
     const lineHeight = Math.max(1, view.defaultLineHeight || 1);
@@ -165,6 +172,24 @@ function updateViewPresentation(view, options, previousTier = 'regular') {
     return typography.tier;
 }
 
+function presentationSettings(options) {
+    return [options.isPureActive(), options.isMarkdown(), options.typewriterEnabled(),
+        options.adaptiveTypographyEnabled()].map(Boolean).join(':');
+}
+
+function syncCaretAtStart(view, options) {
+    const selection = view.state.selection.main;
+    const atStart = options.isPureActive() && options.isMarkdown()
+        && selection.empty && view.state.doc.lineAt(selection.head).number === 1;
+    if (view.dom.classList.contains('cm-pure-caret-at-start') !== atStart) {
+        view.dom.classList.toggle('cm-pure-caret-at-start', atStart);
+    }
+}
+
+function sameFocusRange(left, right) {
+    return left === right || Boolean(left && right && left.from === right.from && left.to === right.to);
+}
+
 function userEvents(update) {
     return update.transactions
         .map(transaction => transaction.annotation(Transaction.userEvent))
@@ -197,8 +222,12 @@ export function createPureWritingExtension(options = {}) {
         constructor(view) {
             this.view = view;
             this.frame = 0;
+            this.focusCache = {};
+            this.widgetFocusScheduled = false;
+            this.presentationSettings = presentationSettings(resolved);
             this.typographyTier = updateViewPresentation(view, resolved);
-            this.focusRange = activeFocusRange(view, resolved);
+            syncCaretAtStart(view, resolved);
+            this.focusRange = activeFocusRange(view, resolved, this.focusCache);
             this.decorations = focusDecorations(view, this.focusRange);
             this.resizeObserver = typeof ResizeObserver === 'function'
                 ? new ResizeObserver(() => this.syncGeometry())
@@ -207,22 +236,30 @@ export function createPureWritingExtension(options = {}) {
             this.cancelFromUserGesture = () => this.cancelMotion();
             view.scrollDOM.addEventListener('wheel', this.cancelFromUserGesture, { passive: true });
             view.contentDOM.addEventListener('pointerdown', this.cancelFromUserGesture, { passive: true });
-            queueMicrotask(() => syncBlockWidgetFocus(view, this.focusRange));
+            this.scheduleWidgetFocus();
         }
 
         update(update) {
             const refreshed = update.transactions.some(transaction => transaction.effects
                 .some(effect => effect.is(refreshPureWritingEffect)));
+            const settings = presentationSettings(resolved);
+            const settingsChanged = settings !== this.presentationSettings;
+            if (update.geometryChanged || refreshed || settingsChanged) {
+                this.typographyTier = updateViewPresentation(update.view, resolved, this.typographyTier);
+                this.presentationSettings = settings;
+            }
             if (update.docChanged || update.selectionSet || update.viewportChanged
-                || update.geometryChanged || refreshed) {
-                this.typographyTier = updateViewPresentation(
-                    update.view, resolved, this.typographyTier,
-                );
-                this.focusRange = activeFocusRange(update.view, resolved);
-                this.decorations = focusDecorations(update.view, this.focusRange);
-                queueMicrotask(() => {
-                    if (!update.view.isDestroyed) syncBlockWidgetFocus(update.view, this.focusRange);
-                });
+                || update.geometryChanged || refreshed || settingsChanged) {
+                syncCaretAtStart(update.view, resolved);
+                const range = activeFocusRange(update.view, resolved, this.focusCache);
+                const focusChanged = !sameFocusRange(range, this.focusRange);
+                this.focusRange = range;
+                if (update.docChanged || update.viewportChanged || focusChanged) {
+                    this.decorations = focusDecorations(update.view, range);
+                }
+                if (update.docChanged || update.viewportChanged || update.geometryChanged || refreshed || focusChanged) {
+                    this.scheduleWidgetFocus();
+                }
             }
 
             if (!resolved.isPureActive() || !resolved.typewriterEnabled()) this.cancelMotion();
@@ -237,11 +274,21 @@ export function createPureWritingExtension(options = {}) {
             })) this.scheduleTypewriterMeasure(update.view);
         }
 
+        scheduleWidgetFocus() {
+            if (this.widgetFocusScheduled) return;
+            this.widgetFocusScheduled = true;
+            queueMicrotask(() => {
+                this.widgetFocusScheduled = false;
+                if (!this.view.isDestroyed) syncBlockWidgetFocus(this.view, this.focusRange);
+            });
+        }
+
         syncGeometry() {
             if (this.view.isDestroyed) return;
             const nextTier = updateViewPresentation(this.view, resolved, this.typographyTier);
             if (nextTier !== this.typographyTier) this.view.requestMeasure();
             this.typographyTier = nextTier;
+            this.presentationSettings = presentationSettings(resolved);
         }
 
         scheduleTypewriterMeasure(view) {

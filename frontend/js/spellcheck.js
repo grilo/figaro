@@ -5,11 +5,11 @@
  * spelling request leaves the device.
  */
 
-import nspell from '../vendored/spellcheck/nspell.js';
+import nspell from 'nspell';
 import { spellcheckWordRanges } from './core/spellingModel.js';
 import { matchSuggestionCase, isCorrectlySpelledProseWord, highConfidenceSuggestions, reviewedSpellingCorrection } from './core/spellingSuggestionsModel.js';
 import { canonicalSpellcheckLanguage, spellcheckLanguages } from './spellcheckPreference.js';
-import { filterAcceptedSpelling, spellingWordKey } from './core/writingInlineModel.js';
+import { filterAcceptedSpelling, acceptedSpelling } from './core/spellingDictionaryModel.js';
 
 export { spellcheckWordRanges } from './core/spellingModel.js';
 export { canonicalSpellcheckLanguage, spellcheckLanguages } from './spellcheckPreference.js';
@@ -56,7 +56,7 @@ export async function spellcheckSuggestionsAtPosition(source, position, defaultL
     const config = resolveSpellcheckConfiguration(source, defaultLanguage);
     const wordRange = config.enabled ? spellcheckWordAtPosition(source, position) : null;
     if (!wordRange) return null;
-    if (acceptedWords.some(word => spellingWordKey(word) === spellingWordKey(wordRange.word))) return null;
+    if (acceptedSpelling(acceptedWords, config.languages[0])(wordRange.word)) return null;
 
     let checkers;
     try {
@@ -89,7 +89,7 @@ export async function spellcheckDiagnostics(source, defaultLanguage = 'en-US', g
         return [];
     }
     const languageDescription = config.languages.map(language => languageLabels.get(language) || language).join(' and ');
-    return filterAcceptedSpelling(spellcheckWordRanges(source), acceptedWords)
+    return filterAcceptedSpelling(spellcheckWordRanges(source), acceptedWords, config.languages[0])
         .filter(({ word }) => !isCorrectlySpelledProseWord(word, checkers, config.languages))
         .map(({ from, to, word }) => ({
             from,

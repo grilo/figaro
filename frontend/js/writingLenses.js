@@ -1,3 +1,5 @@
+import { subscribeEditorUpdates } from './editorUpdates.js';
+import { deferEditorWork, readEditorDocument } from './editorDiagnostics.js';
 import { createWritingPathContinuity } from './usecases/writingPathContinuity.js';
 import { movedWritingPath } from './core/writingPathModel.js';
 import { createWritingDecision } from './core/writingDecisionsModel.js';
@@ -19,6 +21,7 @@ import { mountFloatingMenu } from './floatingMenu.js';
 import { updateInlineWriting } from './writingInline.js';
 import { selectedWritingLenses } from './core/writingAnalysisModel.js';
 import { planWritingBulkFix } from './core/writingReviewModel.js';
+import { bindRightPaneLauncher } from './rightPaneLauncher.js';
 
 /** Workspace adapter for owned snapshots, existing panes, and validated editor edits. */
 export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusEditor, loadPreferences, savePreferences, applyAllPreferences, loadDecisions = async () => [], changeDecisions = async () => { throw new Error('Review storage unavailable'); }, getView, analysisPorts, dictionary, dictionaryReady = Promise.resolve(), setSpelling = () => {} }) {
@@ -197,7 +200,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
             setSpelling(value.current?.spelling || { enabled: false });
             if (inlineVersion === value.resultVersion && inlineDocument === getView?.()?.state.doc) return;
             inlineVersion = value.resultVersion; inlineDocument = getView?.()?.state.doc;
-            updateInlineWriting(getView?.(), currentAnalysis() ? value : null, {
+            updateInlineWriting(getView?.(), value.stale || currentAnalysis() ? value : null, {
                 apply: (id, index) => actions.apply(id, index, value.analyzed),
                 applyAll: id => actions.applyAll(id, value.analyzed),
                 bulkCount: id => planWritingBulkFix(value, id, value.current)?.length || 0,
@@ -246,7 +249,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
             else focusEditor?.();
         }
     }
-    function toggle() {
+    function toggle({ focusPane = true } = {}) {
         if (!activeDocument()) return;
         if (isPure()) {
             if (popupOpen) { closeQuick(true); return; }
@@ -256,7 +259,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
             quickView.focus(); return;
         }
         if (sidebar.dataset.mode === mode && sidebar.classList.contains('open')) { close({ restoreFocus: true }); return; }
-        open(); paneView.focus();
+        open(); if (focusPane) paneView.focus();
     }
     function open() {
         selectDocument();
@@ -282,21 +285,21 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         // Leave this snapshot unobserved until its controller can receive it.
         if (!review) return;
         observedDocument = doc; observedPath = tab.path;
-        review.observeSource(() => doc.toString(), changes);
+        review.observeSource(() => readEditorDocument(doc, 'writing.source'), changes);
     }
     const queueRefresh = (delay = 0) => {
         if (disposed) return;
         clearTimeout(refreshTimer);
-        refreshTimer = setTimeout(() => { refreshTimer = undefined; refresh(); }, typeof delay === 'number' ? delay : 0);
+        refreshTimer = setTimeout(deferEditorWork('writing.refresh', 'document or workspace', () => { refreshTimer = undefined; refresh(); }, 'debounce'), typeof delay === 'number' ? delay : 0);
     };
-    const onEditorUpdate = event => {
-        if ((event.detail?.docChanged || event.detail?.writingChanges) && event.detail.documentTabId === activeDocument()?.id) {
+    const onEditorUpdate = detail => {
+        if ((detail?.docChanged || detail?.writingChanges) && detail.documentTabId === activeDocument()?.id) {
             // Undo can restore the very same immutable Text object before the
             // deferred snapshot runs. Every authored transaction still owns a
             // new revision and has cleared the editor's inline findings.
             revision++;
             resultsView?.invalidate();
-            observeEditorSource(event.detail.writingChanges);
+            observeEditorSource(detail.writingChanges);
             queueRefresh(100);
         }
     };
@@ -317,11 +320,12 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         if (popupOpen) { event.preventDefault(); closeQuick(true); }
         else if (!panel.hidden && panel.contains(event.target)) { event.preventDefault(); close({ restoreFocus: true }); }
     };
-    launcher.addEventListener('click', toggle); quick.addEventListener('click', toggle);
+    const unbindLauncher = bindRightPaneLauncher(launcher, { getEditorView: getView, activate: toggle });
+    quick.addEventListener('click', toggle);
     const onCloseQuick = () => closeQuick(true);
     popup.querySelector('button').addEventListener('click', onCloseQuick);
     for (const event of ['tab-switched', 'active-tab-changed', 'figaro:spellcheck-changed']) document.addEventListener(event, queueRefresh);
-    document.addEventListener('editor-view-updated', onEditorUpdate);
+    const stopEditorUpdates = subscribeEditorUpdates('writing', onEditorUpdate);
     document.addEventListener('figaro:pure-editing-chrome-changed', onPureChange);
     document.addEventListener('pointerdown', onOutside);
     document.addEventListener('keydown', onEscape);
@@ -335,9 +339,9 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
             clearTimeout(refreshTimer);
             updateInlineWriting(getView?.(), null, {}); setSpelling({ enabled: false });
             analysis?.destroy(); analysisPorts?.destroy(); closeQuick(); close(); disposed = true; documents.forEach(({ controller, review }) => { controller.destroy(); review.destroy(); }); observer.disconnect(); unregister();
-            launcher.removeEventListener('click', toggle); quick.removeEventListener('click', toggle);
+            unbindLauncher(); quick.removeEventListener('click', toggle);
             for (const event of ['tab-switched', 'active-tab-changed', 'figaro:spellcheck-changed']) document.removeEventListener(event, queueRefresh);
-            document.removeEventListener('editor-view-updated', onEditorUpdate);
+            stopEditorUpdates();
             document.removeEventListener('figaro:pure-editing-chrome-changed', onPureChange);
             document.removeEventListener('pointerdown', onOutside); document.removeEventListener('keydown', onEscape);
             paneView.destroy(); quickView.destroy(); panel.remove(); popup.remove();

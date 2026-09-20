@@ -1,5 +1,6 @@
 import {
     buildSessionSnapshot,
+    sessionTabStorageUpdate,
     normalizeSessionPayload,
     restoredTabOpenArgs,
     restoredWorkspacePlan,
@@ -102,4 +103,14 @@ describe('portable session model', () => {
             { id: 'home', type: 'home', title: 'Legacy home' },
         ], 'missing.md').activeTabId).toBe('note.md');
     });
+});
+
+
+test('tab storage compares restorable metadata including tab order', () => {
+    const a = { id: 'a.md', type: 'file', title: 'A', path: 'a.md' };
+    const b = { id: 'b.md', type: 'file', title: 'B', path: 'b.md' };
+    expect(sessionTabStorageUpdate([a], [{ ...a, dirty: true, cursorState: { head: 12 } }])).toBeNull();
+    expect(JSON.parse(sessionTabStorageUpdate([a], [a, b]))).toEqual([a, b]);
+    expect(JSON.parse(sessionTabStorageUpdate([a, b], [b, a]))).toEqual([b, a]);
+    expect(sessionTabStorageUpdate([a], [])).toBe('[]');
 });

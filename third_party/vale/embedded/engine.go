@@ -26,7 +26,7 @@ func New(rules fs.FS) (*Engine, error) {
 		return nil, err
 	}
 	// Equivalent to Figaro's fixed *.txt configuration; no host config discovery.
-	cfg.GBaseStyles = []string{"write-good", "proselint", "Microsoft"}
+	cfg.GBaseStyles = []string{"write-good", "proselint", "Microsoft", "Harper"}
 	cfg.GChecks["Vale.Spelling"] = false
 	cfg.GChecks["Vale.Repetition"] = false
 	mgr, err := check.NewMemoryManager(cfg, rules)

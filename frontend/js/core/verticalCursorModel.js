@@ -20,6 +20,11 @@ export function isVerticalMotionKey({
     return vimActive && !vimInsertMode && !ctrlKey && (key === 'j' || key === 'k');
 }
 
+/** A wrapped row takes precedence over entering an adjacent rendered block. */
+export function verticalMotionStaysInLine({ before, after, from, to, forward }) {
+    return after >= from && after <= to && (forward ? after > before : after < before);
+}
+
 /**
  * Return the pixel correction needed to keep a vertically moving cursor
  * inside the usable editor viewport. The browser adapter supplies measured

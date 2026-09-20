@@ -1,7 +1,7 @@
 /** Conservative policy for package advice over the existing prose projection. */
 import { writingInclusiveContext } from './writingContextModel.js';
 export const readabilityOptions = Object.freeze({ age: 16, minWords: 15, threshold: 5 / 7 });
-export const writingEditorialPolicyVersion = '4';
+export const writingEditorialPolicyVersion = '5';
 
 // Review a small set of generic roles/expressions, never infer a person's identity.
 const inclusiveAlternatives = new Map([

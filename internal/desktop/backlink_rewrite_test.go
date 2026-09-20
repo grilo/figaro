@@ -109,6 +109,42 @@ func TestRenamePathRewritesRootMarkdownAndWikiLinks(t *testing.T) {
 }
 
 func TestPreviewRenamePathAndExplicitLinkChoice(t *testing.T) {
+	t.Run("unreferenced CSS preserves content and refuses collisions", func(t *testing.T) {
+		app, vaultPath := newTestApp(t)
+		defer os.RemoveAll(vaultPath)
+		const css = "body { color: teal; }\n"
+		writeTestFile(t, vaultPath, "styles/print.css", css)
+		writeTestFile(t, vaultPath, "styles/occupied.css", "/* keep */")
+		writeTestFile(t, vaultPath, "notes/report.md", "# Report\n")
+		if _, err := app.GetFileTree(); err != nil {
+			t.Fatal(err)
+		}
+		preview, err := app.PreviewRenamePath("styles/print.css", "styles/report.css")
+		if err != nil || preview == nil || !preview.Success || len(preview.UpdatedLinks) != 0 {
+			t.Fatalf("CSS preview: result=%+v err=%v", preview, err)
+		}
+		if got := readTestFile(t, vaultPath, "styles/print.css"); got != css {
+			t.Fatalf("preview changed CSS: %q", got)
+		}
+		collision, err := app.RenamePathWithLinkUpdates("styles/print.css", "styles/occupied.css", false)
+		if err != nil || collision == nil || collision.Success || collision.Error != "Destination exists" {
+			t.Fatalf("CSS collision: result=%+v err=%v", collision, err)
+		}
+		if got := readTestFile(t, vaultPath, "styles/occupied.css"); got != "/* keep */" {
+			t.Fatalf("collision changed destination: %q", got)
+		}
+		result, err := app.RenamePathWithLinkUpdates("styles/print.css", "styles/report.css", false)
+		if err != nil || result == nil || !result.Success {
+			t.Fatalf("CSS rename: result=%+v err=%v", result, err)
+		}
+		if got := readTestFile(t, vaultPath, "styles/report.css"); got != css {
+			t.Fatalf("rename changed CSS: %q", got)
+		}
+		if _, err := os.Stat(filepath.Join(vaultPath, "styles", "print.css")); !os.IsNotExist(err) {
+			t.Fatalf("old CSS path remains: %v", err)
+		}
+	})
+
 	t.Run("update referenced Draw.io image", func(t *testing.T) {
 		app, vaultPath := newTestApp(t)
 		defer os.RemoveAll(vaultPath)

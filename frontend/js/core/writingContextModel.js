@@ -8,19 +8,35 @@ function contextAt(raw, { text }) {
 
 export function writingWordinessContext(raw, projection) {
     const word = raw.actual?.toLowerCase();
-    if (!['function', 'request', 'parameters', 'type', 'address', 'it is'].includes(word)) return false;
+    if (!['function', 'request', 'parameters', 'type', 'address', 'it is', 'forward', 'option', 'minimum', 'maximum', 'multiple'].includes(word)) return false;
     const { before, after } = contextAt(raw, projection), context = before + ' ' + after;
     const programming = /\b(?:code|program(?:ming|s)?|javascript|python|call(?:s|ed|ing)?|return(?:s|ed)?|arguments?|parameters?|variables?|scopes?|objects?|methods?|literals?|values?|notebooks?|cells?|statements?|exceptions?|integers?|class(?:es)?|keywords?|positional|data|headers?|content|payload|callbacks?)\b|\uFFFC/iu.test(context);
     if (word === 'function' || word === 'parameters') return programming;
+    if (word === 'option' || word === 'minimum' || word === 'maximum' || word === 'multiple') return programming;
+    if (word === 'forward') return /\blook(?:s|ed|ing)?\s+$/iu.test(before) && /^\s+to\b/iu.test(after)
+        || /\b(?:client|server|error|request|packet|message|port|traffic)\b/iu.test(context);
     if (word === 'request') return /\b(?:HTTP|header|body|response|status|URL|client|server|browser|resource|payload|method|GET|POST)\b/iu.test(context)
         || /\b(?:the|a|an|this|that|each|every|your|our|their)\s+$/iu.test(before);
     if (word === 'type') return programming;
-    if (word === 'address') return /\b(?:postal|email|mailing|street|home|billing|shipping|IP|network|name(?:,| and)?|your|my|their|the|an)\s+$/iu.test(before)
+    if (word === 'address') return /\b(?:postal|email|mailing|street|home|billing|shipping|IP|network|web|name(?:,| and)?|your|my|their|the|an)\s+$/iu.test(before)
         || /^\s+(?:is|was|will|can|should|has|must)\b/iu.test(after);
     // Referential “it” is not an empty introduction. Keep the explicit
     // evaluative forms (“it is important to”) available for contextual review.
     return /\b(?:if|when|while|although|because|unless|whether)\s+$/iu.test(before)
         || /^\s+(?:a|an|the|called|defined|used|described|written|stored|returned|assigned|printed)\b/iu.test(after);
+}
+
+export function writingAdvisoryContext(kind, raw, projection) {
+    if (kind === 'style.wordiness') return writingWordinessContext(raw, projection);
+    if (!['syntax.passive', 'style.stock-phrase'].includes(kind)) return false;
+    const actual = raw.actual?.toLowerCase() || '', { after } = contextAt(raw, projection);
+    if (kind === 'syntax.passive') {
+        if (/\bunexpected$/u.test(actual)) return true;
+        // An emotional state without an expressed agent is not useful actor advice.
+        return /\bdisappointed$/u.test(actual) && !/^\s+by\b/iu.test(after);
+    }
+    return kind === 'style.stock-phrase' && actual === 'at the end of the day'
+        && /^\s*,?\s*(?:ask|clean|close|collect|empty|record|return|switch|turn|write)\b/iu.test(after);
 }
 
 export function writingInclusiveContext(raw, projection) {

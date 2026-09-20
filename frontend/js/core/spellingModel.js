@@ -2,6 +2,8 @@ import { parser, GFM } from '@lezer/markdown';
 import { getFrontmatterRegion } from './frontmatterRegionModel.js';
 import { wikiLinkRanges } from './noteLinks.js';
 import { writingTechnicalRanges } from './writingTechnicalModel.js';
+import { writingFootnoteRanges } from './writingFootnoteModel.js';
+import { writingAcronymDefinitions } from './writingTextlintModel.js';
 
 const markdown = parser.configure(GFM);
 const excludedNodes = new Set(['CodeBlock', 'FencedCode', 'InlineCode', 'LinkReference', 'LinkLabel', 'URL', 'LinkTitle', 'HTMLBlock', 'HTMLTag']);
@@ -12,9 +14,22 @@ const referenceKey = value => value.trim().replace(/\s+/gu, ' ').toLowerCase();
 /** Source ranges remain UTF-16; parsing never runs in a typing handler. */
 export function spellingSource(source) {
     const text = String(source || ''), frontmatter = getFrontmatterRegion(text);
-    const parsed = frontmatter ? mask(text.slice(0, frontmatter.to)) + text.slice(frontmatter.to) : text;
+    const footnotes = writingFootnoteRanges(text);
+    let parsed = frontmatter ? mask(text.slice(0, frontmatter.to)) + text.slice(frontmatter.to) : text;
+    // Lezer's CommonMark parser would swallow a footnote body as a link
+    // definition. Neutralize its opening bracket without shifting offsets or
+    // adding indentation; the original marker is excluded from spelling below.
+    if (footnotes.length) {
+        const parts = []; let from = 0;
+        for (const range of footnotes) {
+            if (frontmatter && range.from < frontmatter.to) continue;
+            parts.push(parsed.slice(from, range.from), 'x'); from = range.from + 1;
+        }
+        parts.push(parsed.slice(from)); parsed = parts.join('');
+    }
     const hidden = frontmatter ? [frontmatter] : [], references = new Set(), implicit = [], delimiters = [];
     const wiki = wikiLinkRanges(text);
+    hidden.push(...footnotes);
     markdown.parse(parsed).iterate({ enter(node) {
         if (['EmphasisMark', 'StrikethroughMark'].includes(node.name)) delimiters.push({ from: node.from, to: node.to });
         if (node.name === 'LinkReference') {
@@ -62,12 +77,23 @@ export function spellingSource(source) {
         let word = match[0];
         if (/\p{N}/u.test(word) || prose[match.index + word.length] === '-') continue;
         if (/['’]$/u.test(word) && (closingQuotes.has(match.index + word.length - 1) || !/s['’]$/iu.test(word))) word = word.slice(0, -1);
-        if (word.replace(/[’'-]/g, '').length < 2 || word === word.toLocaleUpperCase() && word !== word.toLocaleLowerCase()) continue;
+        if (word.replace(/[’'-]/g, '').length < 2) continue;
         const range = { from: match.index, to: match.index + word.length, word };
         if (readOnly.some(label => label.from < range.to && label.to > range.from)) range.editable = false;
         words.push(range);
     }
-    return { words, readOnly };
+    // Use this note's visible prose, never the cross-document dictionary cache.
+    // Definitions cannot bridge a paragraph or a masked Markdown/code range.
+    const defined = new Set();
+    if (words.some(item => /^[A-Z]{3,5}$/u.test(item.word))) {
+        for (const block of prose.matchAll(/[^\n]*(?:\n(?![ \t]*\n)[^\n]+)*/gu)) {
+            for (const match of writingAcronymDefinitions(block[0])) {
+                if (!hidden.some(range => range.from < block.index + match.to && range.to > block.index + match.from
+                    && !delimiters.includes(range))) defined.add(match.acronym);
+            }
+        }
+    }
+    return { words: defined.size ? words.filter(item => !defined.has(item.word)) : words, readOnly };
 }
 
 export function spellcheckWordRanges(source) { return spellingSource(source).words; }

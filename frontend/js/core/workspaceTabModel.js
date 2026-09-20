@@ -8,10 +8,10 @@ export function toggledWorkspacePresentation(current, requested, alternative) {
 }
 
 /** Replace one workspace tab without mutating the shared state snapshot. */
-export function updateWorkspaceTab(tabs, tabId, update) {
+export function updateWorkspaceTab(tabs, tabId, update, knownIndex) {
     const source = Array.isArray(tabs) ? tabs : [];
-    const index = source.findIndex(tab => tab?.id === tabId);
-    if (index < 0) return unchanged(source);
+    const index = knownIndex === undefined ? source.findIndex(tab => tab?.id === tabId) : knownIndex;
+    if (index < 0 || source[index]?.id !== tabId) return unchanged(source);
 
     const previous = source[index];
     const patch = typeof update === 'function' ? update(previous) : update;
@@ -22,29 +22,23 @@ export function updateWorkspaceTab(tabs, tabId, update) {
     }
     const next = [...source];
     next[index] = tab;
-    return { tabs: next, tab, previous, changed: true };
+    return { tabs: next, tab, previous, changed: true, source, index };
 }
 
-export function recordWorkspaceTabEdit(tabs, tabId) {
+export function recordWorkspaceTabEdit(tabs, tabId, knownIndex) {
     const result = updateWorkspaceTab(tabs, tabId, tab => tab.type === 'file' ? {
         dirty: true,
         _editGeneration: (tab._editGeneration || 0) + 1,
-    } : null);
+    } : null, knownIndex);
     return { ...result, becameDirty: result.changed && !result.previous?.dirty };
 }
 
-export function recordWorkspaceTabContent(tabs, tabId, generation, content) {
+export function recordWorkspaceTabContent(tabs, tabId, generation, content, knownIndex) {
     return updateWorkspaceTab(tabs, tabId, tab => (
         tab.type === 'file' && tab.dirty && tab._editGeneration === generation
             ? { _content: content }
             : null
-    ));
-}
-
-export function recordWorkspaceTabCursor(tabs, tabId, cursorState) {
-    return updateWorkspaceTab(tabs, tabId, tab => tab.type === 'file'
-        ? { cursorState: { ...cursorState } }
-        : null);
+    ), knownIndex);
 }
 
 export function recordWorkspaceTabTextScale(tabs, tabId, scale) {
@@ -80,24 +74,13 @@ export function resetWorkspaceTabTextScales(tabs) {
     return changed ? next : tabs;
 }
 
-export function restoreWorkspaceTabCursors(tabs, cursorStates) {
-    const restored = cursorStates && typeof cursorStates === 'object' ? cursorStates : {};
-    let changed = false;
-    const next = (Array.isArray(tabs) ? tabs : []).map(tab => {
-        if (tab?.type !== 'file' || !restored[tab.id]) return tab;
-        changed = true;
-        return { ...tab, cursorState: { ...restored[tab.id] } };
-    });
-    return changed ? next : tabs;
-}
-
 export function beginWorkspaceTabSave(tabs, tabId) {
     return updateWorkspaceTab(tabs, tabId, tab => ({
         _saveGeneration: (tab._saveGeneration || 0) + 1,
     }));
 }
 
-/** A load ticket survives immutable cursor/layout updates, but not a newer load. */
+/** A load ticket survives independent cursor and immutable layout updates, but not a newer load. */
 export function beginWorkspaceFileLoad(tabs, tabId) {
     return updateWorkspaceTab(tabs, tabId, tab => ({ _loadGeneration: (tab._loadGeneration || 0) + 1 }));
 }
@@ -133,4 +116,25 @@ export function acknowledgeWorkspaceFileSave(tabs, snapshot, result) {
         return { ...tab, mtime: result.mtime };
     });
     return changed ? next : tabs;
+}
+
+/** Plan an immutable move so presentation subscribers can compare old/new paths. */
+export function moveWorkspaceTabPaths(tabs, oldPath, newPath) {
+    const normalize = value => String(value || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+    const oldBase = normalize(oldPath), nextBase = normalize(newPath);
+    const idChanges = new Map();
+    let changed = false;
+    if (!oldBase || !nextBase) return { tabs, idChanges, changed };
+    const next = tabs.map(tab => {
+        if (!tab.path || !['file', 'drawio'].includes(tab.type)) return tab;
+        const path = normalize(tab.path);
+        const moved = path === oldBase ? nextBase
+            : path.startsWith(oldBase + '/') ? nextBase + path.slice(oldBase.length) : null;
+        if (!moved) return tab;
+        const id = tab.id === oldBase || tab.id.startsWith(oldBase + '/') ? moved : tab.id;
+        if (id !== tab.id) idChanges.set(tab.id, id);
+        changed = true;
+        return { ...tab, id, path: moved, title: moved.split('/').pop() || tab.title };
+    });
+    return { tabs: changed ? next : tabs, idChanges, changed };
 }

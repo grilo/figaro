@@ -89,3 +89,26 @@ describe('Pure writing model', () => {
         })).toEqual({ tier: 'regular', scale: 1 });
     });
 });
+
+
+test('focus normalization accepts a document length without materializing its source', () => {
+    expect(pureFocusRange({ documentLength: 100000, scope: 'paragraph', position: 60000,
+        blockRange: { from: 59980, to: 60100 } })).toEqual({ from: 59980, to: 60100 });
+    expect(pureFocusRange({ documentLength: 20, scope: 'paragraph', position: 18,
+        blockRange: { from: 10, to: 99 } })).toEqual({ from: 10, to: 20 });
+});
+
+
+import { preparePurePhraseRanges } from '../../../frontend/js/core/pureWritingModel.js';
+test('indexed Pure phrases preserve inclusive boundaries, gaps, clamping and unusual input order', () => {
+    for (const phraseRanges of [[{ from: 0, to: 10 }, { from: 10, to: 20 }, { from: 25, to: 30 }],
+        [{ from: 9, to: 30 }, { from: 0, to: 20 }], [{ from: -2, to: 12 }, { from: 12, to: 99 }]]) {
+        const phraseIndex = preparePurePhraseRanges(phraseRanges, 30);
+        for (const position of [-1, 0, 9, 10, 12, 20, 23, 25, 30, 99]) {
+            const expected = phraseRanges.map(range => ({ from: Math.max(0, range.from), to: Math.min(30, range.to) }))
+                .find(range => range.from <= Math.max(0, Math.min(30, position)) && Math.max(0, Math.min(30, position)) <= range.to)
+                || { from: 0, to: 30 };
+            expect(pureFocusRange({ documentLength: 30, scope: 'phrase', position, phraseIndex })).toEqual(expected);
+        }
+    }
+});

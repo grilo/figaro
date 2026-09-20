@@ -1,3 +1,6 @@
+import { sourceRevealIndex, updateSourceReveal, mapSourceReveal } from './sourceReveal.js';
+import { canMapMarkdownProseEdit } from 'codemirror-live-markdown';
+import { countEditorWork } from './editorDiagnostics.js';
 import { foldedRanges, syntaxTree } from '@codemirror/language';
 import { StateField, Transaction } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
@@ -390,43 +393,57 @@ class MarkdownImageWidget extends WidgetType {
     }
 }
 
-function imageDecorations(state, options) {
-    const decorations = [];
-    if (!state.doc.toString().includes('![')) return Decoration.none;
-    const dragging = state.field(mouseSelectingField, false);
-    syntaxTree(state).iterate({
-        enter(node) {
-            if (node.name !== 'Image') return;
-            const source = state.sliceDoc(node.from, node.to);
-            const parsed = parseMarkdownImageSyntax(source);
-            const data = parsed ? { ...parsed, source, from: node.from, to: node.to } : null;
-            if (!data) return;
-            let folded = false;
-            foldedRanges(state).between(node.from, node.to, (from, to) => {
-                if (from === node.from && to === node.to) folded = true;
-            });
-            if (folded) return;
-            if (!shouldShowSource(state, node.from, node.to) && !dragging) {
-                decorations.push(Decoration.replace({
-                    widget: new MarkdownImageWidget(data, options),
-                    block: true,
-                }).range(node.from, node.to));
-                return;
-            }
-            const geometry = options.geometryCache.get(source)
-                || (data.width && data.height ? { width: data.width, height: data.height } : null);
-            const lineDecoration = geometry
-                ? Decoration.line({
-                    class: 'cm-image-source cm-image-source-placeholder',
-                    attributes: {
-                        style: `--cm-image-source-width:${geometry.width}px;--cm-image-source-height:${geometry.height}px`,
-                    },
-                })
-                : Decoration.line({ class: 'cm-image-source' });
-            decorations.push(lineDecoration.range(state.doc.lineAt(node.from).from));
-        },
+const imageDescriptors = new WeakMap();
+
+function parsedImageDescriptors(state) {
+    const tree = syntaxTree(state);
+    const cached = imageDescriptors.get(state.doc);
+    if (cached?.tree === tree) return cached.images;
+    countEditorWork('parse.images');
+    const images = [];
+    tree.iterate({ enter(node) {
+        if (node.name !== 'Image') return;
+        const source = state.sliceDoc(node.from, node.to);
+        const parsed = parseMarkdownImageSyntax(source);
+        if (parsed) images.push({ ...parsed, source, from: node.from, to: node.to });
+    } });
+    imageDescriptors.set(state.doc, { tree, images });
+    return images;
+}
+
+function imageBlockDecorations(state, options, data, visible) {
+    const { source, from, to } = data;
+    let folded = false;
+    foldedRanges(state).between(from, to, (foldFrom, foldTo) => {
+        if (foldFrom === from && foldTo === to) folded = true;
     });
-    return Decoration.set(decorations.sort((left, right) => left.from - right.from), true);
+    if (folded) return [];
+    if (!visible && !state.field(mouseSelectingField, false)) {
+        return [Decoration.replace({
+            widget: new MarkdownImageWidget(data, options), block: true, sourceBlock: data.sourceIdentity || data,
+        }).range(from, to)];
+    }
+    const geometry = options.geometryCache.get(source)
+        || (data.width && data.height ? { width: data.width, height: data.height } : null);
+    const lineDecoration = geometry
+        ? Decoration.line({
+            class: 'cm-image-source cm-image-source-placeholder', sourceBlock: data.sourceIdentity || data,
+            attributes: { style: `--cm-image-source-width:${geometry.width}px;--cm-image-source-height:${geometry.height}px` },
+        })
+        : Decoration.line({ class: 'cm-image-source', sourceBlock: data.sourceIdentity || data });
+    return [lineDecoration.range(state.doc.lineAt(from).from)];
+}
+
+function imageDecorations(state, options) {
+    countEditorWork('decorations.images');
+    const blocks = parsedImageDescriptors(state), visibleIndices = new Set();
+    const decorations = blocks.flatMap((block, index) => {
+        const visible = Boolean(shouldShowSource(state, block.from, block.to));
+        if (visible) visibleIndices.add(index);
+        return imageBlockDecorations(state, options, block, visible);
+    });
+    return { blocks, visibleIndices, revealIndex: sourceRevealIndex(blocks),
+        decorations: Decoration.set(decorations, true) };
 }
 
 /** Create Figaro's image preview with an actionable missing Draw.io state. */
@@ -453,22 +470,35 @@ export function createMarkdownImageField({
     };
     return StateField.define({
         create: state => imageDecorations(state, options),
-        update(decorations, transaction) {
-            if (transaction.docChanged) {
+        update(value, transaction) {
+            if (transaction.reconfigured || transaction.docChanged || syntaxTree(transaction.startState) !== syntaxTree(transaction.state)) {
+                if (!transaction.reconfigured && canMapMarkdownProseEdit(transaction)) {
+                    const mapped = mapSourceReveal(value, transaction);
+                    imageDescriptors.set(transaction.state.doc, {
+                        tree: syntaxTree(transaction.state),
+                        images: mapped.blocks,
+                    });
+                    if (!transaction.effects.length && !transaction.state.field(mouseSelectingField, false)
+                        && !transaction.startState.field(mouseSelectingField, false)) {
+                        return updateSourceReveal(mapped, transaction, shouldShowSource,
+                            (state, block, visible) => imageBlockDecorations(state, options, block, visible));
+                    }
+                }
                 return imageDecorations(transaction.state, options);
             }
             const dragging = transaction.state.field(mouseSelectingField, false);
             const wasDragging = transaction.startState.field(mouseSelectingField, false);
             if (wasDragging && !dragging) return imageDecorations(transaction.state, options);
-            if (dragging) return decorations;
+            if (dragging) return value;
             if (foldedRanges(transaction.startState) !== foldedRanges(transaction.state)) {
                 return imageDecorations(transaction.state, options);
             }
             return transaction.selection
-                ? imageDecorations(transaction.state, options)
-                : decorations;
+                ? updateSourceReveal(value, transaction, shouldShowSource,
+                    (state, block, visible) => imageBlockDecorations(state, options, block, visible))
+                : value;
         },
-        provide: field => EditorView.decorations.from(field),
+        provide: field => EditorView.decorations.from(field, value => value.decorations),
     });
 }
 

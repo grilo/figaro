@@ -1,6 +1,7 @@
 import { selectedWritingLenses, validateWritingFix } from '../core/writingAnalysisModel.js';
 import { writingLensSupportsLanguage } from '../core/writingLensesModel.js';
 import { planWritingBulkFix } from '../core/writingReviewModel.js';
+import { canRetainWritingResults } from '../core/writingRetentionModel.js';
 
 /** Own one active snapshot and its bounded latest replacement through injected effects. */
 export function createWritingAnalysis({ retext, vale, spelling, review, schedule, unschedule, onChange = () => {} }) {
@@ -10,10 +11,13 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
     let resolution = 0, resolutionQueue = Promise.resolve(), identitySource, resultVersion = 0;
     let identities = [], nextIdentity = 0;
     const empty = () => ({ groups: [], findings: [], evidence: [], count: 0, rejected: 0 });
-    let result = empty();
-    const snapshot = () => ({ ...result, resultVersion, states: { ...states }, current, analyzed });
+    let result = empty(), stale = false;
+    const snapshot = () => ({ ...result, stale, resultVersion, states: { ...states }, current, analyzed });
     function publish() { if (!disposed) onChange(snapshot()); }
     function resolve() {
+        // Keep the previous review intact until the replacement engines settle.
+        // An early empty spelling reply must not blank retained prose findings.
+        if (stale && ['retext', 'vale', 'spelling'].some(engine => states[engine] === 'analyzing')) return Promise.resolve();
         const ticket = ++resolution, token = generation, job = current;
         const proseRequired = states.retext === 'complete' && selectedWritingLenses(job.preferences).some(lens => lens !== 'spelling');
         const input = { job, proseRequired, projection, observations: [...observations], spelling: spellings, valeOutput };
@@ -24,7 +28,7 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
             try {
                 const value = await review.resolve({ ...input, identities, identitySource, nextIdentity });
                 if (!active()) return;
-                ({ result, identities, nextIdentity } = value); identitySource = job.source; resultVersion++;
+                ({ result, identities, nextIdentity } = value); identitySource = job.source; analyzed = job; stale = false; resultVersion++;
                 states.review = value.proseFailure || 'complete'; publish();
             } catch (error) {
                 if (active()) { states.review = /timed out/i.test(error.message) ? 'timed out' : 'failed'; publish(); }
@@ -40,10 +44,11 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
         const job = current, token = generation;
         const selected = selectedWritingLenses(job.preferences);
         const proseWanted = selected.some(lens => lens !== 'spelling');
-        const valeWanted = selected.some(lens => ['plain', 'direct', 'repetition', 'consistency', 'readability'].includes(lens));
+        const valeWanted = selected.some(lens => ['plain', 'direct', 'repetition', 'consistency', 'readability', 'grammar'].includes(lens));
         const proseEnabled = proseWanted && job.language.startsWith('en-');
         const spellEnabled = selected.includes('spelling') && job.spelling.enabled && writingLensSupportsLanguage('spelling', job.language);
-        observations = []; spellings = []; valeOutput = undefined; projection = undefined; analyzed = job;
+        observations = []; spellings = []; valeOutput = undefined; projection = undefined;
+        if (!stale) analyzed = job;
         states = {
             retext: proseEnabled ? 'analyzing' : !proseWanted || job.language === 'none' ? 'disabled' : 'unsupported',
             vale: proseEnabled && valeWanted ? 'analyzing' : !valeWanted || job.language === 'none' ? 'disabled' : 'unsupported',
@@ -98,16 +103,20 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
                 && current.language === next.language && JSON.stringify(current.spelling) === JSON.stringify(next.spelling);
             const canReuse = !force && !running && analyzed && sameInput && states.review === 'complete' && !next.decisionsPending && !next.decisionsFailed
                 && (states.retext === 'complete' || !selectedWritingLenses(next.preferences).some(lens => lens !== 'spelling'))
-                && (states.vale === 'complete' || !selectedWritingLenses(next.preferences).some(lens => ['plain', 'direct', 'repetition', 'consistency', 'readability'].includes(lens)))
+                && (states.vale === 'complete' || !selectedWritingLenses(next.preferences).some(lens => ['plain', 'direct', 'repetition', 'consistency', 'readability', 'grammar'].includes(lens)))
                 && (!selectedWritingLenses(next.preferences).includes('spelling') || states.spelling === 'complete' || !next.spelling.enabled);
             if (canReuse) {
-                current = next; analyzed = next; result = empty(); resultVersion++; void resolve(); return;
+                current = next; analyzed = next; stale = false; result = empty(); resultVersion++; void resolve(); return;
             }
             force = false;
             if (current?.id !== next?.id) { identities = []; identitySource = undefined; }
             const oldToken = generation;
             generation++; resolution++; review.cancel(); retext.cancel(); spelling.cancel?.(); vale.cancel(String(oldToken));
-            current = next; analyzed = null; result = empty(); resultVersion++; observations = []; projection = undefined;
+            stale = Boolean(result.count && canRetainWritingResults(current, next)
+                && (stale || current.revision !== next.revision));
+            current = next;
+            if (!stale) { analyzed = null; result = empty(); resultVersion++; }
+            observations = []; projection = undefined;
             unschedule(timer); timer = null; pending = false;
             states = next ? { refresh: next.decisionsFailed ? 'failed' : 'analyzing' } : {}; publish();
             if (next && !next.decisionsPending && !next.decisionsFailed && selectedWritingLenses(next.preferences).length) {
@@ -116,11 +125,13 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
         },
         retry() { force = true; this.update(current, { immediate: true }); },
         fix(id, index, fresh, apply) {
+            if (stale) return false;
             const fix = result.findings.find(item => item.id === id)?.fixes[index];
             if (!validateWritingFix(analyzed, fresh, fix)) { this.retry(); return false; }
             apply(fix); return true;
         },
         fixAll(id, fresh, apply) {
+            if (stale) return 0;
             const fixes = planWritingBulkFix(snapshot(), id, fresh);
             if (!fixes) { this.retry(); return 0; }
             apply(fixes); return fixes.length;

@@ -4,10 +4,24 @@ import {
     advanceOutlineHeadingAlignment,
     documentOutlineControlState,
     extractOutlineHeadings,
+    mapOutlineHeadings,
+    outlineEditNeedsParse,
     stickyHeadingBoundaryPosition,
 } from '../frontend/js/core/outlineModel.js';
 
 describe('Markdown document outline', () => {
+    test('ordinary single-line prose only maps heading offsets; structural and Setext edits require parsing', () => {
+        expect(outlineEditNeedsParse({ beforeLine: 'Some prose', afterLine: 'Some new prose' })).toBe(false);
+        for (const [beforeLine, afterLine, beforeNextLine] of [
+            ['# Title', '# Edited', ''], ['text', '## Heading', ''],
+            ['```', 'plain', ''], ['~~~js', '~~~', ''], ['---', '--', ''],
+            ['...', '..', ''], ['Title', 'Edited', '==='], ['a\nb', 'ab', ''],
+        ]) expect(outlineEditNeedsParse({ beforeLine, afterLine, beforeNextLine })).toBe(true);
+        const headings = [{ level: 1, text: 'One', from: 0 }, { level: 2, text: 'Two', from: 30 }];
+        const mapped = mapOutlineHeadings(headings, [{ from: 10, to: 12, insertedLength: 5 }]);
+        expect(mapped[0]).toBe(headings[0]);
+        expect(mapped[1]).toEqual({ ...headings[1], from: 33 });
+    });
     test('heading top alignment waits for actual sticky height changes and bounds repeated corrections', () => {
         const initial = { height: 0, adjustments: 0 };
         let state = advanceOutlineHeadingAlignment(initial, 60);
@@ -131,4 +145,23 @@ describe('Markdown document outline', () => {
         expect(stickyHeadingBoundaryPosition(200, { from: 20, top: 200 })).toBe(20);
         expect(stickyHeadingBoundaryPosition(Number.NaN, { from: 20, top: 200 })).toBe(-1);
     });
+});
+
+test('heading parents and section ends build once, then sticky queries read only active ancestors', () => {
+    const { outlineHeadingStructure, activeOutlineHeadingHierarchy } = require('../../../frontend/js/core/outlineModel.js');
+    const nested = [1, 3, 4, 2, 2, 1].map((level, from) => ({ level, from }));
+    const structure = outlineHeadingStructure(nested);
+    expect(structure.parents).toEqual([-1, 0, 1, 0, 0, -1]);
+    expect(structure.next).toEqual([5, 3, 3, 4, 5, -1]);
+    expect(activeOutlineHeadingHierarchy(nested, 2, structure)).toEqual(nested.slice(0, 3));
+    expect(activeOutlineHeadingHierarchy(nested, -1, structure)).toEqual([]);
+    for (const count of [10, 1000, 10000]) {
+        let reads = 0;
+        const headings = Array.from({ length: count }, (_, from) => ({ from, get level() { reads++; return 2; } }));
+        const index = outlineHeadingStructure(headings);
+        expect(reads).toBe(count);
+        reads = 0;
+        for (let i = 0; i < 20; i++) expect(activeOutlineHeadingHierarchy(headings, count - 1, index)).toEqual([headings.at(-1)]);
+        expect(reads).toBe(0);
+    }
 });

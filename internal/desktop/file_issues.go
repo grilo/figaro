@@ -257,7 +257,7 @@ func (a *App) RecheckVaultFileIssues() ([]VaultFileIssue, error) {
 				a.setVaultFileIssue(path, &existing)
 				continue
 			}
-			history.SetVaultReadLocker(&a.vaultMu)
+			history.SetVaultLocks(&a.vaultPathMu, &a.vaultMu)
 			history.SetCommitCallback(func() { a.emitRuntimeEvent("vault:history-changed") })
 			a.history = history
 			a.removeVaultFileIssue(path)

@@ -19,7 +19,9 @@ export function renderPureEditingChrome(root = document) {
     const model = currentModel();
     const wasActive = app.classList.contains('pure-editing-chrome');
     app.classList.toggle('pure-editing-chrome', model.active);
-    app.dataset.pureEditingChrome = String(model.active);
+    if (app.dataset.pureEditingChrome !== String(model.active)) {
+        app.dataset.pureEditingChrome = String(model.active);
+    }
     setRightSidebarSuppressed(root?.querySelector?.('#right-sidebar'), model.active);
     if (wasActive !== model.active) {
         root.dispatchEvent?.(new CustomEvent('figaro:pure-editing-chrome-changed', {
@@ -41,8 +43,8 @@ export function initPureEditingChrome(root = document) {
     app.dataset.pureEditingChromeInitialized = 'true';
     const render = () => renderPureEditingChrome(root);
     subscribe('sidebarCollapsed', render);
-    subscribe('activeTabId', render);
-    subscribe('openTabs', render);
+    subscribe('activeTabId', render, 'pure-chrome');
+    subscribe('tabPresentation', render, 'pure-chrome');
 
     render();
     return true;

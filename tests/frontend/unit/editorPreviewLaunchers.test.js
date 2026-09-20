@@ -1,3 +1,4 @@
+import { publishEditorUpdate } from '../frontend/js/editorUpdates.js';
 import { initEditorPreviewLaunchers } from '../../../frontend/js/editorPreviewLaunchers.js';
 import {
     registerRightPaneMode,
@@ -18,6 +19,25 @@ describe('editor Raw/PDF preview launchers', () => {
     });
 
     afterEach(() => controller?.destroy());
+
+    test('cursor bursts preserve launcher attributes and a changed pane still refreshes', async () => {
+        controller = initEditorPreviewLaunchers({
+            getActiveTab: () => activeTab,
+            getEditorDocumentTabId: () => 'one',
+        });
+        const button = document.getElementById('raw-text-preview-toggle');
+        const observer = new MutationObserver(() => {});
+        observer.observe(button, { attributes: true });
+        for (let i = 0; i < 20; i++) publishEditorUpdate({ selectionSet: true });
+        await Promise.resolve();
+        expect(observer.takeRecords()).toHaveLength(0);
+        const sidebar = document.getElementById('right-sidebar');
+        sidebar.dataset.mode = 'raw-text-preview';
+        sidebar.classList.add('open');
+        await Promise.resolve();
+        expect(button.getAttribute('aria-expanded')).toBe('true');
+        observer.disconnect();
+    });
 
     test('shows both controls for the mounted Markdown buffer and opens exact snapshots', async () => {
         const raw = jest.fn(async () => {

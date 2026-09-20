@@ -1,10 +1,17 @@
 # Embedded Vale integration
 
-Validated on 2026-09-08 against the pending changes after Figaro v1.38.0.
+The original integration below was validated on 2026-09-08 against the pending
+changes after Figaro v1.38.0. The later [grammar expansion](WRITING_HARPER.md)
+adds 15 reviewed Harper-port rules, a dictionary, sequence support, and 160 pure
+Go checks to this same engine; its current inventory is 42 YAML rules.
+Historical timings and validation counts below describe the original integration.
+Grammar policy 7 broadens contexts within the same rule inventory; the
+[quality follow-up](benchmarks/writing-quality-2026-09-20.md) records its current
+reference comparison, combined-provider document results and packaged checks.
 
-Figaro now compiles an adapted subset of Vale 3.20.0 into its Go backend. It
-keeps the existing 27 rules and prose projection, initializes them in memory,
-and reuses one engine. Normal builds no longer download a Vale executable;
+That integration compiles an adapted subset of Vale 3.20.0 into its Go backend. It
+kept the then-existing 27 rules and prose projection, initialized them in memory,
+and reused one engine. Normal builds no longer download a Vale executable;
 runtime analysis neither extracts one nor launches a subprocess. Settings and
 WebView locations are unchanged.
 

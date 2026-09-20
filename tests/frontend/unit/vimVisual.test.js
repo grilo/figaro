@@ -107,3 +107,53 @@ describe('Vim command and visual theming', () => {
         expect(editor).not.toContain('applyBlockCursor');
     });
 });
+
+test('Vim block entry lets wrapped visual rows run before entering adjacent Mermaid source in both directions', async () => {
+    editorDOM(); installSelectionLayoutStubs();
+    const { initEditor, createEditorView, toggleVim, setVimVisualRows, setVimRevealBlocks } = await import('../frontend/js/editor.js');
+    const { EditorSelection } = await import('@codemirror/state');
+    await initEditor(); const view = createEditorView();
+    const paragraph = 'Wrapped paragraph text. '.repeat(20);
+    const source = paragraph + '\n```mermaid\nflowchart TD\nA --> B\n```\n' + paragraph;
+    try {
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+        await toggleVim(true); setVimVisualRows(true); setVimRevealBlocks(true);
+        for (const forward of [false, true]) {
+            const position = forward ? 60 : source.length - 60;
+            view.dispatch({ selection: { anchor: position } }); view.focus();
+            const next = position + (forward ? 20 : -20);
+            const move = jest.spyOn(view, 'moveVertically').mockReturnValue(EditorSelection.cursor(next));
+            view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: forward ? 'ArrowDown' : 'ArrowUp', bubbles: true, cancelable: true }));
+            expect(view.state.selection.main.head).toBe(next);
+            expect(view.state.doc.lineAt(next).number).toBe(forward ? 1 : 6);
+            move.mockRestore();
+            view.dispatch({ selection: { anchor: position } });
+            const boundary = forward ? paragraph.length + 1 : source.lastIndexOf('```') + 1;
+            const enter = jest.spyOn(view, 'moveVertically').mockReturnValue(EditorSelection.cursor(boundary));
+            view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: forward ? 'j' : 'k', bubbles: true, cancelable: true }));
+            expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(forward ? 2 : 5);
+            enter.mockRestore();
+        }
+        expect(view.state.doc.toString()).toBe(source);
+    } finally { setVimVisualRows(false); setVimRevealBlocks(false); await toggleVim(false); view.destroy(); }
+});
+
+test('Vim entering insert mode alone does not invalidate writing findings; opening a line is an edit', async () => {
+    editorDOM(); installSelectionLayoutStubs();
+    const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
+    const { Vim, getCM } = await import('@replit/codemirror-vim');
+    const { updateInlineWriting, inlineWritingState } = await import('../../../frontend/js/writingInline.js');
+    await initEditor(); const view = createEditorView();
+    try {
+        const source = 'We utilize prose.';
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+        await toggleVim(true); view.focus();
+        const job = { id: 'note', revision: 1, configuration: 'plain', source };
+        updateInlineWriting(view, { current: job, analyzed: job, groups: [{ findings: [{ id: 'word', from: 3, to: 10, actual: 'utilize' }] }] }, {});
+        const before = view.state.doc, findings = view.state.field(inlineWritingState);
+        Vim.handleKey(getCM(view), 'i', 'user'); await new Promise(resolve => setTimeout(resolve, 30));
+        expect(view.state.doc).toBe(before); expect(view.state.field(inlineWritingState)).toBe(findings);
+        Vim.handleKey(getCM(view), '<Esc>', 'user'); Vim.handleKey(getCM(view), 'o', 'user');
+        expect(view.state.doc).not.toBe(before); expect(view.state.doc.toString()).toContain('\n');
+    } finally { await toggleVim(false); view.destroy(); }
+});

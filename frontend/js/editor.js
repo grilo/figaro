@@ -1,3 +1,7 @@
+import { publishEditorUpdate } from './editorUpdates.js';
+import { editorUpdateReasons } from './core/editorUpdateContract.js';
+import { editorDiagnostics, editorInputTrace, countEditorWork, traceEditorWork, deferEditorWork, readEditorDocument } from './editorDiagnostics.js';
+import { createLinkedNoteNavigation } from './usecases/linkedNoteNavigation.js';
 import { backend } from './backend.js';
 import { wikiLinkRanges } from './core/noteLinks.js';
 import { taskDueMetadataPlan } from './core/taskDueMetadataModel.js';
@@ -14,7 +18,7 @@ import { statusBar } from './statusBar.js';
 import { recordVaultFileIssue, showFileIssues } from './fileIssues.js';
 import { mathField } from './mathPlugin.js';
 import { createDiagramField, diagramLanguages, scanDiagramFences } from './liveDiagramPlugin.js';
-import { createMarkdownTableField, scanMarkdownTables } from './liveMarkdownTablePlugin.js';
+import { createMarkdownTableField, scanMarkdownTables, renderedTableSourceRange } from './liveMarkdownTablePlugin.js';
 import { createMarkdownImageField, resetMarkdownImageSize } from './markdownImagePlugin.js';
 import { requestSourceFootprintMeasure, sourceFootprintExtension } from './sourceFootprint.js';
 import {
@@ -81,7 +85,7 @@ import {
     drawioImageStateForRead,
     parseMarkdownImageSyntax,
 } from './core/drawioImageCreationModel.js';
-import { reviewMissingLinkedNote, reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
+import { reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
 import {
     markdownEditorNavigationAtPosition,
     markdownLinkDestinationAtPosition,
@@ -139,6 +143,7 @@ import { canonicalSpellcheckLanguage, spellcheckSuggestionsAtPosition } from './
 import {
     isVerticalMotionKey,
     unexpectedVerticalMotionTarget,
+    verticalMotionStaysInLine,
     verticalBoundaryTarget,
     verticalViewportScrollDelta,
     verticalViewportBoundaryTarget,
@@ -165,6 +170,7 @@ import {
 import {
     livePreviewPlugin,
     markdownStylePlugin,
+    markdownWorkFacet,
     editorTheme,
     linkPlugin,
     codeBlockField,
@@ -356,13 +362,14 @@ function syncEditorAccessibleLabel() {
     if (!view?.contentDOM) return false;
     const activeId = getState('activeTabId');
     const tab = (getState('openTabs') || []).find(candidate => candidate.id === activeId) || null;
-    view.contentDOM.setAttribute('aria-label', editorAccessibleLabel({ tab }));
+    const label = editorAccessibleLabel({ tab });
+    if (view.contentDOM.getAttribute('aria-label') !== label) view.contentDOM.setAttribute('aria-label', label);
     return true;
 }
 
 if (typeof subscribe === 'function') {
-    subscribe('activeTabId', syncEditorAccessibleLabel);
-    subscribe('openTabs', syncEditorAccessibleLabel);
+    subscribe('activeTabId', syncEditorAccessibleLabel, 'editor-accessibility');
+    subscribe('tabPresentation', syncEditorAccessibleLabel, 'editor-accessibility');
 }
 let codeModeExtensions = null;
 const footnoteReturnPositions = new Map();
@@ -480,6 +487,7 @@ function verticalViewportScrollCorrection(view) {
 
     let cursor;
     try {
+        countEditorWork('geometry.cursor');
         cursor = view.coordsAtPos(selection.head);
     } catch (error) {
         log.warn('Could not read the vertical cursor rectangle:', error);
@@ -501,7 +509,7 @@ function verticalViewportScrollCorrection(view) {
 function verticalViewportMeasureRequest() {
     return {
         key: verticalViewportMeasureKey,
-        read: verticalViewportScrollCorrection,
+        read: deferEditorWork('editor.viewport', 'vertical motion', verticalViewportScrollCorrection, 'measure'),
         write(delta, view) {
             if (!delta || !view.scrollDOM) return;
             view.scrollDOM.scrollTop += delta;
@@ -517,17 +525,18 @@ function reconcileVerticalViewport(view) {
     const request = verticalViewportMeasureRequest();
     const delta = request.read(view);
     if (delta) request.write(delta, view);
+    return Boolean(delta);
 }
 
 export function requestVerticalViewportMeasure(view) {
     if (!view || view.isDestroyed || typeof view.requestMeasure !== 'function') return false;
+    if (pendingVerticalViewportMeasures.has(view)) return true;
 
     view.requestMeasure(verticalViewportMeasureRequest());
-    if (pendingVerticalViewportMeasures.has(view)) return true;
 
     const win = view.win || view.dom?.ownerDocument?.defaultView || globalThis;
     if (typeof win?.requestAnimationFrame !== 'function') return true;
-    const frame = win.requestAnimationFrame(() => {
+    const frame = win.requestAnimationFrame(deferEditorWork('editor.viewport', 'vertical motion', () => {
         pendingVerticalViewportMeasures.delete(view);
         if (view.isDestroyed) return;
         // This runs after the measure scheduled by the key event, which is
@@ -535,9 +544,10 @@ export function requestVerticalViewportMeasure(view) {
         // gap on screen. A physical correction also emits the normal scroll
         // signal, and the explicit measure below makes the contract reliable
         // for engines that coalesce that signal.
-        reconcileVerticalViewport(view);
-        view.requestMeasure(verticalViewportMeasureRequest());
-    });
+        // Keep the final native virtual-DOM reconciliation, but do not attach
+        // another identical coordinate read after the post-paint check.
+        if (!reconcileVerticalViewport(view)) view.requestMeasure();
+    }, 'frame'));
     pendingVerticalViewportMeasures.set(view, frame);
     return true;
 }
@@ -819,6 +829,13 @@ function vimRenderedBlockNavigationExtension() {
             if (!block || (!frontmatterEntry
                 && !vimRevealBlocksRequested
                 && (!vimState.visualMode || block.kind !== 'source'))) return false;
+            if (vimVisualRowsRequested) {
+                const before = view.state.selection.main;
+                const line = view.state.doc.lineAt(before.head);
+                const moved = view.moveVertically(before, forward);
+                if (verticalMotionStaysInLine({ before: before.head, after: moved.head,
+                    from: line.from, to: line.to, forward })) return false;
+            }
             if (!enterAdjacentRenderedBlock(view, forward, Boolean(vimState.visualMode), block)) return false;
             event.preventDefault();
             event.stopPropagation();
@@ -1882,6 +1899,7 @@ class ReferenceLinkWidget extends WidgetType {
 function referenceLinkPlugin() {
     let document, definitions;
     const buildDecorations = view => {
+        countEditorWork('decorations.references');
         const state = view.state;
         if (document !== state.doc) {
             definitions = markdownReferenceDefinitions(state.doc.toString());
@@ -1896,10 +1914,12 @@ function referenceLinkPlugin() {
                 from: range.from,
                 to: range.to,
                 enter: node => {
+                    countEditorWork('syntax.nodes.references');
                     if (node.name !== 'Link') return;
                     const key = `${node.from}:${node.to}`;
                     if (seen.has(key)) return;
                     seen.add(key);
+                    countEditorWork('source.slices.references');
                     const source = state.doc.sliceString(node.from, node.to);
                     const reference = markdownReferenceLink(source);
                     if (!reference) return;
@@ -2182,6 +2202,7 @@ function createEditorView() {
             }
         }
         build(view) {
+            countEditorWork('decorations.listWidgets');
             const decos = [];
             const activeLines = new Set();
             const seenNodes = new Set();
@@ -2198,9 +2219,12 @@ function createEditorView() {
                     from,
                     to,
                     enter: (ref) => {
+                        countEditorWork('syntax.nodes.listWidgets');
                         const nodeKey = ref.type.id + ':' + ref.from + ':' + ref.to;
                         if (seenNodes.has(nodeKey)) return;
                         seenNodes.add(nodeKey);
+                        if (ref.type.name !== 'ListMark' && ref.type.name !== 'Task') return;
+                        countEditorWork('source.slices.listWidgets');
                         const text = view.state.doc.sliceString(ref.from, ref.to);
                         const lineNum = view.state.doc.lineAt(ref.from).number;
                         const isActive = activeLines.has(lineNum);
@@ -2288,6 +2312,7 @@ function createEditorView() {
             }
         }
         build(view) {
+            countEditorWork('decorations.extras');
             const builder = new RangeSetBuilder();
             const doc = view.state.doc;
             const activeLines = new Set();
@@ -2297,6 +2322,7 @@ function createEditorView() {
                 for (let l = sl; l <= el; l++) activeLines.add(l);
             }
             for (const { from, to } of view.visibleRanges) {
+                countEditorWork('source.slices.extras');
                 const text = doc.sliceString(from, to);
                 const lines = text.split('\n');
                 let pos = from;
@@ -2533,6 +2559,7 @@ function createEditorView() {
     markdownModeExtensions = markdownExtensionsForPath;
     codeModeExtensions = codeExtensionsForSupport;
 
+    let observedDocumentTabId = null;
     const editorState = EditorState.create({
         doc: '',
         extensions: [
@@ -2565,32 +2592,35 @@ function createEditorView() {
             foldGutterAccessibilityPlugin,
             blockControlVisibilityExtension,
             historyCompartment.of(history()), bracketMatching(), drawSelection(),
+            markdownWorkFacet.of(countEditorWork),
             searchExtension({ top: false }),
             searchMatchStatusExtension,
+            editorInputTrace,
             EditorView.updateListener.of(update => {
                 const replacingDocument = update.docChanged && _programmaticChange;
-                if (update.docChanged) handleDocChange(update);
+                if (update.docChanged) traceEditorWork('editor.buffer', 'document', () => handleDocChange(update));
                 if (update.selectionSet) {
                     updateCursorPosition(update);
                     // The shared EditorView temporarily owns each file in
                     // turn. Keep that file's selection current so workspace
                     // detours and restarts return to the exact cursor range.
-                    if (!replacingDocument) rememberActiveFileCursor(update);
+                    if (!replacingDocument) traceEditorWork('editor.cursor', 'selection', () => rememberActiveFileCursor(update));
                 }
-                // Lightweight consumers such as the document Outline can
-                // follow editor state without installing decorations or
-                // competing with CodeMirror's cursor/layout machinery.
-                if (update.docChanged || update.selectionSet || update.viewportChanged) {
-                    document.dispatchEvent(new CustomEvent('editor-view-updated', {
-                        detail: {
-                            docChanged: update.docChanged,
-                            selectionSet: update.selectionSet,
-                            viewportChanged: update.viewportChanged,
-                            documentTabId: getEditorDocumentTabId(),
-                            writingChanges: update.docChanged && !replacingDocument ? writingChangedRanges(update.changes) : undefined,
-                        },
-                    }));
-                }
+                const documentTabId = getEditorDocumentTabId();
+                const ownerChanged = documentTabId !== observedDocumentTabId;
+                observedDocumentTabId = documentTabId;
+                publishEditorUpdate({
+                    docChanged: update.docChanged,
+                    selectionSet: update.selectionSet,
+                    viewportChanged: update.viewportChanged,
+                    geometryChanged: update.geometryChanged,
+                    syntaxChanged: syntaxTree(update.startState) !== syntaxTree(update.state),
+                    ownerChanged,
+                    documentTabId,
+                    changes: update.docChanged ? update.changes : undefined,
+                    previousDocument: update.docChanged ? update.startState.doc : undefined,
+                    writingChanges: update.docChanged && !replacingDocument ? writingChangedRanges(update.changes) : undefined,
+                });
             }),
             EditorView.theme({
                 '&': { caretColor: 'var(--cursor-color) !important' },
@@ -2663,7 +2693,19 @@ function createEditorView() {
         ]
     });
 
-    editorView = new EditorView({ state: editorState, parent: container });
+    editorView = new EditorView({
+        state: editorState, parent: container,
+        dispatchTransactions(transactions, view) {
+            if (!editorDiagnostics.enabled()) { view.update(transactions); return; }
+            const reasons = editorUpdateReasons({
+                docChanged: transactions.some(transaction => transaction.docChanged),
+                selectionSet: transactions.some(transaction => transaction.selection),
+            });
+            if (editorDiagnostics.capture() !== null) {
+                traceEditorWork('codemirror', reasons.join(', ') || 'effects', () => view.update(transactions));
+            } else editorDiagnostics.interaction('transaction', reasons, () => view.update(transactions));
+        },
+    });
     syncEditorAccessibleLabel();
 
     // The persisted preference may load while the workspace overview is active, before
@@ -2691,7 +2733,7 @@ function createEditorView() {
 }
 
 function getEditorView() { return editorView || getState('editorView'); }
-function getEditorContent() { const v = getEditorView(); return v ? v.state.doc.toString() : ''; }
+function getEditorContent() { const v = getEditorView(); return v ? readEditorDocument(v.state.doc, 'editor.content') : ''; }
 
 let _programmaticChange = false;
 
@@ -2704,6 +2746,12 @@ function captureEditorHistory(view, tabId) {
     const tab = editorHistoryTab(tabId);
     if (!tab || !view.state.field(historyField, false)) return;
     editorHistoryByTab.set(tab, view.state.toJSON({ history: historyField }));
+}
+
+/** Preserve a parked buffer's undo state when its immutable tab identity moves. */
+export function transferEditorHistory(previousTab, nextTab) {
+    const saved = editorHistoryByTab.get(previousTab);
+    if (saved) editorHistoryByTab.set(nextTab, saved);
 }
 
 function historyExtensionsForDocument(request) {
@@ -3232,7 +3280,7 @@ function focusEditor() { const v = getEditorView(); if (v) v.focus(); }
 
 function materializedDocumentContent(document) {
     if (document === lastMaterializedDocument) return lastMaterializedContent;
-    const content = document.toString();
+    const content = readEditorDocument(document, 'editor.content');
     lastMaterializedDocument = document;
     lastMaterializedContent = content;
     return content;
@@ -3262,7 +3310,7 @@ function scheduleContentNotification(tab, editorDocument) {
     };
     if (contentNotificationFrame !== null) return;
 
-    const flush = () => flushPendingContentNotification();
+    const flush = deferEditorWork('editor.content', 'document', () => flushPendingContentNotification(), 'frame');
     contentNotificationFrame = typeof requestAnimationFrame === 'function'
         ? requestAnimationFrame(flush)
         : setTimeout(flush, 0);
@@ -3271,12 +3319,12 @@ function scheduleContentNotification(tab, editorDocument) {
 function scheduleStatsUpdate(editorDocument) {
     pendingStatsDocument = editorDocument;
     if (statsTimer !== null) clearTimeout(statsTimer);
-    statsTimer = setTimeout(() => {
+    statsTimer = setTimeout(deferEditorWork('editor.stats', 'document', () => {
         statsTimer = null;
         const document = pendingStatsDocument;
         pendingStatsDocument = null;
         if (document) updateStats(materializedDocumentContent(document));
-    }, editorStatsDebounceMs);
+    }, 'debounce'), editorStatsDebounceMs);
 }
 
 function cancelPendingStatsUpdate() {
@@ -3309,7 +3357,10 @@ function updateCursorPosition(update) {
     const line = update.state.doc.lineAt(sel.head).number;
     const col = sel.head - update.state.doc.lineAt(sel.head).from + 1;
     const el = document.getElementById('cursor-position');
-    if (el) el.textContent = `Ln ${line}, Col ${col}`;
+    if (el) {
+        countEditorWork('dom.cursorStatus');
+        el.textContent = `Ln ${line}, Col ${col}`;
+    }
 }
 
 function normalizedCursorState(cursorState, documentLength) {
@@ -3831,7 +3882,7 @@ function handleContextMenu(event, view) {
 
     const keyboardInvocation = !event.clientX && !event.clientY;
     const widget = event.target?.closest?.('.cm-block-widget--table');
-    const widgetFrom = Number(widget?.dataset.tableFrom);
+    const widgetFrom = renderedTableSourceRange(view, widget)?.from;
     const pos = keyboardInvocation
         ? view.state.selection.main.head
         : (Number.isInteger(widgetFrom)
@@ -4049,116 +4100,35 @@ function appendSpellcheckSuggestionItems(menu, spellcheckSuggestion) {
     menu.prepend(section);
 }
 
-async function handleLinkClick(linkPath, linkText, replaceCurrent = false, linkEdit = null) {
-    // Decode any percent-encoded characters (e.g., %20 → space) for file operations
-    try { linkPath = decodeURI(linkPath); } catch (e) { /* decode may fail */ }
-    try { linkPath = decodeURI(linkPath); } catch (e) { /* double-decode safety */ }
-
-    if (String(linkPath || '').startsWith('#')) {
+const handleLinkClick = createLinkedNoteNavigation({
+    read: path => backend().ReadFile(path),
+    create: (path, content) => backend().CreateFile(path, content),
+    refreshTree: refreshFileTree,
+    getTabs: () => getState('openTabs'),
+    getTree: () => getState('fileTreeData'),
+    openTab: (...args) => openTab(...args),
+    replaceTab: (...args) => replaceActiveFileTab(...args),
+    confirm: (...args) => confirmWorkspaceAction(...args),
+    error: (...args) => errorDialog(...args),
+    replaceTarget: (edit, path) => replaceMarkdownLinkTarget(getEditorView(), edit, path),
+    reportIssue: (issue, path) => {
+        recordVaultFileIssue(issue);
+        void showFileIssues({ path });
+    },
+    navigateHeading: path => {
         const view = getEditorView();
-        const position = view
-            ? markdownHeadingPosition(view.state.doc.toString(), linkPath)
-            : null;
+        const position = view ? markdownHeadingPosition(view.state.doc.toString(), path) : null;
         if (view && Number.isInteger(position)) {
             view.dispatch({ selection: { anchor: position }, scrollIntoView: true });
             view.focus();
         } else {
-            statusBar.set(`Heading not found: ${linkPath}`);
+            statusBar.set(`Heading not found: ${path}`);
             setTimeout(() => statusBar.clear(), 1800);
         }
-        return true;
-    }
-
-    if (!linkPath && linkText) {
-        const dm = linkText.match(/^(\d{4}-\d{2}-\d{2})$/);
-        if (dm) {
-            const id = `calendar-${dm[1]}`;
-            const tabs = getState('openTabs');
-            if (replaceCurrent && !tabs.find(t => t.id === id)) {
-                await replaceCurrentFileTab(id, `Mention of Date: [[${dm[1]}]]`, 'calendar', { dateStr: dm[1] });
-            } else {
-                openTab(id, `Mention of Date: [[${dm[1]}]]`, 'calendar', { dateStr: dm[1] });
-            }
-            return true;
-        }
-        return true;
-    }
-    const dm = linkPath.match(/^(\d{4}-\d{2}-\d{2})\.md$/);
-    if (dm) {
-        const id = `calendar-${dm[1]}`;
-        const tabs = getState('openTabs');
-        if (replaceCurrent && !tabs.find(t => t.id === id)) {
-            await replaceCurrentFileTab(id, `Mention of Date: [[${dm[1]}]]`, 'calendar', { dateStr: dm[1] });
-        } else {
-            openTab(id, `Mention of Date: [[${dm[1]}]]`, 'calendar', { dateStr: dm[1] });
-        }
-        return true;
-    }
-    try {
-        log.debug('handleLinkClick: reading', linkPath);
-        const r = await backend().ReadFile(linkPath);
-        log.debug('handleLinkClick: read_file result for', linkPath, ':', r ? 'found' : 'not found');
-        if (r?.issue) {
-            recordVaultFileIssue(r.issue);
-            void showFileIssues({ path: linkPath });
-        } else if (r) {
-            await openLinkedNote(linkPath, r, replaceCurrent);
-        } else {
-            const fileName = linkPath.split('/').pop();
-            const fullPath = linkPath.endsWith('.md') ? linkPath : linkPath + '.md';
-            let creationConfirmed = false;
-            if (linkEdit) {
-                const review = await reviewMissingLinkedNote({
-                    tree: getState('fileTreeData'),
-                    targetPath: fullPath,
-                    confirm: confirmWorkspaceAction,
-                    read: path => backend().ReadFile(path),
-                    replaceTarget: path => replaceMarkdownLinkTarget(getEditorView(), linkEdit, path),
-                    open: (path, existing) => openLinkedNote(path, existing, replaceCurrent),
-                });
-                if (review === 'used-existing' || review === 'cancelled') return;
-                if (review === 'stale') {
-                    await errorDialog('Link changed', 'The link changed while the note choice was open.', 'Nothing was replaced. Try the link again.');
-                    return;
-                }
-                if (review === 'unavailable') {
-                    await errorDialog('Couldn’t open existing note', 'The similar note is no longer available.', 'Nothing was replaced. Refresh the file tree and try again.');
-                    return;
-                }
-                creationConfirmed = review === 'create';
-            }
-            if (!creationConfirmed) {
-                const msg = `The note “${fileName}” doesn’t exist yet.\n\nPath: ${fullPath}`;
-                creationConfirmed = await confirmWorkspaceAction('Create this note?', msg, false, false, {
-                    icon: 'file-add',
-                    confirmLabel: 'Create note',
-                });
-            }
-            if (creationConfirmed) {
-                const fpath = linkPath.endsWith('.md') ? linkPath : linkPath + '.md';
-                const fname = fpath.split('/').pop();
-                const displayName = linkPath.endsWith('.md') ? fileName.replace('.md', '') : fileName;
-                const created = await backend().CreateFile(fpath, `# ${displayName}\n\n`);
-                if (!created?.success) {
-                    await errorDialog('Couldn’t create note', created?.error, 'The linked note could not be created.');
-                    return;
-                }
-                openTab(fpath, fname, 'file', { path: fpath, mtime: created.mtime || Date.now() / 1000 }, true);
-                await refreshFileTree();
-            }
-        }
-    } catch (err) { log.error('Failed to open link:', err, 'path was:', linkPath); }
-}
-
-async function openLinkedNote(path, file, replaceCurrent) {
-    const tabs = getState('openTabs');
-    const data = { path, mtime: file?.mtime };
-    if (replaceCurrent && !tabs.find(tab => tab.id === path)) {
-        await replaceCurrentFileTab(path, path.split('/').pop(), 'file', data);
-    } else {
-        openTab(path, path.split('/').pop(), 'file', data);
-    }
-}
+    },
+    now: () => Date.now() / 1000,
+    log,
+});
 
 export function replaceMarkdownLinkTarget(view, edit, existingPath) {
     if (!view || view.isDestroyed) return false;
@@ -4166,14 +4136,6 @@ export function replaceMarkdownLinkTarget(view, edit, existingPath) {
     if (!change) return false;
     view.dispatch({ changes: change });
     return true;
-}
-
-/**
- * Replace the current file tab with a new target.
- * If the active tab is a file tab, update it in-place.
- */
-async function replaceCurrentFileTab(id, title, type, data) {
-    return replaceActiveFileTab(id, title, type, data);
 }
 
 function saveCursorState(_tabId) {

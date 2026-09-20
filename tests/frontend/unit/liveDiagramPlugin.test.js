@@ -535,6 +535,34 @@ describe('live diagram preview', () => {
         expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
     });
 
+    test('navigation inside revealed source reuses parsed fences and decorations without scanning document text', () => {
+        const source = ['Before', '', '```mermaid', 'flowchart TD', ' A --> B', ' B --> C', '```', '', 'After'].join('\n');
+        const field = createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField);
+        view = new EditorView({ state: EditorState.create({
+            doc: source,
+            extensions: [collapseOnSelectionFacet.of(true), mouseSelectingField, field],
+        }), parent: document.body });
+        const blocks = view.state.field(field).blocks;
+        const read = jest.spyOn(view.state.doc, 'toString');
+        try {
+            const from = source.indexOf('flowchart');
+            view.dispatch({ selection: { anchor: from } });
+            const revealed = view.state.field(field);
+            expect(revealed.blocks).toBe(blocks);
+            for (const head of [from + 1, from + 3, from + 5, from + 3, from + 1]) {
+                view.dispatch({ selection: { anchor: head } });
+                expect(view.state.field(field)).toBe(revealed);
+            }
+            view.dispatch({ selection: { anchor: source.length } });
+            expect(view.state.field(field).blocks).toBe(blocks);
+            expect(view.dom.querySelector('.cm-live-diagram-view')).not.toBeNull();
+            expect(read).not.toHaveBeenCalled();
+        } finally { read.mockRestore(); }
+        view.dispatch({ changes: { from: source.indexOf('A --> B'), to: source.indexOf('A --> B') + 7, insert: 'A --> D' } });
+        expect(view.state.field(field).blocks).not.toBe(blocks);
+        expect(view.state.field(field).blocks[0].code).toContain('A --> D');
+    });
+
     test('yields a rendered Mermaid replacement to a native fold and restores it on unfold', () => {
         const fence = '`'.repeat(3);
         const source = [

@@ -15,6 +15,15 @@ function normalizedRange(range, length) {
     return { from, to };
 }
 
+/** Normalize once per document/block; preserve first-match semantics for unusual input. */
+export function preparePurePhraseRanges(phraseRanges, documentLength) {
+    const ranges = (Array.isArray(phraseRanges) ? phraseRanges : [])
+        .map(range => normalizedRange(range, documentLength));
+    const ordered = ranges.every((range, index) => index === 0 || ranges[index - 1].to < range.to
+        && ranges[index - 1].to <= range.from);
+    return { ranges, ordered };
+}
+
 /**
  * Resolve the source range that stays fully present while Pure focus is active.
  * CodeMirror owns Markdown structure and supplies the enclosing block; the pure
@@ -22,12 +31,14 @@ function normalizedRange(range, length) {
  */
 export function pureFocusRange({
     source = '',
+    documentLength = String(source).length,
     position = 0,
     scope = 'off',
     blockRange = null,
     phraseRanges = [],
+    phraseIndex = null,
 } = {}) {
-    const length = String(source).length;
+    const length = Math.max(0, Number(documentLength) || 0);
     const normalizedScope = normalizePureFocusScope(scope);
     if (normalizedScope === 'off') return null;
 
@@ -35,10 +46,22 @@ export function pureFocusRange({
     const head = clamp(Number(position) || 0, block.from, block.to);
     if (normalizedScope === 'paragraph') return block;
 
-    const phrase = (Array.isArray(phraseRanges) ? phraseRanges : [])
-        .map(range => normalizedRange(range, length))
-        .find(range => range.from <= head && head <= range.to
-            && range.from >= block.from && range.to <= block.to);
+    const prepared = phraseIndex || preparePurePhraseRanges(phraseRanges, length);
+    const matches = range => range.from <= head && head <= range.to
+        && range.from >= block.from && range.to <= block.to;
+    let phrase;
+    if (prepared.ordered) {
+        let low = 0, high = prepared.ranges.length;
+        while (low < high) {
+            const middle = (low + high) >> 1;
+            if (prepared.ranges[middle].to < head) low = middle + 1;
+            else high = middle;
+        }
+        // Inclusive touching boundaries belong to the first eligible phrase.
+        for (let index = low; index < prepared.ranges.length && prepared.ranges[index].from <= head; index++) {
+            if (matches(prepared.ranges[index])) { phrase = prepared.ranges[index]; break; }
+        }
+    } else phrase = prepared.ranges.find(matches);
     return phrase || block;
 }
 

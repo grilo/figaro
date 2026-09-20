@@ -41,6 +41,31 @@ test('stacks Outline, Raw, PDF, and Writing lenses launchers with usable respons
     expect(geometry[3].top - geometry[2].bottom).toBe(4);
     expect(Math.abs(geometry[2].left - geometry[3].left)).toBeLessThanOrEqual(1);
 
+    // Native browser focus defaults are the boundary here: opening, switching,
+    // and closing a pane by mouse must not interrupt immediate typing.
+    const content = page.locator('#editor-container .cm-content');
+    for (const launcher of [outline, lenses, raw, pdf]) {
+        const before = await page.evaluate(async () => {
+            const view = (await import('/js/editor.js')).getEditorView();
+            view.dispatch({ selection: { anchor: view.state.doc.length } }); view.focus();
+            return view.state.doc.toString();
+        });
+        await launcher.click();
+        await page.keyboard.type('x');
+        await expect(content).toBeFocused();
+        await expect.poll(() => page.evaluate(async () => (await import('/js/editor.js')).getEditorView().state.doc.toString())).toBe(before + 'x');
+    }
+    await pdf.click(); await page.keyboard.type('y'); await expect(content).toBeFocused();
+    // Explicit keyboard activation still enters the outline, and an intentional
+    // click inside another pane is never undone by deferred opening/layout work.
+    await outline.focus(); await page.keyboard.press('Enter');
+    await expect(page.locator('.outline-item').first()).toBeFocused();
+    await lenses.click();
+    const disclosure = page.locator('#writing-lenses-panel .ui-disclosure-trigger');
+    await disclosure.click(); await expect(disclosure).toBeFocused();
+    await page.waitForTimeout(350); await expect(disclosure).toBeFocused();
+    await lenses.click();
+
     // Real footer geometry must track the editor through pane widths and modes.
     const assertFooterAligned = async () => {
         await expect.poll(() => page.evaluate(() => {

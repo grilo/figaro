@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "frozenAt": "2026-09-20T08:46:31.147149+00:00",
+  "annotationStatus": "Fresh sample frozen before quality changes or evaluation; agent-authored expectations and later judgments, not independent human gold. Two technical documents share the earlier p-map author/package family. Published documents have no seeded errors; empty errors is not a claim of error-free prose.",
+  "documents": [
+    {
+      "id": "p-limit",
+      "path": "third-party/p-limit.md",
+      "language": "en-US",
+      "genre": "technical reference",
+      "origin": "untouched published Markdown; same author/package family as earlier p-map sample",
+      "source": "https://github.com/sindresorhus/p-limit/blob/a8a6fbec4e0e866d6d779b10889bb4f5567e70eb/readme.md",
+      "revision": "a8a6fbec4e0e866d6d779b10889bb4f5567e70eb",
+      "license": "MIT",
+      "licensePath": "third-party/p-limit.LICENSE",
+      "normalization": "none; exact UTF-8 source bytes",
+      "retrieved": "2026-09-20",
+      "errors": [],
+      "controls": [],
+      "sha256": "dbe29b10fca55743e35fe2b3d768024cd135d1bac4bd60aee566a5e1f3af294f",
+      "licenseSHA256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+    },
+    {
+      "id": "p-retry",
+      "path": "third-party/p-retry.md",
+      "language": "en-US",
+      "genre": "technical reference",
+      "origin": "untouched published Markdown; same author/package family as earlier p-map sample",
+      "source": "https://github.com/sindresorhus/p-retry/blob/1472907affe8d6107aba5884abc36d6361b3042e/readme.md",
+      "revision": "1472907affe8d6107aba5884abc36d6361b3042e",
+      "license": "MIT",
+      "licensePath": "third-party/p-retry.LICENSE",
+      "normalization": "none; exact UTF-8 source bytes",
+      "retrieved": "2026-09-20",
+      "errors": [],
+      "controls": [],
+      "sha256": "c82039fad81447e4d0ad2233800a297cf5d7349708f58b030df46b811d8739d7",
+      "licenseSHA256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+    },
+    {
+      "id": "ocean",
+      "path": "ocean.md",
+      "language": "en-US",
+      "genre": "educational explanation",
+      "origin": "published prose, HTML main content transcribed to Markdown before any engine evaluation",
+      "source": "https://oceanservice.noaa.gov/facts/oceanblue.html",
+      "license": "United States public domain; NOAA National Ocean Service",
+      "licenseURL": "https://oceanservice.noaa.gov/about/faq.html",
+      "retrieved": "2026-09-20",
+      "normalization": "Headings, body prose and lists retained; navigation, photos/captions, feedback and site footer omitted; prose unchanged; links normalized to absolute URLs. Web text extraction used, not raw HTML.",
+      "errors": [],
+      "controls": [],
+      "sha256": "f45b86f3361a7ceaaeac915e62cef34b477829588134a5aeb2d64d6bbb9fc9e6"
+    },
+    {
+      "id": "passport",
+      "path": "passport.md",
+      "language": "en-GB",
+      "genre": "practical public guidance",
+      "origin": "published prose, HTML main content transcribed to Markdown before any engine evaluation",
+      "source": "https://www.gov.uk/apply-renew-passport",
+      "license": "Open Government Licence v3.0; Crown copyright",
+      "licenseURL": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+      "retrieved": "2026-09-20",
+      "normalization": "Headings, body prose and lists retained; navigation, photos/captions, feedback and site footer omitted; prose unchanged; links normalized to absolute URLs. Web text extraction used, not raw HTML.",
+      "errors": [],
+      "controls": [],
+      "sha256": "467f2583d4ef11afe2a47842a64d2c34d81a359651f903ef2f61648b8c169d5f"
+    },
+    {
+      "id": "library",
+      "path": "library.md",
+      "language": "en-GB",
+      "genre": "narrative draft",
+      "origin": "original agent-authored prose; expectations frozen before engine results",
+      "license": "GPL-3.0-or-later (repository license)",
+      "normalization": "UTF-8 LF; no normalization",
+      "errors": [
+        {
+          "context": "box of tools were",
+          "actual": "were",
+          "replacement": "was",
+          "fromUTF16": 408,
+          "toUTF16": 412
+        },
+        {
+          "context": "had saw",
+          "actual": "saw",
+          "replacement": "seen",
+          "fromUTF16": 639,
+          "toUTF16": 642
+        },
+        {
+          "context": "I recieved",
+          "actual": "recieved",
+          "replacement": "received",
+          "fromUTF16": 1080,
+          "toUTF16": 1088
+        }
+      ],
+      "controls": [],
+      "sha256": "88ad3756e81d7f895521ca65cd531196cf8f0cfb55f05e9c02f5f59656577e4a"
+    },
+    {
+      "id": "handover",
+      "path": "handover.md",
+      "language": "en-GB",
+      "genre": "practical draft",
+      "origin": "original agent-authored prose; expectations frozen before engine results",
+      "license": "GPL-3.0-or-later (repository license)",
+      "normalization": "UTF-8 LF; no normalization",
+      "errors": [
+        {
+          "context": "instruments near the bridge has",
+          "actual": "has",
+          "replacement": "have",
+          "fromUTF16": 388,
+          "toUTF16": 391
+        },
+        {
+          "context": "to seperate",
+          "actual": "seperate",
+          "replacement": "separate",
+          "fromUTF16": 727,
+          "toUTF16": 735
+        },
+        {
+          "context": "fewer equipment",
+          "actual": "fewer",
+          "replacement": "less",
+          "fromUTF16": 885,
+          "toUTF16": 890
+        }
+      ],
+      "controls": [],
+      "sha256": "405a0bae1e769fdf650598d68b0f36b480afa6dc499f1f27da9eaa691c829c40"
+    },
+    {
+      "id": "orchard",
+      "path": "orchard.md",
+      "language": "en-GB",
+      "genre": "acceptable narrative",
+      "origin": "original agent-authored prose; expectations frozen before engine results",
+      "license": "GPL-3.0-or-later (repository license)",
+      "normalization": "UTF-8 LF; no normalization",
+      "errors": [],
+      "controls": [],
+      "sha256": "86cd3db00d224435a67f5d5841030be9bc5940b5040a845fdf26774a678a5c22"
+    },
+    {
+      "id": "museum",
+      "path": "museum.md",
+      "language": "en-GB",
+      "genre": "acceptable educational guidance",
+      "origin": "original agent-authored prose; expectations frozen before engine results",
+      "license": "GPL-3.0-or-later (repository license)",
+      "normalization": "UTF-8 LF; no normalization",
+      "errors": [],
+      "controls": [],
+      "sha256": "75603524111b6af19dd93d0934d6067c7c67c6387512928903c339bf2ddbf3ac"
+    }
+  ]
+}

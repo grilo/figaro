@@ -3,6 +3,7 @@ import { Decoration, ViewPlugin, activateHover, closeHoverTooltip, hoverTooltip,
 import { inlineWritingFindings, writingFindingsAt, visibleWritingRanges, writingTooltipBounds } from './core/writingInlineModel.js';
 import { createWritingInlineView } from './views/writingInlineView.js';
 import { createWritingLinkHints } from './writingLinkHints.js';
+import { retainWritingFindings, writingEditChangesStructure } from './core/writingRetentionModel.js';
 
 export const setInlineWriting = StateEffect.define();
 /** Adapt CodeMirror coordinates to plain source-change data for review anchors. */
@@ -12,13 +13,38 @@ export function writingChangedRanges(changes) {
     return ranges;
 }
 const empty = () => ({ findings: [], actions: {} });
+
+// Read only edited paragraphs from CodeMirror's immutable Text. A keystroke
+// must not serialize or parse the whole note to retain unrelated underlines.
+function editedParagraph(doc, from, to) {
+    let first = doc.lineAt(from), last = doc.lineAt(to);
+    while (first.number > 1 && doc.line(first.number - 1).text.trim()) first = doc.line(first.number - 1);
+    while (last.number < doc.lines && doc.line(last.number + 1).text.trim()) last = doc.line(last.number + 1);
+    return { from: first.from, to: last.to };
+}
+
+function retainedInlineState(value, transaction) {
+    if (!value.findings.length) return empty();
+    const changes = [], paragraphs = [];
+    let structural = false;
+    transaction.changes.iterChanges((from, to, nextFrom, nextTo, inserted) => {
+        const before = transaction.startState.doc, after = transaction.newDoc;
+        changes.push({ from, to, insertedLength: inserted.length });
+        paragraphs.push(editedParagraph(before, from, to));
+        structural ||= writingEditChangesStructure({ removed: before.sliceString(from, to), inserted: inserted.toString(),
+            beforeLine: before.sliceString(before.lineAt(from).from, before.lineAt(to).to),
+            afterLine: after.sliceString(after.lineAt(nextFrom).from, after.lineAt(nextTo).to) });
+    });
+    return { findings: retainWritingFindings(value.findings, { changes, paragraphs, structural }), actions: {}, stale: true };
+}
 export const inlineWritingState = StateField.define({
     create: empty,
     update(value, transaction) {
-        // Never map an actionable suggestion onto changed text, even briefly.
-        if (transaction.docChanged) value = empty();
+        if (transaction.docChanged) value = retainedInlineState(value, transaction);
         for (const effect of transaction.effects) if (effect.is(setInlineWriting)) {
             const { snapshot, actions } = effect.value;
+            // Status publications must not erase the mapped display-only marks.
+            if (snapshot?.stale) continue;
             const findings = inlineWritingFindings(snapshot);
             value = { findings, actions };
         }
@@ -53,6 +79,7 @@ const writingHover = hoverTooltip((view, position, side) => {
             const sourceDoc = view.state.doc;
             const closeIfCurrent = () => { if (view.dom.isConnected && view.state.doc === sourceDoc && (dom.contains(document.activeElement) || document.activeElement === document.body || view.hasFocus)) close(); };
             const dom = createWritingInlineView({ findings,
+                stale: Boolean(state.stale),
                 onApply: (id, index) => { state.actions.apply?.(id, index); close(); },
                 onApplyAll: state.actions.applyAll ? id => { state.actions.applyAll(id); close(); } : undefined,
                 bulkCount: state.actions.bulkCount,

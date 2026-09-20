@@ -8,7 +8,102 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- Proofreading now checks selected English verb agreement, infinitives, auxiliary
+  verbs, possessives, number agreement, uncountable nouns, contextual homophones,
+  and common grammatical phrases, with safe corrections and per-occurrence Ignore. All checks run locally inside Figaro.
+- English grammar review covers more noun/verb and its/their/your contexts,
+  compound subject pronouns, and question forms such as “Has we finished?”
+  Unclear adjacent pronouns receive advice without a guessed correction.
+
+- Proofreading adds 60 English checks for common expressions, prepositions,
+  gerunds, comparisons, split words, ordinal endings, capitalization, comma
+  spacing, and selected compounds. Uncertain conditional wording stays advisory.
+
+- Proofreading adds 60 checks for selected prepositions, common expressions,
+  word choices and word boundaries. It also catches noun-subject agreement
+  mistakes such as “The spare chairs is ready” and “fewer” with uncountable
+  amounts, while preserving literal meanings and valid countable phrases.
+
+### Changed
+
+- Rename progress identifies saving open files, checking references, waiting for
+  writing data, renaming, and refreshing open files, making stalled operations
+  easier to diagnose.
+- Contributors can find feature owners, documentation, and focused checks in a
+  maintained feature index, with compact per-feature source symbols and documentation
+  sections, concise test results, and complete saved logs.
+
+### Fixed
+
+- Writing review preserves more technical terms and defined acronyms, avoids
+  unsafe singular-only spelling guesses, and reduces misleading literal-phrase,
+  emotional-state and balanced-punctuation warnings. Equivalent “there is/are”
+  advice appears once while keeping each lens and saved Ignore decisions.
+- Existing English grammar checks cover more questions, intervening modifiers,
+  preposition complements and uncountable software/information contexts while
+  preserving valid literal meanings and compound nouns.
+
+- Typing prose, including bold text, lists, blockquotes and curly apostrophes,
+  reuses code, image, table and guide previews in long notes. Helper-rail movement,
+  Pure phrase focus and buffer updates avoid repeatedly scanning unchanged data.
+  Entering block source updates only the affected preview; heading navigation,
+  Find announcements and cursor memory avoid repeatedly scanning unrelated data.
+
+- Split-word corrections such as “miss understood” avoid competing agreement
+  edits. Selected affect/effect corrections now cover “a strong affect on” and
+  “will effect everyone” while preserving valid noun and verb meanings.
+
+- Cursor movement avoids rescanning Markdown formatting and rereading every code
+  block in long notes. Formatting styles follow visible content, while source
+  reveal, code folding, copying, and selection keep their existing behavior.
+
+- Cursor movement keeps unchanged image previews in place and updates only the
+  affected Outline headings. Images, tables, diagrams, and math use indexed
+  source ranges to avoid checking every widget in long notes.
+
+- Cursor movement updates remembered positions without waking tab, toolbar,
+  window-title or storage observers. Image previews reuse parsed source during
+  navigation. Declared editor dependencies and opt-in developer traces make
+  unexpected cursor and typing work easier to detect.
+
+- Cursor movement reuses table and math previews and avoids repeated window-title,
+  breadcrumb, and toolbar updates. Prose typing keeps unchanged Outline rows and
+  Kanban cards in place; scrolling reuses block guides, and rendered blocks batch
+  their source-height measurements.
+
+- Proofreading again catches “their/your/its going to be” when a contraction is
+  needed, while preserving possessive gerunds with a later verb.
+
+- Dense writing suggestions on long lines reuse source mapping and context checks
+  so reviewing many grammar findings avoids repeatedly scanning the same text.
+
+- Keyboard cursor movement avoids refreshing unchanged file-tree markers, reading
+  the whole note for Outline, and rebuilding unchanged Pure focus or diagram
+  source decorations. Repeated vertical keys share viewport-repair work.
+
+- Cursor movement avoids redundant browser-storage writes, and slow session saves
+  keep only the latest waiting snapshot. Single-file history avoids whole-vault
+  scans and lets newer edits save to disk while Git writes the captured revision.
+
+- Adding a possessive to the dictionary also accepts its unpossessed spelling.
+  Canonically equivalent accents match consistently, capitalized misspellings
+  receive useful suggestions, and all-caps or slash/dot-separated prose no longer
+  escapes spelling checks.
+- Adding a word to the dictionary also accepts its regular English plural and
+  possessives, including words saved before this update.
+- Creating a missing note from a link refreshes the file tree after opening it.
+- Writing lenses exclude footnote identifiers, including undefined references,
+  from spelling and prose advice while retaining checks on footnote text.
+- Clicking an Outline, Writing lenses, Raw, PDF, or History launcher while
+  typing keeps focus in the editor. Keyboard entry and sidebar clicks retain
+  their usual focus behavior.
+- Vim visual-row navigation finishes moving through wrapped paragraphs before
+  entering an adjacent Mermaid diagram or rendered source block.
+- Writing suggestions remain visible while typing: unchanged-paragraph
+  underlines follow edits, and previous sidebar cards stay in place with their
+  actions disabled until fresh checks finish.
 
 ## [1.40.0] - 2026-09-10
 
@@ -227,6 +322,14 @@ _No changes yet._
 
 ### Fixed
 
+- Writing review recognizes common technical spellings and defined acronyms,
+  preserves lower-camel-case identifiers, and avoids dropping a plural suffix
+  from an unknown word. Balanced multiline parentheses, literal scheduling
+  phrases and emotional states receive fewer misleading warnings. Equivalent
+  “there is/are” advice is combined while preserving saved Ignore decisions.
+- Existing grammar checks recognize more questions with noun subjects,
+  intervening modifiers, word-choice contexts and uncountable software/info
+  phrases, while preserving literal readings and countable noun compounds.
 - Writing spelling preserves quoted words, Markdown emphasis, possessives and
   numeric compounds; reviewed technical vocabulary avoids destructive guesses.
   Dictionary alternatives cannot invent possession, and speculative name
