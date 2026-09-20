@@ -1,4 +1,5 @@
-import { sourceRevealIndex, updateSourceReveal } from './sourceReveal.js';
+import { markdownProjectionEdit, collapseOnSelectionFacet } from 'codemirror-live-markdown';
+import { sourceRevealIndex, updateSourceReveal, patchSourceReveal } from './sourceReveal.js';
 import { countEditorWork, readEditorDocument } from './editorDiagnostics.js';
 /**
  * Live diagram preview for Mermaid, Vega, and Vega-Lite fenced code blocks.
@@ -540,14 +541,31 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
     return StateField.define({
         create: buildState,
         update(value, transaction) {
-            if (transaction.reconfigured) return buildState(transaction.state);
+            if (transaction.startState.facet(collapseOnSelectionFacet) !== transaction.state.facet(collapseOnSelectionFacet)
+                && !transaction.docChanged) return buildState(transaction.state, value.blocks);
             if (transaction.docChanged) {
                 if (changesNeedDiagramRescan(value, transaction)) {
-                    return buildState(transaction.state);
+                    const regions = markdownProjectionEdit(transaction);
+                    if (!regions || regions.some(region => region.name === 'FencedCode' && !region.topLevel)) {
+                        return buildState(transaction.state);
+                    }
+                    const fences = regions.filter(region => region.name === 'FencedCode');
+                    const replacements = fences.flatMap(region => scanDiagramFences(
+                        transaction.state.doc.slice(region.nextFrom, region.nextTo),
+                    ).map(block => ({ ...block,
+                        from: block.from + region.nextFrom, to: block.to + region.nextFrom,
+                        lineFrom: block.lineFrom + region.nextFrom,
+                        contentFrom: block.contentFrom + region.nextFrom, contentTo: block.contentTo + region.nextFrom,
+                    })));
+                    value = patchSourceReveal(value, transaction, fences, replacements, shouldShowSource, projectBlock);
+                    value.ranges = value.blocks.map(({ from, to }) => ({ from, to }));
+                    if (transaction.effects.length || transaction.state.field(mouseSelectingField, false)
+                        || transaction.startState.field(mouseSelectingField, false)) return buildState(transaction.state, value.blocks);
+                    return updateSourceReveal(value, transaction, shouldShowSource, projectBlock);
                 }
                 const mapped = mapState(value, transaction.changes);
                 mapped.revealIndex = sourceRevealIndex(mapped.blocks);
-                return transaction.selection ? buildState(transaction.state, mapped.blocks) : mapped;
+                return updateSourceReveal(mapped, transaction, shouldShowSource, projectBlock);
             }
 
             const isDragging = transaction.state.field(mouseSelectingField, false);

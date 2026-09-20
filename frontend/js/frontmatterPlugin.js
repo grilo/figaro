@@ -20,6 +20,7 @@ import { renderLucideIcon } from './lucideIcons.js';
 import {
     FRONTMATTER_UPWARD_REVEAL_USER_EVENT,
     frontmatterModeAfterSelection,
+    frontmatterEditNeedsParse,
 } from './core/frontmatterPresentationModel.js';
 import { startCompletion } from '@codemirror/autocomplete';
 import { enhanceSettingsPicker } from './settingsPicker.js';
@@ -767,7 +768,8 @@ export function createFrontmatterField(
             if (!/^(?:---|\.\.\.)[ \t]*\r?$/u.test(line.text)) continue;
             return doc.sliceString(0, line.to < doc.length ? line.to + 1 : line.to);
         }
-        return doc.toString();
+        // An unfinished header has no rendered Properties; retain only its opener.
+        return firstLine.text;
     };
 
     const buildDecorations = (state, mode, frontmatter, source, isOpening = false) => {
@@ -791,12 +793,25 @@ export function createFrontmatterField(
             const source = frontmatterDocumentSource(state.doc);
             const frontmatter = parseFrontmatter(source);
             const mode = frontmatter ? 'collapsed' : 'none';
-            return { mode, frontmatter, decorations: buildDecorations(state, mode, frontmatter, source) };
+            return { mode, frontmatter, source, leading: hasLeadingFrontmatter(source),
+                decorations: buildDecorations(state, mode, frontmatter, source) };
         },
         update(value, transaction) {
             let mode = value.mode;
             let explicitMode = false;
-            let needsRebuild = transaction.docChanged;
+            let needsParse = false;
+            if (transaction.docChanged) {
+                const changes = [];
+                transaction.changes.iterChangedRanges((from, to, nextFrom, nextTo) => {
+                    const doc = transaction.state.doc;
+                    changes.push({ from, to, afterLines: value.frontmatter ? ''
+                        : doc.sliceString(doc.lineAt(nextFrom).from, doc.lineAt(nextTo).to) });
+                });
+                needsParse = frontmatterEditNeedsParse({ closedTo: value.frontmatter?.to ?? null,
+                    leading: value.leading, firstLine: transaction.state.doc.line(1).text,
+                    openingEnd: transaction.startState.doc.line(1).to, changes });
+            }
+            let needsRebuild = needsParse;
             for (const effect of transaction.effects) {
                 if (effect.is(setMode)) {
                     if (mode !== effect.value) needsRebuild = true;
@@ -805,19 +820,17 @@ export function createFrontmatterField(
                 }
             }
 
-            // Parsing uses doc.toString(), so reserve it for actual document
-            // changes. Arrow-key movement through the body keeps the previous
-            // metadata snapshot and its block widget intact.
-            const source = transaction.docChanged
+            // Body edits retain the immutable metadata and its mounted widget.
+            const source = needsParse
                 ? frontmatterDocumentSource(transaction.state.doc)
                 : null;
             const frontmatter = source === null ? value.frontmatter : parseFrontmatter(source);
-            if (transaction.docChanged) {
+            if (needsParse) {
                 if (!frontmatter) mode = 'none';
                 else if (!value.frontmatter && !explicitMode) mode = 'collapsed';
             }
 
-            if (!transaction.docChanged && !explicitMode) {
+            if (!needsParse && !explicitMode) {
                 const selectionChanged = Boolean(transaction.selection);
                 const upwardRevealRequested = transaction.isUserEvent?.(
                     FRONTMATTER_UPWARD_REVEAL_USER_EVENT,
@@ -843,11 +856,13 @@ export function createFrontmatterField(
             return {
                 mode,
                 frontmatter,
+                source: source ?? value.source,
+                leading: source === null ? value.leading : hasLeadingFrontmatter(source),
                 decorations: buildDecorations(
                     transaction.state,
                     mode,
                     frontmatter,
-                    source ?? frontmatterDocumentSource(transaction.state.doc),
+                    source ?? value.source,
                     isOpening,
                 ),
             };

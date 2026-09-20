@@ -1,3 +1,4 @@
+import { readTabContent } from './tabContent.js';
 import { saveDirtyDocumentsBeforeExit } from './windowClose.js';
 
 /** Install loss-prevention handlers synchronously; restore the timer alongside
@@ -26,7 +27,7 @@ export function installEditorSaveProtection({ listen, registerClose, loadInterva
         configureInterval(0);
         for (const tab of tabs()) {
             if (!tab.dirty || tab.type !== 'file') continue;
-            const content = tab.id === activeId() ? activeContent() : tab._content;
+            const content = tab.id === activeId() ? activeContent() : readTabContent(tab);
             if (typeof content === 'string') await save(tab, content).catch(() => {});
         }
         saveSession();

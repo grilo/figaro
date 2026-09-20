@@ -20,6 +20,7 @@ import {
     vegaRenderDimensions,
 } from './core/diagramRenderCacheModel.js';
 import { createDiagramOutputReuse } from './usecases/diagramOutputReuse.js';
+import { createMermaidValidationReuse } from './usecases/mermaidValidationReuse.js';
 
 export const diagramLanguages = ['mermaid', 'vega', 'vega-lite'];
 
@@ -29,6 +30,7 @@ const DIAGRAM_RENDER_CACHE_LIMIT = 64;
 const diagramRenderCache = new Map();
 const pendingDiagramRenders = new Map();
 let mermaidJob = Promise.resolve();
+const reuseMermaidValidation = createMermaidValidationReuse((code, mermaid) => withMermaid(() => mermaid.parse(code)));
 let initializedVega = null;
 let observedFonts = null;
 let fontGeneration = 0;
@@ -143,7 +145,7 @@ export async function validateMermaidSource(source) {
         error.code = 'mermaid-unavailable';
         throw error;
     }
-    return withMermaid(() => window.mermaid.parse(code));
+    return reuseMermaidValidation(code, initializedMermaid);
 }
 
 /** Snapshot parsed identities and effective styling, without leaking Mermaid's mutable DB. */

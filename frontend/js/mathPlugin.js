@@ -1,4 +1,5 @@
-import { sourceRevealIndex, updateSourceReveal } from './sourceReveal.js';
+import { sourceRevealIndex, updateSourceReveal, mapSourceReveal } from './sourceReveal.js';
+import { selectedRangeIndices } from './core/selectionRangeIndex.js';
 import { countEditorWork, readEditorDocument } from './editorDiagnostics.js';
 /**
  * Math Plugin — renders $inline$ and $$block$$ math using KaTeX
@@ -96,12 +97,6 @@ function buildMathState(state, blocks) {
     };
 }
 
-function refreshMathVisibility(value, state) {
-    return value.blocks.some((block, index) => mathSourceVisible(state, block) !== value.visibleIndices.has(index))
-        ? buildMathState(state, value.blocks)
-        : value;
-}
-
 function changesNeedMathRescan(value, transaction) {
     let needsRescan = false;
     transaction.changes.iterChanges((fromA, toA, fromB, toB) => {
@@ -112,25 +107,22 @@ function changesNeedMathRescan(value, transaction) {
             needsRescan = true;
             return;
         }
-        if (value.ranges.some(range => fromA <= range.to && toA >= range.from)) {
+        if (selectedRangeIndices(value.revealIndex, [{ from: fromA, to: toA }]).indices.size) {
             needsRescan = true;
         }
     });
     return needsRescan;
 }
 
-function mapMathState(value, changes) {
-    return {
-        ...value,
-        blocks: value.blocks.map(block => ({ ...block, sourceIdentity: block.sourceIdentity || block,
-            from: changes.mapPos(block.from, -1), to: changes.mapPos(block.to, 1),
-        })),
-        decorations: value.decorations.map(changes),
-        ranges: value.ranges.map(range => ({
-            from: changes.mapPos(range.from, -1),
-            to: changes.mapPos(range.to, 1),
-        })),
-    };
+function mapMathState(value, transaction) {
+    let afterMath = true;
+    transaction.changes.iterChangedRanges(from => {
+        if (from <= (value.revealIndex?.maxTo ?? -1)) afterMath = false;
+    });
+    if (afterMath) return value;
+    const mapped = mapSourceReveal(value, transaction);
+    return { ...mapped, ranges: mapped.blocks === value.blocks ? value.ranges
+        : mapped.blocks.map(({ from, to }) => ({ from, to })) };
 }
 
 export const mathField = StateField.define({
@@ -140,9 +132,10 @@ export const mathField = StateField.define({
     update(value, transaction) {
         if (transaction.docChanged) {
             if (changesNeedMathRescan(value, transaction)) return buildMathState(transaction.state);
-            const mapped = mapMathState(value, transaction.changes);
-            mapped.revealIndex = sourceRevealIndex(mapped.blocks);
-            return refreshMathVisibility(mapped, transaction.state);
+            const mapped = mapMathState(value, transaction);
+            return updateSourceReveal(mapped, transaction,
+                (state, from, to) => mathSourceVisible(state, { from, to }), mathBlockDecorations,
+                state => [{ from: state.selection.main.head, to: state.selection.main.head }]);
         }
         if (!transaction.selection) return value;
 

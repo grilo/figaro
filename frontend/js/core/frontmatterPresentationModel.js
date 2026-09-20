@@ -14,3 +14,12 @@ export function frontmatterModeAfterSelection({
     if (mode !== 'source' && selectionTouches && upwardRevealRequested) return 'source';
     return mode;
 }
+
+/** Only delimiter/header edits can change a leading Properties projection. */
+export function frontmatterEditNeedsParse({ closedTo = null, leading = false, firstLine = '', openingEnd = 0, changes = [] }) {
+    if (closedTo !== null) return changes.some(change => change.from <= closedTo);
+    const nextLeading = /^\uFEFF?---[ \t]*\r?$/u.test(firstLine);
+    if (!nextLeading) return leading;
+    if (!leading || changes.some(change => change.from <= openingEnd)) return true;
+    return changes.some(change => /^(?:---|\.\.\.)[ \t]*\r?$/mu.test(change.afterLines));
+}

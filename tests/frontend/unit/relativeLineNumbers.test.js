@@ -5,6 +5,7 @@ import {
     relativeLineNumberSpacerLabel,
 } from '../../../frontend/js/core/relativeLineNumberModel.js';
 import { relativeLineNumbers } from '../../../frontend/js/relativeLineNumbers.js';
+import * as numberModel from '../../../frontend/js/core/relativeLineNumberModel.js';
 
 function visibleLineNumberLabels(view) {
     return Array.from(view.dom.querySelectorAll('.cm-lineNumbers .cm-gutterElement'))
@@ -13,6 +14,27 @@ function visibleLineNumberLabels(view) {
 }
 
 describe('relative editor line numbers', () => {
+    test('same-line cursor movement retains labels, while crossing lines and editing refresh them', () => {
+        const view = new EditorView({ parent: document.body, state: EditorState.create({
+            doc: Array(100).fill('Enough room for horizontal cursor motion.').join('\n'),
+            extensions: [relativeLineNumbers()],
+        }) });
+        const labels = jest.spyOn(numberModel, 'relativeLineNumberLabel');
+        try {
+            const before = visibleLineNumberLabels(view);
+            for (let i = 0; i < 20; i++) view.dispatch({ selection: { anchor: 2 + i % 10 } });
+            expect(labels).not.toHaveBeenCalled();
+            expect(visibleLineNumberLabels(view)).toEqual(before);
+            view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+            expect(labels).toHaveBeenCalled();
+            expect(visibleLineNumberLabels(view).slice(0, 4)).toEqual(['2', '1', '', '1']);
+            labels.mockClear();
+            view.dispatch({ changes: { from: 0, insert: 'New line\n' } });
+            expect(labels).toHaveBeenCalled();
+            expect(visibleLineNumberLabels(view).slice(0, 4)).toEqual(['3', '2', '1', '']);
+        } finally { labels.mockRestore(); view.destroy(); }
+    });
+
     test('labels logical lines by their distance from the cursor and reserves stable width', () => {
         expect([1, 2, 3, 4, 5].map(line => relativeLineNumberLabel(line, 3)))
             .toEqual(['2', '1', '', '1', '2']);

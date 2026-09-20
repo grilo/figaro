@@ -1,3 +1,4 @@
+import { personalDictionaryList } from '../../../frontend/js/core/spellingDictionaryModel.js';
 import { acceptedSpelling, filterAcceptedSpelling } from '../../../frontend/js/core/spellingDictionaryModel.js';
 
 test.each(['en-US', 'en-GB'])('%s personal words accept regular noun plurals and singular/plural possessives', language => {
@@ -56,4 +57,12 @@ test('personal acceptance stays isolated across dictionaries and does not mutate
     expect(filterAcceptedSpelling(values, [], 'en-US')).toEqual(values);
     expect(other('figarowords')).toBe(false);
     expect(acceptedSpelling(words, 'en-US')('glinters')).toBe(false);
+});
+
+
+test('dictionary list filters normalized stored entries and bounds alphabetical results', () => {
+    expect(personalDictionaryList(['zebra', 'café', "author's"], 'CAFE\u0301')).toEqual({ count: 3, matching: 1, visible: ['café'], more: false });
+    expect(personalDictionaryList(['zebra', 'alpha', 'beta'], '', 2)).toEqual({ count: 3, matching: 3, visible: ['alpha', 'beta'], more: true });
+    expect(personalDictionaryList(["author's"], 'author’s').visible).toEqual(["author's"]);
+    expect(personalDictionaryList([], '')).toEqual({ count: 0, matching: 0, visible: [], more: false });
 });

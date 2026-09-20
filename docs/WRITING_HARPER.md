@@ -3,7 +3,7 @@
 ## Scope
 
 Proofreading adds 15 reviewed rules from **vale-cli/Harper 0.1.0** (derived from
-Harper 2.7) and 160 conservative Figaro grammar checks: 175 rule IDs in total.
+Harper 2.7) and 162 conservative Figaro grammar checks: 177 rule IDs in total.
 The second batch added 28 independent implementations reviewed against native
 Harper 2.10.0; the third expands their context and adds five pronoun/question
 checks. Policy 5 added 60 phrase, construction, word-boundary, and punctuation
@@ -232,7 +232,7 @@ the counts and limitations measured at their original snapshots.
 
 ## Broader contexts and quality follow-up
 
-Policy 7 keeps the same 175 rule IDs and broadens 29 existing families:
+Policy 7 kept the same 175 rule IDs and broadened 29 existing families:
 AccuseOf, AspireTo, AwaitFor, BewareOf, BoarderBorder, CuriousAbout, CureFor,
 DoesOrDose, FascinatedBy, FriendOfMe, HaveAHardTime, InHindsight, InTheSameVein,
 JealousOf, LaughOfAt, LetsConfusion, MassNouns, OvertimeCompoundNoun,
@@ -263,6 +263,33 @@ The [quality report](benchmarks/writing-quality-2026-09-20.md) compares the same
 409 upstream positive cases before and after this change, includes all negative
 controls, and separates those development examples from the fresh documents.
 
+## Document gap corrections
+
+Policy 8 has **177 rule IDs**: 15 Vale-port rules and 162 pure Go checks. It
+closes the five errors identified in the later document review:
+
+- NounSubjectAgreement follows the original noun across one bounded
+  prepositional modifier: “The box of tools were” → “was,” and “The instruments
+  near the bridge has been checked” → “have.” Coordinations, relative clauses,
+  collective/invariant heads and singular counterfactual “were” remain excluded.
+- SimplePastToPastParticiple permits “saw” → “seen” after perfect auxiliaries,
+  with at most two reviewed intervening adverbs and an explicit object
+  determiner/pronoun. “Saw blades,” “saw dust,” and the ordinary past “I saw”
+  remain unchanged. The adapted YAML hash and source notice are updated.
+- The independently authored CountableAmount check recognizes reviewed discrete
+  heads in “amount of times/requests/errors.” It preserves measured amounts and
+  noun compounds, and includes the article when “an amount” becomes “a number.”
+- The independently authored CommaSplice check reviews two substantial clauses
+  with explicit subjects and finite predicates. It leaves the author to choose
+  a conjunction, semicolon or sentence break. Dependent clauses, parenthetical
+  “I think,” short rhetorical lists and serial coordination remain unchanged.
+
+The corpus now has **573 positives and 1,041 valid/ambiguous examples**. Native
+bridge fixtures cover Markdown emphasis, Unicode/CRLF and protected contexts;
+Apply/Undo tests cover all three new correction shapes. Comma-splice advice has
+rule-specific Ignore and no Apply action. [The gap report](benchmarks/writing-gaps-2026-09-20.md)
+replays the reviewed documents; they are now regression material, not holdout gold.
+
 ## Source and execution contract
 
 - The native adapter loads the pinned dictionary and all rules eagerly. Sequence
@@ -277,8 +304,12 @@ controls, and separates those development examples from the fresh documents.
   native analysis. Existing queue, cancellation, deadline, error/retry, saving,
   and shutdown behavior remains in effect.
 - A prose block containing masked quotation, inline code, or technical text is
-  withheld from these contextual checks. Removing that text could create false
-  adjacency. Formatting and explicit link labels can remain eligible; a fix is
+  withheld from the contextual grammar checks. CountableAmount is an explicit
+  exception: its finding spans its complete visible phrase. CommaSplice is
+  advisory-only and verifies its own bounded clauses, allowing an opaque
+  technical subject without reading hidden contents. Neither exception can
+  underline or replace protected text. Removing masked words must never create
+  false adjacency for the remaining rules. Formatting and explicit link labels can remain eligible; a fix is
   offered only for an exact, contiguous, editable source slice. Entity encodings,
   changes spanning Markdown delimiters, and implicit reference identifiers never
   receive a destructive replacement. A replacement that crosses an authored
@@ -300,7 +331,7 @@ controls, and separates those development examples from the fresh documents.
 
 ## Verification and maintenance
 
-`tests/fixtures/writing-grammar.json` contains an independently reviewed positive
+`tests/fixtures/writing-grammar.json` contains a reviewed positive
 and correct-sentence corpus for every enabled rule. Pure Go tests cover additional
 verb forms, ambiguity, Unicode, CRLF, repeated positions, protected boundaries,
 and work limits. The embedded adapter checks real alerts, hashes, and source

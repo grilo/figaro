@@ -244,7 +244,7 @@ export function createPureWritingExtension(options = {}) {
                 .some(effect => effect.is(refreshPureWritingEffect)));
             const settings = presentationSettings(resolved);
             const settingsChanged = settings !== this.presentationSettings;
-            if (update.geometryChanged || refreshed || settingsChanged) {
+            if ((update.geometryChanged && !update.docChanged) || refreshed || settingsChanged) {
                 this.typographyTier = updateViewPresentation(update.view, resolved, this.typographyTier);
                 this.presentationSettings = settings;
             }

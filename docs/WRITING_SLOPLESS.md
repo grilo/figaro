@@ -18,7 +18,8 @@ evidence remains available, and Ignore follows the concern across lens changes.
 **Typography is included at the user's request.** `em-dashes` detects an em dash
 without whitespace on either side; spaced em dashes and en dashes are outside
 this rule. `smart-quotes` flags curly double/single quotation marks and curly
-apostrophes. Figaro underlines the individual marks, including delimiters around
+apostrophes only when they differ from the note’s prevailing straight convention.
+Figaro underlines the individual marks, including delimiters around
 quoted prose, while keeping the quoted words protected. Blockquotes, code,
 frontmatter, math, reference definitions, URLs and wiki targets stay excluded.
 Proofreading’s consistency checks continue to follow the note's prevailing convention;
@@ -118,11 +119,16 @@ The [package review](WRITING_PACKAGE_REVIEW.md) records the same inclusion polic
 parser before worker readiness. Wording rules receive protected prose;
 smart-quotes alone receives the typography projection. Invalid, hidden and
 cross-region native ranges are refused. Consequently, block-to-block rhetoric
-and patterns that span protected content are not reported.
+and patterns that span protected content are not reported. Curly marks are
+retained as visible advice only when they differ from the current note’s
+prevailing straight quote or apostrophe style. Consistent curly typography stays
+unchanged. Both conventions are inferred independently; ties use the first
+authored occurrence. Raw diagnostics remain available as suppressed evidence,
+and changing earlier paragraphs recomputes the convention during resolution.
 
 `core/writingSloplessModel.js` owns the selection, neutral presentation,
 examples, UTF-16 range validation, mark splitting and repeated-word anchors.
-Mapping/configuration version 18 includes the package pin and exact selected
+Mapping/configuration version 23 includes the package pin and exact selected
 rule map. No CLI, runtime configuration files, model API, network service or
 interaction-triggered module import is used. Package upgrades require another
 rule review and an updated inventory; upstream additions are never enabled

@@ -1,3 +1,4 @@
+import { readTabContent } from './tabContent.js';
 /**
  * Save every dirty document before a native window close. Closing is allowed
  * only when each requested write succeeds and no newer edit remains dirty.
@@ -11,7 +12,7 @@ export async function saveDirtyDocumentsBeforeExit({
 } = {}) {
     for (const tab of tabs) {
         if (!tab?.dirty || tab.type !== 'file') continue;
-        const content = tab.id === activeId ? activeContent() : tab._content;
+        const content = tab.id === activeId ? activeContent() : readTabContent(tab);
         if (typeof content !== 'string') return false;
         try {
             const result = await save(tab, content, { failurePrompt: 'always' });

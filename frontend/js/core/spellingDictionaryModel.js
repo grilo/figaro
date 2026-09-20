@@ -46,3 +46,10 @@ export function filterAcceptedSpelling(values, words = [], language) {
     const accepts = acceptedSpelling(words, language);
     return values.filter(value => !accepts(value.actual || value.word));
 }
+
+/** A bounded, searchable view of stored entries; derived plurals are not stored rows. */
+export function personalDictionaryList(words, query = '', limit = 100) {
+    const key = spellingWordKey(query);
+    const matches = words.filter(word => spellingWordKey(word).includes(key)).sort((a, b) => a.localeCompare(b));
+    return { count: words.length, matching: matches.length, visible: matches.slice(0, limit), more: matches.length > limit };
+}

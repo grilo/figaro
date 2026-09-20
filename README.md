@@ -63,7 +63,14 @@ phrase focus also reuse their prepared data in long notes. Frequent buffer
 updates keep remembered cursors intact without revisiting every open tab.
 Entering source updates the affected block while other previews stay in place. Find navigation
 reuses its match list, and remembered cursors update directly even with many
-open tabs.
+open tabs. Lists, blockquotes and links also reuse their prepared display state
+as the caret moves. Writing hints skip unchanged link labels, and relative line
+numbers refresh when the caret changes logical lines. Revealed list and blockquote
+markers share the body font so wrapped rows stay aligned.
+Ordinary clicks inspect nearby source before looking up footnotes. Code
+indentation guides and long-line completion avoid repeated broad scans; edits
+after formulas retain their previews, and unchanged Mermaid diagrams reuse
+their diagnostic results as prose changes.
 Deleting the active note from the file tree closes its tab and returns to the
 most recently used remaining tab. Closing the final tab returns to Home.
 
@@ -77,6 +84,20 @@ it to the top of the editor, with its section ready to read below it.
 Cursor memory updates independently of tab and toolbar presentation, so moving
 through a note does not refresh the workspace shell. Contributors can trace
 cursor and typing work with the [editor update guide](docs/EDITOR_UPDATES.md).
+
+Related Settings options, including Navigation and Vim mode, sit together in
+inset groups with their headings above the controls. Their background matches
+the workspace beneath Settings.
+
+**Settings → Editor → Smooth mouse-wheel scrolling** optionally eases wheel
+steps in the editor. It is off by default, respects reduced motion, and always
+leaves macOS scrolling native. Keyboard and pointer actions stop the animation.
+
+Ordinary prose edits keep Outline rows, Properties, writing marks in other
+paragraphs, and unchanged Markdown previews in place. Editing a list or quote
+refreshes its affected line. Heading, code and soft line-break edits keep unrelated
+previews in place; changes to Markdown structure still refresh them. Kanban catches up with unsaved tasks when you return to it; saves and
+open previews continue to use the latest buffer.
 
 Clicking the Outline, Writing lenses, Raw, PDF, or History launcher while typing
 keeps focus in the editor, so you can carry on writing. Click inside the sidebar
@@ -104,7 +125,7 @@ With Vim **Move by visual rows** enabled, Up/Down and `j`/`k` finish traversing
 wrapped prose before revealing an adjacent diagram or code block. No blank line
 is needed between the block and the paragraph.
 
-Writing lenses underline words and phrases for review. Unchanged paragraphs and spelling lookups are reused as you edit; review work waits while you type. Previous cards stay visible while refreshing, with their actions disabled. Underlines in unchanged paragraphs follow edits; the edited paragraph and document-wide advice wait for fresh checks. Hover a suggestion to
+Writing lenses underline words and phrases for review. Unchanged Markdown mappings, paragraph checks and spelling lookups are reused as you edit; review work waits while you type. Previous cards stay visible while refreshing, with their actions disabled. Underlines in unchanged paragraphs follow edits; the edited paragraph and document-wide advice wait for fresh checks. Hover a suggestion to
 see its explanation and, where available, a replacement you can apply in
 place. Choose any combination of **Proofreading**, **Clarity**,
 **Directness**, **Inclusive language**, and **Formulaic writing** for each
@@ -130,6 +151,10 @@ such as `async`, `dotfiles`, and `etag`, lower-camel-case identifiers, and acron
 defined in your note avoid misleading spelling replacements. Balanced multiline
 parentheses and literal scheduling phrases receive fewer false warnings.
 Equivalent “there is/are” advice shares one finding across selected lenses.
+Review also catches “the box of tools were,” “had saw the tool,” and “amount of
+times.” Possible comma splices receive advice without an automatic rewrite.
+API members, Ctrl, args, backoff and debounce avoid spelling guesses that change
+their meaning; literal “just before lunch” and “food for the birds” stay intact.
 
 Footnote identifiers such as `[^reference]` are excluded from writing advice,
 even before their definitions exist. The footnote's explanatory text is checked.
@@ -145,7 +170,13 @@ captured revision. Cursor movement avoids redundant browser-storage writes, and
 slow workspace-session writes retain only the newest waiting snapshot. Keyboard
 navigation also reuses unchanged Outline, focus, and diagram information and
 avoids refreshing file-tree markers that have not changed. You can ignore a suggestion, add a word
-to your dictionary, or return to a saved review decision later. In English,
+to your dictionary, or return to a saved review decision later. Manage accepted
+words through **Settings → Editor → Personal dictionary → Manage…**, or use
+**Manage dictionary…** under **Proofreading** in Writing lenses. Both open a
+resizable dialog with search, Add, Remove, and Undo. Its word list scrolls inside
+the dialog, keeping Settings compact. Changes save automatically for every note in this vault.
+Returning from Settings or another workspace panel keeps the editor’s writing
+margin stable from its first visible frame. In English,
 adding a word also accepts its regular plural and possessives, such as
 `figarowords`, `figaroword's`, and `figarowords'`. This also applies to previously
 saved words. Adding `figaroword’s` also accepts the base word and its plural;
@@ -154,6 +185,12 @@ accent encodings match consistently without changing your note text. Capitalized
 words receive case-matched suggestions, and all-caps and slash/dot-separated prose
 is checked too. Your choices survive restarts. Repeated suggestions share a card, and suitable replacements
 offer an action to apply the same change throughout the document.
+
+Writing review preserves familiar words, meaningful modifiers and reviewed technical
+process descriptions, including timed maintenance and API behavior. Concrete
+“there is/are” statements about location, quantity or available time stay unmarked.
+Formulaic punctuation follows the note’s prevailing quote
+and apostrophe styles instead of warning about consistent curly punctuation.
 
 The advice is optional. Grammar checks cover selected issues, and readability
 hints need judgment. Formulaic writing cannot tell you who wrote a text.

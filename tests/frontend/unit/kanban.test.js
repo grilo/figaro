@@ -38,7 +38,7 @@ describe('live Kanban buffers and compact cards', () => {
         setState('activeTabId', null);
         setState('kanbanDensity', 'comfortable');
         setState('kanbanLayout', 'side-by-side');
-        document.getElementById('tab-panels').innerHTML = '<div id="kanban-board-main"></div>';
+        document.getElementById('tab-panels').innerHTML = '<div class="tab-panel active"><div id="kanban-board-main"></div></div>';
         window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
         window.go.desktop.App.GetTaskSchedules.mockResolvedValue([]);
@@ -68,6 +68,23 @@ describe('live Kanban buffers and compact cards', () => {
         boardButton.click();
         expect(instruction.hidden).toBe(false);
         expect(instruction.textContent).toContain('Plan trip #todo');
+        session.dispose();
+    });
+
+    test('hidden Kanban skips buffer reads and warm activation catches up from the latest snapshot', async () => {
+        const panel = document.querySelector('.tab-panel');
+        const session = mountKanbanWorkspace(panel);
+        initKanban();
+        await testUtils.waitFor(30);
+        panel.classList.remove('active'); session.deactivate();
+        const readContent = jest.fn(() => 'Latest task #wip');
+        setState('openTabs', [{ id: 'note', type: 'file', path: 'note.md', dirty: true, _content: { readContent } }]);
+        document.dispatchEvent(new CustomEvent('file-content-changed'));
+        await testUtils.waitFor(30);
+        expect(readContent).not.toHaveBeenCalled();
+        panel.classList.add('active'); session.activate();
+        expect(getState('kanbanBoardData').wip[0].text).toBe('Latest task');
+        expect(panel.querySelector('.kanban-card').textContent).toContain('Latest task');
         session.dispose();
     });
 

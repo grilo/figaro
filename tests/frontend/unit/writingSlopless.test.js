@@ -19,7 +19,7 @@ const fixtures = {
     'hedge-stacking': 'Maybe this might possibly help.',
     'softening-language': 'Some people might generally benefit from this change.',
     'em-dashes': 'The draft is ready—we can send it.',
-    'smart-quotes': 'She said “ready”.',
+    'smart-quotes': 'She said "one". He said "two". They said “ready”.',
     'boilerplate-framing': 'Let me be honest: the deadline is unrealistic.',
     'generic-signposting': 'The short answer is that we need another day.',
     'negation-reframe': 'We do not sell software. We sell outcomes.',
@@ -85,8 +85,8 @@ test.each(Object.entries(fixtures))('Formulaic writing executes real Slopless %s
     expect((await review(source, ['spelling'])).findings).toEqual([]);
 });
 
-test('Formulaic typography flags unspaced em dashes, curly quotes and apostrophes without recommending changes to quoted words', async () => {
-    const source = 'She said “Let me be honest.” It’s ready—we can send it. Use ‘single quotes’ too.';
+test('Formulaic typography flags unspaced em dashes and curly outliers without recommending changes to quoted words', async () => {
+    const source = 'She said "one". He said "two". It\'s ready. You\'re done. She said “Let me be honest.” It’s ready—we can send it. Use ‘single quotes’ too.';
     const { findings } = await review(source);
     expect(findings.map(f => f.actual)).toEqual(['“', '”', '’', '—', '‘', '’']);
     expect(findings.every(f => f.to === f.from + 1 && f.fixes.length === 0)).toBe(true);
@@ -131,7 +131,8 @@ test('Formulaic keeps different advice on the same sentence and groups repeated 
     const { findings } = await review('The lesson is clear.');
     expect(findings.map(f => f.kind)).toEqual(['formulaic.abstract', 'formulaic.conclusion', 'formulaic.framing']);
     expect(findings.find(f => f.kind === 'formulaic.conclusion').sources.length).toBeGreaterThan(1);
-    const { result } = await review(Array(8).fill('It’s ready—we can send it.').join('\n\n'));
+    const source = [...Array(9).fill('It\'s done.'), ...Array(8).fill('It’s ready—we can send it.')].join('\n\n');
+    const { result } = await review(source);
     const cards = writingReviewCards(result.groups);
     expect(cards).toHaveLength(2);
     expect(cards.map(card => card.findings.length)).toEqual([8, 8]);
@@ -139,7 +140,7 @@ test('Formulaic keeps different advice on the same sentence and groups repeated 
 });
 
 test('Formulaic inline suggestions use existing styled Ignore and examples without inferred Apply actions', async () => {
-    const { findings } = await review('It’s ready—we can send it.');
+    const { findings } = await review('It\'s ready. You\'re done. It’s ready—we can send it.');
     const onIgnore = jest.fn();
     const dom = createWritingInlineView({ findings, onIgnore, onClose() {} });
     document.body.replaceChildren(dom);

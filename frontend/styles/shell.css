@@ -1352,10 +1352,10 @@ html[data-startup-sidebar-collapsed="true"] #sidebar {
     opacity: .62;
 }
 
-/* The visual-row preference is unavailable by design while Vim is off; it is
-   not a save-in-progress control, so give it the matching unavailable state. */
+/* Platform- or mode-unavailable preferences are not save-in-progress controls. */
 #vim-visual-rows-toggle:disabled + .toggle-slider,
-#vim-reveal-blocks-toggle:disabled + .toggle-slider {
+#vim-reveal-blocks-toggle:disabled + .toggle-slider,
+#smooth-wheel-scroll-toggle:disabled + .toggle-slider {
     cursor: not-allowed;
     opacity: .5;
 }

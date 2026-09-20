@@ -12,6 +12,7 @@ describe('Settings search navigation', () => {
                 <section class="settings-section">
                     <span id="vim-label">Enable Vim</span>
                     <input id="vim-toggle" aria-labelledby="vim-label">
+                    <button id="manage-dictionary">Manage…</button>
                 </section>`;
         });
         initSettingsNavigation({ root: document, openSettings });
@@ -23,5 +24,11 @@ describe('Settings search navigation', () => {
         expect(openSettings).toHaveBeenCalledTimes(1);
         expect(document.activeElement).toBe(target);
         expect(target.closest('.settings-section').classList.contains('settings-search-target')).toBe(true);
+        const activate = jest.fn();
+        document.addEventListener('click', activate, { once: true });
+        requestSettingsTarget(document, '#manage-dictionary', { activate: true });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(activate).toHaveBeenCalledTimes(1);
+        expect(document.activeElement.id).toBe('manage-dictionary');
     });
 });

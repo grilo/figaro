@@ -16,3 +16,13 @@ test('URLs, email, explicit paths, filenames, and identifiers retain exact prote
         expect(ranges.every(range => range.to <= text.length - 1)).toBe(true);
     }
 });
+
+test('PascalCase and dotted camel-case members stay opaque without hiding sentence punctuation errors', () => {
+    for (const token of ['AbortError', 'limit.clearQueue', 'limitedFunction.clearQueue', 'limit.activeCount']) {
+        const text = `😀 Call ${token}.`;
+        expect(writingTechnicalRanges(text).some(range => text.slice(range.from, range.to) === token)).toBe(true);
+    }
+    for (const text of ['Hello.World', 'writting.editting', 'Clear writing', 'Pascal', 'teh.TEST']) {
+        expect(writingTechnicalRanges(text)).toEqual([]);
+    }
+});

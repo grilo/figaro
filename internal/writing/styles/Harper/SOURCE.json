@@ -33,7 +33,7 @@
     "Harper/ForTheNthTime.yml": "ab299006a4cda7ff81899becf9561a30ff25459d476b23abf4c383e09b002613",
     "Harper/IsBeenAuxSequence.yml": "52dcc7a54506b360eb9ddf8e0deb0e724371732c055b2139d05be779eb66cebf",
     "Harper/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
-    "Harper/SimplePastToPastParticiple.yml": "05714c5fee0fbd2462e1907b7b0431bf905840d92566ce619b58b6bf703efb55",
+    "Harper/SimplePastToPastParticiple.yml": "a16a38b945d7c02fa63712eba3a9f63dfc3d38a4ad14c57123bb02283fdb7a0e",
     "Harper/SomeOfThe.yml": "a80bedc141e10f9ac53092e16eb4ec53806fd2ed328c737a4846ade98d6e2eeb",
     "Harper/SomebodyElses.yml": "b9e1336d33ea7e875d1ad524073c5cb10e12e485efedbf53c95b7c325857a10a",
     "Harper/SupposedTo.yml": "e7a976f297728cfa3b84d625b1094eafd7cc76cc00ff1871124aa9a1051e5b7a",
@@ -44,7 +44,7 @@
     "config/dictionaries/harper.dict": "48c6abcd0a7a199ef2efd255a717f888690756e450734a84d798ad23c67508c8"
   },
   "adaptations": {
-    "SimplePastToPastParticiple.yml": "Restrict to perfect tenses; support curly apostrophes; omit ambiguous noun forms and capitalized name-like targets.",
+    "SimplePastToPastParticiple.yml": "Restrict to perfect tenses; support curly apostrophes; omit ambiguous noun forms and capitalized name-like targets. Saw requires an explicit object determiner/pronoun and permits at most two reviewed intervening adverbs; saw blades/dust stay unchanged.",
     "SupposedTo.yml": "Require a preceding form of be; preserve lexical suppose in questions such as What do you suppose to be true?",
     "WillNonLemma.yml": "Match lowercase will/shall only; avoid personal-name Will false positives."
   }

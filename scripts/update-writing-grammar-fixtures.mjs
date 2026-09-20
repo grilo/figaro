@@ -11,5 +11,5 @@ try {
         sample.projectionText = (await analyzeWriting(sample.source)).projection.text;
         sample.native = JSON.parse(await engine.analyze(sample.projectionText));
     }
-    await writeFile(target, JSON.stringify({ generator: 'Production writing engine via scripts/writing-native-profile.mjs; curated Harper 0.1.0 + Figaro grammar 7', fixtures, probes }, null, 2) + '\n');
+    await writeFile(target, JSON.stringify({ generator: 'Production writing engine via scripts/writing-native-profile.mjs; curated Harper 0.1.0 + Figaro grammar 8', fixtures, probes }, null, 2) + '\n');
 } finally { await engine.close(); }

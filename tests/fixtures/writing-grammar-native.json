@@ -1,5 +1,5 @@
 {
-  "generator": "Production writing engine via scripts/writing-native-profile.mjs; curated Harper 0.1.0 + Figaro grammar 7",
+  "generator": "Production writing engine via scripts/writing-native-profile.mjs; curated Harper 0.1.0 + Figaro grammar 8",
   "fixtures": [
     {
       "rule": "Harper.BetterOffWith",
@@ -51,7 +51,50 @@
         "I have saw blades.",
         "We have rose bushes.",
         "He is a bore.",
-        "I have Ran on my team."
+        "I have Ran on my team.",
+        "She had saw blades in the shed.",
+        "We have saw dust on our boots.",
+        "He had a saw in his bag.",
+        "I saw the missing tool.",
+        "I have seen the tool.",
+        "They had already seen their friend."
+      ],
+      "additional": [
+        {
+          "source": "Maya said she had saw the missing tool.",
+          "actual": "saw",
+          "replacements": [
+            "seen"
+          ]
+        },
+        {
+          "source": "We have saw it before.",
+          "actual": "saw",
+          "replacements": [
+            "seen"
+          ]
+        },
+        {
+          "source": "He has already saw the result.",
+          "actual": "saw",
+          "replacements": [
+            "seen"
+          ]
+        },
+        {
+          "source": "They had not saw their friend.",
+          "actual": "saw",
+          "replacements": [
+            "seen"
+          ]
+        },
+        {
+          "source": "I've just saw a fox.",
+          "actual": "saw",
+          "replacements": [
+            "seen"
+          ]
+        }
       ],
       "projectionText": "I have went to the store.\n\n",
       "native": {
@@ -10143,7 +10186,21 @@
         "The dead are buried.",
         "The blind are here.",
         "The unemployed have left.",
-        "The elderly are waiting."
+        "The elderly are waiting.",
+        "The small box of tools was waiting beside the window.",
+        "The instruments near the bridge have been checked twice.",
+        "If the box of tools were missing, we would notice.",
+        "I wish the box of tools were here.",
+        "The team near the bridge have finished.",
+        "The majority of the chairs are blue.",
+        "The box and the tools are ready.",
+        "The box of tools and the chairs are ready.",
+        "The chair that the children have painted is blue.",
+        "The keys to the room that he has cleaned are here.",
+        "The poor in the village are hungry.",
+        "The best of the paintings is here.",
+        "The bottles of water are ready.",
+        "The news from the islands is good."
       ],
       "additional": [
         {
@@ -10173,6 +10230,55 @@
           "replacements": [
             "were"
           ]
+        },
+        {
+          "source": "The small box of tools were waiting beside the window.",
+          "actual": "were",
+          "replacements": [
+            "was"
+          ]
+        },
+        {
+          "source": "The instruments near the bridge has been checked twice.",
+          "actual": "has",
+          "replacements": [
+            "have"
+          ]
+        },
+        {
+          "source": "The keys on the table is missing.",
+          "actual": "is",
+          "replacements": [
+            "are"
+          ]
+        },
+        {
+          "source": "The box with the tools are ready.",
+          "actual": "are",
+          "replacements": [
+            "is"
+          ]
+        },
+        {
+          "source": "My books in the cupboard has arrived.",
+          "actual": "has",
+          "replacements": [
+            "have"
+          ]
+        },
+        {
+          "source": "The handle of the doors have broken.",
+          "actual": "have",
+          "replacements": [
+            "has"
+          ]
+        },
+        {
+          "source": "These chairs beside the window was clean.",
+          "actual": "was",
+          "replacements": [
+            "were"
+          ]
         }
       ],
       "projectionText": "The spare chairs is ready.\n\n",
@@ -10195,6 +10301,143 @@
             "Message": "Match the auxiliary verb to this singular or plural noun subject.",
             "Severity": "warning",
             "Match": "is",
+            "Line": 1
+          }
+        ]
+      }
+    },
+    {
+      "rule": "FigaroGrammar.CountableAmount",
+      "source": "The maximum amount of times to retry the operation.",
+      "actual": "amount of times",
+      "replacements": [
+        "number of times"
+      ],
+      "valid": [
+        "The maximum number of times is three.",
+        "The amount of time is limited.",
+        "The amount of money is correct.",
+        "The amount of water is sufficient.",
+        "The amount of timesaving equipment is large.",
+        "The amount of error correction is sufficient.",
+        "The amount of goods is substantial.",
+        "We received a number of requests.",
+        "We received an enormous number of requests."
+      ],
+      "additional": [
+        {
+          "source": "We recorded a large amount of errors.",
+          "actual": "amount of errors",
+          "replacements": [
+            "number of errors"
+          ]
+        },
+        {
+          "source": "Limit the amount of requests per hour.",
+          "actual": "amount of requests",
+          "replacements": [
+            "number of requests"
+          ]
+        },
+        {
+          "source": "We received an amount of requests.",
+          "actual": "an amount of requests",
+          "replacements": [
+            "a number of requests"
+          ]
+        }
+      ],
+      "projectionText": "The maximum amount of times to retry the operation.\n\n",
+      "native": {
+        "stdin.txt": [
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              5,
+              11
+            ],
+            "Check": "write-good.TooWordy",
+            "Description": "",
+            "Link": "",
+            "Message": "'maximum' is too wordy.",
+            "Severity": "warning",
+            "Match": "maximum",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "replace",
+              "Params": [
+                "number of times"
+              ]
+            },
+            "Span": [
+              13,
+              27
+            ],
+            "Check": "FigaroGrammar.CountableAmount",
+            "Description": "",
+            "Link": "",
+            "Message": "Use “number” for these individually countable items.",
+            "Severity": "warning",
+            "Match": "amount of times",
+            "Line": 1
+          }
+        ]
+      }
+    },
+    {
+      "rule": "FigaroGrammar.CommaSplice",
+      "source": "The system is ready, it starts the next task.",
+      "actual": ",",
+      "replacements": [],
+      "valid": [
+        "If the system is ready, it starts the next task.",
+        "When the system is ready, it then starts the next task.",
+        "The system is ready, and it starts the next task.",
+        "The system is ready; it starts the next task.",
+        "The system is ready. It starts the next task.",
+        "The system, which checks the files, starts the next task.",
+        "I came, I saw, I conquered.",
+        "The system is ready, I think, for the next task.",
+        "If calling the function fails, it then retries the operation.",
+        "Until the last retry is reached, it then tries the next item.",
+        "The gate had been repaired, the tools were clean, and the sacks of fallen leaves could wait until tomorrow.",
+        "The system is ready, it has loaded the files, the workers have started the checks, and the queue is empty."
+      ],
+      "additional": [
+        {
+          "source": "If the request fails, the function is called again until the retries are reached, it then rejects with the last reason.",
+          "actual": ",",
+          "replacements": []
+        },
+        {
+          "source": "She has finished the report, he has already sent the letter.",
+          "actual": ",",
+          "replacements": []
+        }
+      ],
+      "projectionText": "The system is ready, it starts the next task.\n\n",
+      "native": {
+        "stdin.txt": [
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              20,
+              20
+            ],
+            "Check": "FigaroGrammar.CommaSplice",
+            "Description": "",
+            "Link": "",
+            "Message": "These clauses appear to stand on their own. Review whether this comma needs a conjunction, a semicolon, or a sentence break.",
+            "Severity": "warning",
+            "Match": ",",
             "Line": 1
           }
         ]
@@ -11938,6 +12181,423 @@
       "withheld": true,
       "projectionText": "We all seam. To work is useful. What dose ￼ this sign mean?\n\n",
       "native": {}
+    },
+    {
+      "name": "gap attraction emphasis",
+      "source": "The small box of tools **were** waiting.",
+      "rule": "FigaroGrammar.NounSubjectAgreement",
+      "fix": true,
+      "projectionText": "The small box of tools were waiting.\n\n",
+      "native": {
+        "stdin.txt": [
+          {
+            "Action": {
+              "Name": "replace",
+              "Params": [
+                "was"
+              ]
+            },
+            "Span": [
+              24,
+              27
+            ],
+            "Check": "FigaroGrammar.NounSubjectAgreement",
+            "Description": "",
+            "Link": "",
+            "Message": "Match the auxiliary verb to this singular or plural noun subject.",
+            "Severity": "warning",
+            "Match": "were",
+            "Line": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "gap participle emphasis",
+      "source": "Maya had **saw** the missing tool.",
+      "rule": "Harper.SimplePastToPastParticiple",
+      "fix": true,
+      "projectionText": "Maya had saw the missing tool.\n\n",
+      "native": {
+        "stdin.txt": [
+          {
+            "Action": {
+              "Name": "replace",
+              "Params": [
+                "seen"
+              ]
+            },
+            "Span": [
+              10,
+              12
+            ],
+            "Check": "Harper.SimplePastToPastParticiple",
+            "Description": "",
+            "Link": "",
+            "Message": "Use the past participle after a form of `have` or `be`.",
+            "Severity": "warning",
+            "Match": "saw",
+            "Line": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "gap countable emphasis",
+      "source": "The **amount of times** is limited to `10`.",
+      "rule": "FigaroGrammar.CountableAmount",
+      "fix": true,
+      "projectionText": "The amount of times is limited to ￼.\n\n",
+      "native": {
+        "stdin.txt": [
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              21,
+              30
+            ],
+            "Check": "Microsoft.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is limited' looks like passive voice.",
+            "Severity": "suggestion",
+            "Match": "is limited",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              21,
+              30
+            ],
+            "Check": "write-good.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is limited' may be passive voice. Use active voice if you can.",
+            "Severity": "warning",
+            "Match": "is limited",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "replace",
+              "Params": [
+                "number of times"
+              ]
+            },
+            "Span": [
+              5,
+              19
+            ],
+            "Check": "FigaroGrammar.CountableAmount",
+            "Description": "",
+            "Link": "",
+            "Message": "Use “number” for these individually countable items.",
+            "Severity": "warning",
+            "Match": "amount of times",
+            "Line": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "gap local countable protected phrase",
+      "source": "Use `amount of times` as the label.",
+      "withheld": true,
+      "projectionText": "Use ￼ as the label.\n\n",
+      "native": {}
+    },
+    {
+      "name": "gap local countable split protection",
+      "source": "The amount of `times` is recorded.",
+      "withheld": true,
+      "projectionText": "The amount of ￼ is recorded.\n\n",
+      "native": {
+        "stdin.txt": [
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              17,
+              27
+            ],
+            "Check": "Microsoft.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is recorded' looks like passive voice.",
+            "Severity": "suggestion",
+            "Match": "is recorded",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              17,
+              27
+            ],
+            "Check": "write-good.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is recorded' may be passive voice. Use active voice if you can.",
+            "Severity": "warning",
+            "Match": "is recorded",
+            "Line": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "gap local countable quote",
+      "source": "She wrote “the amount of times is limited.”",
+      "withheld": true,
+      "projectionText": "She wrote                                  \n\n",
+      "native": {}
+    },
+    {
+      "name": "gap comma with technical subject",
+      "source": "If calling `input` returns a rejected promise, `input` is called again until the max retries are reached, it then rejects with the last rejection reason.",
+      "rule": "FigaroGrammar.CommaSplice",
+      "fix": false,
+      "projectionText": "If calling ￼ returns a rejected promise, ￼ is called again until the max retries are reached, it then rejects with the last rejection reason.\n\n",
+      "native": {
+        "stdin.txt": [
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              44,
+              52
+            ],
+            "Check": "Microsoft.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is called' looks like passive voice.",
+            "Severity": "suggestion",
+            "Match": "is called",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              44,
+              52
+            ],
+            "Check": "write-good.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is called' may be passive voice. Use active voice if you can.",
+            "Severity": "warning",
+            "Match": "is called",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              82,
+              92
+            ],
+            "Check": "Microsoft.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'are reached' looks like passive voice.",
+            "Severity": "suggestion",
+            "Match": "are reached",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              82,
+              92
+            ],
+            "Check": "write-good.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'are reached' may be passive voice. Use active voice if you can.",
+            "Severity": "warning",
+            "Match": "are reached",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              93,
+              93
+            ],
+            "Check": "FigaroGrammar.CommaSplice",
+            "Description": "",
+            "Link": "",
+            "Message": "These clauses appear to stand on their own. Review whether this comma needs a conjunction, a semicolon, or a sentence break.",
+            "Severity": "warning",
+            "Match": ",",
+            "Line": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "gap comma conditional",
+      "source": "If `input` returns a rejected promise, it then retries the operation.",
+      "withheld": true,
+      "projectionText": "If ￼ returns a rejected promise, it then retries the operation.\n\n",
+      "native": {}
+    },
+    {
+      "name": "gap comma protected quotation",
+      "source": "“The system is ready,” he said to the team.",
+      "withheld": true,
+      "projectionText": "                       he said to the team.\n\n",
+      "native": {}
+    },
+    {
+      "name": "gap comma protected code",
+      "source": "`The system is ready, it starts the next task.`",
+      "withheld": true,
+      "projectionText": "",
+      "native": {}
+    },
+    {
+      "name": "gap local countable unicode CRLF",
+      "source": "😀 The amount of times is limited.\r\n\r\n😀 The amount of times is limited.",
+      "rule": "FigaroGrammar.CountableAmount",
+      "count": 2,
+      "fix": true,
+      "projectionText": "😀 The amount of times is limited.\n\n😀 The amount of times is limited.\n\n",
+      "native": {
+        "stdin.txt": [
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              23,
+              32
+            ],
+            "Check": "Microsoft.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is limited' looks like passive voice.",
+            "Severity": "suggestion",
+            "Match": "is limited",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              23,
+              32
+            ],
+            "Check": "write-good.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is limited' may be passive voice. Use active voice if you can.",
+            "Severity": "warning",
+            "Match": "is limited",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              23,
+              32
+            ],
+            "Check": "Microsoft.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is limited' looks like passive voice.",
+            "Severity": "suggestion",
+            "Match": "is limited",
+            "Line": 3
+          },
+          {
+            "Action": {
+              "Name": "",
+              "Params": null
+            },
+            "Span": [
+              23,
+              32
+            ],
+            "Check": "write-good.Passive",
+            "Description": "",
+            "Link": "",
+            "Message": "'is limited' may be passive voice. Use active voice if you can.",
+            "Severity": "warning",
+            "Match": "is limited",
+            "Line": 3
+          },
+          {
+            "Action": {
+              "Name": "replace",
+              "Params": [
+                "number of times"
+              ]
+            },
+            "Span": [
+              7,
+              21
+            ],
+            "Check": "FigaroGrammar.CountableAmount",
+            "Description": "",
+            "Link": "",
+            "Message": "Use “number” for these individually countable items.",
+            "Severity": "warning",
+            "Match": "amount of times",
+            "Line": 1
+          },
+          {
+            "Action": {
+              "Name": "replace",
+              "Params": [
+                "number of times"
+              ]
+            },
+            "Span": [
+              7,
+              21
+            ],
+            "Check": "FigaroGrammar.CountableAmount",
+            "Description": "",
+            "Link": "",
+            "Message": "Use “number” for these individually countable items.",
+            "Severity": "warning",
+            "Match": "amount of times",
+            "Line": 3
+          }
+        ]
+      }
     }
   ]
 }

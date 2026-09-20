@@ -331,3 +331,10 @@ Adapter regressions and repeated native wheel scrolling in the existing catalogu
 scenario cover stable dimensions. No primitive, token, or cascade change is needed.
 
 The catalogue builder normalizes trailing whitespace in parsed JavaScript comments without changing literal contents. `--check` compares this same deterministic output.
+
+The approved Settings cutout variant `.settings-section--inset` groups related
+options with a heading above the controls. It uses `--workspace-surface` exactly,
+without another surface token, border or shadow. Its production layout and
+catalogue specimen share the same stylesheet; the approval registry and focused
+catalogue test track it. Personal dictionary management reuses existing fields,
+buttons, notices and the shared resizable modal without introducing a primitive.

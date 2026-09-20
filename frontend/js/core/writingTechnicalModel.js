@@ -34,8 +34,13 @@ const fileExtensions = new Set(('md markdown mdx txt rst org pdf doc docx odt rt
 function isTechnicalToken(token) {
     if (!/[\p{L}\p{N}]/u.test(token)) return false;
     if (token.includes('_') || token.includes('\\')) return true;
-    // Lower camel case is an identifier shape, not sentence/title capitals.
-    if (/^[a-z]+(?:[A-Z][a-z0-9]+)+$/u.test(token)) return true;
+    // Internal word capitals distinguish identifiers from ordinary title case.
+    // Protect a dotted member only when one segment has that identifier shape;
+    // a missing space in “Hello.World” still needs prose checking.
+    const identifier = /^(?:[a-z]+|[A-Z][a-z]+)(?:[A-Z][a-z0-9]+)+$/u;
+    const members = token.split('.');
+    if (members.every(member => /^[A-Za-z][A-Za-z0-9]*$/u.test(member))
+        && members.some(member => identifier.test(member))) return true;
     if (/^(?:\.{0,2}\/|~\/|[A-Za-z]:\/)/u.test(token)) return true;
     const extension = /\.([A-Za-z0-9]+)$/u.exec(token)?.[1].toLowerCase();
     return fileExtensions.has(extension);

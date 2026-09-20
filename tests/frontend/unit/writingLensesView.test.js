@@ -166,3 +166,17 @@ test('disabled lens reasons become coverage descriptions when the lens is availa
         tooltips.destroy(); view.destroy();
     }
 });
+
+
+test('Proofreading offers dictionary management even when spelling is disabled', () => {
+    const onManageDictionary = jest.fn();
+    const view = createWritingLensesView({ onChange() {}, onRetry() {}, onManageDictionary });
+    document.body.append(view.element);
+    view.update({ preferences: { language: 'none', lenses: [] }, status: 'saved' });
+    const button = view.element.querySelector('[data-manage-dictionary]');
+    expect(button.hidden).toBe(false);
+    expect(button.disabled).toBe(false);
+    expect(button.parentElement.querySelector('input').value).toBe('proofreading');
+    button.click(); expect(onManageDictionary).toHaveBeenCalledTimes(1);
+    view.destroy(); view.element.remove();
+});

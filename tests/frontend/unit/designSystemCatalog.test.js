@@ -200,6 +200,7 @@ describe('design-system catalogue', () => {
             '.file-tree-node.cut-marked',
             '.file-tree-node.file-issue--warning',
             '.file-tree-node.file-issue--danger',
+            '.settings-section--inset',
         ]) {
             expect(catalogue.querySelector(selector)).not.toBeNull();
         }
@@ -360,6 +361,7 @@ describe('design-system catalogue', () => {
             '.file-tree-node.cut-marked',
             '.file-tree-node.file-issue--warning',
             '.file-tree-node.file-issue--danger',
+            '.settings-section--inset',
         ]);
     });
 
@@ -1091,4 +1093,16 @@ describe('design-system catalogue', () => {
         expect(document.querySelector('#theme-status').dataset.state).toBe('error');
         consoleError.mockRestore();
     });
+});
+
+
+test('approved Settings cutouts use the exact workspace surface and retain named option groups', () => {
+    const surfaces = fs.readFileSync(path.resolve('frontend/design-system/theme-surfaces.css'), 'utf8');
+    expect(surfaces).toMatch(/\.settings-card \.settings-section--inset\s*\{\s*background: var\(--workspace-surface\);/);
+    const template = document.createElement('template');
+    template.innerHTML = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
+    const group = template.content.querySelector('.settings-section--inset');
+    expect(group.getAttribute('role')).toBe('group');
+    expect(template.content.querySelector('#' + group.getAttribute('aria-labelledby')).textContent).toBe('Navigation');
+    expect(group.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
 });

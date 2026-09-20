@@ -1,7 +1,8 @@
 describe('markdown editor interactions', () => {
-    let view;
+    let view, canvas;
 
     beforeEach(() => {
+        canvas = jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ font: '', measureText: text => ({ width: text.length * 8 }) });
         document.body.innerHTML = `
             <div id="editor-container"></div>
             <span id="status-text"></span>
@@ -12,7 +13,45 @@ describe('markdown editor interactions', () => {
 
     afterEach(() => {
         view?.destroy();
+        canvas.mockRestore();
         document.body.innerHTML = '';
+    });
+
+    test.each([100, 10000])('ordinary clicks avoid whole-document reads with %i prose lines', async count => {
+        const { createEditorView, initEditor } = await import('../frontend/js/editor.js');
+        await initEditor();
+        view = createEditorView();
+        const source = 'Ordinary prose.\n\n' + 'Another plain line.\n\n'.repeat(count);
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        view.posAtCoords = jest.fn(() => 3);
+        const read = jest.spyOn(view.state.doc, 'toString');
+        const target = view.contentDOM.querySelector('.cm-line');
+        try {
+            for (let index = 0; index < 20; index++) {
+                target.dispatchEvent(new MouseEvent('mousedown', { button: 0, buttons: 1, detail: 1, bubbles: true, cancelable: true }));
+                document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true, cancelable: true }));
+            }
+            expect(read).not.toHaveBeenCalled();
+            expect(view.posAtCoords).toHaveBeenCalled();
+        } finally { read.mockRestore(); }
+    });
+
+    test('empty-link autofill keeps its local trigger and ignores an obsolete queued edit', async () => {
+        const { createEditorView, initEditor, configureEditorWorkspace } = await import('../frontend/js/editor.js');
+        await initEditor();
+        configureEditorWorkspace(Object.fromEntries(['closeTab', 'confirm', 'getActiveTab', 'markTabDirty',
+            'openFile', 'openPDFPreview', 'openRawTextPreview', 'openTab', 'refreshFileTree', 'recordTabCursor',
+            'recordTabEdit', 'replaceActiveFileTab', 'saveActiveFile', 'saveFileSnapshot', 'switchTab']
+            .map(name => [name, jest.fn()])));
+        view = createEditorView();
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '[Local note]()' }, selection: { anchor: 14 } });
+        await Promise.resolve();
+        expect(view.state.doc.toString()).toBe('[Local note](Local%20note.md)');
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '[Old]()' }, selection: { anchor: 7 } });
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'Current text' }, selection: { anchor: 12 } });
+        await Promise.resolve();
+        expect(view.state.doc.toString()).toBe('Current text');
     });
 
     test('styles plain blockquotes and navigates a footnote there and back', async () => {

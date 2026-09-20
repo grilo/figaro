@@ -28,6 +28,7 @@ import { additionalWritingObservations } from './core/writingAdditionalRules.js'
 import { writingQuotationSpans, writingTypographyConvention } from './core/writingTypographyModel.js';
 import { readabilityOptions, writingPackageObservation } from './core/writingPackagePolicy.js';
 import { analyzeWritingTextlint, createIncrementalWritingTextlint, writingTextlintReady } from './writingTextlintRuntime.js';
+import { createWritingSourceProjection } from './usecases/writingSourceProjection.js';
 import { createWritingParagraphChecks } from './usecases/writingParagraphChecks.js';
 import { offsetWritingPlace, writingParagraphChunks } from './core/writingIncrementalModel.js';
 
@@ -88,10 +89,8 @@ function hideTechnicalSyntax(units) {
         hide(match.index, match.index + match[0].length);
     }
 }
-export function prepareWritingSource(source) {
+function projectWritingTree(root, source, { wiki, footnotes }) {
     const result = { text: '', units: [], regions: [], quotationSpans: [], typography: { text: '', units: [] } };
-    const wiki = wikiLinkRanges(source);
-    const footnotes = writingFootnoteRanges(source);
     function visit(node) {
         if (excluded.has(node.type)) return;
         if (blocks.has(node.type)) {
@@ -126,14 +125,43 @@ export function prepareWritingSource(source) {
         }
         for (const child of node.children || []) visit(child);
     }
+    visit(root);
+    return result;
+}
+
+function parseWritingDocument(source) {
     const frontmatter = getFrontmatterRegion(source);
     const parsedSource = frontmatter ? source.slice(0, frontmatter.to).replace(/[^\r\n]/g, ' ') + source.slice(frontmatter.to) : source;
-    visit(markdown.parse(parsedSource));
+    const tree = markdown.parse(parsedSource), definitions = [];
+    const visit = node => {
+        if (node.type === 'definition' || node.type === 'footnoteDefinition') {
+            definitions.push(source.slice(node.position.start.offset, node.position.end.offset));
+        }
+        for (const child of node.children || []) visit(child);
+    };
+    visit(tree);
+    return { tree, context: definitions.join('\0'), wiki: wikiLinkRanges(source), footnotes: writingFootnoteRanges(source),
+        blocks: tree.children.map(node => ({ from: node.position.start.offset, to: node.position.end.offset, type: node.type, node })) };
+}
+
+function finishWritingProjection(result) {
     result.text = result.units.map(unit => unit.char).join('');
     result.ordinaryCapitals = [...new Set([...result.text.matchAll(/\b[A-Z]{3,5}\b/g)]
         .map(match => match[0]).filter(word => ordinaryWritingWords.has(word.toLowerCase())))];
     result.typography.text = result.typography.units.map(unit => unit.char).join('');
     return result;
+}
+
+export function prepareWritingSource(source) {
+    const parsed = parseWritingDocument(source);
+    return finishWritingProjection(projectWritingTree(parsed.tree, source, parsed));
+}
+
+/** Current-document maps are shared only through the adapter's proven block plan. */
+export function createIncrementalWritingSource() {
+    const projection = createWritingSourceProjection({ parse: parseWritingDocument,
+        project: (block, source, parsed) => projectWritingTree(block.node, source, parsed) });
+    return { prepare: source => finishWritingProjection(projection.prepare(source)), stats: projection.stats };
 }
 
 function collectRetext(text) {
@@ -206,10 +234,11 @@ function finishRetext(projection, collected) {
     return { projection, observations: [...observations, ...additionalWritingObservations(projection)] };
 }
 
-/** Parse Markdown for correct exclusions, then reuse the expensive paragraph
- * checks. Convention, consistency, and acronym policy retain the whole document.
+/** Reuse Markdown block maps and expensive paragraph checks with current offsets.
+ * Convention, consistency, and acronym policy retain the whole document.
  */
 export function createIncrementalWritingAnalyzer() {
+    const sourceProjection = createIncrementalWritingSource();
     const retext = createWritingParagraphChecks({ analyze: collectRetext });
     const textlint = createIncrementalWritingTextlint();
     const order = Object.keys(versions);
@@ -217,7 +246,7 @@ export function createIncrementalWritingAnalyzer() {
         async analyze(source, { checkpoint = async () => {} } = {}) {
             await writingRuntimeReady;
             await checkpoint();
-            const projection = prepareWritingSource(source);
+            const projection = sourceProjection.prepare(source);
             const collected = { messages: [], sentences: [] };
             const chunks = writingParagraphChunks(projection.text);
             const values = await retext.checkMany(chunks, checkpoint, (value, chunk) => ({
@@ -238,7 +267,7 @@ export function createIncrementalWritingAnalyzer() {
             await checkpoint();
             return result;
         },
-        stats: () => ({ retext: retext.stats(), textlint: textlint.stats() }),
+        stats: () => ({ projection: sourceProjection.stats(), retext: retext.stats(), textlint: textlint.stats() }),
     };
 }
 const incremental = createIncrementalWritingAnalyzer();

@@ -12,6 +12,7 @@ import {
 import { markdownFoldAnchorPlan } from '../../../frontend/js/core/markdownFoldAnchorModel.js';
 import {
     buildMarkdownBlockGuides,
+    mapMarkdownBlockGuides,
     createMarkdownBlockGuidesExtension,
     buildTaskItemActionLines,
     markdownGuideForBlockWidget,
@@ -312,4 +313,29 @@ test('widget guide lookup tests only overlapping candidates near the end of a la
     }));
     for (let index = 0; index < 20; index++) expect(markdownGuideForBlockWidget(guides, { from: 9990, to: 9998 })).toBe(guides[999]);
     expect(reads).toBe(20);
+});
+
+
+test('local heading, code-language and soft line edits preserve guide boundaries without whole-document reads', () => {
+    const source = '# Heading title\n\nOrdinary paragraph.\n\n```javascript\nlet value = 1;\n```\n\n## Child heading\n\nMore text.\n\n# Next heading';
+    let { state } = guidePlan(source);
+    for (const [target, insert, remove] of [['title', 'useful ', 0], ['paragraph', '\n', 0], ['javascript', 'python', 10], ['value', 'other', 5]]) {
+        buildMarkdownBlockGuides(state);
+        const from = state.doc.toString().indexOf(target), transaction = state.update({ changes: { from, to: from + remove, insert } });
+        const read = jest.spyOn(transaction.newDoc, 'toString');
+        expect(mapMarkdownBlockGuides(transaction)).toBe(true);
+        const guides = buildMarkdownBlockGuides(transaction.state);
+        expect(read).not.toHaveBeenCalled();
+        read.mockRestore();
+        state = transaction.state;
+        const fresh = guidePlan(state.doc.toString()).guides;
+        expect(guides.map(({ sourceIdentity, ...guide }) => guide)).toEqual(fresh);
+    }
+});
+
+test('a newly standalone image invalidates line-sensitive guides even when its paragraph survives', () => {
+    let { state } = guidePlan('Words ![Alt](image.png)\nContinued text.');
+    const transaction = state.update({ changes: { from: 0, to: 6 } });
+    expect(mapMarkdownBlockGuides(transaction)).toBe(false);
+    expect(buildMarkdownBlockGuides(transaction.state).map(guide => guide.type)).toEqual(['image']);
 });

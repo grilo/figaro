@@ -8,8 +8,9 @@ import { writingTerminology, writingTextlintVersions, writingAcronymDefined, fam
 import { writingSloplessVersion, writingSloplessRules, writingSloplessKinds, writingSloplessConcepts } from './writingSloplessModel.js';
 import { spellingVocabularyVersion } from './spellingVocabulary.js';
 import { writingAdvisoryContext } from './writingContextModel.js';
+import { writingTypographyConvention } from './writingTypographyModel.js';
 
-export const writingMappingVersion = '20';
+export const writingMappingVersion = '23';
 export const writingEngineConfiguration = Object.freeze({ mapping: writingMappingVersion, grammar: writingGrammarVersion, spellingVocabulary: spellingVocabularyVersion, vale: '3.20.0',
     writeGood: 'c9ceca7f574248a201d5524b001099c5626c7519', proselint: '8e24adbaa5dc6593b331f8bfab23c9af044af406',
     passive: '5.0.0', simplify: '8.0.0', repetition: '5.0.0', spelling: 'nspell-2.1.5', article: '5.0.0',
@@ -142,7 +143,8 @@ export function valeWritingObservations(output, projection) {
                 }
             }
             const grammar = writingGrammarRules[alert.Check];
-            if (grammar && (projection.text.slice(from, to) !== actual || !grammarContext(from, to))) return [];
+            if (grammar && (projection.text.slice(from, to) !== actual
+                || !(grammar.context === 'local' ? mapWritingRange(projection, from, to) : grammarContext(from, to)))) return [];
             return { engine: 'vale', version: '3.20.0', rule: alert.Check, from, to,
                 ...(grammar ? { intent: alert.Check } : {}),
                 package: grammar ? (alert.Check.startsWith('Harper.') ? 'Harper' : 'FigaroGrammar') : alert.Check?.startsWith('Microsoft.') ? 'Microsoft' : alert.Check?.startsWith('proselint.') ? 'proselint' : 'write-good',
@@ -173,6 +175,8 @@ function quotationFix(raw, range, source, projection) {
 function normalizeObservation(raw, source, projection, spelling) {
     let kind = rules[raw.rule];
     if (!kind) return { raw, rejected: 'Unknown writing rule' };
+    const typography = raw.rule === 'slopless/smart-quotes'
+        ? spelling.typography ??= writingTypographyConvention(projection) : null;
     if (raw.rule === 'retext-quotes' || raw.rule === 'slopless/smart-quotes') {
         projection = projection.typography || projection;
         if (raw.ruleId === 'apostrophe') kind = 'style.apostrophe';
@@ -189,9 +193,13 @@ function normalizeObservation(raw, source, projection, spelling) {
     const indirectPlain = kind === 'style.wordiness' && /^there (?:is|are)$/iu.test(actual);
     if (indirectPlain) kind = 'syntax.indirect-opening';
     if (kind === 'clarity.undefined-acronym' && !spelling.acronyms.has(actual)) spelling.acronyms.set(actual, writingAcronymDefined(actual, projection));
+    const authoredCurly = typography && (actual === '’'
+        && /\p{L}/u.test(projection.text[raw.from - 1] || '') && /\p{L}/u.test(projection.text[raw.to] || '')
+        ? typography.apostropheStyle : typography?.quoteStyle) === 'smart';
     const suppressed = kind === 'clarity.undefined-acronym' && (familiarWritingAcronyms.includes(actual) || projection.ordinaryCapitals?.includes(actual)) ? 'Familiar acronym or ordinary word'
         : kind === 'clarity.undefined-acronym' && spelling.acronyms.get(actual) ? 'Acronym defined in prose'
-            : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context' : '';
+            : authoredCurly ? 'Punctuation follows the authored convention'
+                : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context' : '';
     const phraseNeedsReview = ['style.wordiness', 'lexicon.complex-word'].includes(kind) && !reviewed.has(clean(actual));
     const fixes = referenceLabel || raw.package === 'slopless' || phraseNeedsReview ? [] : kind === 'style.quotation' ? quotationFix(raw, range, source, projection)
         : !suppressed && range.editable && !advisoryOnly.has(kind) && !kind.startsWith('formulaic.')

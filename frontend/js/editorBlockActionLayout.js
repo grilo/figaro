@@ -50,7 +50,10 @@ function measureWritingEdges(view) {
 
 /** Publish one measured action layout for rendered blocks and the left helper rail. */
 export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getBoundingClientRect?.().width) {
-    if (!view || view.isDestroyed || !Number.isFinite(width)) return;
+    // Hidden/parked editors have no measurable geometry. Keep their last valid
+    // rail reservation so returning to the buffer does not paint one frame with
+    // gutters in normal flex flow before the next CodeMirror measurement.
+    if (!view || view.isDestroyed || !Number.isFinite(width) || width <= 0) return;
     const setPixels = (property, value) => {
         const pixels = `${value}px`;
         if (view.dom.style.getPropertyValue(property) !== pixels) view.dom.style.setProperty(property, pixels);

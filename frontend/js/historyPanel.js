@@ -1,3 +1,4 @@
+import { readTabContent } from './usecases/tabContent.js';
 import { backend } from './backend.js';
 /**
  * History Panel — right sidebar showing git file history
@@ -256,7 +257,7 @@ export async function commitCurrentFileChanges() {
             // into the file whose commit was clicked.
             const pendingContent = getState('activeTabId') === tab.id
                 ? getEditorContent()
-                : tab._content;
+                : readTabContent(tab);
             if (typeof pendingContent !== 'string') {
                 throw new Error('The pending editor text is not available to save safely.');
             }

@@ -28,6 +28,17 @@ describe('workspace tab model', () => {
         expect(recordWorkspaceTabContent(content.tabs, 'note.md', 2, 'stale').changed).toBe(false);
     });
 
+    test('an edit captures its immutable lazy buffer in the same generation without reading it', () => {
+        const readContent = jest.fn(() => 'latest');
+        const original = [{ id: 'note', type: 'file', dirty: false, _content: 'saved' }];
+        const edited = recordWorkspaceTabEdit(original, 'note', 0, { readContent });
+        expect(edited.tab._content.readContent).toBe(readContent);
+        expect(edited.tab._editGeneration).toBe(1);
+        expect(readContent).not.toHaveBeenCalled();
+        expect(original[0]._content).toBe('saved');
+        expect(recordWorkspaceTabContent(edited.tabs, 'note', 0, 'stale').changed).toBe(false);
+    });
+
     test('applies and clears temporary editor scale without mutating tab records', () => {
         const originalTab = { id: 'a.md', type: 'file' };
         const original = [originalTab, { id: 'settings', type: 'settings' }];

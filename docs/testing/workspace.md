@@ -277,6 +277,11 @@ close. `kanban.test.js` retains the published board and exact card DOM through
 prose edits, then changes a task and requires the new column/content. Existing
 save, schedule, ordering, and board-return tests remain the integration contract.
 
+A hidden retained Kanban session must not read lazy dirty buffers for typing
+events. Its warm activation must immediately show the latest task text and column.
+Buffer generations publish their lazy handle with the edit; save/close and preview
+readers accept both handles and strings, retaining stale-generation rejection.
+
 Large Board columns split their coverage at the rendering boundary.
 `kanbanKeyboardModel.test.js` owns the deterministic measured-height index and
 offset-to-card mapping. `kanban.test.js` advances a virtual window while an

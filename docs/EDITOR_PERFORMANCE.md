@@ -20,6 +20,32 @@ executes on the main thread. Source-height rulers defer resize notifications
 outside observer delivery while source/mount measurements remain before paint.
 Graphic fitting coalesces resize callbacks and cancels disposed measurements.
 
+## Lazy typing snapshots and mapped projections
+
+The 20 September 2026 assembled jsdom probe uses ten single-character prose edits
+35 ms apart with Outline open and Kanban hidden. At 1,001 headings it reduced
+full-document conversions from 10 to 0, Outline label queries from 20,020 to 0,
+position-attribute writes from 10,000 to 0, hidden Kanban buffer parses from 10 to
+0, list/extras projection builds from 10 each to 0, and indentation style reads
+from 20 to 0. Buffer publications fell from 20 to 10. The 11-heading control has
+the same zero-work outcomes. Regression assertions live in
+`editorTypingContract.test.js`; the viewport is controlled because jsdom has no
+real editor geometry. Stats still read after a pause, visible consumers read on
+demand, and structural/owned-line edits retain their parser/projection fallback.
+These are operation counts, not physical input latency or a WebView2 benchmark.
+
+Validation passed 311 frontend suites (2,829 tests) with coverage above all
+floors, plus integrity, architecture and lint checks. Five existing Chromium
+scenarios cover wrapped list/quote geometry, Outline/sticky navigation, and
+Kanban scroll/warm-return paint. A production-tagged Linux WebKitGTK build in a
+disposable Weston vault passed 17 checks: mapped heading/task activation,
+bidirectional arrows and drag selection around lists/quotes, pointer placement,
+exact source retention through switches, current tasks on warm Kanban return,
+and matching saved disk contents. Native counters also showed no list/extras
+rebuilds, indentation style reads or hidden Kanban parsing during ten prose
+edits. These native checks use DOM events and CodeMirror transactions; they do
+not establish physical input latency, WebView2 or WKWebView behavior.
+
 ## Native workload results
 
 Milliseconds, baseline → final. These are observed software-rendered WebKitGTK
@@ -525,3 +551,121 @@ The five interaction changes have no focused, browser or native failures.
 Their logs and reports are under `/tmp/figaro-five-followup`; the final full
 frontend check is `/tmp/figaro-commit-unit.log`. Operation counts remain distinct
 from hardware latency measurements.
+
+## Inline cursor navigation follow-up
+
+On 20 September 2026, four further cursor paths were tightened: list/task and
+quote line projections, ordinary/reference links, writing hints on rendered link
+labels, and unchanged gutter state. Pure line plans are separate from source
+reading, font measurement and DOM projection. Visible descriptors, active/passive
+line variants and font-prefix measurements survive cursor movement. Indexed
+selection overlap patches only changed reveal states. Writing findings have a
+result-identity interval index, cached viewport query and retained mounted-label
+plans. Relative numbers follow primary logical-line changes; accessibility
+synchronization skips identical attribute values.
+
+The same assembled probe used for the audit at `289d08e` was repeated after the
+change: 20 warmed cursor-only updates per case, a controlled jsdom visible range,
+real installed providers, and observed source/DOM/measurement access. At 100
+visible list/quote/link entries unless otherwise stated:
+
+| Work observed | Before | After |
+| --- | ---: | ---: |
+| List marker source slices during movement between unrelated prose lines | 2,000 | 0 |
+| List indentation canvas contexts | 2,000 | 0 |
+| Original mounted bullet elements retained | 0 / 100 | 100 / 100 |
+| Quote indentation canvas contexts | 2,000 | 0 |
+| Ordinary-link syntax visits while moving inside one revealed link | 28,080 | 0 |
+| Ordinary-link source slices for that case | 2,020 | 0 |
+| Reference-provider syntax visits / slices for that same ordinary-link case | 14,040 / 2,000 | 0 / 0 |
+| Reference-link source slices during unrelated prose movement | 2,000 | 0 |
+| Finding-bound reads with 1,000 offscreen findings | 20,000 | 0 |
+| Unchanged gutter attribute writes/removals | 280 | 0 |
+| Relative labels recalculated for 36 rendered rows during same-line motion | 720 | 0 |
+
+The list fix also removes the redraw that triggered the original writing-hint
+case. A separate concrete adapter regression invokes legitimate DOM reconciliation
+and independently verifies that cached hints do not inspect offscreen findings.
+List/link component cases repeat at 10 and 1,000 entries, preserving decoration
+identity and retained unaffected widgets. Changes to source, parser, viewport,
+configuration and font retain their explicit invalidation; long selections may
+legitimately touch many entries. Drag policies, reference resolution, task actions,
+link titles and callbacks remain current. These are operation counts, not native
+input-to-display latency measurements.
+
+Native checks exposed two details in wrapped-source verification. WebKit can
+include a zero-width rectangle from the preceding row in a character range's
+bounding union; the probe now selects the actual nonzero client rectangle.
+Revealed list/quote markers also used a different font from the indentation
+measure. Those markers now inherit the body font, quote measurements use italic,
+and active list indentation no longer needs an assumed three-pixel correction.
+The existing browser wrapping scenario covers active numbered markers and live
+font-scale changes without adding another end-to-end workflow.
+
+Validation:
+
+- The full frontend coverage run passed 310 suites / 2,825 tests, above all floors:
+  83.59% statements, 72.34% branches, 83.65% functions and 87.07% lines. The final
+  font changes passed 52 focused tests across seven suites, including the assembled
+  editor, architecture and design-system contracts.
+- The broad browser run passed 134 cases with two optional stress skips. Its one
+  stale focus assertion omitted the concurrently added Personal dictionary
+  shortcut; the corrected existing Outline case passed separately. All five list
+  cases passed after the final font fix, including wrapping, cursor/drag behavior
+  and printable parity.
+- All 39 new packaged WebKitGTK checks passed with real native keys and pointer
+  events: horizontal/vertical motion, retained source projections, active/passive
+  wrapping, font changes, task click/Space, Tab/Shift+Tab, link-adjacent placement,
+  bidirectional link selection and empty-list Enter. All 92 prior native input,
+  cursor, diagnostic, image and preview checks passed again on the final build
+  (131 total). The screenshot was inspected; the owned app/display were stopped.
+- Lint and production/native builds passed. The feature map and affected
+  documentation include the extracted modules and their regression ownership.
+  Markdown syntax and PDF styling are unchanged; the browser suite retains the
+  existing preview/export boundaries. Windows WebView2 and macOS WKWebView were
+  unavailable locally.
+
+The before audit is under `/tmp/figaro-cursor-next-audit`; implementation probes,
+complete logs and native evidence are under `/tmp/figaro-cursor-four`.
+
+## Full typing inventory follow-up
+
+The [September 20 typing inventory](benchmarks/editor-typing-inventory-2026-09-20.md)
+expands the earlier three-path audit to all installed extension families and
+external consumers. It records worthwhile fixes, necessary deferred work,
+remaining scaling boundaries, reproducible counts and platform limitations.
+
+## Consolidated interaction findings
+
+The [ten-finding implementation report](benchmarks/editor-interaction-findings-2026-09-20.md)
+tracks pointer footnotes, code indentation, writing ranges, diagram projections,
+Mermaid validation, inline projections, formatting visibility, math mapping,
+Properties, and completion together. It distinguishes work-count regressions
+from physical latency and records shared browser/native verification.
+
+## Scoped Markdown projection reuse
+
+The 20 September follow-up separates safe local block edits from structural
+invalidation. Completed paragraphs can map previews inside a partially parsed
+note when tree extent and parsed ancestors remain stable. Heading text, code,
+table and soft Enter/Backspace edits refresh affected payloads. Code/image/table
+and diagram fields retain unrelated widgets and unrelated settings keep their
+cached block projections. Parser progress and uncertain structure still refresh.
+Math newline/delimiter scans, Markdown outline newline parsing and the cost of
+mapping positions before many blocks remain separate work.
+
+Writing review retains one current document’s unchanged block/source maps and
+uses a local Markdown parse for safe paragraph/heading edits without reference
+definitions. Structural changes parse the note, then reuse exact blocks only
+when reference context matches. All document-wide analysis sees the assembled
+current projection. Paragraph caches now allow 8,192 entries under the unchanged
+4 MiB estimated-data cap per cache, avoiding premature eviction in notes with
+thousands of short paragraphs.
+
+Regression tests compare cached results with fresh editor/writing results,
+including Unicode/CRLF offsets, references, quotations, protected blocks,
+partial-parser progress, retained widget identity and current reveal behavior.
+
+The [paired native results and subsequent PDF profile](benchmarks/reparse-and-pdf-cost-2026-09-20.md)
+record the measured improvements, the complete-tree prose counterexample,
+writing-cache behavior and the remaining preview DOM/export costs.

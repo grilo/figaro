@@ -39,6 +39,20 @@ func numberCue(word string) int {
 
 func (s *grammarScan) nounConstructions(i int) {
 	t := s.tokens[i]
+	if t.word == "amount" && s.at(i, 1).word == "of" && in(s.at(i, 2).word, "times attempts retries files documents items records errors requests") {
+		// Count only discrete reviewed heads; keep measured amounts and noun
+		// modifiers such as “amount of error correction” outside this decision.
+		head := s.at(i, 2)
+		next := s.at(i, 3).word
+		boundary := in(next, "per to in on for from with without before after during between") || s.finite(i+3)
+		if !in(next, "and or nor") && (boundary || s.lex.words[next]&(noun|adjective) == 0) {
+			first, replacement := i, "number of "+head.actual
+			if s.at(i, -1).word == "an" {
+				first, replacement = i-1, "a "+replacement
+			}
+			s.emit("CountableAmount", "Use “number” for these individually countable items.", first, i+2, replacement)
+		}
+	}
 	if t.word == "there" || t.word == "there's" {
 		verb, start := i+1, i+2
 		if t.word == "there's" {

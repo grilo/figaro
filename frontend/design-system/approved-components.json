@@ -7,7 +7,8 @@
     ".file-tree-node.selected",
     ".file-tree-node.cut-marked",
     ".file-tree-node.file-issue--warning",
-    ".file-tree-node.file-issue--danger"
+    ".file-tree-node.file-issue--danger",
+    ".settings-section--inset"
   ],
   "families": [
     {

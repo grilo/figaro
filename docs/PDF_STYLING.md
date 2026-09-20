@@ -341,3 +341,12 @@ and font generation; cached SVG IDs and local references are unique per mount.
 External-data specifications bypass reuse. PDF preview and generated PDFs retain
 their existing authored appearance and sizing; the editor's typing/scroll quiet
 scheduler does not delay printable rendering.
+
+## Performance measurements
+
+The [20 September 2026 PDF profile](benchmarks/reparse-and-pdf-cost-2026-09-20.md#pdf-workflow-results)
+measures preview opening/editing, synchronized scrolling and actual exports,
+including cover and numbered contents. Expanded HTML/diagram complexity explains
+more of the measured cost than Markdown source length. The report separates
+preview DOM work from Chromium pagination and records output validation and
+platform limitations; it does not change the styling or export contract.

@@ -69,7 +69,8 @@ another column, or use its keyboard controls:
 
 The start and due pills open the date picker. The card menu can clear dates or
 remove the card from the board. Removing a column tag leaves the task text.
-Task changes appear from the unsaved note. Editing unrelated prose keeps the
+Task changes appear from the unsaved note when you open or return to Kanban.
+While the board is hidden, typing does not rescan the note for tasks. Editing unrelated prose keeps the
 existing cards in place; inserting lines before a task still updates its source
 location so opening the card returns to the correct line.
 

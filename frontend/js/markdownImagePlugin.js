@@ -1,5 +1,5 @@
-import { sourceRevealIndex, updateSourceReveal, mapSourceReveal } from './sourceReveal.js';
-import { canMapMarkdownProseEdit } from 'codemirror-live-markdown';
+import { sourceRevealIndex, updateSourceReveal, patchSourceReveal } from './sourceReveal.js';
+import { canMapMarkdownProseEdit, markdownProjectionEdit, collapseOnSelectionFacet } from 'codemirror-live-markdown';
 import { countEditorWork } from './editorDiagnostics.js';
 import { foldedRanges, syntaxTree } from '@codemirror/language';
 import { StateField, Transaction } from '@codemirror/state';
@@ -395,19 +395,21 @@ class MarkdownImageWidget extends WidgetType {
 
 const imageDescriptors = new WeakMap();
 
-function parsedImageDescriptors(state) {
+function parsedImageDescriptors(state, regions = null) {
     const tree = syntaxTree(state);
     const cached = imageDescriptors.get(state.doc);
-    if (cached?.tree === tree) return cached.images;
+    if (!regions && cached?.tree === tree) return cached.images;
     countEditorWork('parse.images');
     const images = [];
-    tree.iterate({ enter(node) {
-        if (node.name !== 'Image') return;
-        const source = state.sliceDoc(node.from, node.to);
-        const parsed = parseMarkdownImageSyntax(source);
-        if (parsed) images.push({ ...parsed, source, from: node.from, to: node.to });
-    } });
-    imageDescriptors.set(state.doc, { tree, images });
+    for (const region of regions || [{ nextFrom: 0, nextTo: state.doc.length }]) tree.iterate({
+        from: region.nextFrom, to: region.nextTo, enter(node) {
+            if (node.to <= region.nextFrom || node.from >= region.nextTo) return false;
+            if (node.name !== 'Image') return;
+            const source = state.sliceDoc(node.from, node.to);
+            const parsed = parseMarkdownImageSyntax(source);
+            if (parsed) images.push({ ...parsed, source, from: node.from, to: node.to });
+        } });
+    if (!regions) imageDescriptors.set(state.doc, { tree, images });
     return images;
 }
 
@@ -471,21 +473,21 @@ export function createMarkdownImageField({
     return StateField.define({
         create: state => imageDecorations(state, options),
         update(value, transaction) {
-            if (transaction.reconfigured || transaction.docChanged || syntaxTree(transaction.startState) !== syntaxTree(transaction.state)) {
-                if (!transaction.reconfigured && canMapMarkdownProseEdit(transaction)) {
-                    const mapped = mapSourceReveal(value, transaction);
-                    imageDescriptors.set(transaction.state.doc, {
-                        tree: syntaxTree(transaction.state),
-                        images: mapped.blocks,
-                    });
-                    if (!transaction.effects.length && !transaction.state.field(mouseSelectingField, false)
-                        && !transaction.startState.field(mouseSelectingField, false)) {
-                        return updateSourceReveal(mapped, transaction, shouldShowSource,
-                            (state, block, visible) => imageBlockDecorations(state, options, block, visible));
-                    }
-                }
-                return imageDecorations(transaction.state, options);
+            if (transaction.docChanged || syntaxTree(transaction.startState) !== syntaxTree(transaction.state)) {
+                const regions = canMapMarkdownProseEdit(transaction) ? [] : markdownProjectionEdit(transaction);
+                if (!regions) return imageDecorations(transaction.state, options);
+                const imageRegions = regions.filter(region => !/^(FencedCode|CodeBlock)$/.test(region.name));
+                value = patchSourceReveal(value, transaction, imageRegions,
+                    imageRegions.length ? parsedImageDescriptors(transaction.state, imageRegions) : [], shouldShowSource,
+                    (state, block, visible) => imageBlockDecorations(state, options, block, visible));
+                imageDescriptors.set(transaction.state.doc, { tree: syntaxTree(transaction.state), images: value.blocks });
+                if (transaction.effects.length || transaction.state.field(mouseSelectingField, false)
+                    || transaction.startState.field(mouseSelectingField, false)) return imageDecorations(transaction.state, options);
+                return updateSourceReveal(value, transaction, shouldShowSource,
+                    (state, block, visible) => imageBlockDecorations(state, options, block, visible));
             }
+            if (transaction.startState.facet(collapseOnSelectionFacet) !== transaction.state.facet(collapseOnSelectionFacet)) return imageDecorations(transaction.state, options);
+
             const dragging = transaction.state.field(mouseSelectingField, false);
             const wasDragging = transaction.startState.field(mouseSelectingField, false);
             if (wasDragging && !dragging) return imageDecorations(transaction.state, options);

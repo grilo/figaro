@@ -65,3 +65,19 @@ func AddSpellingWord(data []byte, word string) ([]byte, []string, error) {
 	encoded, err := json.MarshalIndent(record, "", "  ")
 	return encoded, words, err
 }
+
+// RemoveSpellingWord removes only the requested normalized entry, preserving metadata.
+func RemoveSpellingWord(data []byte, word string) ([]byte, []string, error) {
+	key, err := spellingWordKey(word)
+	if err != nil {
+		return nil, nil, err
+	}
+	record, words, err := ReadSpellingWords(data)
+	if err != nil {
+		return nil, nil, err
+	}
+	words = slices.DeleteFunc(words, func(value string) bool { return value == key })
+	record["words"], _ = json.Marshal(words)
+	encoded, err := json.MarshalIndent(record, "", "  ")
+	return encoded, words, err
+}

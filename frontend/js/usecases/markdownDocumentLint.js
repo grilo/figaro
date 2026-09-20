@@ -2,21 +2,27 @@ import { markdownDiagnostics } from '../core/markdownLintModel.js';
 import { mermaidDocumentDiagnostic, mermaidLintBlocks } from '../core/mermaidLintModel.js';
 
 /** Coordinate pure Markdown checks with the injected Mermaid parser boundary. */
-export async function collectMarkdownDocumentDiagnostics(source, validateMermaid) {
+export async function collectMarkdownDocumentDiagnostics(source, validateMermaid, isCurrent = () => true) {
     const text = String(source || '');
     const diagnostics = markdownDiagnostics(text);
 
     for (const block of mermaidLintBlocks(text)) {
+        if (!isCurrent()) return [];
         try {
             await validateMermaid(block.source);
         } catch (error) {
             diagnostics.push(mermaidDocumentDiagnostic(error, block));
         }
     }
+    if (!isCurrent()) return [];
     return diagnostics.sort((left, right) => left.from - right.from || left.to - right.to);
 }
 
 export function createMarkdownDocumentLinter(validateMermaid) {
     if (typeof validateMermaid !== 'function') throw new TypeError('Mermaid validation port is required');
-    return view => collectMarkdownDocumentDiagnostics(view.state.doc.toString(), validateMermaid);
+    return view => {
+        const sourceDocument = view.state.doc;
+        return collectMarkdownDocumentDiagnostics(sourceDocument.toString(), validateMermaid,
+            () => !view.isDestroyed && view.state.doc === sourceDocument);
+    };
 }

@@ -96,6 +96,10 @@ test('footprint rulers batch their reads, reuse unchanged heights, and skip pros
         expect(dom.querySelector('.cm-source-footprint-sizer')).toBeNull();
         plugin.update({ viewportChanged: true }); await Promise.resolve();
         expect(rulerReads).toBe(2);
+        // A prose edit with unchanged mounted source must not read layout metrics.
+        const beforeMetrics = metricReads;
+        for (let index = 0; index < 10; index++) { plugin.update({ docChanged: true, geometryChanged: true }); await Promise.resolve(); }
+        expect(metricReads).toBe(beforeMetrics); expect(rulerReads).toBe(2);
         expectedRulers = 1;
         blocks[0].__figaroSourceFootprintText = 'Changed source';
         plugin.update({ docChanged: true }); await Promise.resolve();

@@ -1,3 +1,4 @@
+import { readTabContent } from './usecases/tabContent.js';
 import { backend } from './backend.js';
 /**
  * Live PDF preview
@@ -1118,7 +1119,7 @@ async function getDirtyTabContent(path) {
     if (tab.id === getState('activeTabId')) {
         return getEditorContent();
     }
-    return typeof tab._content === 'string' ? tab._content : null;
+    return typeof readTabContent(tab) === 'string' ? readTabContent(tab) : null;
 }
 
 async function readVaultText(path) {
@@ -1306,7 +1307,8 @@ function hasDirtyTab(path) {
 
 function handleEditorContentChange(event) {
     const detail = event.detail || {};
-    if (!isPreviewOpen() || typeof detail.path !== 'string' || typeof detail.content !== 'string') return;
+    if (!isPreviewOpen() || (detail.path !== preview.path && detail.path !== preview.stylesheetPath)
+        || typeof detail.content !== 'string') return;
     if (detail.path === preview.path) {
         preview.content = detail.content;
         schedulePDFPreviewRefresh();
@@ -1354,11 +1356,9 @@ async function savePreviewBuffer(path, content) {
     const tab = (getState('openTabs') || []).find(candidate => candidate?.type === 'file' && candidate.path === path);
     if (!tab) return;
 
-    // `file-content-changed` is deliberately dispatched as soon as CodeMirror
-    // has a new snapshot, while its tab-dirty bookkeeping is asynchronous.
-    // Comparing the preview's snapshot to disk closes that small race: a user
-    // can click Generate PDF immediately after seeing a live style change and
-    // still get exactly that version in the exported document.
+    // Export the exact snapshot displayed by the preview, including a live
+    // stylesheet read through the lazy content event. A clean tab may still
+    // need this explicit snapshot written if disk changed in the meantime.
     const onDisk = await readVaultText(path);
     if (!tab.dirty && onDisk?.content === content) return;
 

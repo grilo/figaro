@@ -510,7 +510,7 @@ test('turns a pasted URL into a Markdown link for regular and Vim Visual paste p
     });
 });
 
-test('preserves the active buffer cursor when Settings opens and closes', async ({ page }) => {
+test('preserves the active buffer cursor and first-frame horizontal layout when Settings opens and closes', async ({ page }) => {
     await openWelcomeEditor(page);
     const expectedCursor = await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
@@ -531,6 +531,47 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
     await expect(page.locator('.settings-view-title')).toBeFocused();
     await expect(page.locator('.settings-card > h2.settings-card-title')).toHaveCount(7);
 
+    // Actual cutout paint, bounded modal scrolling and focus handoff need a browser.
+    for (const title of ['Navigation', 'Vim Mode', 'Pure mode']) {
+        const group = page.getByRole('group', { name: title, exact: true });
+        expect(await group.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(
+            await page.locator('#main-content').evaluate(el => getComputedStyle(el).backgroundColor));
+        const heading = await group.locator('.settings-section-icon').boundingBox();
+        const options = await group.locator('.settings-row-group').boundingBox();
+        expect(heading.y + heading.height).toBeLessThan(options.y);
+    }
+    const dictionary = page.locator('.spelling-dictionary-settings');
+    await dictionary.scrollIntoViewIfNeeded();
+    const settingsHeight = await page.locator('.settings-panel-tab').evaluate(el => el.scrollHeight);
+    const manage = dictionary.getByRole('button', { name: 'Manage…' });
+    await manage.click();
+    const dialog = page.getByRole('dialog', { name: 'Personal dictionary', exact: true });
+    await expect(dialog.getByRole('searchbox', { name: 'Search words' })).toBeFocused();
+    await dialog.getByRole('searchbox').press('Shift+Tab');
+    await expect(dialog.getByRole('button', { name: 'Resize editor dialog' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByRole('searchbox')).toBeFocused();
+    // Supply a dense list through the existing adapter so only geometry is tested here.
+    await page.evaluate(async () => {
+        const { backend } = await import('/js/backend.js');
+        backend().SpellingDictionaryAdd = async () => Array.from({ length: 150 }, (_, index) => `accepted${String.fromCharCode(97 + Math.floor(index / 26))}${String.fromCharCode(97 + index % 26)}`);
+    });
+    await dialog.getByRole('textbox', { name: 'Add word', exact: true }).fill('acceptedword');
+    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    const list = dialog.locator('ul');
+    await expect(list.locator('li')).toHaveCount(100);
+    expect(await list.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+    const searchY = (await dialog.getByRole('searchbox').boundingBox()).y;
+    await list.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    expect((await dialog.getByRole('searchbox').boundingBox()).y).toBe(searchY);
+    await expect(dialog.getByRole('button', { name: 'Done', exact: true })).toBeInViewport();
+    await page.setViewportSize({ width: 900, height: 650 });
+    await expect(dialog.getByRole('button', { name: 'Done', exact: true })).toBeInViewport();
+    await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(manage).toBeFocused();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    expect(await page.locator('.settings-panel-tab').evaluate(el => el.scrollHeight)).toBe(settingsHeight);
+
     const codeFont = page.locator('#code-font-picker-btn');
     await codeFont.focus();
     await page.keyboard.press('ArrowDown');
@@ -545,14 +586,43 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
     await expect(codeFont).toHaveAttribute('aria-expanded', 'false');
     await expect(page.locator('#pure-typewriter-toggle')).toBeFocused();
 
+    // Real per-frame geometry catches a hidden editor losing its gutter reservation.
+    await page.evaluate(async () => {
+        const view = (await import('/js/editor.js')).getEditorView();
+        window.__settingsReturnFrames = [];
+        window.__settingsSampling = true;
+        const sample = () => {
+            if (!window.__settingsSampling) return;
+            if (view.dom.getBoundingClientRect().width > 0) {
+                const line = view.contentDOM.querySelector('.cm-line');
+                window.__settingsReturnFrames.push({ x: line.getBoundingClientRect().left,
+                    inset: view.dom.style.getPropertyValue('--editor-block-writing-inset') });
+            }
+            requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+    });
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.cm-editor')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__settingsReturnFrames.length)).toBeGreaterThan(12);
+    const frames = await page.evaluate(() => { window.__settingsSampling = false; return window.__settingsReturnFrames; });
+    expect(Math.max(...frames.map(frame => frame.x)) - Math.min(...frames.map(frame => frame.x)), JSON.stringify(frames)).toBeLessThan(1);
+
 
     await expect.poll(() => page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         const selection = editor.getEditorView().state.selection.main;
         return { anchor: selection.anchor, head: selection.head };
     })).toEqual(expectedCursor);
+
+    await page.locator('#writing-lenses-toggle').click();
+    const pane = page.locator('#writing-lenses-panel');
+    const choices = pane.locator('[data-configure]');
+    if (await choices.getAttribute('aria-expanded') === 'false') await choices.click();
+    await pane.getByRole('button', { name: 'Manage dictionary…', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Personal dictionary', exact: true }).getByRole('searchbox')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#personal-dictionary-manage')).toBeFocused();
 });
 
 test('lets Pure editing fill the window with only word count and no outline', async ({ page }) => {
@@ -1276,6 +1346,14 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
             railWidth: railRect.width,
         };
     });
+    // Replacing ten lines with seven also changes the number-gutter width.
+    // Finish CodeMirror's measurement before recording the fold baseline.
+    await page.evaluate(() => new Promise(resolve => {
+        window.__headingFoldView.requestMeasure({
+            read: () => null,
+            write: () => resolve(),
+        });
+    }));
     const expandedRailGeometry = await stableRailGeometry();
     await page.getByRole('button', { name: 'Collapse h1 Welcome section' }).click();
     await expect(page.getByRole('button', { name: 'Collapse mermaid code block' })).toHaveCount(0);
@@ -2705,9 +2783,13 @@ test('keeps rendered block source footprints stable and chains code wheel input 
     await page.evaluate(() => { window.__mappedCode = document.querySelector('.cm-codeblock-widget'); });
     await page.keyboard.type('extra');
     expect(await page.evaluate(() => window.__mappedCode === document.querySelector('.cm-codeblock-widget'))).toBe(true);
-    await page.evaluate(() => { const view = window.__sourceFootprintView; view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight; });
+    // Replace the last typing transaction's pending caret-scroll target before
+    // testing remounting; a direct scrollTop write can be undone at its next measure.
+    await page.evaluate(() => { const view = window.__sourceFootprintView;
+        view.dispatch({ effects: view.constructor.scrollIntoView(view.state.doc.length, { y: 'end' }) }); });
     await expect(renderedCode).toHaveCount(0);
-    await page.evaluate(() => { window.__sourceFootprintView.scrollDOM.scrollTop = 0; });
+    await page.evaluate(() => { const view = window.__sourceFootprintView;
+        view.dispatch({ effects: view.constructor.scrollIntoView(0, { y: 'start' }) }); });
     await expect(renderedCode).toBeVisible();
     await renderedCode.locator('.cm-codeblock-line[data-line-index="0"]').click({ position: { x: 2, y: 8 } });
     expect(await page.evaluate(() => {
@@ -2747,10 +2829,11 @@ test('coalesces rapid editor observer updates without losing the dirty buffer', 
     await page.waitForTimeout(220);
     expect(await page.evaluate(async () => {
         const state = await import('/js/state.js');
+        const { readTabContent } = await import('/js/usecases/tabContent.js');
         const currentTab = state.getState('openTabs')
             .find(tab => tab.id === window.__editorObserverTabId);
         return {
-            content: currentTab?._content,
+            content: readTabContent(currentTab),
             dirty: currentTab?.dirty,
             words: document.getElementById('word-count').textContent,
         };
@@ -3412,4 +3495,68 @@ test('inline writing suggestions support hover actions, keyboard focus, cursor p
         await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe(linked);
     }
 
+});
+
+// Real wheel events, animation frames and scroll ownership cannot be established in jsdom.
+test('optional wheel smoothing eases real input and yields immediately to selection and keyboard', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.evaluate(() => window.app.openTab('settings', 'Settings', 'settings'));
+    const toggle = page.getByRole('checkbox', { name: 'Smooth mouse-wheel scrolling', exact: true });
+    await expect(toggle).not.toBeChecked();
+    await page.locator('label.toggle-switch:has(#smooth-wheel-scroll-toggle)').click();
+    await expect(toggle).toBeChecked();
+    await page.evaluate(() => window.app.switchTab('Welcome.md'));
+    const source = Array.from({ length: 180 }, (_, index) => `Line ${index + 1} with ordinary text.`).join('\n');
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(text, 'Welcome.md');
+        const view = editor.getEditorView(); window.__smoothWheelView = view;
+        await new Promise(requestAnimationFrame);
+        view.dispatch({ selection: { anchor: view.state.doc.line(25).from } });
+        view.scrollDOM.scrollTop = 500;
+    }, source);
+    const scroller = page.locator('#editor-container > .cm-editor .cm-scroller');
+    const box = await scroller.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(100);
+    await page.evaluate(() => {
+        const view = window.__smoothWheelView;
+        window.__smoothBefore = { offset: view.scrollDOM.scrollTop, head: view.state.selection.main.head };
+        window.__smoothSamples = []; const start = performance.now();
+        const sample = () => { window.__smoothSamples.push(view.scrollDOM.scrollTop); if (performance.now() - start < 550) requestAnimationFrame(sample); };
+        requestAnimationFrame(sample);
+    });
+    await page.mouse.wheel(0, 120);
+    await expect.poll(() => page.evaluate(() => window.__smoothWheelView.scrollDOM.scrollTop)).toBeCloseTo(620, 0);
+    await page.waitForTimeout(180);
+    const result = await page.evaluate(() => ({ samples: window.__smoothSamples,
+        before: window.__smoothBefore, head: window.__smoothWheelView.state.selection.main.head,
+        source: window.__smoothWheelView.state.doc.toString() }));
+    expect(new Set(result.samples.map(Math.round)).size).toBeGreaterThan(3);
+    expect(result.head).toBe(result.before.head); expect(result.source).toBe(source);
+    await page.mouse.wheel(0, -120);
+    await page.evaluate(() => {
+        const view = window.__smoothWheelView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(22).from } });
+        window.__smoothStopped = view.scrollDOM.scrollTop;
+    });
+    await page.waitForTimeout(180);
+    expect(await scroller.evaluate(element => element.scrollTop)).toBe(await page.evaluate(() => window.__smoothStopped));
+    const content = page.locator('#editor-container > .cm-editor .cm-content');
+    await content.focus();
+    await content.press('ArrowDown'); await content.press('ArrowUp');
+    expect(await page.evaluate(() => window.__smoothWheelView.state.doc.lineAt(window.__smoothWheelView.state.selection.main.head).number)).toBe(22);
+    // Pointer placement and drag remain owned by CodeMirror after an interrupted wheel sequence.
+    const points = await page.evaluate(() => {
+        const view = window.__smoothWheelView;
+        return [22, 23].map(line => { const rect = view.coordsAtPos(view.state.doc.line(line).from + 4); return { x: rect.left + 1, y: (rect.top + rect.bottom) / 2 }; });
+    });
+    await page.mouse.click(points[0].x, points[0].y);
+    await page.mouse.move(points[0].x, points[0].y); await page.mouse.down();
+    await page.mouse.move(points[1].x, points[1].y, { steps: 5 }); await page.mouse.up();
+    expect(await page.evaluate(() => window.__smoothWheelView.state.selection.main.empty)).toBe(false);
+    await page.evaluate(() => window.app.openTab('settings', 'Settings', 'settings'));
+    await expect(toggle).toBeChecked();
+    await page.locator('label.toggle-switch:has(#smooth-wheel-scroll-toggle)').click();
+    await expect(toggle).not.toBeChecked();
 });

@@ -325,3 +325,8 @@
 .status-separator {
     color: var(--status-separator-color);
 }
+
+/* Settings option groups cut through the card to its existing workspace surface. */
+.settings-card .settings-section--inset {
+    background: var(--workspace-surface);
+}

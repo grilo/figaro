@@ -1,7 +1,7 @@
 // Reviewed grammar policy. Adding a native rule never implicitly enables its
 // diagnostics or replacement actions in the editor.
-export const writingGrammarVersion = 'harper-0.1.0-curated-1+figaro-7';
-const rule = (title, fixes = true) => Object.freeze({ title, fixes });
+export const writingGrammarVersion = 'harper-0.1.0-curated-1+figaro-8';
+const rule = (title, fixes = true, context = 'block') => Object.freeze({ title, fixes, context });
 export const writingGrammarRules = Object.freeze({
     'Harper.BetterOffWith': rule('Check “better off with”'),
     'Harper.SimplePastToPastParticiple': rule('Check past participle'),
@@ -71,6 +71,10 @@ export const writingGrammarRules = Object.freeze({
     'FigaroGrammar.CorrectNumberSuffix': rule('Check ordinal number ending'),
     'FigaroGrammar.CapitalizePersonalPronouns': rule('Capitalize “I”'),
     'FigaroGrammar.CommaFixes': rule('Check comma spacing'),
+    // These native decisions establish their own bounded context. Countable
+    // amount spans its entire phrase; clause-boundary advice never offers Apply.
+    'FigaroGrammar.CountableAmount': rule('Check countable quantity', true, 'local'),
+    'FigaroGrammar.CommaSplice': rule('Review comma between clauses', false, 'local'),
     'FigaroGrammar.HyphenateNumberDay': rule('Check number-day hyphen'),
     'FigaroGrammar.IfWouldve': rule('Review past conditional', false),
     'FigaroGrammar.AMeansToAnEnd': rule('Check “a means to an end”'),

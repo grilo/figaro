@@ -25,6 +25,7 @@ export const helpSettingsEntries = [
     ['Vim mode', '#vim-toggle', 'Editor', ['vi', 'keybindings', 'motions']],
     ['Move by visual rows', '#vim-visual-rows-toggle', 'Editor · Vim mode', ['wrapped lines', 'j', 'k']],
     ['Enter rendered blocks', '#vim-reveal-blocks-toggle', 'Editor · Vim mode', ['live preview', 'j', 'k']],
+    ['Smooth mouse-wheel scrolling', '#smooth-wheel-scroll-toggle', 'Editor', ['scroll', 'wheel', 'momentum']],
     ['Line numbers', '#line-numbers-toggle', 'Editor', ['gutter']],
     ['Markdown diagnostics', '#markdown-lint-toggle', 'Editor', ['lint', 'F8', 'problems']],
     ['Links style', '#link-style-select', 'Editor', ['wikilinks', 'markdown links']],

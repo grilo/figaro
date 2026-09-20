@@ -13,7 +13,7 @@ describe('save dirty documents before native exit', () => {
     });
     test('allows closing only after every dirty buffer is saved', async () => {
         const active = { id: 'active', type: 'file', dirty: true };
-        const background = { id: 'background', type: 'file', dirty: true, _content: 'background body' };
+        const background = { id: 'background', type: 'file', dirty: true, _content: { readContent: () => 'background body' } };
         const save = jest.fn(async (tab, _content, options) => {
             expect(options).toEqual({ failurePrompt: 'always' });
             tab.dirty = false;

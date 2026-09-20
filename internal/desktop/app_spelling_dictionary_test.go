@@ -43,8 +43,10 @@ func TestSpellingDictionaryPreservesInvalidFileAndRejectsOutsideSymlinks(t *test
 	app := NewApp(dir)
 	for _, invalid := range []string{"", "{broken", `{"version":9,"words":[]}`} {
 		writeTestFile(t, dir, spellingDictionaryPath, invalid)
-		if _, err := app.SpellingDictionaryAdd("figaro"); err == nil {
-			t.Fatal("accepted invalid dictionary")
+		for _, change := range []func(string) ([]string, error){app.SpellingDictionaryAdd, app.SpellingDictionaryRemove} {
+			if _, err := change("keep"); err == nil {
+				t.Fatal("accepted invalid dictionary")
+			}
 		}
 		if readTestFile(t, dir, spellingDictionaryPath) != invalid {
 			t.Fatal("overwrote invalid dictionary")
@@ -57,8 +59,10 @@ func TestSpellingDictionaryPreservesInvalidFileAndRejectsOutsideSymlinks(t *test
 	if err := os.Symlink(filepath.Join(outside, "words.json"), filepath.Join(dir, spellingDictionaryPath)); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if _, err := app.SpellingDictionaryAdd("figaro"); err == nil {
-		t.Fatal("followed dictionary outside vault")
+	for _, change := range []func(string) ([]string, error){app.SpellingDictionaryAdd, app.SpellingDictionaryRemove} {
+		if _, err := change("keep"); err == nil {
+			t.Fatal("followed dictionary outside vault")
+		}
 	}
 	if readTestFile(t, outside, "words.json") != `{"version":1,"words":["keep"]}` {
 		t.Fatal("outside file changed")
@@ -96,5 +100,36 @@ func TestSpellingDictionaryReopensPossessivesAndNormalizesAccentsWithoutRewritin
 	info, err := os.Stat(filepath.Join(dir, spellingDictionaryPath))
 	if err != nil || runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0 {
 		t.Fatalf("dictionary permissions = %v %v", info, err)
+	}
+}
+
+func TestSpellingDictionaryRemovalPersistsAndUndoPreservesOtherWords(t *testing.T) {
+	dir := t.TempDir()
+	app := NewApp(dir)
+	writeTestFile(t, dir, "Memo.md", "Figaro codex")
+	for _, word := range []string{"figaro", "codex"} {
+		if _, err := app.SpellingDictionaryAdd(word); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := app.SpellingDictionaryRemove("CODEX"); err != nil {
+		t.Fatal(err)
+	}
+	words, err := NewApp(dir).SpellingDictionaryLoad()
+	if err != nil || !reflect.DeepEqual(words, []string{"figaro"}) {
+		t.Fatalf("reopened = %v %v", words, err)
+	}
+	if _, err := app.SpellingDictionaryAdd("other"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.SpellingDictionaryAdd("codex"); err != nil {
+		t.Fatal(err)
+	}
+	words, err = app.SpellingDictionaryLoad()
+	if err != nil || !reflect.DeepEqual(words, []string{"codex", "figaro", "other"}) {
+		t.Fatalf("undo = %v %v", words, err)
+	}
+	if readTestFile(t, dir, "Memo.md") != "Figaro codex" {
+		t.Fatal("note changed")
 	}
 }

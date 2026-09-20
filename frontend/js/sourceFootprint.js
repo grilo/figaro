@@ -8,6 +8,7 @@ import { ViewPlugin } from '@codemirror/view';
 
 const observers = new WeakMap();
 const sourceHeightCache = new WeakMap();
+const footprintInputs = new WeakMap();
 const SOURCE_TEXT_PROPERTY = '__figaroSourceFootprintText';
 
 /** Mark the DOM boundary that CodeMirror measures for a block replacement. */
@@ -67,11 +68,17 @@ function authoredFootprintHeight(element) {
     return Number.isFinite(height) && height > 0 ? height + 44 : 0;
 }
 
-function refreshWrappedSourceFootprints(view) {
+function refreshWrappedSourceFootprints(view, geometryChanged = true) {
     if (!view?.contentDOM) return;
     const elements = [...view.contentDOM.querySelectorAll('.cm-source-footprint[data-source-lines]')];
     // Ordinary prose and explicitly sized charts do not need wrapping rulers.
     if (!elements.length) return;
+    const inputs = new Map(elements.map(element => [element, [element[SOURCE_TEXT_PROPERTY],
+        element.dataset.sourceLines, authoredFootprintHeight(element)]]));
+    if (!geometryChanged && elements.every(element => {
+        const before = footprintInputs.get(element), after = inputs.get(element);
+        return before && before.every((value, index) => value === after[index]);
+    })) return;
     const wrapped = elements.filter(element => !authoredFootprintHeight(element)
         && typeof element[SOURCE_TEXT_PROPERTY] === 'string');
     const heights = new Map();
@@ -127,6 +134,7 @@ function refreshWrappedSourceFootprints(view) {
     for (const [element, state] of overflow) {
         if (element.dataset.sourceFootprintState !== state) element.dataset.sourceFootprintState = state;
     }
+    for (const [element, input] of inputs) footprintInputs.set(element, input);
     if (changed) view.requestMeasure();
 }
 
@@ -172,17 +180,20 @@ export const sourceFootprintExtension = ViewPlugin.fromClass(class {
         this.schedule();
     }
 
-    schedule() {
+    schedule(geometryChanged = true) {
+        this.geometryChanged ||= geometryChanged;
         if (this.scheduled) return;
         this.scheduled = true;
         queueMicrotask(deferEditorWork('footprints', 'document, viewport or geometry', () => {
             this.scheduled = false;
-            if (!this.view.isDestroyed) refreshWrappedSourceFootprints(this.view);
+            const geometryChanged = this.geometryChanged;
+            this.geometryChanged = false;
+            if (!this.view.isDestroyed) refreshWrappedSourceFootprints(this.view, geometryChanged);
         }, 'microtask'));
     }
 
     update(update) {
-        if (sourceFootprintUpdateNeedsMeasure(update)) this.schedule();
+        if (sourceFootprintUpdateNeedsMeasure(update)) this.schedule(!update.docChanged || Boolean(update.viewportMoved));
     }
 
     destroy() {

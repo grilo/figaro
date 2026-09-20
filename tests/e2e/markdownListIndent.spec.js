@@ -254,6 +254,7 @@ test('keeps wrapped list and blockquote bodies hanging beneath their markers', a
                 textIndent: getComputedStyle(element).textIndent,
             };
         };
+        window.__hangingLineGeometry = checkLine;
         return {
             bullet: checkLine({
                 lineNumber: 1,
@@ -278,6 +279,15 @@ test('keeps wrapped list and blockquote bodies hanging beneath their markers', a
         expect(Number.parseFloat(item.paddingLeft)).toBeGreaterThan(0);
         expect(Number.parseFloat(item.textIndent)).toBeLessThan(0);
     }
+
+    await page.evaluate(() => {
+        const view = window.__markdownListView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(2).from + 3 } });
+    });
+    await expect.poll(() => page.evaluate(() => {
+        const item = window.__hangingLineGeometry({ selector: '.cm-line.cm-markdown-list-item', body: 'Ordered' });
+        return item.wrappedTop > item.firstTop && Math.abs(item.wrappedLeft - item.firstLeft) <= 1;
+    })).toBe(true);
 
     const content = page.locator('.cm-content');
     const start = await page.evaluate(() => {
@@ -477,6 +487,24 @@ test('keeps wrapped list and blockquote bodies hanging beneath their markers', a
         const selection = window.__markdownListView.state.selection.main;
         return selection.to - selection.from;
     })).toBeGreaterThan(20);
+
+    // Browser-only boundary: cached indentation must follow actual font metrics
+    // after text scaling, including each wrapped continuation row.
+    await page.evaluate(async () => {
+        const view = window.__markdownListView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(4).from } });
+        (await import('/js/editorTextScale.js')).applyEditorTextScale(125, { view });
+        view.scrollDOM.scrollTop = 0;
+    });
+    await expect.poll(() => page.locator('.cm-line.cm-markdown-list-item').first().evaluate(element =>
+        Number.parseFloat(getComputedStyle(element).getPropertyValue('--cm-list-hanging-indent'))
+    )).toBeGreaterThan(Number.parseFloat(geometry.bullet.paddingLeft) - 1);
+    await expect.poll(() => page.evaluate(() => {
+        const check = window.__hangingLineGeometry;
+        return [['.cm-markdown-list-item', 'Bullet'], ['.cm-markdown-list-item', 'Ordered'], ['.cm-blockquote-line', 'Quote']]
+            .map(([selector, body]) => check({ selector, body }))
+            .every(item => item.wrappedTop > item.firstTop && Math.abs(item.wrappedLeft - item.firstLeft) <= 1);
+    })).toBe(true);
 });
 
 test('keeps a list immediately following a heading visible in live preview, PDF preview, and print output', async ({ page }) => {

@@ -34,6 +34,7 @@ export const state = {
     sidebarCollapsed: false,    // Left sidebar collapsed state
     rightSidebarCollapsed: false, // Right sidebar collapsed state
     showEditorBreadcrumbs: false, // Optional vault-relative path above the editor
+    smoothWheelScrolling: false, // Opt-in editor wheel smoothing; Apple platforms stay native
     pureTypewriterEnabled: true, // Smooth caret anchoring while typing in Pure mode
     pureFocusScope: 'off',       // off | phrase | paragraph
     pureAdaptiveTypographyEnabled: false, // Stable responsive type bands in Pure mode
@@ -263,6 +264,7 @@ export function initState() {
     state.sidebarCollapsed = stateStorage.read('sidebarCollapsed') === 'true';
     state.showEditorBreadcrumbs = stateStorage.read('showEditorBreadcrumbs') === 'true';
     stateStorage.remove('pureEditingChromeEnabled');
+    state.smoothWheelScrolling = stateStorage.read('smoothWheelScrolling') === 'true';
     const savedPureTypewriter = stateStorage.read('pureTypewriterEnabled');
     state.pureTypewriterEnabled = savedPureTypewriter === null
         ? true
@@ -360,6 +362,7 @@ export function persistState() {
     stateStorage.write('rightSidebarWidth', state.rightSidebarWidth.toString());
     stateStorage.write('sidebarCollapsed', String(state.sidebarCollapsed));
     stateStorage.write('showEditorBreadcrumbs', String(state.showEditorBreadcrumbs));
+    stateStorage.write('smoothWheelScrolling', String(state.smoothWheelScrolling));
     stateStorage.write('pureTypewriterEnabled', String(state.pureTypewriterEnabled));
     stateStorage.write('pureFocusScope', state.pureFocusScope);
     stateStorage.write('pureAdaptiveTypographyEnabled', String(state.pureAdaptiveTypographyEnabled));
@@ -392,6 +395,9 @@ subscribe('sidebarCollapsed', () => {
 });
 subscribe('showEditorBreadcrumbs', () => {
     try { stateStorage.write('showEditorBreadcrumbs', String(state.showEditorBreadcrumbs)); } catch (e) { /* noop */ }
+});
+subscribe('smoothWheelScrolling', () => {
+    try { stateStorage.write('smoothWheelScrolling', String(state.smoothWheelScrolling)); } catch (e) { /* noop */ }
 });
 subscribe('pureTypewriterEnabled', () => {
     try { stateStorage.write('pureTypewriterEnabled', String(state.pureTypewriterEnabled)); } catch (e) { /* noop */ }

@@ -1,5 +1,9 @@
 import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import { startCompletion } from '@codemirror/autocomplete';
 import { createEditorLinkCompletions } from '../frontend/js/editorLinkCompletions.js';
+
+jest.mock('@codemirror/autocomplete', () => ({ ...jest.requireActual('@codemirror/autocomplete'), startCompletion: jest.fn() }));
 
 function completionContext(source) {
     const state = EditorState.create({ doc: source });
@@ -34,6 +38,36 @@ function completionFixture(overrides = {}) {
 }
 
 describe('editor link-completion assembly', () => {
+    test('automatic triggers follow append, deletion, cursor moves and stale queued work', async () => {
+        const completion = completionFixture();
+        const view = new EditorView({ state: EditorState.create({ doc: '[Jump](', selection: { anchor: 7 },
+            extensions: [completion.headingLinkCompletionActivator, completion.hashtagCompletionActivator] }), parent: document.body });
+        const type = text => view.dispatch({ changes: { from: view.state.selection.main.head, insert: text },
+            selection: { anchor: view.state.selection.main.head + text.length }, userEvent: 'input.type' });
+        startCompletion.mockClear();
+        try {
+            type('#'); await Promise.resolve();
+            expect(startCompletion).toHaveBeenCalledTimes(1);
+            type('point'); await Promise.resolve();
+            expect(startCompletion).toHaveBeenCalledTimes(2);
+            type(') then #'); await Promise.resolve();
+            expect(startCompletion).toHaveBeenCalledTimes(3);
+            type('todo'); await Promise.resolve();
+            expect(startCompletion).toHaveBeenCalledTimes(4);
+            view.dispatch({ changes: { from: view.state.doc.length - 5, to: view.state.doc.length },
+                selection: { anchor: view.state.doc.length - 5 }, userEvent: 'delete.backward' });
+            type('ordinary'); await Promise.resolve();
+            expect(startCompletion).toHaveBeenCalledTimes(4);
+            view.dispatch({ selection: { anchor: 0 } });
+            type('#'); await Promise.resolve();
+            expect(startCompletion).toHaveBeenCalledTimes(4); // Line-leading heading.
+            view.dispatch({ selection: { anchor: view.state.doc.length } });
+            type(' #');
+            type(' '); // Cancel before the queued completion can run.
+            await Promise.resolve();
+            expect(startCompletion).toHaveBeenCalledTimes(4);
+        } finally { view.destroy(); }
+    });
     test('offers recursively discovered images by recency, excludes other files, and applies encoded Markdown', () => {
         const { imageCompletions } = completionFixture();
         const result = imageCompletions(completionContext('![scr'));

@@ -186,3 +186,7 @@ share the earlier p-map author/package family. The original drafts contain six
 pre-annotated errors. Agent judgments cover every visible finding and offered
 edit, and manual review records retained unflagged errors. This is exploratory
 evaluation, not independent human accuracy evidence or a completed pilot.
+
+The subsequent [gap corrections](benchmarks/writing-gaps-2026-09-20.md) use the
+September 20 fresh sample to guide fixes. It is now regression material; its
+before/after results must not be presented as an untouched quality estimate.

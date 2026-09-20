@@ -7,7 +7,7 @@ import { writingLensHelp } from '../core/writingLensHelpModel.js';
 import { createWritingLensHelpView } from './writingLensHelpView.js';
 
 /** The pane and Pure picker share the Settings combobox and approved controls. */
-export function createWritingLensesView({ id = 'writing-lenses', onChange, onRetry, onApplyAll, compact = true, onLayout = () => {} }) {
+export function createWritingLensesView({ id = 'writing-lenses', onChange, onRetry, onApplyAll, onManageDictionary, compact = true, onLayout = () => {} }) {
     const element = document.createElement('section');
     element.className = 'writing-lenses-controls';
     element.setAttribute('aria-label', 'Writing lens preferences');
@@ -18,7 +18,7 @@ export function createWritingLensesView({ id = 'writing-lenses', onChange, onRet
             </select>
         </div>
         <fieldset class="writing-lenses-layers"><legend>Lenses</legend>
-            ${writingLensGroups.map(lens => `<div><div class="writing-lenses-row"><label class="writing-lenses-layer"><input class="ui-checkbox" type="checkbox" value="${lens.id}" aria-describedby="${id}-availability ${id}-${lens.id}-description"><span>${lens.label}</span><span class="ui-badge" data-partial hidden>Partial</span></label><button type="button" class="ui-icon-button" data-lens-help="${lens.id}" aria-label="About ${lens.label}" aria-haspopup="dialog" aria-expanded="false" aria-controls="${id}-help"><span aria-hidden="true">${infoIcon()}</span></button></div><p class="writing-lenses-description" id="${id}-${lens.id}-description">${lens.description}</p></div>`).join('')}
+            ${writingLensGroups.map(lens => `<div><div class="writing-lenses-row"><label class="writing-lenses-layer"><input class="ui-checkbox" type="checkbox" value="${lens.id}" aria-describedby="${id}-availability ${id}-${lens.id}-description"><span>${lens.label}</span><span class="ui-badge" data-partial hidden>Partial</span></label><button type="button" class="ui-icon-button" data-lens-help="${lens.id}" aria-label="About ${lens.label}" aria-haspopup="dialog" aria-expanded="false" aria-controls="${id}-help"><span aria-hidden="true">${infoIcon()}</span></button></div><p class="writing-lenses-description" id="${id}-${lens.id}-description">${lens.description}</p>${lens.id === 'proofreading' ? '<button type="button" class="ui-button ui-button--quiet" data-manage-dictionary>Manage dictionary…</button>' : ''}</div>`).join('')}
         </fieldset>
         <section class="writing-lenses-review" aria-label="Analysis availability">
             <h3 data-review-title></h3><p id="${id}-availability" data-review-detail></p>
@@ -26,6 +26,9 @@ export function createWritingLensesView({ id = 'writing-lenses', onChange, onRet
         <div class="writing-lenses-persistence" role="status" aria-live="polite"><span data-save-status></span></div>
         <button type="button" class="ui-button" data-apply-all>Apply to all documents</button>
         <button type="button" class="ui-button" data-retry hidden>Retry</button>`;
+    const manage = element.querySelector('[data-manage-dictionary]');
+    manage.hidden = !onManageDictionary;
+    manage.addEventListener('click', () => onManageDictionary?.());
     const select = element.querySelector('select');
     const picker = enhanceSelectCombobox(select, { className: 'ui-picker--quiet' });
     const help = createWritingLensHelpView({ id: `${id}-help` });

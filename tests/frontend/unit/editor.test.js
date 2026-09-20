@@ -213,7 +213,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
     });
 
     test('calculates a hanging indent for wrapped Markdown list items', async () => {
-        const { markdownListHangingIndentAttributes } = await import('../frontend/js/editor.js');
+        const { markdownListHangingIndentAttributes } = await import('../frontend/js/markdownIndentation.js');
 
         expect(markdownListHangingIndentAttributes('- An item')).toEqual({
             class: 'cm-markdown-list-item',
@@ -231,7 +231,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
     });
 
     test('calculates active and passive hanging indents for wrapped blockquotes', async () => {
-        const { markdownBlockquoteHangingIndentAttributes } = await import('../frontend/js/editor.js');
+        const { markdownBlockquoteHangingIndentAttributes } = await import('../frontend/js/markdownIndentation.js');
 
         expect(markdownBlockquoteHangingIndentAttributes('> A quote')).toEqual({
             class: 'cm-blockquote-line',

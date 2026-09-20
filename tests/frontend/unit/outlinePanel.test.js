@@ -164,6 +164,9 @@ describe('outline focus and unavailable launcher', () => {
         // Row reuse must compare the visible heading, not that mutable hint.
         document.querySelectorAll('.outline-item').forEach(item => item.removeAttribute('title'));
         row.focus();
+        const mutations = new MutationObserver(() => {});
+        mutations.observe(document.querySelector('.outline-panel'), { subtree: true, attributes: true, childList: true });
+        const query = jest.spyOn(row, 'querySelector');
         mockContentReads = 0;
         for (let i = 0; i < 20; i++) {
             const previousDocument = state.doc;
@@ -176,6 +179,8 @@ describe('outline focus and unavailable launcher', () => {
             });
         }
         expect(mockContentReads).toBe(0);
+        expect(mutations.takeRecords()).toEqual([]); mutations.disconnect();
+        expect(query).not.toHaveBeenCalled(); query.mockRestore();
         expect(document.querySelectorAll('.outline-item')[1]).toBe(row);
         expect(document.activeElement).toBe(row);
         row.click();

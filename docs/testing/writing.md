@@ -4,6 +4,26 @@
 
 ## Writing review regression coverage
 
+`spellingDictionarySettings.test.js` covers accessible loading/empty states,
+normalized search, bounded lists, Add/Remove/Undo, pending/failed mutations,
+retry focus, concurrent additions, and disposal. It also proves the compact
+Settings launcher, shared modal inert/focus lifecycle, retained dialog draft,
+and close-during-save failures without focus theft. `spellingDictionaryModel.test.js`
+owns pure list ordering/filtering/bounds, while the dictionary use-case test owns
+serialization across Add and Remove. The Settings tab test proves injection,
+Editor placement, and subscription cleanup; the lens-view test keeps Manage
+dictionary available even with spelling disabled. Rooted Go tests prove Remove
+persists across a new App, preserves note bytes, and rejects corrupt/newer files
+and outside symlinks. Undo preserves additions made after removal. The existing
+Settings browser scenario checks exact cutout/workspace paint, heading placement,
+large-list overflow with stationary search/actions, focus trapping and restoration,
+and the real Proofreading-to-dialog handoff. Persistence rules stay below the
+browser layer.
+The 2026-09-20 packaged Linux WebKitGTK check passed 12 assertions for group
+paint/placement, the dictionary dialog, a 301-word list, search and close focus.
+Those native interactions used DOM-dispatched input; physical Windows/macOS
+input and their webviews were not exercised by that check.
+
 Spelling regressions cover Lezer-parsed reference IDs/definitions, indented code
 (including nested lists/quotes), continued prose, unfinished/BOM/CRLF frontmatter,
 Unicode offsets, explicit labels and advisory implicit link/image labels.
@@ -25,7 +45,7 @@ unknown-field preservation, and unchanged note text/private permissions. These a
 URLs, email, explicit paths, identifiers and common filenames. Real spelling
 cases cover all-caps errors, ordinary capitals, conservative name guesses, and
 composed/decomposed accents at exact source offsets. The runtime test proves the
-same technical policy reaches prose projection; mapping version 20 invalidates
+same technical policy reaches prose projection; mapping version 23 invalidates
 older evidence.
 Resolver tests reject protected or corrupt spelling ranges. They also protect
 implicit reference keys from other prose fixes. Test these eligibility and
@@ -36,6 +56,13 @@ link interaction and eager startup.
 and `writingSpelling.test.js` prove defined and unresolved footnotes are excluded
 while body and inline-note prose remain eligible at exact Unicode/CRLF offsets.
 These are analysis-only rules; editor geometry and printable syntax are unchanged.
+
+`writingIncremental.test.js` compares cached Markdown mappings and complete
+findings with fresh analysis across Unicode, CRLF, entities, quotes, protected
+blocks, reference changes, paragraph moves/splits and frontmatter. It proves a
+one-block parse for a safe edit and retention of 4,100 small paragraph results
+under the existing 4 MiB cap. `writingSourceProjection.test.js` owns pure edit
+planning, offset rebasing and recovery after injected parser/projection failure.
 
 Writing review has focused tests for real pinned retext/textlint output, Markdown/UTF-16
 mapping, conservative Vale/retext equivalence, independent lens filtering, conflicting
@@ -97,7 +124,9 @@ source transitions and drag selection in both directions. `writingLinkHints.test
 keeps exact inline/wiki/reference label mapping, overlapping sentence hints,
 protected destinations, widget identity, trimmed reference-label padding, tooltip restoration and
 immediate stale-hover rejection before repaint
-below the browser layer.
+below the browser layer. It also indexes findings by result identity, bounds
+queries to the viewport, retains unchanged mounted label plans and verifies
+zero offscreen finding-bound reads during legitimate DOM reconciliation.
 `TestProductionBuildRejectsMissingStartupBundleAndWorkers` uses Go's actual embed
 validation in a temporary module: source-only builds work without generated
 files, a prepared production build is accepted, and removing the application
@@ -125,7 +154,8 @@ command are recorded in [WRITING_ENGINE.md](../WRITING_ENGINE.md#harper-evaluati
 
 `writingSlopless.test.js` runs every one of the 30 selected real Slopless rules,
 checks the complete 77-rule inclusion/exclusion inventory, protected Markdown,
-CRLF/Unicode/encoded offsets, individual curly marks, stable merged evidence,
+CRLF/Unicode/encoded offsets, individual curly outliers against the authored
+convention, stable merged evidence,
 examples, reversible serialized Ignore, and unchanged Consistency behavior.
 The analysis use-case checks independent Formulaic execution, debounce and stale
 results; component tests cover the independent Formulaic writing checkbox and existing styled actions.
@@ -527,7 +557,7 @@ local dispatch measurements, not a guarantee for every document or platform.
 ## Curated grammar regression coverage
 
 [The grammar contract](../WRITING_HARPER.md#verification-and-maintenance) owns
-the 15-rule port corpus and 160 pure Go checks. Run `npm run test:focus --
+the 15-rule port corpus and 162 pure Go checks. Run `npm run test:focus --
 writing-grammar`, `go test ./internal/writing/...`, and the nested Vale race
 suite. The checked-in native bridge fixture is verified by Go and consumed by
 frontend projection/action tests. The shared reviewed minimal-pair corpus also runs directly against the pure
@@ -588,3 +618,38 @@ question, multiword-preposition, intervening-adverb and software-countability
 corrections across emphasis. The native reference comparison and fresh-document
 judgments are recorded separately in the
 [quality evaluation](../benchmarks/writing-quality-2026-09-20.md).
+
+The subsequent document-gap regressions cover args/backoff/Ctrl/debounce across
+both English dictionaries and every spelling surface, PascalCase/dotted members,
+technical noun/API-parameter senses, temporal/classifying “just,” reported route
+descriptions and overlooked risks, literal birds and weather, adjectival tired
+states, and observed past scenes, with meaningful advice controls. The 177-rule
+corpus contains 573 positives and 1,041 valid examples. New bridge probes cover
+agreement across a modifier, perfect “saw,” local quantity/splice eligibility
+beside code, protected phrases/quotations, conditional clauses, and Unicode/CRLF.
+Three Apply/Undo cases and advisory-only comma Ignore run in CodeMirror. Serial
+clause coordination is a required negative. Replay both existing document
+manifests; the previously fresh sample is now a development regression corpus.
+
+`writingRelevance.test.js` checks technical passive descriptions across every
+provider span shape, explicit-actor and unrelated-sentence controls, familiar
+vocabulary versus useful phrase shortening, and meaningful modifiers versus
+broad emphasis. Real package output proves independent quote/apostrophe
+conventions, protected code, exact advisory marks, and current whole-note policy
+after incremental paragraph edits. Replay both development manifests and retain
+all prior judgments; record any lost useful advice or correction separately.
+
+`writingDescriptionContext.test.js` checks 29 descriptive/technical passive
+patterns across native full spans and package participle-only spans, 16 actor
+and boundary controls, eight meaningful existential contexts across all three
+providers, seven weak/hidden/disconnected complements, overlapping grammar
+corrections and actual bundled output. The frozen-document replay combines real
+Go, package and spelling output; keep every prior useful finding and safe edit.
+The [context follow-up](../benchmarks/writing-context-2026-09-20.md) records the
+remaining findings and the representative packaged WebKitGTK workflow.
+
+Typing retention is also covered by `editorTypingInventory.test.js`: 10 and
+1,000 findings retain mapped positions without enumerating the snapshot getter,
+with bounded edited-range invalidation, immutable old snapshots and disabled
+stale actions. Paragraph edits must still remove affected marks. Existing
+writing-inline/retention cases own structural edits, global advice and refresh.

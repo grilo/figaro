@@ -1,5 +1,5 @@
 import { createSelectionRangeIndex, sourceRevealChanges } from './core/selectionRangeIndex.js';
-import { mapMarkdownBlockDescriptors } from './core/markdownProjectionModel.js';
+import { mapMarkdownBlockDescriptors, replaceMarkdownBlockRegions } from './core/markdownProjectionModel.js';
 import { countEditorWork } from './editorDiagnostics.js';
 
 const indices = new WeakMap();
@@ -41,4 +41,32 @@ export function mapSourceReveal(value, transaction) {
     return { ...value, blocks,
         revealIndex: blocks === value.blocks ? value.revealIndex : sourceRevealIndex(blocks),
         decorations: value.decorations.map(transaction.changes) };
+}
+
+/** Reparse changed blocks while preserving unrelated decoration ownership. */
+export function patchSourceReveal(value, transaction, regions, replacements, sourceVisible, projectBlock) {
+    if (!regions.length && !replacements.length) return mapSourceReveal(value, transaction);
+    const { blocks, removed } = replaceMarkdownBlockRegions(value.blocks, regions, replacements,
+        position => transaction.changes.mapPos(position));
+    let decorations = value.decorations.map(transaction.changes);
+    for (const block of removed) {
+        decorations = decorations.update({
+            filterFrom: transaction.state.doc.lineAt(transaction.changes.mapPos(block.from, -1)).from,
+            filterTo: transaction.changes.mapPos(block.to, 1),
+            filter: (_from, _to, decoration) => decoration.spec.sourceBlock !== (block.sourceIdentity || block),
+        });
+    }
+    const previouslyVisible = new Set([...value.visibleIndices].map(index => {
+        const block = value.blocks[index];
+        return block.sourceIdentity || block;
+    }));
+    const fresh = new Set(replacements), visibleIndices = new Set(), add = [];
+    blocks.forEach((block, index) => {
+        const visible = fresh.has(block) ? sourceVisible(transaction.state, block.from, block.to)
+            : previouslyVisible.has(block.sourceIdentity || block);
+        if (visible) visibleIndices.add(index);
+        if (fresh.has(block)) add.push(...projectBlock(transaction.state, block, visible));
+    });
+    if (add.length) decorations = decorations.update({ add, sort: true });
+    return { ...value, blocks, visibleIndices, revealIndex: sourceRevealIndex(blocks), decorations };
 }

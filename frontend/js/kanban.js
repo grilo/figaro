@@ -1,3 +1,4 @@
+import { readTabContent } from './usecases/tabContent.js';
 import { countEditorWork, deferEditorWork } from './editorDiagnostics.js';
 import { backend } from './backend.js';
 import { createKanbanBufferProjection, overlayKanbanCards } from './core/kanbanBufferModel.js';
@@ -144,6 +145,7 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
         },
         activate(nextFocusCol = null) {
             activeKanbanWorkspace = session;
+            refreshKanbanFromDirtyBuffers();
             applyKanbanPresentationToViews();
             selectMode();
             if (nextFocusCol) {
@@ -288,10 +290,11 @@ function scheduleDueDayRefresh() {
 }
 
 function scheduleLiveKanbanRefresh() {
+    if (!getBoardContainer()?.closest('.tab-panel.active')) return;
     if (liveRefreshFrame !== null) return;
     const refresh = deferEditorWork('kanban', 'document snapshot', () => {
         liveRefreshFrame = null;
-        refreshKanbanFromDirtyBuffers();
+        if (getBoardContainer()?.closest('.tab-panel.active')) refreshKanbanFromDirtyBuffers();
     }, 'frame');
     // Repaint on the next frame instead of asking the backend to rediscover
     // the vault after every keystroke. The dirty editor snapshots are already
@@ -363,8 +366,8 @@ export function kanbanCardsForBuffer(file, content) {
 function dirtyKanbanBuffers() {
     const snapshots = new Map();
     for (const tab of getState('openTabs') || []) {
-        if (tab?.type === 'file' && tab.dirty && tab.path && typeof tab._content === 'string') {
-            snapshots.set(tab.path, tab._content);
+        if (tab?.type === 'file' && tab.dirty && tab.path && typeof readTabContent(tab) === 'string') {
+            snapshots.set(tab.path, readTabContent(tab));
         }
     }
     return snapshots;

@@ -1,3 +1,4 @@
+import { readTabContent } from '../../../frontend/js/usecases/tabContent.js';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { undo } from '@codemirror/commands';
 import { testUtils } from './test_setup.js';
@@ -84,7 +85,7 @@ test('assembled cursor and typing paths obey the notification and work contract'
         expect(documentObserver).toHaveBeenCalledTimes(5);
         expect(document.querySelector('.outline-item')).toBe(originalHeading);
         await new Promise(resolve => setTimeout(resolve, 40));
-        expect(tabs.getActiveTab()._content).toBe(view.state.doc.toString());
+        expect(readTabContent(tabs.getActiveTab())).toBe(view.state.doc.toString());
         tabs.updateTabTitle('note', 'Renamed.md');
         expect(presentation).toHaveBeenCalledTimes(2);
         expect(document.title).toContain('Renamed.md');

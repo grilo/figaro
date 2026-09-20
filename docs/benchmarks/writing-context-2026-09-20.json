@@ -1,0 +1,3913 @@
+{
+  "date": "2026-09-20",
+  "reviewer": "Codex agent; original labels unchanged, not independent human gold",
+  "scope": "Development regressions. No new holdout or independent quality claim.",
+  "baselineReport": {
+    "path": "docs/benchmarks/writing-relevance-2026-09-20.json",
+    "sha256": "619fd9e47d668b42f82c66d196cdf600a2ec7551fc243cabd01ab7b3cfc07314"
+  },
+  "versions": {
+    "mapping": 23,
+    "editorial": 8,
+    "grammar": 8,
+    "spellingVocabulary": 4
+  },
+  "evaluations": {
+    "reviewed-eight": {
+      "before": {
+        "documents": 8,
+        "proseWords": 2685,
+        "visible": 24,
+        "judgments": {
+          "optional style": 4,
+          "unnecessary": 12,
+          "clear error": 8
+        },
+        "offeredReplacements": 8,
+        "unsafeReplacements": 0,
+        "invalidRanges": 0,
+        "annotatedErrors": 6,
+        "annotatedErrorsDetected": 6
+      },
+      "after": {
+        "documents": 8,
+        "proseWords": 2685,
+        "visible": 14,
+        "judgments": {
+          "optional style": 4,
+          "unnecessary": 2,
+          "clear error": 8
+        },
+        "offeredReplacements": 8,
+        "unsafeReplacements": 0,
+        "invalidRanges": 0,
+        "annotatedErrors": 6,
+        "annotatedErrorsDetected": 6
+      },
+      "removed": {
+        "syntax.passive": 8,
+        "syntax.indirect-opening": 2
+      },
+      "ledger": [
+        {
+          "document": "p-limit",
+          "index": 0,
+          "fromUTF16": 822,
+          "toUTF16": 831,
+          "kind": "syntax.passive",
+          "actual": "is called",
+          "context": "lean`\\\nDefault: `false`\n\nReject pending promises with an `AbortError` when `clearQueue()` is called.\nThis is recommended if you await the returned promises, for example with `Promise.all`, ",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 1,
+          "fromUTF16": 838,
+          "toUTF16": 852,
+          "kind": "syntax.passive",
+          "actual": "is recommended",
+          "context": "`false`\n\nReject pending promises with an `AbortError` when `clearQueue()` is called.\nThis is recommended if you await the returned promises, for example with `Promise.all`, so pending tasks do n",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 2,
+          "fromUTF16": 945,
+          "toUTF16": 951,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": " you await the returned promises, for example with `Promise.all`, so pending tasks do not remain unresolved after `clearQueue()`.\n\n```js\nimport pLimit from 'p-limit';\n\nconst limit = pLim",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 3,
+          "fromUTF16": 1306,
+          "toUTF16": 1317,
+          "kind": "syntax.passive",
+          "actual": "is provided",
+          "context": "rgs\n\nAny arguments to pass through to `fn`.\n\nSupport for passing arguments on to the `fn` is provided in order to be able to avoid creating unnecessary closures. You probably don't need this ",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 4,
+          "fromUTF16": 1318,
+          "toUTF16": 1329,
+          "kind": "style.wordiness",
+          "actual": "in order to",
+          "context": "uments to pass through to `fn`.\n\nSupport for passing arguments on to the `fn` is provided in order to be able to avoid creating unnecessary closures. You probably don't need this optimization",
+          "label": "optional style",
+          "reason": "The shorter “to” keeps the causal meaning; the original is grammatical.",
+          "fixes": [
+            {
+              "expected": "in order to",
+              "replacement": "to",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Optional shortening preserves meaning."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "p-limit",
+          "index": 5,
+          "fromUTF16": 1836,
+          "toUTF16": 1846,
+          "kind": "style.wordiness",
+          "actual": "equivalent",
+          "context": "ncurrency.\n\nThe mapper function receives the item value and its index.\n\nReturns a promise equivalent to `Promise.all(Array.from(iterable, (item, index) => limit(mapperFunction, item, index))",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 6,
+          "fromUTF16": 2102,
+          "toUTF16": 2115,
+          "kind": "syntax.passive",
+          "actual": "are discarded",
+          "context": "ith that error. Mapper functions that were already scheduled still run, and their results are discarded.\n\nThis is a convenience function for processing inputs that arrive in batches. For more c",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 7,
+          "fromUTF16": 2331,
+          "toUTF16": 2340,
+          "kind": "style.wordiness",
+          "actual": "currently",
+          "context": "//github.com/sindresorhus/p-map).\n\n### limit.activeCount\n\nThe number of promises that are currently running.\n\n### limit.pendingCount\n\nThe number of promises that are waiting to run (i.e. th",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 8,
+          "fromUTF16": 2423,
+          "toUTF16": 2427,
+          "kind": "style.wordiness",
+          "actual": "i.e.",
+          "context": "rrently running.\n\n### limit.pendingCount\n\nThe number of promises that are waiting to run (i.e. their internal `fn` was not called yet).\n\n### limit.clearQueue()\n\nDiscard pending promise",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 9,
+          "fromUTF16": 2545,
+          "toUTF16": 2716,
+          "kind": "readability.long-sentence",
+          "actual": "This might be useful if you want to tear down the queue at the end of your program's lifecycle or discard any function calls referencing an intermediary state of your app.",
+          "context": " called yet).\n\n### limit.clearQueue()\n\nDiscard pending promises that are waiting to run.\n\nThis might be useful if you want to tear down the queue at the end of your program's lifecycle or discard any function calls referencing an intermediary state of your app.\n\nNote: This does not cancel promises that are already running.\n\nWhen `rejectOnClear` is e",
+          "label": "optional style",
+          "reason": "Splitting the two long alternative uses could help a reader scan this API explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "p-limit",
+          "index": 10,
+          "fromUTF16": 2802,
+          "toUTF16": 2812,
+          "kind": "syntax.passive",
+          "actual": "is enabled",
+          "context": "app.\n\nNote: This does not cancel promises that are already running.\n\nWhen `rejectOnClear` is enabled, pending promises are rejected with an `AbortError`.\nThis is recommended if you await the",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 11,
+          "fromUTF16": 2831,
+          "toUTF16": 2843,
+          "kind": "syntax.passive",
+          "actual": "are rejected",
+          "context": "cel promises that are already running.\n\nWhen `rejectOnClear` is enabled, pending promises are rejected with an `AbortError`.\nThis is recommended if you await the returned promises, for example",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 12,
+          "fromUTF16": 2871,
+          "toUTF16": 2885,
+          "kind": "syntax.passive",
+          "actual": "is recommended",
+          "context": "When `rejectOnClear` is enabled, pending promises are rejected with an `AbortError`.\nThis is recommended if you await the returned promises, for example with `Promise.all`, so pending tasks do n",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 13,
+          "fromUTF16": 2978,
+          "toUTF16": 2984,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": " you await the returned promises, for example with `Promise.all`, so pending tasks do not remain unresolved after `clearQueue()`.\n\n### limit.concurrency\n\nGet or set the concurrency limit",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 14,
+          "fromUTF16": 3179,
+          "toUTF16": 3329,
+          "kind": "readability.complex-sentence",
+          "actual": "The returned function manages its own concurrent executions, allowing you to call it multiple times without exceeding the specified concurrency limit.",
+          "context": "ction(fn, options) <sup>named export</sup>\n\nReturns a function with limited concurrency.\n\nThe returned function manages its own concurrent executions, allowing you to call it multiple times without exceeding the specified concurrency limit.\n\nIdeal for scenarios where you need to control the number of simultaneous executions of a",
+          "label": "unnecessary",
+          "reason": "This sentence directly explains the concurrency guarantee; technical vocabulary drives the score.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "p-limit",
+          "index": 15,
+          "fromUTF16": 3331,
+          "toUTF16": 3496,
+          "kind": "readability.complex-sentence",
+          "actual": "Ideal for scenarios where you need to control the number of simultaneous executions of a single function, rather than managing concurrency across multiple functions.",
+          "context": "llowing you to call it multiple times without exceeding the specified concurrency limit.\n\nIdeal for scenarios where you need to control the number of simultaneous executions of a single function, rather than managing concurrency across multiple functions.\n\n```js\nimport {limitFunction} from 'p-limit';\n\nconst limitedFunction = limitFunction(asyn",
+          "label": "optional style",
+          "reason": "The contrast between one function and several could be expressed more briefly without changing the API contract.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 3
+        },
+        {
+          "document": "p-limit",
+          "index": 16,
+          "fromUTF16": 4047,
+          "toUTF16": 4056,
+          "kind": "syntax.passive",
+          "actual": "is called",
+          "context": "lean`\\\nDefault: `false`\n\nReject pending promises with an `AbortError` when `clearQueue()` is called.\nThis is recommended if you await the returned promises, for example with `Promise.all`, ",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 17,
+          "fromUTF16": 4063,
+          "toUTF16": 4077,
+          "kind": "syntax.passive",
+          "actual": "is recommended",
+          "context": "`false`\n\nReject pending promises with an `AbortError` when `clearQueue()` is called.\nThis is recommended if you await the returned promises, for example with `Promise.all`, so pending tasks do n",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 18,
+          "fromUTF16": 4170,
+          "toUTF16": 4176,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": " you await the returned promises, for example with `Promise.all`, so pending tasks do not remain unresolved after `clearQueue()`.\n\n### limitedFunction.clearQueue()\n\nDiscard pending calls",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 19,
+          "fromUTF16": 4316,
+          "toUTF16": 4326,
+          "kind": "syntax.passive",
+          "actual": "is enabled",
+          "context": "tion.clearQueue()\n\nDiscard pending calls that have not started yet.\n\nWhen `rejectOnClear` is enabled, pending promises are rejected with an `AbortError`. Otherwise, their promises remain unr",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 20,
+          "fromUTF16": 4345,
+          "toUTF16": 4357,
+          "kind": "syntax.passive",
+          "actual": "are rejected",
+          "context": "nding calls that have not started yet.\n\nWhen `rejectOnClear` is enabled, pending promises are rejected with an `AbortError`. Otherwise, their promises remain unresolved.\n\nThis does not cancel ",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-limit",
+          "index": 21,
+          "fromUTF16": 4406,
+          "toUTF16": 4412,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": "is enabled, pending promises are rejected with an `AbortError`. Otherwise, their promises remain unresolved.\n\nThis does not cancel calls that are already running.\n\n## Recipes\n\nSee [recip",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 0,
+          "fromUTF16": 617,
+          "toUTF16": 629,
+          "kind": "syntax.passive",
+          "actual": "is fulfilled",
+          "context": "y(run, {retries: 5}));\n```\n\n## API\n\n### pRetry(input, options?)\n\nReturns a `Promise` that is fulfilled when calling `input` returns a fulfilled promise. If calling `input` returns a rejected p",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 1,
+          "fromUTF16": 735,
+          "toUTF16": 744,
+          "kind": "syntax.passive",
+          "actual": "is called",
+          "context": "nput` returns a fulfilled promise. If calling `input` returns a rejected promise, `input` is called again until the max retries are reached, it then rejects with the last rejection reason.\n",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 2,
+          "fromUTF16": 773,
+          "toUTF16": 784,
+          "kind": "syntax.passive",
+          "actual": "are reached",
+          "context": "calling `input` returns a rejected promise, `input` is called again until the max retries are reached, it then rejects with the last rejection reason.\n\nDoes not retry on most `TypeErrors`, wi",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 3,
+          "fromUTF16": 784,
+          "toUTF16": 785,
+          "kind": "grammar.figarogrammar.commasplice",
+          "actual": ",",
+          "context": "put` returns a rejected promise, `input` is called again until the max retries are reached, it then rejects with the last rejection reason.\n\nDoes not retry on most `TypeErrors`, wit",
+          "label": "clear error",
+          "reason": "The comma joins independent clauses without a coordinator. Advice leaves the author to choose the intended join and offers no automatic rewrite.",
+          "judgmentOrigin": "Agent review of this newly detected occurrence.",
+          "fixes": [],
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "p-retry",
+          "index": 4,
+          "fromUTF16": 872,
+          "toUTF16": 893,
+          "kind": "style.wordiness",
+          "actual": "with the exception of",
+          "context": "ed, it then rejects with the last rejection reason.\n\nDoes not retry on most `TypeErrors`, with the exception of network errors. This is done on a best case basis as different browsers have different [m",
+          "label": "optional style",
+          "reason": "“Except for” would shorten the exception without changing its scope.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "p-retry",
+          "index": 5,
+          "fromUTF16": 915,
+          "toUTF16": 922,
+          "kind": "syntax.passive",
+          "actual": "is done",
+          "context": " reason.\n\nDoes not retry on most `TypeErrors`, with the exception of network errors. This is done on a best case basis as different browsers have different [messages](https://developer.mo",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 6,
+          "fromUTF16": 1106,
+          "toUTF16": 1114,
+          "kind": "style.wordiness",
+          "actual": "indicate",
+          "context": "a.org/en-US/docs/Web/API/Fetch_API/Using_Fetch#Checking_that_the_fetch_was_successful) to indicate this. See [whatwg/fetch#526 (comment)](https://github.com/whatwg/fetch/issues/526#issueco",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 7,
+          "fromUTF16": 1443,
+          "toUTF16": 1454,
+          "kind": "syntax.passive",
+          "actual": "is expected",
+          "context": "\n\n#### input\n\nType: `Function`\n\nReceives the number of attempts as the first argument and is expected to return a `Promise` or any value.\n\n#### options\n\nType: `object`\n\n##### onFailedAttempt(",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "p-retry",
+          "index": 8,
+          "fromUTF16": 1696,
+          "toUTF16": 1705,
+          "kind": "syntax.passive",
+          "actual": "is called",
+          "context": "Receives a context object containing the error and retry state information.\n\nThe function is called _after_ `shouldConsumeRetry` and _before_ `shouldRetry`, for all errors _except_ `AbortEr",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 9,
+          "fromUTF16": 1843,
+          "toUTF16": 1853,
+          "kind": "syntax.passive",
+          "actual": "be aborted",
+          "context": "ldRetry`, for all errors _except_ `AbortError`.\n\nIf the function throws, all retries will be aborted and the original promise will reject with the thrown error.\n\n```js\nimport pRetry from 'p-",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 10,
+          "fromUTF16": 2597,
+          "toUTF16": 2605,
+          "kind": "style.wordiness",
+          "actual": "contains",
+          "context": " retries left.\n\t\t// …\n\t},\n\tretries: 5\n});\n\nconsole.log(result);\n```\n\nThe `context` object contains:\n- `error` - The error that was thrown\n- `attemptNumber` - The attempt number (starts at ",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 11,
+          "fromUTF16": 2634,
+          "toUTF16": 2644,
+          "kind": "syntax.passive",
+          "actual": "was thrown",
+          "context": "\n});\n\nconsole.log(result);\n```\n\nThe `context` object contains:\n- `error` - The error that was thrown\n- `attemptNumber` - The attempt number (starts at 1)\n- `retriesLeft` - Number of retries ",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 12,
+          "fromUTF16": 2958,
+          "toUTF16": 2968,
+          "kind": "syntax.passive",
+          "actual": "is skipped",
+          "context": "sed on `minTimeout`, `factor`, `maxTimeout`, and `randomize`). This is `0` when the retry is skipped or when no retry will occur based on the checks completed before the current callback run",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 13,
+          "fromUTF16": 3612,
+          "toUTF16": 3621,
+          "kind": "syntax.passive",
+          "actual": "is called",
+          "context": " context. Returning `true` triggers a retry, `false` aborts with the error.\n\nThe function is called _after_ `onFailedAttempt` and `shouldConsumeRetry`.\n\nThe function is _not_ called on `Abo",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 14,
+          "fromUTF16": 3792,
+          "toUTF16": 3805,
+          "kind": "syntax.passive",
+          "actual": "are exhausted",
+          "context": "d on `AbortError`, `TypeError` (except network errors), or if `retries` or `maxRetryTime` are exhausted.\n\nIf the function throws, all retries will be aborted and the original promise will rejec",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 15,
+          "fromUTF16": 3849,
+          "toUTF16": 3859,
+          "kind": "syntax.passive",
+          "actual": "be aborted",
+          "context": "r if `retries` or `maxRetryTime` are exhausted.\n\nIf the function throws, all retries will be aborted and the original promise will reject with the thrown error.\n\n```js\nimport pRetry from 'p-",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 16,
+          "fromUTF16": 4162,
+          "toUTF16": 4172,
+          "kind": "syntax.passive",
+          "actual": "be retried",
+          "context": "ft}) => !(error instanceof CustomError)\n});\n```\n\nIn the example above, the operation will be retried unless the error is an instance of `CustomError`.\n\n##### shouldConsumeRetry(context)\n\nTyp",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 17,
+          "fromUTF16": 4364,
+          "toUTF16": 4375,
+          "kind": "syntax.passive",
+          "actual": "is returned",
+          "context": "`\n\nDecide if this failure should consume a retry from the `retries` budget.\n\nWhen `false` is returned, the failure will not consume a retry or increment backoff values, but is still subject t",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 18,
+          "fromUTF16": 4497,
+          "toUTF16": 4506,
+          "kind": "syntax.passive",
+          "actual": "is called",
+          "context": " retry or increment backoff values, but is still subject to `maxRetryTime`.\n\nThe function is called _before_ `onFailedAttempt` and `shouldRetry`.\n\nThe function is _not_ called on `AbortErro",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 19,
+          "fromUTF16": 4642,
+          "toUTF16": 4652,
+          "kind": "syntax.passive",
+          "actual": "be aborted",
+          "context": "\n\nThe function is _not_ called on `AbortError`.\n\nIf the function throws, all retries will be aborted and the original promise will reject with the thrown error.\n\n```js\nimport pRetry from 'p-",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 20,
+          "fromUTF16": 5066,
+          "toUTF16": 5081,
+          "kind": "grammar.figarogrammar.countableamount",
+          "actual": "amount of times",
+          "context": "ement the available `retries`.\n\n##### retries\n\nType: `number`\\\nDefault: `10`\n\nThe maximum amount of times to retry the operation. Must be a non-negative integer or `Infinity`.\n\n##### factor\n\nType",
+          "label": "clear error",
+          "reason": "Individually countable repetitions take number in this edited reference sentence; the complete visible phrase can be replaced without changing adjacent code.",
+          "judgmentOrigin": "Agent review of this newly detected occurrence.",
+          "fixes": [
+            {
+              "expected": "amount of times",
+              "replacement": "number of times",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Individually countable repetitions take number in this edited reference sentence; the complete visible phrase can be replaced without changing adjacent code."
+            }
+          ],
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "p-retry",
+          "index": 21,
+          "fromUTF16": 5366,
+          "toUTF16": 5377,
+          "kind": "style.wordiness",
+          "actual": "immediately",
+          "context": "0`\n\nThe number of milliseconds before starting the first retry.\n\nSet this to `0` to retry immediately with no delay.\n\n##### maxTimeout\n\nType: `number`\\\nDefault: `Infinity`\n\nThe maximum number",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 22,
+          "fromUTF16": 5748,
+          "toUTF16": 5758,
+          "kind": "syntax.passive",
+          "actual": "is allowed",
+          "context": "mber`\\\nDefault: `Infinity`\n\nThe maximum time (in milliseconds) that the retried operation is allowed to run.\n\nMeasured with a monotonic clock (`performance.now()`) so system clock adjustment",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "p-retry",
+          "index": 23,
+          "fromUTF16": 7053,
+          "toUTF16": 7062,
+          "kind": "syntax.passive",
+          "actual": "be called",
+          "context": "\n### AbortError(error)\n\nAbort retrying and reject the promise. No callback functions will be called.\n\n### message\n\nType: `string`\n\nAn error message.\n\n### error\n\nType: `Error`\n\nA custom erro",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-retry",
+          "index": 24,
+          "fromUTF16": 7203,
+          "toUTF16": 7216,
+          "kind": "syntax.passive",
+          "actual": "being retried",
+          "context": "### error\n\nType: `Error`\n\nA custom error.\n\n## Tip\n\nYou can pass arguments to the function being retried by wrapping it in an inline arrow function:\n\n```js\nimport pRetry from 'p-retry';\n\nconst r",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "ocean",
+          "index": 0,
+          "fromUTF16": 395,
+          "toUTF16": 402,
+          "kind": "style.wordiness",
+          "actual": "however",
+          "context": "s light bounces off of floating sediments and particles in the water.\n\nMost of the ocean, however, is completely dark. Hardly any light penetrates deeper than 656 feet (200 meters), and n",
+          "label": "unnecessary",
+          "reason": "However introduces a useful contrast between visible color and the dark majority of the ocean.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "ocean",
+          "index": 1,
+          "fromUTF16": 407,
+          "toUTF16": 417,
+          "kind": "style.modifier",
+          "actual": "completely",
+          "context": "ces off of floating sediments and particles in the water.\n\nMost of the ocean, however, is completely dark. Hardly any light penetrates deeper than 656 feet (200 meters), and no light penetra",
+          "label": "unnecessary",
+          "reason": "Completely conveys the degree of darkness supported by the following explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "passport",
+          "index": 0,
+          "fromUTF16": 170,
+          "toUTF16": 177,
+          "kind": "grammar.spelling",
+          "actual": "Cymraeg",
+          "context": "or update your passport and pay for it online.\n\nThis service is also available [in Welsh (Cymraeg)](https://www.gov.uk/gwneud-cais-adnewyddu-pasbort).\n\nIf your passport is burgundy or has",
+          "label": "unnecessary",
+          "reason": "Valid technical identifier, established term, package name, or explicitly identified Welsh name in this context; dictionary absence is not a prose error.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "passport",
+          "index": 1,
+          "fromUTF16": 268,
+          "toUTF16": 269,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "‘",
+          "context": "](https://www.gov.uk/gwneud-cais-adnewyddu-pasbort).\n\nIf your passport is burgundy or has ‘European Union’ on the cover, you can continue to use it until it expires.\n\n## How long it",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "passport",
+          "index": 2,
+          "fromUTF16": 283,
+          "toUTF16": 284,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "ov.uk/gwneud-cais-adnewyddu-pasbort).\n\nIf your passport is burgundy or has ‘European Union’ on the cover, you can continue to use it until it expires.\n\n## How long it takes\n\n[Check ",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "passport",
+          "index": 3,
+          "fromUTF16": 540,
+          "toUTF16": 548,
+          "kind": "style.modifier",
+          "actual": "urgently",
+          "context": "isations/hm-passport-office/about-our-services) before you apply.\n\nIf you need a passport urgently, you can [find out more about the Online Premium or 1 week Fast Track services](https://w",
+          "label": "unnecessary",
+          "reason": "Urgently distinguishes the expedited passport service from the ordinary service.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "passport",
+          "index": 4,
+          "fromUTF16": 818,
+          "toUTF16": 819,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "your new passport will not have the same number as your old one.\n\n## Before you start\n\nYou’ll need a debit or credit card to use this service.\n\n[It’s £13.50 cheaper](https://www.gov",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "passport",
+          "index": 5,
+          "fromUTF16": 875,
+          "toUTF16": 876,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "ld one.\n\n## Before you start\n\nYou’ll need a debit or credit card to use this service.\n\n[It’s £13.50 cheaper](https://www.gov.uk/passport-fees) to apply for a passport online than by",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "passport",
+          "index": 6,
+          "fromUTF16": 1866,
+          "toUTF16": 1867,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "es longer to apply by post than online.\n\nIf you need help, Post Office staff can check you’ve filled in the form correctly - but you’ll need to provide your own photos. This service",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "passport",
+          "index": 7,
+          "fromUTF16": 1908,
+          "toUTF16": 1909,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "f you need help, Post Office staff can check you’ve filled in the form correctly - but you’ll need to provide your own photos. This service costs extra. Find out more about the pape",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "passport",
+          "index": 8,
+          "fromUTF16": 1920,
+          "toUTF16": 1927,
+          "kind": "style.wordiness",
+          "actual": "provide",
+          "context": "elp, Post Office staff can check you’ve filled in the form correctly - but you’ll need to provide your own photos. This service costs extra. Find out more about the paper [Check and Send ",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "library",
+          "index": 0,
+          "fromUTF16": 79,
+          "toUTF16": 86,
+          "kind": "style.modifier",
+          "actual": "usually",
+          "context": "# A Saturday at the repair library\n\nWe arrived early because the first bus was usually crowded. The caretaker had already opened the side door, and sunlight reached all the way",
+          "label": "unnecessary",
+          "reason": "The modifier gives meaningful frequency, intention, pace, or appearance in this scene.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "library",
+          "index": 1,
+          "fromUTF16": 408,
+          "toUTF16": 412,
+          "kind": "grammar.figarogrammar.nounsubjectagreement",
+          "actual": "were",
+          "context": "e tea while the owner searched for the confirmation on her phone.\n\nThe small box of tools were waiting beside the window. I carried it to the nearest table and checked the list against",
+          "label": "clear error",
+          "reason": "Singular box governs was; tools belongs to the intervening prepositional modifier.",
+          "judgmentOrigin": "Agent review of this newly detected occurrence.",
+          "fixes": [
+            {
+              "expected": "were",
+              "replacement": "was",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Singular box governs was; tools belongs to the intervening prepositional modifier."
+            }
+          ],
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "library",
+          "index": 2,
+          "fromUTF16": 639,
+          "toUTF16": 642,
+          "kind": "grammar.harper.simplepasttopastparticiple",
+          "actual": "saw",
+          "context": "here were two spare handles and enough tape to finish the first repair. Maya said she had saw the missing tool in the cupboard on Friday. We looked there together and found it behind ",
+          "label": "clear error",
+          "reason": "The perfect auxiliary had requires seen; saw is followed by its explicit object here.",
+          "judgmentOrigin": "Agent review of this newly detected occurrence.",
+          "fixes": [
+            {
+              "expected": "saw",
+              "replacement": "seen",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "The perfect auxiliary had requires seen; saw is followed by its explicit object here."
+            }
+          ],
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "library",
+          "index": 3,
+          "fromUTF16": 767,
+          "toUTF16": 768,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "n Friday. We looked there together and found it behind a stack of old magazines.\n\nBy ten o’clock the room was full. A volunteer explained the booking system to a visitor who had nev",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "library",
+          "index": 4,
+          "fromUTF16": 947,
+          "toUTF16": 959,
+          "kind": "style.modifier",
+          "actual": "deliberately",
+          "context": "ver used a computer. Another showed a child how to thread a needle. The instructions were deliberately short: find the loose seam, choose a matching thread, and work slowly. Their patience mad",
+          "label": "unnecessary",
+          "reason": "The modifier gives meaningful frequency, intention, pace, or appearance in this scene.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "library",
+          "index": 5,
+          "fromUTF16": 1023,
+          "toUTF16": 1029,
+          "kind": "style.modifier",
+          "actual": "slowly",
+          "context": "ructions were deliberately short: find the loose seam, choose a matching thread, and work slowly. Their patience made the place feel welcoming.\n\nI recieved a message from the baker acros",
+          "label": "unnecessary",
+          "reason": "The modifier gives meaningful frequency, intention, pace, or appearance in this scene.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "library",
+          "index": 6,
+          "fromUTF16": 1080,
+          "toUTF16": 1088,
+          "kind": "grammar.spelling",
+          "actual": "recieved",
+          "context": "oose a matching thread, and work slowly. Their patience made the place feel welcoming.\n\nI recieved a message from the baker across the street just before lunch. He had saved yesterday’s ro",
+          "label": "clear error",
+          "reason": "A misspelling in ordinary prose; the offered edit restores the intended word.",
+          "fixes": [
+            {
+              "expected": "recieved",
+              "replacement": "received",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended meaning and corrects the typo or grammatical form."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "library",
+          "index": 7,
+          "fromUTF16": 1173,
+          "toUTF16": 1174,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "ieved a message from the baker across the street just before lunch. He had saved yesterday’s rolls for us and wanted someone to collect them. We took two bags and left the coins in ",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "library",
+          "index": 8,
+          "fromUTF16": 1556,
+          "toUTF16": 1562,
+          "kind": "style.modifier",
+          "actual": "neatly",
+          "context": "d parts. The bicycle basket was secure, the radio played again, and the child took home a neatly mended bag. I was tired, but I was glad we had kept the doors open.\n",
+          "label": "unnecessary",
+          "reason": "The modifier gives meaningful frequency, intention, pace, or appearance in this scene.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "handover",
+          "index": 0,
+          "fromUTF16": 58,
+          "toUTF16": 70,
+          "kind": "syntax.passive",
+          "actual": "was replaced",
+          "context": "# Evening handover: river monitoring station\n\nThe battery was replaced at 16:20. The new unit passed the load test, and the logger resumed sending readings befo",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "handover",
+          "index": 1,
+          "fromUTF16": 388,
+          "toUTF16": 391,
+          "kind": "grammar.figarogrammar.nounsubjectagreement",
+          "actual": "has",
+          "context": "abinet key is in the labelled envelope beside the radio.\n\nThe instruments near the bridge has been checked twice today. Both sets of readings agree with the manual gauge. There is no ",
+          "label": "clear error",
+          "reason": "Plural instruments governs have; bridge belongs to the intervening prepositional modifier.",
+          "judgmentOrigin": "Agent review of this newly detected occurrence.",
+          "fixes": [
+            {
+              "expected": "has",
+              "replacement": "have",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Plural instruments governs have; bridge belongs to the intervening prepositional modifier."
+            }
+          ],
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "handover",
+          "index": 2,
+          "fromUTF16": 392,
+          "toUTF16": 404,
+          "kind": "syntax.passive",
+          "actual": "been checked",
+          "context": "et key is in the labelled envelope beside the radio.\n\nThe instruments near the bridge has been checked twice today. Both sets of readings agree with the manual gauge. There is no reason to cha",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "handover",
+          "index": 3,
+          "fromUTF16": 469,
+          "toUTF16": 477,
+          "kind": "syntax.indirect-opening",
+          "actual": "There is",
+          "context": "e bridge has been checked twice today. Both sets of readings agree with the manual gauge. There is no reason to change the alarm threshold yet, although the overnight forecast includes mor",
+          "label": "unnecessary",
+          "reason": "There is no reason clearly explains why the threshold should stay unchanged.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "handover",
+          "index": 4,
+          "fromUTF16": 727,
+          "toUTF16": 735,
+          "kind": "grammar.spelling",
+          "actual": "seperate",
+          "context": "icer and record the time in the paper log as well as the shared file.\n\nPlease remember to seperate the damaged cables from the working ones. A yellow tag means that a cable needs testing; ",
+          "label": "clear error",
+          "reason": "A misspelling in ordinary prose; the offered edit restores the intended word.",
+          "fixes": [
+            {
+              "expected": "seperate",
+              "replacement": "separate",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended meaning and corrects the typo or grammatical form."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "handover",
+          "index": 5,
+          "fromUTF16": 861,
+          "toUTF16": 870,
+          "kind": "syntax.passive",
+          "actual": "be thrown",
+          "context": " ones. A yellow tag means that a cable needs testing; it does not mean that the cable can be thrown away. We have fewer equipment than we expected, so keeping a clear inventory will help th",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "handover",
+          "index": 6,
+          "fromUTF16": 885,
+          "toUTF16": 890,
+          "kind": "grammar.figarogrammar.massnouns",
+          "actual": "fewer",
+          "context": "s that a cable needs testing; it does not mean that the cable can be thrown away. We have fewer equipment than we expected, so keeping a clear inventory will help the morning crew decid",
+          "label": "clear error",
+          "reason": "Equipment is uncountable in this inventory context, so less is the intended determiner.",
+          "fixes": [
+            {
+              "expected": "fewer",
+              "replacement": "less",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended meaning and corrects the typo or grammatical form."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "handover",
+          "index": 7,
+          "fromUTF16": 1040,
+          "toUTF16": 1041,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "ll help the morning crew decide what to bring.\n\nThe station computer still shows yesterday’s map. Refreshing the browser did not resolve the problem. An engineer will inspect the ca",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "handover",
+          "index": 8,
+          "fromUTF16": 1223,
+          "toUTF16": 1235,
+          "kind": "syntax.passive",
+          "actual": "were checked",
+          "context": "e settings tomorrow; until then, use the printed map on the wall. The labels on that copy were checked last week and remain correct.\n\nI have left a flask of hot water in the kitchen. Please em",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "handover",
+          "index": 9,
+          "fromUTF16": 1250,
+          "toUTF16": 1256,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": "then, use the printed map on the wall. The labels on that copy were checked last week and remain correct.\n\nI have left a flask of hot water in the kitchen. Please empty it before you lea",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "handover",
+          "index": 10,
+          "fromUTF16": 1419,
+          "toUTF16": 1425,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": "it before you leave and switch off the small heater under the desk. The main cabinet must remain powered overnight. Write any unexpected noise or flashing lights in the log, even if the ",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "orchard",
+          "index": 0,
+          "fromUTF16": 166,
+          "toUTF16": 178,
+          "kind": "syntax.passive",
+          "actual": "is flattened",
+          "context": "tors come for the fruit, but I prefer the paths after the picking has finished. The grass is flattened beneath the trees, and the wooden ladders lean against the shed until someone finds time ",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "orchard",
+          "index": 1,
+          "fromUTF16": 299,
+          "toUTF16": 305,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": "den ladders lean against the shed until someone finds time to put them away. A few apples remain too high to reach. They are a welcome meal for the birds.\n\nThis morning I followed the wa",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "orchard",
+          "index": 2,
+          "fromUTF16": 601,
+          "toUTF16": 614,
+          "kind": "syntax.passive",
+          "actual": "been repaired",
+          "context": "eflections change as clouds crossed the sun. There was nothing urgent to do. The gate had been repaired, the tools were clean, and the sacks of fallen leaves could wait until tomorrow.\n\nMy neig",
+          "label": "unnecessary",
+          "reason": "The process or affected object is the intended focus; supplying an actor adds no needed information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "orchard",
+          "index": 3,
+          "fromUTF16": 787,
+          "toUTF16": 788,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "’",
+          "context": "My neighbour joined me with a basket and a small notebook. She wanted to compare this year’s harvest with the figures her father had recorded. His entries were brief, sometimes no m",
+          "label": "unnecessary",
+          "reason": "Conventional apostrophe or quotation typography; it does not establish a writing problem or authorship.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "museum",
+          "index": 0,
+          "fromUTF16": 439,
+          "toUTF16": 445,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": " a rough plan of the room. Mark entrances, windows, power sockets, and any area that must remain clear. Then place a few large objects on the plan before adding smaller ones. This helps ",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "museum",
+          "index": 1,
+          "fromUTF16": 817,
+          "toUTF16": 825,
+          "kind": "style.wordiness",
+          "actual": "identify",
+          "context": "n introduce a subject; a short paragraph can explain why an object matters; a caption can identify the maker and date. Visitors should be able to choose how much they read. They should als",
+          "label": "unnecessary",
+          "reason": "The word is short, clear, and semantically useful in this local explanation.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "museum",
+          "index": 2,
+          "fromUTF16": 1590,
+          "toUTF16": 1598,
+          "kind": "syntax.indirect-opening",
+          "actual": "there is",
+          "context": "sions. Review those decisions with people who have different needs and make changes while there is still time to do so.\n",
+          "label": "unnecessary",
+          "reason": "While there is still time is a clear temporal subordinate clause, not an indirect opening.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        }
+      ],
+      "manifestSHA256": "c8ffc5f3a8304151da803e9e7819b0153d24ad22a8f0a22345b3bf691ce9c5c3",
+      "currentRawSHA256": "f892e34b394505c6fb9ece9a1f0fb66bfcc8b02c554f654b87dd2eb57f6046f9",
+      "documents": [
+        {
+          "id": "p-limit",
+          "sha256": "dbe29b10fca55743e35fe2b3d768024cd135d1bac4bd60aee566a5e1f3af294f",
+          "language": "en-US",
+          "proseWords": 525,
+          "counts": {
+            "jsRaw": 24,
+            "spellingRaw": 0,
+            "nativeRaw": 31,
+            "visible": 4,
+            "cards": 4,
+            "suppressed": 30
+          },
+          "errors": [],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "p-retry",
+          "sha256": "c82039fad81447e4d0ad2233800a297cf5d7349708f58b030df46b811d8739d7",
+          "language": "en-US",
+          "proseWords": 642,
+          "counts": {
+            "jsRaw": 24,
+            "spellingRaw": 0,
+            "nativeRaw": 47,
+            "visible": 3,
+            "cards": 3,
+            "suppressed": 39
+          },
+          "errors": [],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "ocean",
+          "sha256": "f45b86f3361a7ceaaeac915e62cef34b477829588134a5aeb2d64d6bbb9fc9e6",
+          "language": "en-US",
+          "proseWords": 94,
+          "counts": {
+            "jsRaw": 0,
+            "spellingRaw": 0,
+            "nativeRaw": 2,
+            "visible": 0,
+            "cards": 0,
+            "suppressed": 2
+          },
+          "errors": [],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "passport",
+          "sha256": "467f2583d4ef11afe2a47842a64d2c34d81a359651f903ef2f61648b8c169d5f",
+          "language": "en-GB",
+          "proseWords": 291,
+          "counts": {
+            "jsRaw": 7,
+            "spellingRaw": 1,
+            "nativeRaw": 1,
+            "visible": 1,
+            "cards": 1,
+            "suppressed": 8
+          },
+          "errors": [],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "library",
+          "sha256": "88ad3756e81d7f895521ca65cd531196cf8f0cfb55f05e9c02f5f59656577e4a",
+          "language": "en-GB",
+          "proseWords": 296,
+          "counts": {
+            "jsRaw": 3,
+            "spellingRaw": 1,
+            "nativeRaw": 8,
+            "visible": 3,
+            "cards": 3,
+            "suppressed": 8
+          },
+          "errors": [
+            {
+              "context": "box of tools were",
+              "actual": "were",
+              "replacement": "was",
+              "fromUTF16": 408,
+              "toUTF16": 412,
+              "findings": [
+                0
+              ]
+            },
+            {
+              "context": "had saw",
+              "actual": "saw",
+              "replacement": "seen",
+              "fromUTF16": 639,
+              "toUTF16": 642,
+              "findings": [
+                1
+              ]
+            },
+            {
+              "context": "I recieved",
+              "actual": "recieved",
+              "replacement": "received",
+              "fromUTF16": 1080,
+              "toUTF16": 1088,
+              "findings": [
+                2
+              ]
+            }
+          ],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "handover",
+          "sha256": "405a0bae1e769fdf650598d68b0f36b480afa6dc499f1f27da9eaa691c829c40",
+          "language": "en-GB",
+          "proseWords": 280,
+          "counts": {
+            "jsRaw": 5,
+            "spellingRaw": 1,
+            "nativeRaw": 11,
+            "visible": 3,
+            "cards": 3,
+            "suppressed": 8
+          },
+          "errors": [
+            {
+              "context": "instruments near the bridge has",
+              "actual": "has",
+              "replacement": "have",
+              "fromUTF16": 388,
+              "toUTF16": 391,
+              "findings": [
+                0
+              ]
+            },
+            {
+              "context": "to seperate",
+              "actual": "seperate",
+              "replacement": "separate",
+              "fromUTF16": 727,
+              "toUTF16": 735,
+              "findings": [
+                1
+              ]
+            },
+            {
+              "context": "fewer equipment",
+              "actual": "fewer",
+              "replacement": "less",
+              "fromUTF16": 885,
+              "toUTF16": 890,
+              "findings": [
+                2
+              ]
+            }
+          ],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "orchard",
+          "sha256": "86cd3db00d224435a67f5d5841030be9bc5940b5040a845fdf26774a678a5c22",
+          "language": "en-GB",
+          "proseWords": 281,
+          "counts": {
+            "jsRaw": 3,
+            "spellingRaw": 0,
+            "nativeRaw": 8,
+            "visible": 0,
+            "cards": 0,
+            "suppressed": 6
+          },
+          "errors": [],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "museum",
+          "sha256": "75603524111b6af19dd93d0934d6067c7c67c6387512928903c339bf2ddbf3ac",
+          "language": "en-GB",
+          "proseWords": 276,
+          "counts": {
+            "jsRaw": 3,
+            "spellingRaw": 0,
+            "nativeRaw": 0,
+            "visible": 0,
+            "cards": 0,
+            "suppressed": 3
+          },
+          "errors": [],
+          "controls": [],
+          "duplicateRanges": []
+        }
+      ]
+    },
+    "known-six": {
+      "before": {
+        "documents": 6,
+        "proseWords": 2119,
+        "visible": 54,
+        "judgments": {
+          "unnecessary": 25,
+          "optional style": 10,
+          "clear error": 19
+        },
+        "offeredReplacements": 19,
+        "unsafeReplacements": 0,
+        "invalidRanges": 0,
+        "annotatedErrors": 20,
+        "annotatedErrorsDetected": 19
+      },
+      "after": {
+        "documents": 6,
+        "proseWords": 2119,
+        "visible": 32,
+        "judgments": {
+          "unnecessary": 3,
+          "optional style": 10,
+          "clear error": 19
+        },
+        "offeredReplacements": 19,
+        "unsafeReplacements": 0,
+        "invalidRanges": 0,
+        "annotatedErrors": 20,
+        "annotatedErrorsDetected": 19
+      },
+      "removed": {
+        "syntax.passive": 20,
+        "syntax.indirect-opening": 2
+      },
+      "ledger": [
+        {
+          "document": "serve-static",
+          "index": 0,
+          "fromUTF16": 356,
+          "toUTF16": 363,
+          "kind": "syntax.passive",
+          "actual": "is done",
+          "context": "rg/en/) module available through the\n[npm registry](https://www.npmjs.com/). Installation is done using the\n[`npm install` command](https://docs.npmjs.com/getting-started/installing-npm-p",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "serve-static",
+          "index": 1,
+          "fromUTF16": 712,
+          "toUTF16": 725,
+          "kind": "syntax.passive",
+          "actual": "be determined",
+          "context": "leware function to serve files from within a given root\ndirectory. The file to serve will be determined by combining `req.url`\nwith the provided root directory. When a file is not found, instea",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "serve-static",
+          "index": 2,
+          "fromUTF16": 1353,
+          "toUTF16": 1364,
+          "kind": "syntax.passive",
+          "actual": "are treated",
+          "context": "his will ignore the `immutable` and `maxAge` options.\n\n##### dotfiles\n\nSet how \"dotfiles\" are treated when encountered. A dotfile is a file\nor directory that begins with a dot (\".\"). Note thi",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "serve-static",
+          "index": 3,
+          "fromUTF16": 1557,
+          "toUTF16": 1569,
+          "kind": "syntax.passive",
+          "actual": "is specified",
+          "context": "ne on\nthe path itself without checking if the path actually exists on the\ndisk. If `root` is specified, only the dotfiles above the root are\nchecked (i.e. the root itself can be within a dotfi",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "serve-static",
+          "index": 4,
+          "fromUTF16": 1617,
+          "toUTF16": 1621,
+          "kind": "style.wordiness",
+          "actual": "i.e.",
+          "context": "exists on the\ndisk. If `root` is specified, only the dotfiles above the root are\nchecked (i.e. the root itself can be within a dotfile when set\nto \"deny\").\n\n  - `'allow'` No special tr",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 5,
+          "fromUTF16": 1462,
+          "toUTF16": 1469,
+          "kind": "syntax.passive",
+          "actual": "is done",
+          "context": "countered. A dotfile is a file\nor directory that begins with a dot (\".\"). Note this check is done on\nthe path itself without checking if the path actually exists on the\ndisk. If `root` is",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 6,
+          "fromUTF16": 2075,
+          "toUTF16": 2083,
+          "kind": "syntax.passive",
+          "actual": "be added",
+          "context": "Set file extension fallbacks. When set, if a file is not found, the given\nextensions will be added to the file name and search for. The first that\nexists will be served. Example: `['html',",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 7,
+          "fromUTF16": 2144,
+          "toUTF16": 2153,
+          "kind": "syntax.passive",
+          "actual": "be served",
+          "context": "iven\nextensions will be added to the file name and search for. The first that\nexists will be served. Example: `['html', 'htm']`.\n\nThe default value is `false`.\n\n##### fallthrough\n\nSet the m",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "serve-static",
+          "index": 8,
+          "fromUTF16": 2472,
+          "toUTF16": 2478,
+          "kind": "language.inclusive",
+          "actual": "simply",
+          "context": "rors like a bad request or a request to a non-existent file will cause\nthis middleware to simply `next()` to your next middleware when this value\nis `true`. When this value is `false`, t",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "serve-static",
+          "index": 9,
+          "fromUTF16": 2636,
+          "toUTF16": 2646,
+          "kind": "syntax.passive",
+          "actual": "is desired",
+          "context": "is value is `false`, these errors (even 404s), will invoke\n`next(err)`.\n\nTypically `true` is desired such that multiple physical directories can be\nmapped to the same web address or for rout",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 10,
+          "fromUTF16": 2793,
+          "toUTF16": 2800,
+          "kind": "syntax.passive",
+          "actual": "be used",
+          "context": " the same web address or for routes to fill in non-existent files.\n\nThe value `false` can be used if this middleware is mounted at a path that\nis designed to be strictly a single file sys",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 11,
+          "fromUTF16": 2820,
+          "toUTF16": 2830,
+          "kind": "syntax.passive",
+          "actual": "is mounted",
+          "context": "r routes to fill in non-existent files.\n\nThe value `false` can be used if this middleware is mounted at a path that\nis designed to be strictly a single file system directory, which allows fo",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 12,
+          "fromUTF16": 2846,
+          "toUTF16": 2857,
+          "kind": "syntax.passive",
+          "actual": "is designed",
+          "context": "istent files.\n\nThe value `false` can be used if this middleware is mounted at a path that\nis designed to be strictly a single file system directory, which allows for\nshort-circuiting 404s for",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 13,
+          "fromUTF16": 2864,
+          "toUTF16": 2872,
+          "kind": "style.modifier",
+          "actual": "strictly",
+          "context": " value `false` can be used if this middleware is mounted at a path that\nis designed to be strictly a single file system directory, which allows for\nshort-circuiting 404s for less overhead.",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 14,
+          "fromUTF16": 3214,
+          "toUTF16": 3226,
+          "kind": "syntax.passive",
+          "actual": "be specified",
+          "context": "` response\nheader, defaults to `false`. If set to `true`, the `maxAge` option should\nalso be specified to enable caching. The `immutable` directive will prevent\nsupported clients from making c",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 15,
+          "fromUTF16": 3755,
+          "toUTF16": 3762,
+          "kind": "style.wordiness",
+          "actual": "Provide",
+          "context": "ied` header, defaults to true. Uses the file\nsystem's last modified value.\n\n##### maxAge\n\nProvide a max-age in milliseconds for http caching, defaults to 0. This\ncan also be a string acce",
+          "label": "unnecessary",
+          "reason": "“Provide” is clear in a technical parameter description; a synonym does not improve the instruction.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 16,
+          "fromUTF16": 3983,
+          "toUTF16": 3986,
+          "kind": "grammar.spelling",
+          "actual": "dir",
+          "context": "ckage/ms#readme)\nmodule.\n\n##### redirect\n\nRedirect to trailing \"/\" when the pathname is a dir. Defaults to `true`.\n\n##### setHeaders\n\nFunction to set custom headers on response. Alter",
+          "label": "unnecessary",
+          "reason": "Established technical name, abbreviation, or defined acronym in this document; dictionary absence is true but the warning adds no editorial value.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "serve-static",
+          "index": 17,
+          "fromUTF16": 4140,
+          "toUTF16": 4149,
+          "kind": "syntax.passive",
+          "actual": "is called",
+          "context": "headers on response. Alterations to the headers need to\noccur synchronously. The function is called as `fn(res, path, stat)`, where\nthe arguments are:\n\n  - `res` the response object\n  - `pa",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 18,
+          "fromUTF16": 4265,
+          "toUTF16": 4275,
+          "kind": "syntax.passive",
+          "actual": "being sent",
+          "context": " where\nthe arguments are:\n\n  - `res` the response object\n  - `path` the file path that is being sent\n  - `stat` the stat object of the file that is being sent\n\n## Examples\n\n### Serve files w",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 19,
+          "fromUTF16": 4323,
+          "toUTF16": 4333,
+          "kind": "syntax.passive",
+          "actual": "being sent",
+          "context": " - `path` the file path that is being sent\n  - `stat` the stat object of the file that is being sent\n\n## Examples\n\n### Serve files with vanilla node.js http server\n\n```js\nconst finalhandler ",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 20,
+          "fromUTF16": 5428,
+          "toUTF16": 5434,
+          "kind": "language.inclusive",
+          "actual": "Simple",
+          "context": "handler(req, res))\n})\n\n// Listen\nserver.listen(3000)\n```\n\n### Serving using express\n\n#### Simple\n\nThis is a simple example of using Express.\n\n```js\nconst express = require('express')\ncon",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "serve-static",
+          "index": 21,
+          "fromUTF16": 5446,
+          "toUTF16": 5452,
+          "kind": "language.inclusive",
+          "actual": "simple",
+          "context": "\n})\n\n// Listen\nserver.listen(3000)\n```\n\n### Serving using express\n\n#### Simple\n\nThis is a simple example of using Express.\n\n```js\nconst express = require('express')\nconst serveStatic = r",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 3
+        },
+        {
+          "document": "serve-static",
+          "index": 22,
+          "fromUTF16": 5695,
+          "toUTF16": 5703,
+          "kind": "style.wordiness",
+          "actual": "Multiple",
+          "context": "tic('public/ftp', { index: ['default.html', 'default.htm'] }))\napp.listen(3000)\n```\n\n#### Multiple roots\n\nThis example shows a simple way to search through multiple directories.\nFiles are ",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 23,
+          "fromUTF16": 5732,
+          "toUTF16": 5738,
+          "kind": "language.inclusive",
+          "actual": "simple",
+          "context": "html', 'default.htm'] }))\napp.listen(3000)\n```\n\n#### Multiple roots\n\nThis example shows a simple way to search through multiple directories.\nFiles are searched for in `public-optimized/`",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 4
+        },
+        {
+          "document": "serve-static",
+          "index": 24,
+          "fromUTF16": 5789,
+          "toUTF16": 5801,
+          "kind": "syntax.passive",
+          "actual": "are searched",
+          "context": "iple roots\n\nThis example shows a simple way to search through multiple directories.\nFiles are searched for in `public-optimized/` first, then `public/` second\nas a fallback.\n\n```js\nconst expre",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "serve-static",
+          "index": 25,
+          "fromUTF16": 6821,
+          "toUTF16": 6824,
+          "kind": "clarity.undefined-acronym",
+          "actual": "MIT",
+          "context": "TML files\n    res.setHeader('Cache-Control', 'public, max-age=0')\n  }\n}\n```\n\n## License\n\n[MIT](LICENSE)\n\n[coveralls-image]: https://badgen.net/coveralls/c/github/expressjs/serve-stati",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 5
+        },
+        {
+          "document": "p-map",
+          "index": 0,
+          "fromUTF16": 43,
+          "toUTF16": 157,
+          "kind": "readability.complex-sentence",
+          "actual": "Useful when you need to run promise-returning & async functions multiple times with different inputs concurrently.",
+          "context": "# p-map\n\n> Map over promises concurrently\n\nUseful when you need to run promise-returning & async functions multiple times with different inputs concurrently.\n\nThis is different from `Promise.all()` in that you can control the concurrency and also ",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "p-map",
+          "index": 1,
+          "fromUTF16": 254,
+          "toUTF16": 268,
+          "kind": "style.wordiness",
+          "actual": "whether or not",
+          "context": "is different from `Promise.all()` in that you can control the concurrency and also decide whether or not to stop iterating when there's an error.\n\n## Install\n\n```sh\nnpm install p-map\n```\n\n## Usa",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "p-map",
+          "index": 2,
+          "fromUTF16": 870,
+          "toUTF16": 882,
+          "kind": "syntax.passive",
+          "actual": "is fulfilled",
+          "context": "://github.com/']\n```\n\n## API\n\n### pMap(input, mapper, options?)\n\nReturns a `Promise` that is fulfilled when all promises in `input` and the ones returned from `mapper` are fulfilled, or reject",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-map",
+          "index": 3,
+          "fromUTF16": 948,
+          "toUTF16": 961,
+          "kind": "syntax.passive",
+          "actual": "are fulfilled",
+          "context": "omise` that is fulfilled when all promises in `input` and the ones returned from `mapper` are fulfilled, or rejects if any of the promises reject. The fulfilled value is an `Array` of the fulfi",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-map",
+          "index": 4,
+          "fromUTF16": 1616,
+          "toUTF16": 1627,
+          "kind": "syntax.passive",
+          "actual": "is iterated",
+          "context": "known> | Iterable<Promise<unknown> | unknown>`\n\nSynchronous or asynchronous iterable that is iterated over concurrently, calling the `mapper` function for each element. Each iterated item is ",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-map",
+          "index": 5,
+          "fromUTF16": 1747,
+          "toUTF16": 1757,
+          "kind": "syntax.passive",
+          "actual": "is invoked",
+          "context": "e `mapper` function for each element. Each iterated item is `await`'d before the `mapper` is invoked so the iterable may return a `Promise` that resolves to an item.\n\nAsynchronous iterables ",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-map",
+          "index": 6,
+          "fromUTF16": 1937,
+          "toUTF16": 1944,
+          "kind": "syntax.passive",
+          "actual": "be used",
+          "context": "(different from synchronous iterables that return `Promise` that resolves to an item) can be used when the next item may not be ready without waiting for an asynchronous process to comple",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "p-map",
+          "index": 7,
+          "fromUTF16": 2072,
+          "toUTF16": 2082,
+          "kind": "syntax.passive",
+          "actual": "be reached",
+          "context": "ithout waiting for an asynchronous process to complete and/or the end of the iterable may be reached after the asynchronous process completes. For example, reading from a remote queue when t",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-map",
+          "index": 8,
+          "fromUTF16": 2789,
+          "toUTF16": 2799,
+          "kind": "syntax.passive",
+          "actual": "be limited",
+          "context": "olved but not yet collected by the consumer of the async iterable. Calls to `mapper` will be limited so that there is never too much backpressure.\n\nUseful whenever you are consuming the iter",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "p-map",
+          "index": 9,
+          "fromUTF16": 2808,
+          "toUTF16": 2816,
+          "kind": "syntax.indirect-opening",
+          "actual": "there is",
+          "context": "ollected by the consumer of the async iterable. Calls to `mapper` will be limited so that there is never too much backpressure.\n\nUseful whenever you are consuming the iterable slower than ",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "p-map",
+          "index": 10,
+          "fromUTF16": 2847,
+          "toUTF16": 2956,
+          "kind": "readability.complex-sentence",
+          "actual": "Useful whenever you are consuming the iterable slower than what the mapper function can produce concurrently.",
+          "context": "terable. Calls to `mapper` will be limited so that there is never too much backpressure.\n\nUseful whenever you are consuming the iterable slower than what the mapper function can produce concurrently. For example, to avoid making an overwhelming number of HTTP requests if you are saving ea",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "p-map",
+          "index": 11,
+          "fromUTF16": 3199,
+          "toUTF16": 3210,
+          "kind": "syntax.passive",
+          "actual": "be rejected",
+          "context": " `pMap`**\n\nType: `boolean`\\\nDefault: `true`\n\nWhen `true`, the first mapper rejection will be rejected back to the consumer.\n\nWhen `false`, instead of stopping when a promise rejects, it will ",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "p-map",
+          "index": 12,
+          "fromUTF16": 3637,
+          "toUTF16": 3775,
+          "kind": "readability.complex-sentence",
+          "actual": "In the case of infinite concurrency with sync iterables, all mappers are invoked on startup and will continue after the first rejection.",
+          "context": "ue`, any already-started async mappers will continue to run until they resolve or reject. In the case of infinite concurrency with sync iterables, *all* mappers are invoked on startup and will continue after the first rejection. Use the `signal` option for abort control.\n\n##### signal\n\n**Only for `pMap`**\n\nType: [`Ab",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 3
+        },
+        {
+          "document": "p-map",
+          "index": 13,
+          "fromUTF16": 3637,
+          "toUTF16": 3651,
+          "kind": "style.wordiness",
+          "actual": "In the case of",
+          "context": "ue`, any already-started async mappers will continue to run until they resolve or reject. In the case of infinite concurrency with sync iterables, *all* mappers are invoked on startup and will c",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 4
+        },
+        {
+          "document": "p-map",
+          "index": 14,
+          "fromUTF16": 3708,
+          "toUTF16": 3719,
+          "kind": "syntax.passive",
+          "actual": "are invoked",
+          "context": "resolve or reject. In the case of infinite concurrency with sync iterables, *all* mappers are invoked on startup and will continue after the first rejection. Use the `signal` option for abort",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "workshop",
+          "index": 0,
+          "fromUTF16": 123,
+          "toUTF16": 128,
+          "kind": "grammar.figarogrammar.theirtotheyre",
+          "actual": "Their",
+          "context": " \"Their going to be late. teh\"\n---\n# Saturday workshop\n\n😀 The volunteers arrive at nine. Their going to be late if the bridge remains closed, so we have left a second set of keys with ",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "Their",
+              "replacement": "They're",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "workshop",
+          "index": 1,
+          "fromUTF16": 233,
+          "toUTF16": 237,
+          "kind": "grammar.figarogrammar.yourpredicateadjective",
+          "actual": "Your",
+          "context": "te if the bridge remains closed, so we have left a second set of keys with the caretaker. Your going to be welcomed at either entrance. The morning session covers simple repairs, and t",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "Your",
+              "replacement": "You're",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "workshop",
+          "index": 2,
+          "fromUTF16": 247,
+          "toUTF16": 258,
+          "kind": "syntax.passive",
+          "actual": "be welcomed",
+          "context": "ge remains closed, so we have left a second set of keys with the caretaker. Your going to be welcomed at either entrance. The morning session covers simple repairs, and the afternoon is reser",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "workshop",
+          "index": 3,
+          "fromUTF16": 306,
+          "toUTF16": 312,
+          "kind": "language.inclusive",
+          "actual": "simple",
+          "context": "h the caretaker. Your going to be welcomed at either entrance. The morning session covers simple repairs, and the afternoon is reserved for questions. Its going to be useful for anyone w",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "workshop",
+          "index": 4,
+          "fromUTF16": 340,
+          "toUTF16": 351,
+          "kind": "syntax.passive",
+          "actual": "is reserved",
+          "context": "welcomed at either entrance. The morning session covers simple repairs, and the afternoon is reserved for questions. Its going to be useful for anyone who has never opened a tool box.\n\n## Bef",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "workshop",
+          "index": 5,
+          "fromUTF16": 367,
+          "toUTF16": 370,
+          "kind": "grammar.figarogrammar.itscontraction",
+          "actual": "Its",
+          "context": ". The morning session covers simple repairs, and the afternoon is reserved for questions. Its going to be useful for anyone who has never opened a tool box.\n\n## Before people arrive\n\n",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "Its",
+              "replacement": "It's",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 3
+        },
+        {
+          "document": "workshop",
+          "index": 6,
+          "fromUTF16": 473,
+          "toUTF16": 476,
+          "kind": "grammar.spelling",
+          "actual": "teh",
+          "context": "useful for anyone who has never opened a tool box.\n\n## Before people arrive\n\nPlease check teh printed list against the booking sheet. We need an uniform sign for each room so that vis",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "teh",
+              "replacement": "the",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 4
+        },
+        {
+          "document": "workshop",
+          "index": 7,
+          "fromUTF16": 525,
+          "toUTF16": 527,
+          "kind": "grammar.article",
+          "actual": "an",
+          "context": "## Before people arrive\n\nPlease check teh printed list against the booking sheet. We need an uniform sign for each room so that visitors can find the right group. The spare chairs is",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "an",
+              "replacement": "a",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 5
+        },
+        {
+          "document": "workshop",
+          "index": 8,
+          "fromUTF16": 615,
+          "toUTF16": 617,
+          "kind": "grammar.figarogrammar.nounsubjectagreement",
+          "actual": "is",
+          "context": "an uniform sign for each room so that visitors can find the right group. The spare chairs is in the cupboard beside the sink. We have already counted the cups, but we still need to c",
+          "label": "clear error",
+          "reason": "One of the four previously recorded grammar misses, already corrected by the preceding 175-check batch; the quality baseline and current build both detect it.",
+          "fixes": [
+            {
+              "expected": "is",
+              "replacement": "are",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Restores the intended grammatical form without changing the surrounding Markdown."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 6
+        },
+        {
+          "document": "workshop",
+          "index": 9,
+          "fromUTF16": 728,
+          "toUTF16": 737,
+          "kind": "syntax.indirect-opening",
+          "actual": "There are",
+          "context": "de the sink. We have already counted the cups, but we still need to carry water upstairs. There are two large jugs on the shelf.\n\n- Put the the pencils beside the blank forms.\n- Leave the f",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "workshop",
+          "index": 10,
+          "fromUTF16": 774,
+          "toUTF16": 781,
+          "kind": "grammar.repeated-word",
+          "actual": "the the",
+          "context": " but we still need to carry water upstairs. There are two large jugs on the shelf.\n\n- Put the the pencils beside the blank forms.\n- Leave the fire exit clear.\n- Keep each visitor's contac",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "the the",
+              "replacement": "the",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 7
+        },
+        {
+          "document": "workshop",
+          "index": 11,
+          "fromUTF16": 914,
+          "toUTF16": 921,
+          "kind": "grammar.spelling",
+          "actual": "recieve",
+          "context": "e fire exit clear.\n- Keep each visitor's contact details inside the closed folder.\n\nThe **recieve** label on the old tray needs replacing. The online [booking guide](https://example.org/t",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "recieve",
+              "replacement": "receive",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 8
+        },
+        {
+          "document": "workshop",
+          "index": 12,
+          "fromUTF16": 1065,
+          "toUTF16": 1075,
+          "kind": "syntax.passive",
+          "actual": "is printed",
+          "context": "booking guide](https://example.org/teh/recieve) has the correct room numbers. Its address is printed on the welcome card. Do not copy the example below into that card; it is a deliberately i",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "workshop",
+          "index": 13,
+          "fromUTF16": 1151,
+          "toUTF16": 1163,
+          "kind": "style.modifier",
+          "actual": "deliberately",
+          "context": "ess is printed on the welcome card. Do not copy the example below into that card; it is a deliberately incorrect test string.\n\n```text\nTheir going to be late. teh recieve\n```\n\n## Afterwards\n\nT",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "workshop",
+          "index": 14,
+          "fromUTF16": 1267,
+          "toUTF16": 1277,
+          "kind": "syntax.passive",
+          "actual": "be thanked",
+          "context": "t string.\n\n```text\nTheir going to be late. teh recieve\n```\n\n## Afterwards\n\nTheir going to be thanked surprised the helpers. Your running today worried nobody, because the paths were dry. The",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "workshop",
+          "index": 15,
+          "fromUTF16": 1381,
+          "toUTF16": 1393,
+          "kind": "syntax.passive",
+          "actual": "was expected",
+          "context": " helpers. Your running today worried nobody, because the paths were dry. Their going home was expected. We should leave these sentences as they stand in the reflection exercise. At the end of ",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "garden",
+          "index": 0,
+          "fromUTF16": 322,
+          "toUTF16": 335,
+          "kind": "syntax.passive",
+          "actual": "were measured",
+          "context": "e empty containers to the shed before the wind became stronger.\n\n## Method\n\nThe seedlings were measured at noon because that was the only time when every volunteer could attend. The measurement",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "garden",
+          "index": 1,
+          "fromUTF16": 431,
+          "toUTF16": 438,
+          "kind": "style.wordiness",
+          "actual": "reflect",
+          "context": "on because that was the only time when every volunteer could attend. The measurements may reflect differences in soil moisture; they do not establish a cause. We cannot assume that the pl",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "garden",
+          "index": 2,
+          "fromUTF16": 481,
+          "toUTF16": 490,
+          "kind": "style.wordiness",
+          "actual": "establish",
+          "context": "teer could attend. The measurements may reflect differences in soil moisture; they do not establish a cause. We cannot assume that the plants nearest the wall received the same amount of li",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "garden",
+          "index": 3,
+          "fromUTF16": 724,
+          "toUTF16": 730,
+          "kind": "style.wordiness",
+          "actual": "remain",
+          "context": " in the report.\n\n| Plot | Observation | Next visit |\n| --- | --- | --- |\n| North | Leaves remain pale | Check drainage |\n| South | New growth is visible | Measure again |\n\nOur record use",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "garden",
+          "index": 4,
+          "fromUTF16": 971,
+          "toUTF16": 983,
+          "kind": "syntax.passive",
+          "actual": "is described",
+          "context": "mparison within this small garden, not a promise about a commercial crop. The full method is described in the [field guide](https://example.org/field-guide). A request for the guide should inc",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "garden",
+          "index": 5,
+          "fromUTF16": 1194,
+          "toUTF16": 1208,
+          "kind": "syntax.passive",
+          "actual": "be interviewed",
+          "context": "onse time depends on the volunteer who checks the mailbox.\n\n## Reflection\n\nTheir going to be interviewed was unexpected. Your going to have been selected surprised the whole group. Their not goi",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "garden",
+          "index": 6,
+          "fromUTF16": 1244,
+          "toUTF16": 1257,
+          "kind": "syntax.passive",
+          "actual": "been selected",
+          "context": "mailbox.\n\n## Reflection\n\nTheir going to be interviewed was unexpected. Your going to have been selected surprised the whole group. Their not going to be served immediately seemed reasonable. Th",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "garden",
+          "index": 7,
+          "fromUTF16": 1304,
+          "toUTF16": 1313,
+          "kind": "syntax.passive",
+          "actual": "be served",
+          "context": "nexpected. Your going to have been selected surprised the whole group. Their not going to be served immediately seemed reasonable. These remarks describe people's reactions; the possessive ",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "garden",
+          "index": 8,
+          "fromUTF16": 1314,
+          "toUTF16": 1325,
+          "kind": "style.wordiness",
+          "actual": "immediately",
+          "context": " Your going to have been selected surprised the whole group. Their not going to be served immediately seemed reasonable. These remarks describe people's reactions; the possessive forms are in",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "garden",
+          "index": 9,
+          "fromUTF16": 1427,
+          "toUTF16": 1428,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "“",
+          "context": "onable. These remarks describe people's reactions; the possessive forms are intentional.\n\n“Slowly, slowly,” the gardener said. Repetition is part of this quotation. We kept the word",
+          "label": "unnecessary",
+          "reason": "Valid, intentional typographic quotation marks; no straight-quote preference was stated. Message correctly explains optionality.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "garden",
+          "index": 10,
+          "fromUTF16": 1443,
+          "toUTF16": 1444,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "”",
+          "context": "marks describe people's reactions; the possessive forms are intentional.\n\n“Slowly, slowly,” the gardener said. Repetition is part of this quotation. We kept the wording because it c",
+          "label": "unnecessary",
+          "reason": "Valid, intentional typographic quotation marks; no straight-quote preference was stated. Message correctly explains optionality.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "garden",
+          "index": 11,
+          "fromUTF16": 1702,
+          "toUTF16": 1710,
+          "kind": "style.wordiness",
+          "actual": "contains",
+          "context": "ner's voice and the limits of our observations.[^field-note]\n\n[^field-note]: The notebook contains estimates, not precise laboratory results.\n",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "service-note",
+          "index": 0,
+          "fromUTF16": 117,
+          "toUTF16": 125,
+          "kind": "style.wordiness",
+          "actual": "contains",
+          "context": "te explains how the help desk handles a request after the office closes. The request body contains the visitor's question. The response body contains the answer and a reference number. Nei",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "service-note",
+          "index": 1,
+          "fromUTF16": 168,
+          "toUTF16": 176,
+          "kind": "style.wordiness",
+          "actual": "contains",
+          "context": "er the office closes. The request body contains the visitor's question. The response body contains the answer and a reference number. Neither body is a person. We keep these technical term",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "service-note",
+          "index": 2,
+          "fromUTF16": 416,
+          "toUTF16": 423,
+          "kind": "style.wordiness",
+          "actual": "However",
+          "context": "# Evening checks\n\nThe team have finished the first review, and nobody needs to repeat it. However, the second reviewer has went home without signing the sheet. If the queue grows overnigh",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "service-note",
+          "index": 3,
+          "fromUTF16": 449,
+          "toUTF16": 453,
+          "kind": "grammar.harper.simplepasttopastparticiple",
+          "actual": "went",
+          "context": "inished the first review, and nobody needs to repeat it. However, the second reviewer has went home without signing the sheet. If the queue grows overnight, the morning staff should st",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "went",
+              "replacement": "gone",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "service-note",
+          "index": 4,
+          "fromUTF16": 594,
+          "toUTF16": 607,
+          "kind": "grammar.figarogrammar.discuss",
+          "actual": "discuss about",
+          "context": " overnight, the morning staff should start with the oldest unanswered message. We need to discuss about the revised schedule at the next meeting. That meeting is shorter then the last one.\n\nThe",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "discuss about",
+              "replacement": "discuss",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "service-note",
+          "index": 5,
+          "fromUTF16": 674,
+          "toUTF16": 678,
+          "kind": "grammar.figarogrammar.thenthan",
+          "actual": "then",
+          "context": "e need to discuss about the revised schedule at the next meeting. That meeting is shorter then the last one.\n\nThe operator wrote a short reminder:\n\n> Your going to be served soon. Plea",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "then",
+              "replacement": "than",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "service-note",
+          "index": 6,
+          "fromUTF16": 1093,
+          "toUTF16": 1095,
+          "kind": "grammar.figarogrammar.modalof",
+          "actual": "of",
+          "context": "rial.\n\n```sh\nprintf '%s\\n' 'Their going to be ready.'\n```\n\n## Outstanding work\n\nWe should of ordered another roll of paper. I look forward to meet the new volunteer, who knows the pr",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "of",
+              "replacement": "have",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 3
+        },
+        {
+          "document": "service-note",
+          "index": 7,
+          "fromUTF16": 1145,
+          "toUTF16": 1149,
+          "kind": "grammar.figarogrammar.lookingforwardto",
+          "actual": "meet",
+          "context": "'\n```\n\n## Outstanding work\n\nWe should of ordered another roll of paper. I look forward to meet the new volunteer, who knows the printer well. Please let her to inspect it before buying",
+          "label": "clear error",
+          "reason": "One of the four previously recorded grammar misses, already corrected by the preceding 175-check batch; the quality baseline and current build both detect it.",
+          "fixes": [
+            {
+              "expected": "meet",
+              "replacement": "meeting",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Restores the intended grammatical form without changing the surrounding Markdown."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 4
+        },
+        {
+          "document": "service-note",
+          "index": 8,
+          "fromUTF16": 1212,
+          "toUTF16": 1222,
+          "kind": "grammar.figarogrammar.lettodo",
+          "actual": "to inspect",
+          "context": "per. I look forward to meet the new volunteer, who knows the printer well. Please let her to inspect it before buying parts. She has enough experience to explain which noises matter and whic",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "to inspect",
+              "replacement": "inspect",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 5
+        },
+        {
+          "document": "service-note",
+          "index": 9,
+          "fromUTF16": 1341,
+          "toUTF16": 1349,
+          "kind": "style.wordiness",
+          "actual": "purchase",
+          "context": "has enough experience to explain which noises matter and which are normal.\n\nDo not make a purchase on the basis of this note alone. The prices in the old folder are more cheaper than last ",
+          "label": "optional style",
+          "reason": "A shorter or more concrete explanation is useful for this audience; the original is still a valid choice.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 6
+        },
+        {
+          "document": "service-note",
+          "index": 10,
+          "fromUTF16": 1416,
+          "toUTF16": 1428,
+          "kind": "grammar.figarogrammar.adjectivedoubledegree",
+          "actual": "more cheaper",
+          "context": "\nDo not make a purchase on the basis of this note alone. The prices in the old folder are more cheaper than last week's quote, but the delivery terms may differ. Check the current offer, then ",
+          "label": "clear error",
+          "reason": "One of the four previously recorded grammar misses, already corrected by the preceding 175-check batch; the quality baseline and current build both detect it.",
+          "fixes": [
+            {
+              "expected": "more cheaper",
+              "replacement": "cheaper",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Restores the intended grammatical form without changing the surrounding Markdown."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 7
+        },
+        {
+          "document": "walk",
+          "index": 0,
+          "fromUTF16": 361,
+          "toUTF16": 364,
+          "kind": "grammar.figarogrammar.itscontraction",
+          "actual": "Its",
+          "context": "ied description.\n\n## At the station\n\nThe sign promised an easy route to the next village. Its going to be closed tomorrow, according to the notice pinned beside the map. The two walke",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "Its",
+              "replacement": "It's",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 0
+        },
+        {
+          "document": "walk",
+          "index": 1,
+          "fromUTF16": 374,
+          "toUTF16": 383,
+          "kind": "syntax.passive",
+          "actual": "be closed",
+          "context": "on.\n\n## At the station\n\nThe sign promised an easy route to the next village. Its going to be closed tomorrow, according to the notice pinned beside the map. The two walkers were disappointe",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "walk",
+          "index": 2,
+          "fromUTF16": 494,
+          "toUTF16": 501,
+          "kind": "style.modifier",
+          "actual": "quietly",
+          "context": "to the notice pinned beside the map. The two walkers were disappointed, but their waiting quietly helped the clerk finish an announcement. Their going to have been told already was my fir",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "walk",
+          "index": 3,
+          "fromUTF16": 563,
+          "toUTF16": 572,
+          "kind": "syntax.passive",
+          "actual": "been told",
+          "context": "d, but their waiting quietly helped the clerk finish an announcement. Their going to have been told already was my first assumption. I later learned that they had arrived before the notice ",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "walk",
+          "index": 4,
+          "fromUTF16": 672,
+          "toUTF16": 676,
+          "kind": "grammar.figarogrammar.yourpredicateadjective",
+          "actual": "Your",
+          "context": "as my first assumption. I later learned that they had arrived before the notice went up.\n\nYour going to be given a different route if you ask at the desk. The clerk wrote the alternati",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "Your",
+              "replacement": "You're",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 1
+        },
+        {
+          "document": "walk",
+          "index": 5,
+          "fromUTF16": 686,
+          "toUTF16": 694,
+          "kind": "syntax.passive",
+          "actual": "be given",
+          "context": "sumption. I later learned that they had arrived before the notice went up.\n\nYour going to be given a different route if you ask at the desk. The clerk wrote the alternative on a small card",
+          "label": "unnecessary",
+          "reason": "The subject or process is the intended focus; the unspecified actor adds no useful information here.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": true
+        },
+        {
+          "document": "walk",
+          "index": 6,
+          "fromUTF16": 982,
+          "toUTF16": 990,
+          "kind": "grammar.spelling",
+          "actual": "seperate",
+          "context": ". I put the card in my pocket beside the train ticket.\n\n## Home again\n\nAt home I tried to seperate the photographs into two folders. I had fewer time than expected, so I left the captions ",
+          "label": "clear error",
+          "reason": "Correct diagnosis of the seeded mistake; offered edit preserves the intended sentence.",
+          "fixes": [
+            {
+              "expected": "seperate",
+              "replacement": "separate",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Preserves the intended correction."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 2
+        },
+        {
+          "document": "walk",
+          "index": 7,
+          "fromUTF16": 1031,
+          "toUTF16": 1036,
+          "kind": "grammar.figarogrammar.massnouns",
+          "actual": "fewer",
+          "context": "cket.\n\n## Home again\n\nAt home I tried to seperate the photographs into two folders. I had fewer time than expected, so I left the captions for another day. This was a small task with a ",
+          "label": "clear error",
+          "reason": "One of the four previously recorded grammar misses, already corrected by the preceding 175-check batch; the quality baseline and current build both detect it.",
+          "fixes": [
+            {
+              "expected": "fewer",
+              "replacement": "less",
+              "rangeValid": true,
+              "safeInContext": true,
+              "reason": "Restores the intended grammatical form without changing the surrounding Markdown."
+            }
+          ],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": true,
+          "previouslyRetained": true,
+          "currentIndex": 3
+        },
+        {
+          "document": "walk",
+          "index": 8,
+          "fromUTF16": 1211,
+          "toUTF16": 1212,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "“",
+          "context": "th a clear end, and there was no reason to turn it into an elaborate project.\n\nThe phrase “a quiet morning” appears twice in my paper notebook. I want to retain both occurrences bec",
+          "label": "unnecessary",
+          "reason": "Valid, intentional typographic quotation marks; no straight-quote preference was stated. Message correctly explains optionality.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "walk",
+          "index": 9,
+          "fromUTF16": 1227,
+          "toUTF16": 1228,
+          "kind": "formulaic.curly-punctuation",
+          "actual": "”",
+          "context": "and there was no reason to turn it into an elaborate project.\n\nThe phrase “a quiet morning” appears twice in my paper notebook. I want to retain both occurrences because they refer ",
+          "label": "unnecessary",
+          "reason": "Valid, intentional typographic quotation marks; no straight-quote preference was stated. Message correctly explains optionality.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        },
+        {
+          "document": "walk",
+          "index": 10,
+          "fromUTF16": 1275,
+          "toUTF16": 1281,
+          "kind": "style.wordiness",
+          "actual": "retain",
+          "context": "rate project.\n\nThe phrase “a quiet morning” appears twice in my paper notebook. I want to retain both occurrences because they refer to different places. Tomorrow I will return to the ri",
+          "label": "unnecessary",
+          "reason": "Wording is clear and appropriate in this context; this occurrence does not justify an extra review task.",
+          "fixes": [],
+          "judgmentOrigin": "Unchanged judgment from the preceding report; exact occurrence and replacement choices matched.",
+          "retained": false,
+          "previouslyRetained": false
+        }
+      ],
+      "manifestSHA256": "898b21f02655be430a4046f684fa29848659a18455d8a3da007b6fb166dbe002",
+      "currentRawSHA256": "4c5c9356e6ee53571579a3ae32e0175c6dcb77aa934500f73de0239dc7089e0d",
+      "documents": [
+        {
+          "id": "serve-static",
+          "sha256": "a42b827162e00dd9abdd60ff9d6ff91de232fc542390fd269a9526d5dc751c8c",
+          "language": "en-US",
+          "proseWords": 630,
+          "counts": {
+            "jsRaw": 25,
+            "spellingRaw": 1,
+            "nativeRaw": 44,
+            "visible": 6,
+            "cards": 5,
+            "suppressed": 34
+          },
+          "errors": [],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "p-map",
+          "sha256": "df3cabe97595f6460012ab9afe236473d5089100b638b835cb6fc1753568b0f8",
+          "language": "en-US",
+          "proseWords": 483,
+          "counts": {
+            "jsRaw": 13,
+            "spellingRaw": 0,
+            "nativeRaw": 27,
+            "visible": 5,
+            "cards": 5,
+            "suppressed": 18
+          },
+          "errors": [],
+          "controls": [],
+          "duplicateRanges": []
+        },
+        {
+          "id": "workshop",
+          "sha256": "3a7e15126b940b55b65f597a96c321df9bb2c797ca05a92fc81baaf816e516f4",
+          "language": "en-US",
+          "proseWords": 243,
+          "counts": {
+            "jsRaw": 7,
+            "spellingRaw": 2,
+            "nativeRaw": 20,
+            "visible": 9,
+            "cards": 9,
+            "suppressed": 10
+          },
+          "errors": [
+            {
+              "context": "Their going to be late",
+              "actual": "Their",
+              "replacement": "They're",
+              "fromUTF16": 123,
+              "toUTF16": 128,
+              "findings": [
+                0
+              ]
+            },
+            {
+              "context": "Your going to be welcomed",
+              "actual": "Your",
+              "replacement": "You're",
+              "fromUTF16": 233,
+              "toUTF16": 237,
+              "findings": [
+                1
+              ]
+            },
+            {
+              "context": "Its going to be useful",
+              "actual": "Its",
+              "replacement": "It's",
+              "fromUTF16": 367,
+              "toUTF16": 370,
+              "findings": [
+                3
+              ]
+            },
+            {
+              "context": "check teh printed",
+              "actual": "teh",
+              "replacement": "the",
+              "fromUTF16": 473,
+              "toUTF16": 476,
+              "findings": [
+                4
+              ]
+            },
+            {
+              "context": "an uniform",
+              "actual": "an",
+              "replacement": "a",
+              "fromUTF16": 525,
+              "toUTF16": 527,
+              "findings": [
+                5
+              ]
+            },
+            {
+              "context": "chairs is",
+              "actual": "is",
+              "replacement": "are",
+              "fromUTF16": 615,
+              "toUTF16": 617,
+              "findings": [
+                6
+              ]
+            },
+            {
+              "context": "the the pencils",
+              "actual": "the the",
+              "replacement": "the",
+              "fromUTF16": 774,
+              "toUTF16": 781,
+              "findings": [
+                7
+              ]
+            },
+            {
+              "context": "**recieve**",
+              "actual": "recieve",
+              "replacement": "receive",
+              "fromUTF16": 914,
+              "toUTF16": 921,
+              "findings": [
+                8
+              ]
+            }
+          ],
+          "controls": [
+            {
+              "context": "Their going to be thanked surprised the helpers.",
+              "findings": []
+            },
+            {
+              "context": "Your running today worried nobody",
+              "findings": []
+            },
+            {
+              "context": "Their going home was expected.",
+              "findings": []
+            }
+          ],
+          "duplicateRanges": []
+        },
+        {
+          "id": "garden",
+          "sha256": "41120fa864261bafe90ae2356b4edcb755530ee2994cf1dc93661eff77a32637",
+          "language": "en-GB",
+          "proseWords": 261,
+          "counts": {
+            "jsRaw": 9,
+            "spellingRaw": 0,
+            "nativeRaw": 14,
+            "visible": 0,
+            "cards": 0,
+            "suppressed": 17
+          },
+          "errors": [],
+          "controls": [
+            {
+              "context": "colour",
+              "findings": []
+            },
+            {
+              "context": "organised",
+              "findings": []
+            },
+            {
+              "context": "grey",
+              "findings": []
+            },
+            {
+              "context": "neighbour",
+              "findings": []
+            },
+            {
+              "context": "Their going to be interviewed was unexpected.",
+              "findings": []
+            },
+            {
+              "context": "Your going to have been selected surprised the whole group.",
+              "findings": []
+            },
+            {
+              "context": "Their not going to be served immediately seemed reasonable.",
+              "findings": []
+            },
+            {
+              "context": "request for the guide",
+              "findings": []
+            },
+            {
+              "context": "postal address",
+              "findings": []
+            },
+            {
+              "context": "response time",
+              "findings": []
+            }
+          ],
+          "duplicateRanges": []
+        },
+        {
+          "id": "service-note",
+          "sha256": "5f4e9486e45cbae7b31f5637dad9f584a0b61f12c4e50a1995028f29657c89ad",
+          "language": "en-GB",
+          "proseWords": 242,
+          "counts": {
+            "jsRaw": 8,
+            "spellingRaw": 0,
+            "nativeRaw": 9,
+            "visible": 8,
+            "cards": 8,
+            "suppressed": 7
+          },
+          "errors": [
+            {
+              "context": "has went",
+              "actual": "went",
+              "replacement": "gone",
+              "fromUTF16": 449,
+              "toUTF16": 453,
+              "findings": [
+                0
+              ]
+            },
+            {
+              "context": "discuss about",
+              "actual": "discuss about",
+              "replacement": "discuss",
+              "fromUTF16": 594,
+              "toUTF16": 607,
+              "findings": [
+                1
+              ]
+            },
+            {
+              "context": "shorter then",
+              "actual": "then",
+              "replacement": "than",
+              "fromUTF16": 674,
+              "toUTF16": 678,
+              "findings": [
+                2
+              ]
+            },
+            {
+              "context": "Your going to be served",
+              "actual": "Your",
+              "replacement": "You're",
+              "fromUTF16": 734,
+              "toUTF16": 738,
+              "findings": []
+            },
+            {
+              "context": "should of",
+              "actual": "should of",
+              "replacement": "should have",
+              "fromUTF16": 1086,
+              "toUTF16": 1095,
+              "findings": [
+                3
+              ]
+            },
+            {
+              "context": "look forward to meet",
+              "actual": "to meet",
+              "replacement": "to meeting",
+              "fromUTF16": 1142,
+              "toUTF16": 1149,
+              "findings": [
+                4
+              ]
+            },
+            {
+              "context": "let her to inspect",
+              "actual": "to inspect",
+              "replacement": "inspect",
+              "fromUTF16": 1212,
+              "toUTF16": 1222,
+              "findings": [
+                5
+              ]
+            },
+            {
+              "context": "more cheaper",
+              "actual": "more cheaper",
+              "replacement": "cheaper",
+              "fromUTF16": 1416,
+              "toUTF16": 1428,
+              "findings": [
+                7
+              ]
+            }
+          ],
+          "controls": [
+            {
+              "context": "request body",
+              "findings": []
+            },
+            {
+              "context": "response body",
+              "findings": []
+            },
+            {
+              "context": "The team have finished",
+              "findings": []
+            }
+          ],
+          "duplicateRanges": []
+        },
+        {
+          "id": "walk",
+          "sha256": "24d75510ca3e821af0bfc32c488847411e9682ba5c048f0939529d146a2526e6",
+          "language": "en-GB",
+          "proseWords": 260,
+          "counts": {
+            "jsRaw": 5,
+            "spellingRaw": 1,
+            "nativeRaw": 13,
+            "visible": 4,
+            "cards": 4,
+            "suppressed": 8
+          },
+          "errors": [
+            {
+              "context": "Its going to be closed",
+              "actual": "Its",
+              "replacement": "It's",
+              "fromUTF16": 361,
+              "toUTF16": 364,
+              "findings": [
+                0
+              ]
+            },
+            {
+              "context": "Your going to be given",
+              "actual": "Your",
+              "replacement": "You're",
+              "fromUTF16": 672,
+              "toUTF16": 676,
+              "findings": [
+                1
+              ]
+            },
+            {
+              "context": "seperate",
+              "actual": "seperate",
+              "replacement": "separate",
+              "fromUTF16": 982,
+              "toUTF16": 990,
+              "findings": [
+                2
+              ]
+            },
+            {
+              "context": "fewer time",
+              "actual": "fewer",
+              "replacement": "less",
+              "fromUTF16": 1031,
+              "toUTF16": 1036,
+              "findings": [
+                3
+              ]
+            }
+          ],
+          "controls": [
+            {
+              "context": "their waiting quietly helped the clerk",
+              "findings": []
+            },
+            {
+              "context": "Their going to have been told already was my first assumption.",
+              "findings": []
+            }
+          ],
+          "duplicateRanges": []
+        }
+      ]
+    }
+  },
+  "sourceHashes": {
+    "frontend/js/core/writingContextModel.js": "8f105a341eb01849707847722ce850c3deb801a4032fd4ca14748c7c412aeacb",
+    "frontend/js/core/writingAnalysisModel.js": "01d0d0f5f7c185a4385678e62dae07d7401506a624a43d763756755fa60b7700",
+    "frontend/js/core/writingPackagePolicy.js": "0dee4453421a943373e66e1d5fe8b88f909d3713e3c90ec4df03d122fdab403c",
+    "frontend/js/core/writingSloplessModel.js": "6b9eeca63e114c5b8f1d08655f2989dd8e65e8dac35b91b92c49a713236ae4f1",
+    "frontend/js/core/writingLensHelpModel.js": "27666a0e79d41782bfc972cf731a38aef6dababe8fe922914b2fd62fc765975c",
+    "frontend/js/core/writingTypographyModel.js": "00297d16daadbde057255d12933abf582c6ca852cc376df5f4b93d00401ee664",
+    "frontend/vendored/writing/runtime.js": "82f9307d5a7926f3346a630dc7d50e8c06e765345653dd02b235bda0d84ee560"
+  },
+  "native": {
+    "kind": "grammar",
+    "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+    "appReadyWebviewMs": 970,
+    "initializationMs": 142.9999999999999,
+    "measures": [
+      {
+        "words": 1001,
+        "isolated": [
+          {
+            "ms": 19,
+            "findings": 53
+          },
+          {
+            "ms": 15,
+            "findings": 53
+          },
+          {
+            "ms": 15,
+            "findings": 53
+          },
+          {
+            "ms": 16,
+            "findings": 53
+          },
+          {
+            "ms": 15,
+            "findings": 53
+          },
+          {
+            "ms": 18,
+            "findings": 53
+          },
+          {
+            "ms": 17.999999999999773,
+            "findings": 53
+          }
+        ],
+        "pipeline": [
+          {
+            "ms": 52,
+            "proseMs": 26,
+            "nativeMs": 17.000000000000227,
+            "resolveMs": 6,
+            "renderFrameMs": 2.9999999999997726,
+            "findings": 45,
+            "evidence": 93,
+            "mountedCards": 4
+          },
+          {
+            "ms": 47,
+            "proseMs": 20,
+            "nativeMs": 18,
+            "resolveMs": 6,
+            "renderFrameMs": 3,
+            "findings": 45,
+            "evidence": 93,
+            "mountedCards": 4
+          },
+          {
+            "ms": 49,
+            "proseMs": 26,
+            "nativeMs": 16,
+            "resolveMs": 4,
+            "renderFrameMs": 3,
+            "findings": 45,
+            "evidence": 93,
+            "mountedCards": 4
+          },
+          {
+            "ms": 41,
+            "proseMs": 19,
+            "nativeMs": 15.000000000000227,
+            "resolveMs": 4.999999999999773,
+            "renderFrameMs": 2,
+            "findings": 45,
+            "evidence": 93,
+            "mountedCards": 4
+          }
+        ]
+      },
+      {
+        "words": 10010,
+        "isolated": [
+          {
+            "ms": 262,
+            "findings": 555
+          },
+          {
+            "ms": 255,
+            "findings": 555
+          },
+          {
+            "ms": 248,
+            "findings": 555
+          },
+          {
+            "ms": 247,
+            "findings": 555
+          },
+          {
+            "ms": 259,
+            "findings": 555
+          },
+          {
+            "ms": 245,
+            "findings": 555
+          },
+          {
+            "ms": 264,
+            "findings": 555
+          }
+        ],
+        "pipeline": [
+          {
+            "ms": 421,
+            "proseMs": 75,
+            "nativeMs": 298,
+            "resolveMs": 37,
+            "renderFrameMs": 11,
+            "findings": 457,
+            "evidence": 976,
+            "mountedCards": 4
+          },
+          {
+            "ms": 451,
+            "proseMs": 94,
+            "nativeMs": 313.0000000000009,
+            "resolveMs": 35.99999999999909,
+            "renderFrameMs": 8,
+            "findings": 457,
+            "evidence": 976,
+            "mountedCards": 4
+          },
+          {
+            "ms": 376,
+            "proseMs": 74,
+            "nativeMs": 264,
+            "resolveMs": 31,
+            "renderFrameMs": 7,
+            "findings": 457,
+            "evidence": 976,
+            "mountedCards": 4
+          },
+          {
+            "ms": 448,
+            "proseMs": 88.00000000000091,
+            "nativeMs": 317.9999999999991,
+            "resolveMs": 31,
+            "renderFrameMs": 11,
+            "findings": 457,
+            "evidence": 976,
+            "mountedCards": 4
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "readyUnixNano": 1789901470451205600,
+    "qa": {
+      "quality": [
+        {
+          "kind": "clarity.undefined-acronym",
+          "actual": "NPM",
+          "fixes": []
+        },
+        {
+          "kind": "grammar.spelling",
+          "actual": "teh",
+          "fixes": [
+            {
+              "from": 178,
+              "to": 181,
+              "expected": "teh",
+              "replacement": "the"
+            }
+          ]
+        },
+        {
+          "kind": "syntax.indirect-opening",
+          "actual": "There are",
+          "fixes": []
+        },
+        {
+          "kind": "style.modifier",
+          "actual": "several",
+          "fixes": []
+        },
+        {
+          "kind": "grammar.figarogrammar.countableamount",
+          "actual": "amount of times",
+          "fixes": [
+            {
+              "from": 456,
+              "to": 471,
+              "expected": "amount of times",
+              "replacement": "number of times"
+            }
+          ]
+        },
+        {
+          "kind": "syntax.passive",
+          "actual": "is limited",
+          "fixes": []
+        },
+        {
+          "kind": "grammar.figarogrammar.commasplice",
+          "actual": ",",
+          "fixes": []
+        },
+        {
+          "kind": "grammar.figarogrammar.nounsubjectagreement",
+          "actual": "were",
+          "fixes": [
+            {
+              "from": 671,
+              "to": 675,
+              "expected": "were",
+              "replacement": "was"
+            }
+          ]
+        },
+        {
+          "kind": "grammar.harper.simplepasttopastparticiple",
+          "actual": "saw",
+          "fixes": [
+            {
+              "from": 695,
+              "to": 698,
+              "expected": "saw",
+              "replacement": "seen"
+            }
+          ]
+        },
+        {
+          "kind": "style.wordiness",
+          "actual": "in order to",
+          "fixes": [
+            {
+              "from": 999,
+              "to": 1010,
+              "expected": "in order to",
+              "replacement": "to"
+            }
+          ]
+        },
+        {
+          "kind": "syntax.passive",
+          "actual": "was written",
+          "fixes": []
+        },
+        {
+          "kind": "syntax.indirect-opening",
+          "actual": "There is",
+          "fixes": []
+        },
+        {
+          "kind": "syntax.passive",
+          "actual": "was made",
+          "fixes": []
+        }
+      ],
+      "visibleSuggestion": true,
+      "applyPreservesMarkdown": true,
+      "keyboardUndo": true,
+      "ignorePersisted": true,
+      "typingFrameMs": [
+        6,
+        12,
+        16,
+        16,
+        16,
+        17,
+        16,
+        16,
+        17,
+        16,
+        17.00000000000091,
+        16
+      ],
+      "analysisPendingBeforeSave": true,
+      "analysisPendingAfterSave": true,
+      "savedWhileAnalyzing": true,
+      "cancelMs": 1,
+      "cancelOutcome": "Error: context canceled",
+      "reuse": true,
+      "postReadyModuleRequests": [],
+      "shutdownWithWork": true
+    },
+    "launchUnixNano": 1789901469203022248,
+    "processToReadyMs": 1248.183352,
+    "reportToExitMs": 8.903755
+  },
+  "verification": {
+    "frontendSuites": 312,
+    "frontendTests": 2891,
+    "frontendMethod": "Complete frontend coverage run, including integrity and architecture checks.",
+    "coverage": {
+      "statements": 83.65,
+      "branches": 72.46,
+      "functions": 83.76,
+      "lines": 87.1
+    },
+    "worker": {
+      "foregroundTimers": 67,
+      "maximumForegroundGapMs": 22.10590299999967,
+      "realWorkerCancellationAndRecovery": true,
+      "equivalentWritingProbes": 54,
+      "equivalentPunctuationProbes": 5,
+      "paragraphOrigin": 0,
+      "pass": true
+    },
+    "productionStartupBrowserCases": 1,
+    "lint": true,
+    "featureIndex": true,
+    "goBehaviorChanged": false,
+    "windowsMacOSNative": false
+  },
+  "completedBatch": {
+    "scope": "Procedural/narrative passive descriptions and meaningful existential openings",
+    "removed": 32,
+    "remainingUnnecessary": 5
+  },
+  "externalArtifacts": "/home/grilo/benchmarks/figaro-writing-context-20260920"
+}

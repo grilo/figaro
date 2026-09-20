@@ -8,102 +8,68 @@ remain as originally published.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.41.0] - 2026-09-20
+
 ### Added
 
-- Proofreading now checks selected English verb agreement, infinitives, auxiliary
-  verbs, possessives, number agreement, uncountable nouns, contextual homophones,
-  and common grammatical phrases, with safe corrections and per-occurrence Ignore. All checks run locally inside Figaro.
-- English grammar review covers more noun/verb and its/their/your contexts,
-  compound subject pronouns, and question forms such as “Has we finished?”
-  Unclear adjacent pronouns receive advice without a guessed correction.
-
-- Proofreading adds 60 English checks for common expressions, prepositions,
-  gerunds, comparisons, split words, ordinal endings, capitalization, comma
-  spacing, and selected compounds. Uncertain conditional wording stays advisory.
-
-- Proofreading adds 60 checks for selected prepositions, common expressions,
-  word choices and word boundaries. It also catches noun-subject agreement
-  mistakes such as “The spare chairs is ready” and “fewer” with uncountable
-  amounts, while preserving literal meanings and valid countable phrases.
+- Personal dictionary management is available from Settings and Proofreading.
+  Search, Add, Remove, and Undo share a resizable dialog with a bounded word list,
+  keeping Settings compact as the dictionary grows.
+- Optional smooth mouse-wheel scrolling in Settings → Editor starts off,
+  respects reduced motion, and leaves native macOS scrolling unchanged.
+- Local English proofreading covers more agreement, infinitive, auxiliary,
+  possessive, quantity, homophone, preposition, expression, capitalization,
+  punctuation, and word-boundary errors. Uncertain corrections remain advisory,
+  and individual findings can be ignored.
 
 ### Changed
 
-- Rename progress identifies saving open files, checking references, waiting for
-  writing data, renaming, and refreshing open files, making stalled operations
-  easier to diagnose.
-- Contributors can find feature owners, documentation, and focused checks in a
-  maintained feature index, with compact per-feature source symbols and documentation
-  sections, concise test results, and complete saved logs.
+- Settings groups Navigation, Vim, and Pure mode options into clear inset
+  sections matching the workspace background.
+- Rename progress identifies saving files, checking references, waiting for
+  writing data, renaming, and refreshing open files to make stalls easier to diagnose.
+- Contributors can use the maintained feature index to find source owners,
+  documentation, and focused checks, with concise results and complete saved logs.
 
 ### Fixed
 
-- Writing review preserves more technical terms and defined acronyms, avoids
-  unsafe singular-only spelling guesses, and reduces misleading literal-phrase,
-  emotional-state and balanced-punctuation warnings. Equivalent “there is/are”
-  advice appears once while keeping each lens and saved Ignore decisions.
-- Existing English grammar checks cover more questions, intervening modifiers,
-  preposition complements and uncountable software/information contexts while
-  preserving valid literal meanings and compound nouns.
-
-- Typing prose, including bold text, lists, blockquotes and curly apostrophes,
-  reuses code, image, table and guide previews in long notes. Helper-rail movement,
-  Pure phrase focus and buffer updates avoid repeatedly scanning unchanged data.
-  Entering block source updates only the affected preview; heading navigation,
-  Find announcements and cursor memory avoid repeatedly scanning unrelated data.
-
-- Split-word corrections such as “miss understood” avoid competing agreement
-  edits. Selected affect/effect corrections now cover “a strong affect on” and
-  “will effect everyone” while preserving valid noun and verb meanings.
-
-- Cursor movement avoids rescanning Markdown formatting and rereading every code
-  block in long notes. Formatting styles follow visible content, while source
-  reveal, code folding, copying, and selection keep their existing behavior.
-
-- Cursor movement keeps unchanged image previews in place and updates only the
-  affected Outline headings. Images, tables, diagrams, and math use indexed
-  source ranges to avoid checking every widget in long notes.
-
-- Cursor movement updates remembered positions without waking tab, toolbar,
-  window-title or storage observers. Image previews reuse parsed source during
-  navigation. Declared editor dependencies and opt-in developer traces make
-  unexpected cursor and typing work easier to detect.
-
-- Cursor movement reuses table and math previews and avoids repeated window-title,
-  breadcrumb, and toolbar updates. Prose typing keeps unchanged Outline rows and
-  Kanban cards in place; scrolling reuses block guides, and rendered blocks batch
-  their source-height measurements.
-
-- Proofreading again catches “their/your/its going to be” when a contraction is
-  needed, while preserving possessive gerunds with a later verb.
-
-- Dense writing suggestions on long lines reuse source mapping and context checks
-  so reviewing many grammar findings avoids repeatedly scanning the same text.
-
-- Keyboard cursor movement avoids refreshing unchanged file-tree markers, reading
-  the whole note for Outline, and rebuilding unchanged Pure focus or diagram
-  source decorations. Repeated vertical keys share viewport-repair work.
-
-- Cursor movement avoids redundant browser-storage writes, and slow session saves
-  keep only the latest waiting snapshot. Single-file history avoids whole-vault
-  scans and lets newer edits save to disk while Git writes the captured revision.
-
-- Adding a possessive to the dictionary also accepts its unpossessed spelling.
-  Canonically equivalent accents match consistently, capitalized misspellings
-  receive useful suggestions, and all-caps or slash/dot-separated prose no longer
-  escapes spelling checks.
-- Adding a word to the dictionary also accepts its regular English plural and
-  possessives, including words saved before this update.
-- Creating a missing note from a link refreshes the file tree after opening it.
-- Writing lenses exclude footnote identifiers, including undefined references,
-  from spelling and prose advice while retaining checks on footnote text.
-- Clicking an Outline, Writing lenses, Raw, PDF, or History launcher while
-  typing keeps focus in the editor. Keyboard entry and sidebar clicks retain
-  their usual focus behavior.
-- Vim visual-row navigation finishes moving through wrapped paragraphs before
-  entering an adjacent Mermaid diagram or rendered source block.
-- Writing suggestions remain visible while typing: unchanged-paragraph
-  underlines follow edits, and previous sidebar cards stay in place with their
-  actions disabled until fresh checks finish.
+- Typing and navigation in long notes reuse unchanged Markdown previews,
+  Properties, Outline rows, writing marks, and diagram, table, image, and math
+  widgets. Local edits refresh affected regions, including safe heading,
+  code-block, and line-break changes in partially parsed notes.
+- Cursor movement avoids redundant formatting scans, whole-note reads, gutter,
+  toolbar, file-tree, and storage updates. Source reveal, selection, folding,
+  copying, and widget actions continue to use current note content.
+- Writing review reuses unchanged Markdown mappings, paragraphs, and dense-line
+  context checks. Unchanged-paragraph underlines follow edits; previous sidebar
+  results remain visible with actions disabled until fresh checks finish.
+- List and blockquote source aligns with its first body character. Pure mode
+  avoids unnecessary typography and focus work, rendered blocks reuse size
+  measurements, and Settings detours preserve the editor’s writing margin.
+- Unsaved task changes appear when returning to Kanban. Buffer snapshots,
+  Outline navigation, previews, saves, and exports retain the latest text.
+  Slow session saves keep only the latest waiting snapshot; single-file history
+  avoids whole-vault scans and lets newer text save while Git records a revision.
+- Code indentation and completion triggers do less work. Markdown diagnostics
+  reuse unchanged Mermaid validation and abandon outdated review passes.
+- Writing suggestions preserve more technical terms, defined acronyms, factual
+  descriptions, meaningful modifiers, valid literal phrases, and the note’s
+  punctuation style. Duplicate advice and competing corrections are reduced.
+- Proofreading handles more noun-subject, question, contraction, split-word,
+  affect/effect, and comma-splice contexts while preserving valid possessive
+  gerunds, compound nouns, and ambiguous meanings.
+- Accepted personal words also cover regular English plurals and possessives,
+  including previously saved entries. Adding a possessive accepts its base;
+  equivalent Unicode accents match consistently, capitalized misspellings get
+  useful suggestions, and all-caps or slash-separated prose remains checked.
+- Writing lenses exclude footnote identifiers from spelling and prose advice
+  while retaining checks on footnote text. Creating a missing linked note
+  refreshes the file tree after opening it.
+- Clicking Outline, Writing lenses, Raw, PDF, or History launchers while typing
+  retains editor focus. Vim visual-row navigation finishes wrapped paragraphs
+  before entering adjacent diagrams or rendered source blocks.
 
 ## [1.40.0] - 2026-09-10
 
@@ -2367,7 +2333,8 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.40.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.41.0...HEAD
+[1.41.0]: https://github.com/grilo/figaro/compare/v1.40.0...v1.41.0
 [1.40.0]: https://github.com/grilo/figaro/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/grilo/figaro/compare/v1.38.3...v1.39.0
 [1.38.3]: https://github.com/grilo/figaro/compare/v1.38.2...v1.38.3

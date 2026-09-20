@@ -1,6 +1,6 @@
 import { createSelectionRangeIndex, sourceRevealChanges } from '../../js/core/selectionRangeIndex.js';
-import { formattingMarkerVisibility } from '../../js/core/markdownFormattingModel.js';
-import { markdownProseEditPreservesBlocks, mapMarkdownBlockDescriptors } from '../../js/core/markdownProjectionModel.js';
+import { formattingMarkerVisibility, formattingMarkerChanges } from '../../js/core/markdownFormattingModel.js';
+import { markdownProseEditPreservesBlocks, markdownTextEditMayStayInBlock, mapMarkdownBlockDescriptors, markdownInlineStructuresMatch, replaceMarkdownBlockRegions } from '../../js/core/markdownProjectionModel.js';
 import { Facet, StateEffect, StateField } from '@codemirror/state';
 import { foldedRanges, syntaxTree } from '@codemirror/language';
 import { ViewPlugin, Decoration, EditorView, WidgetType } from '@codemirror/view';
@@ -52160,11 +52160,11 @@ function canMapMarkdownProseEdit(update) {
   if (!update.docChanged) return false;
   const before = update.startState, after = update.state;
   const oldTree = syntaxTree(before), newTree = syntaxTree(after);
-  if (oldTree.length !== before.doc.length || newTree.length !== after.doc.length) return false;
+  if (update.changes.mapPos(oldTree.length, 1) !== newTree.length) return false;
   const paragraph = (tree, position) => {
     let node = tree.resolveInner(position, 1);
     while (node.parent && node.name !== "Paragraph") node = node.parent;
-    if (node.name !== "Paragraph") return null;
+    if (node.name !== "Paragraph" || (node.to >= tree.length && tree.length !== (tree === oldTree ? before : after).doc.length)) return null;
     let image = false;
     node.cursor().iterate(child => { if (child.name === "Image") image = true; });
     return image ? null : node;
@@ -52187,6 +52187,70 @@ function canMapMarkdownProseEdit(update) {
       && nextFrom >= newNode.from && nextTo <= newNode.to && sameStructure(oldNode, newNode);
   });
   proseEditResults.set(update, safe);
+  return safe;
+}
+// A local block may change payload while unrelated parsed blocks only move.
+// Tree progress remains a separate invalidation; never hide newly parsed content.
+const projectionEditResults = new WeakMap();
+function markdownProjectionEdit(update) {
+  if (projectionEditResults.has(update)) return projectionEditResults.get(update);
+  if (!update.docChanged) return null;
+  const before = update.startState, after = update.state;
+  const oldTree = syntaxTree(before), newTree = syntaxTree(after);
+  if (update.changes.mapPos(oldTree.length, 1) !== newTree.length) return null;
+  const supported = /^(Paragraph|ATXHeading[1-6]|SetextHeading[12]|FencedCode|CodeBlock|Table)$/;
+  const blockAt = (tree, position, length, side = 1) => {
+    let node = tree.resolveInner(position, side);
+    while (node.parent && !supported.test(node.name)) node = node.parent;
+    return supported.test(node.name) && (node.to < tree.length || tree.length === length) ? node : null;
+  };
+  const sameParents = (a, b) => {
+    for (; a && b; a = a.parent, b = b.parent) {
+      if (a.name !== b.name || update.changes.mapPos(a.from, -1) !== b.from
+          || update.changes.mapPos(a.to, 1) !== b.to) return false;
+    }
+    return !a && !b;
+  };
+  let safe = true;
+  const regions = [];
+  update.changes.iterChanges((from, to, nextFrom, nextTo) => {
+    if (!safe) return;
+    const oldNode = blockAt(oldTree, from, before.doc.length) || blockAt(oldTree, from, before.doc.length, -1);
+    const newNode = blockAt(newTree, nextFrom, after.doc.length) || blockAt(newTree, nextFrom, after.doc.length, -1);
+    if (!oldNode || !newNode || oldNode.name !== newNode.name || to > oldNode.to || nextTo > newNode.to
+        || !sameParents(oldNode, newNode)) { safe = false; return; }
+    const codeOrTable = /^(FencedCode|CodeBlock|Table)$/.test(oldNode.name);
+    if (!codeOrTable && !markdownTextEditMayStayInBlock(before.sliceDoc(from, to), after.sliceDoc(nextFrom, nextTo))) {
+      safe = false; return;
+    }
+    if (!regions.some(region => region.from === oldNode.from && region.to === oldNode.to)) {
+      regions.push({ from: oldNode.from, to: oldNode.to, nextFrom: newNode.from, nextTo: newNode.to, name: newNode.name, topLevel: newNode.parent?.name === "Document" });
+    }
+  });
+  const result = safe ? regions : null;
+  projectionEditResults.set(update, result);
+  return result;
+}
+const inlineEditResults = new WeakMap();
+function canMapMarkdownInlineEdit(update) {
+  if (inlineEditResults.has(update)) return inlineEditResults.get(update);
+  if (!canMapMarkdownProseEdit(update)) return false;
+  const nodes = (state, position) => {
+    let node = syntaxTree(state).resolveInner(position, 1);
+    while (node.parent && node.name !== "Paragraph") node = node.parent;
+    const values = [];
+    node.cursor().iterate(child => {
+      countMarkdownWork(state, "syntax.nodes.inlineEdit");
+      if (child.name !== "Paragraph") values.push({ name: child.name, from: child.from, to: child.to });
+    });
+    return values;
+  };
+  let safe = true;
+  update.changes.iterChangedRanges((from, _to, nextFrom) => {
+    if (safe) safe = markdownInlineStructuresMatch(nodes(update.startState, from), nodes(update.state, nextFrom),
+      (position, association) => update.changes.mapPos(position, association));
+  });
+  inlineEditResults.set(update, safe);
   return safe;
 }
 function visitVisibleMarkdown(view, consumer, enter) {
@@ -52216,7 +52280,7 @@ function markerDecorations(state, markers, visibility) {
   countMarkdownWork(state, "decorations.markers");
   return Decoration.set(markers.map((marker, index) => {
     const base = marker.block ? "cm-formatting-block" : "cm-formatting-inline";
-    return Decoration.mark({ class: base + (visibility[index] ? " " + base + "-visible" : "") })
+    return Decoration.mark({ markerIndex: index, class: base + (visibility[index] ? " " + base + "-visible" : "") })
       .range(marker.from, marker.to);
   }), true);
 }
@@ -52226,7 +52290,15 @@ var livePreviewPlugin = ViewPlugin.fromClass(
       this.decorations = this.build(view);
     }
     update(update) {
-      if (update.docChanged || update.viewportChanged
+      const mapped = update.docChanged && !update.viewportMoved
+        && !update.transactions.some(transaction => transaction.reconfigured) && canMapMarkdownInlineEdit(update);
+      if (mapped) {
+        this.markers = this.markers.map(marker => ({ ...marker,
+          from: update.changes.mapPos(marker.from, 1), to: update.changes.mapPos(marker.to, -1),
+          lineFrom: update.changes.mapPos(marker.lineFrom, -1), lineTo: update.changes.mapPos(marker.lineTo, 1) }));
+        this.indexMarkers();
+        this.decorations = this.decorations.map(update.changes);
+      } else if (update.docChanged || update.viewportChanged
           || syntaxTree(update.startState) !== syntaxTree(update.state)
           || update.transactions.some(transaction => transaction.reconfigured)) {
         this.decorations = this.build(update.view);
@@ -52234,11 +52306,23 @@ var livePreviewPlugin = ViewPlugin.fromClass(
       }
       const dragging = update.state.field(mouseSelectingField, false);
       const wasDragging = update.startState.field(mouseSelectingField, false);
-      if (dragging || (!update.selectionSet && !wasDragging)) return;
-      const visibility = markerVisibility(update.state, this.markers);
-      if (visibility.every((visible, index) => visible === this.visibility[index])) return;
-      this.visibility = visibility;
-      this.decorations = markerDecorations(update.state, this.markers, visibility);
+      if (dragging || (!update.selectionSet && !wasDragging && !mapped)) return;
+      const plan = formattingMarkerChanges(this, update.state.selection.ranges, {
+        collapse: update.state.facet(collapseOnSelectionFacet), dragging });
+      countMarkdownWork(update.state, "selection.rangeNodes.markers", plan.visited);
+      this.visibleIndices = plan.visibleIndices;
+      for (const { index, visible } of plan.changes) {
+        const marker = this.markers[index];
+        this.visibility[index] = visible;
+        const base = marker.block ? "cm-formatting-block" : "cm-formatting-inline";
+        this.decorations = this.decorations.update({ filterFrom: marker.from, filterTo: marker.to,
+          filter: (_from, _to, decoration) => decoration.spec.markerIndex !== index,
+          add: [Decoration.mark({ markerIndex: index, class: base + (visible ? " " + base + "-visible" : "") }).range(marker.from, marker.to)], sort: true });
+      }
+    }
+    indexMarkers() {
+      this.revealIndex = createSelectionRangeIndex(this.markers.map(marker => marker.block
+        ? { from: marker.lineFrom, to: marker.lineTo } : marker));
     }
     build(view) {
       const markers = [];
@@ -52258,10 +52342,13 @@ var livePreviewPlugin = ViewPlugin.fromClass(
         }
         markers.push({ from: node.from, to: node.to,
           block: ["HeaderMark", "ListMark", "QuoteMark"].includes(node.name),
-          line: state.doc.lineAt(node.from).number });
+          line: state.doc.lineAt(node.from).number,
+          lineFrom: state.doc.lineAt(node.from).from, lineTo: state.doc.lineAt(node.from).to });
       });
       this.markers = markers;
+      this.indexMarkers();
       this.visibility = markerVisibility(state, markers);
+      this.visibleIndices = new Set(this.visibility.flatMap((visible, index) => visible ? [index] : []));
       return markerDecorations(state, markers, this.visibility);
     }
   },
@@ -52284,7 +52371,10 @@ var markdownStylePlugin = ViewPlugin.fromClass(
       this.decorations = this.build(view);
     }
     update(update) {
-      if (update.docChanged || update.viewportChanged
+      if (update.docChanged && !update.viewportMoved
+          && !update.transactions.some(transaction => transaction.reconfigured) && canMapMarkdownInlineEdit(update)) {
+        this.decorations = this.decorations.map(update.changes);
+      } else if (update.docChanged || update.viewportChanged
           || syntaxTree(update.startState) !== syntaxTree(update.state)
           || update.transactions.some(transaction => transaction.reconfigured)) {
         this.decorations = this.build(update.view);
@@ -53372,12 +53462,14 @@ function sourceRangeIsFolded(state, from, to) {
   });
   return found;
 }
-function parseCodeBlockDescriptors(state, options) {
+function parseCodeBlockDescriptors(state, options, regions = null) {
   const blocks = [];
   const skipped = new Set([...SKIP_LANGUAGES, ...(options.skipLanguages || []).map(language => String(language).toLowerCase())]);
   let visited = 0;
-  syntaxTree(state).iterate({ enter(node) {
+  for (const region of regions || [{ nextFrom: 0, nextTo: state.doc.length }]) syntaxTree(state).iterate({
+    from: region.nextFrom, to: region.nextTo, enter(node) {
     visited++;
+    if (node.to <= region.nextFrom || node.from >= region.nextTo) return false;
     if (node.name !== "FencedCode") return;
     const codeInfo = node.node.getChild("CodeInfo");
     let language = options.defaultLanguage;
@@ -53444,20 +53536,46 @@ function createCodeBlockClickHandler() {
     }
   });
 }
+function patchCodeBlockDescriptors(value, tr, regions, replacements, options) {
+  const parsed = regions.length ? replaceMarkdownBlockRegions(value.blocks, regions, replacements, position => tr.changes.mapPos(position))
+    : { blocks: mapMarkdownBlockDescriptors(value.blocks, position => tr.changes.mapPos(position)), removed: [] };
+  let decorations = value.decorations.map(tr.changes);
+  for (const block of parsed.removed) decorations = decorations.update({
+    filterFrom: tr.state.doc.lineAt(tr.changes.mapPos(block.from, -1)).from,
+    filterTo: tr.changes.mapPos(block.to, 1),
+    filter: (_from, _to, decoration) => decoration.spec.sourceBlock !== (block.sourceIdentity || block)
+  });
+  let visibleIndices = value.visibleIndices;
+  if (parsed.removed.length || replacements.length) {
+    const visible = new Set([...value.visibleIndices].map(index => value.blocks[index].sourceIdentity || value.blocks[index]));
+    const fresh = new Set(replacements), add = [];
+    visibleIndices = new Set();
+    parsed.blocks.forEach((block, index) => {
+      const show = fresh.has(block) ? shouldShowSource(tr.state, block.from, block.to) : visible.has(block.sourceIdentity || block);
+      if (show) visibleIndices.add(index);
+      if (fresh.has(block)) add.push(...codeBlockDecorations(tr.state, options, block, show));
+    });
+    if (add.length) decorations = decorations.update({ add, sort: true });
+  }
+  return { blocks: parsed.blocks, visibleIndices, decorations,
+    revealIndex: parsed.blocks === value.blocks ? value.revealIndex : createSelectionRangeIndex(parsed.blocks) };
+}
 function createCodeBlockField(options) {
   return StateField.define({
     create: state => buildCodeBlockDecorations(state, options),
     update(value, tr) {
       let mapped = false;
-      if (tr.docChanged || tr.reconfigured || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
-        if (tr.reconfigured || !canMapMarkdownProseEdit(tr)) return buildCodeBlockDecorations(tr.state, options);
-        const blocks = mapMarkdownBlockDescriptors(value.blocks, position => tr.changes.mapPos(position));
-        const parsed = { blocks, revealIndex: blocks === value.blocks ? value.revealIndex : createSelectionRangeIndex(blocks) };
-        if (tr.effects.length || tr.state.field(mouseSelectingField, false) || tr.startState.field(mouseSelectingField, false)) {
-          return buildCodeBlockDecorations(tr.state, options, parsed);
-        }
-        value = { ...value, ...parsed, decorations: value.decorations.map(tr.changes) };
+      if (tr.docChanged || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
+        const regions = canMapMarkdownProseEdit(tr) ? [] : markdownProjectionEdit(tr);
+        if (!regions) return buildCodeBlockDecorations(tr.state, options);
+        const codeRegions = regions.filter(region => region.name === "FencedCode");
+        const replacements = codeRegions.length ? parseCodeBlockDescriptors(tr.state, options, codeRegions).blocks : [];
+        value = patchCodeBlockDescriptors(value, tr, codeRegions, replacements, options);
         mapped = true;
+      }
+      if (tr.startState.facet(collapseOnSelectionFacet) !== tr.state.facet(collapseOnSelectionFacet) || (mapped && (tr.effects.length || tr.state.field(mouseSelectingField, false)
+          || tr.startState.field(mouseSelectingField, false)))) {
+        return buildCodeBlockDecorations(tr.state, options, value);
       }
       const isDragging = tr.state.field(mouseSelectingField, false);
       const wasDragging = tr.startState.field(mouseSelectingField, false);
@@ -53775,7 +53893,9 @@ var LinkWidget = class extends WidgetType {
    * Check if two widgets are equal
    */
   eq(other) {
-    return other.data.text === this.data.text && other.data.url === this.data.url && other.data.isWikiLink === this.data.isWikiLink;
+    return other.data.text === this.data.text && other.data.url === this.data.url
+      && other.data.title === this.data.title && other.data.isWikiLink === this.data.isWikiLink
+      && other.options === this.options;
   }
   /**
    * Render to DOM element
@@ -53889,24 +54009,10 @@ function visibleDocumentRanges(view) {
   }
   return ranges;
 }
-function selectionTouchesLinkDecorations(decorations, selection) {
-  let touched = false;
-  for (const range of selection.ranges) {
-    const from = Math.max(0, range.from - 1);
-    const to = range.to + 1;
-    decorations.between(from, to, (decorationFrom, decorationTo) => {
-      if (range.from <= decorationTo && range.to >= decorationFrom) touched = true;
-    });
-    if (touched) return true;
-  }
-  return false;
-}
-function buildLinkDecorations(view, options) {
-  const decorations = [];
+function readVisibleLinkBlocks(view) {
+  const blocks = [];
   const state = view.state;
   let visited = 0;
-  countMarkdownWork(state, "decorations.links");
-  const isDrag = state.field(mouseSelectingField, false);
   const skipRanges = [];
   const visibleRanges = visibleDocumentRanges(view);
   for (const range of visibleRanges) {
@@ -53942,15 +54048,7 @@ function buildLinkDecorations(view, options) {
           if (!linkData) {
             return;
           }
-          const isTouched = shouldShowSource(state, from, to);
-          if (!isTouched && !isDrag) {
-            const widget = createLinkWidget(linkData, options);
-            decorations.push(Decoration.replace({ widget }).range(from, to));
-          } else {
-            decorations.push(
-              Decoration.mark({ class: "cm-link-source" }).range(from, to)
-            );
-          }
+          blocks.push({ from, to, data: linkData });
         }
       }
     });
@@ -53970,54 +54068,79 @@ function buildLinkDecorations(view, options) {
       if (!wikiData) {
         continue;
       }
-      const isTouched = shouldShowSource(state, from, to);
-      if (!isTouched && !isDrag) {
-        const widget = createLinkWidget(wikiData, options);
-        decorations.push(Decoration.replace({ widget }).range(from, to));
-      } else {
-        decorations.push(
-          Decoration.mark({ class: "cm-link-source cm-wikilink-source" }).range(
-            from,
-            to
-          )
-        );
-      }
+      blocks.push({ from, to, data: wikiData });
     }
   }
   countMarkdownWork(state, "syntax.nodes.links", visited);
-  return Decoration.set(decorations.sort((a, b) => a.from - b.from), true);
+  return blocks.sort((a, b) => a.from - b.from);
+}
+function linkBlockDecoration(block, visible, options) {
+  const spec = { sourceBlock: block.sourceIdentity || block };
+  return visible
+    ? Decoration.mark({ ...spec, class: "cm-link-source" + (block.data.isWikiLink ? " cm-wikilink-source" : "") }).range(block.from, block.to)
+    : Decoration.replace({ ...spec, widget: createLinkWidget(block.data, options) }).range(block.from, block.to);
+}
+function projectLinkBlocks(state, blocks, options, revealIndex = createSelectionRangeIndex(blocks)) {
+  countMarkdownWork(state, "decorations.links");
+  const dragging = state.field(mouseSelectingField, false), visibleIndices = new Set();
+  const decorations = Decoration.set(blocks.map((block, index) => {
+    const visible = dragging || shouldShowSource(state, block.from, block.to);
+    if (visible) visibleIndices.add(index);
+    return linkBlockDecoration(block, visible, options);
+  }), true);
+  return { blocks, revealIndex, visibleIndices, decorations };
 }
 function linkPlugin(options) {
   const mergedOptions = { ...defaultOptions3, ...options };
   return ViewPlugin.fromClass(
     class {
       constructor(view) {
-        this.decorations = buildLinkDecorations(view, mergedOptions);
+        this.value = projectLinkBlocks(view.state, readVisibleLinkBlocks(view), mergedOptions);
       }
+      get decorations() { return this.value.decorations; }
       update(update) {
-        if (update.docChanged || update.viewportChanged
+        let touched = false;
+        if (update.docChanged) update.changes.iterChangedRanges((from, to) => {
+          touched ||= this.value.blocks.some(block => from <= block.to && to >= block.from);
+        });
+        const mapped = update.docChanged && !update.viewportMoved && !touched
+          && !update.transactions.some(transaction => transaction.reconfigured) && canMapMarkdownInlineEdit(update);
+        if (mapped) {
+          const blocks = mapMarkdownBlockDescriptors(this.value.blocks, position => update.changes.mapPos(position));
+          this.value = { ...this.value, blocks, revealIndex: blocks === this.value.blocks ? this.value.revealIndex : createSelectionRangeIndex(blocks),
+            decorations: this.value.decorations.map(update.changes) };
+        } else if (update.docChanged || update.viewportChanged
             || syntaxTree(update.startState) !== syntaxTree(update.state)
             || update.transactions.some(transaction => transaction.reconfigured)) {
-          this.decorations = buildLinkDecorations(update.view, mergedOptions);
+          this.value = projectLinkBlocks(update.state, readVisibleLinkBlocks(update.view), mergedOptions);
           return;
         }
         const isDragging = update.state.field(mouseSelectingField, false);
         const wasDragging = update.startState.field(mouseSelectingField, false);
         if (wasDragging && !isDragging) {
-          this.decorations = buildLinkDecorations(update.view, mergedOptions);
+          this.value = projectLinkBlocks(update.state, this.value.blocks, mergedOptions, this.value.revealIndex);
           return;
         }
-        if (isDragging) {
-          return;
+        // Keep the mounted replacements steady while the native drag owns selection.
+        if (isDragging || (!update.selectionSet && !mapped)) return;
+        const plan = sourceRevealChanges(this.value,
+          [...update.startState.selection.ranges.map(range => ({ from: update.changes.mapPos(range.from, -1),
+            to: update.changes.mapPos(range.to, 1) })), ...update.state.selection.ranges],
+          block => shouldShowSource(update.state, block.from, block.to));
+        countMarkdownWork(update.state, "selection.rangeNodes.links", plan.visited);
+        countMarkdownWork(update.state, "selection.visibilityChecks.links", plan.checks);
+        if (!plan.changes.length) return;
+        let decorations = this.value.decorations;
+        for (const { block, visible } of plan.changes) {
+          countMarkdownWork(update.state, "decorations.linkBlocks");
+          decorations = decorations.update({ filterFrom: block.from, filterTo: block.to,
+            filter: (_from, _to, decoration) => decoration.spec.sourceBlock !== (block.sourceIdentity || block),
+            add: [linkBlockDecoration(block, visible, mergedOptions)], sort: true });
         }
-        if (update.selectionSet && (selectionTouchesLinkDecorations(this.decorations, update.startState.selection) || selectionTouchesLinkDecorations(this.decorations, update.state.selection))) {
-          this.decorations = buildLinkDecorations(update.view, mergedOptions);
-        }
+        this.value = { ...this.value, decorations, visibleIndices: plan.visibleIndices };
       }
     },
-    {
-      decorations: (v) => v.decorations
-    }
+    { decorations: value => value.decorations }
   );
 }
 var editorTheme = EditorView.theme({
@@ -54447,4 +54570,4 @@ var editorTheme = EditorView.theme({
   ".hljs-name": { color: "#22863a" }
 });
 
-export { canMapMarkdownProseEdit, markdownWorkFacet, blockMathField, checkUpdateAction, clearImageCache, clearMathCache, codeBlockField, collapseOnSelectionFacet, editorTheme, highlightCode, imageField, initHighlighter, isHighlighterAvailable, isLanguageRegistered, linkPlugin, livePreviewPlugin, loadImage, markdownStylePlugin, mathPlugin, mouseSelectingField, preloadImages, registerLanguage, renderMath, resolveImagePath, setMouseSelecting, setTableSourceMode, shouldShowSource, tableEditorField, tableEditorPlugin, tableField };
+export { markdownProjectionEdit, canMapMarkdownInlineEdit, canMapMarkdownProseEdit, markdownWorkFacet, blockMathField, checkUpdateAction, clearImageCache, clearMathCache, codeBlockField, collapseOnSelectionFacet, editorTheme, highlightCode, imageField, initHighlighter, isHighlighterAvailable, isLanguageRegistered, linkPlugin, livePreviewPlugin, loadImage, markdownStylePlugin, mathPlugin, mouseSelectingField, preloadImages, registerLanguage, renderMath, resolveImagePath, setMouseSelecting, setTableSourceMode, shouldShowSource, tableEditorField, tableEditorPlugin, tableField };

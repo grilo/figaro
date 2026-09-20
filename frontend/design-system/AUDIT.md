@@ -609,3 +609,10 @@ scrolling no longer repositions the popup; other placement updates account for
 borders and scrollbar chrome instead of feeding inner sizes into border-box CSS.
 Adapter regressions and repeated native wheel scrolling in the existing catalogue
 scenario cover stable dimensions. No primitive, token, or cascade change is needed.
+
+The approved Settings cutout variant `.settings-section--inset` groups related
+options with a heading above the controls. It uses `--workspace-surface` exactly,
+without another surface token, border or shadow. Its production layout and
+catalogue specimen share the same stylesheet; the approval registry and focused
+catalogue test track it. Personal dictionary management reuses existing fields,
+buttons, notices and the shared resizable modal without introducing a primitive.

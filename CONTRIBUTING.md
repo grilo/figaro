@@ -301,6 +301,25 @@ Declare external observer dependencies in `core/editorUpdateContract.js`; shell
 observers use `tabPresentation`, never raw `openTabs` notifications. Keep tab
 records immutable; use `getTabCursorState`/`setTabCursorState` for live cursor
 ownership, not a tab record's seed. Enumerate cursors only for explicit snapshots.
+Capture lazy content in the same edit-generation transition and resolve it with
+`readTabContent` at a reader's boundary; never assume `_content` is a string.
+Check pane visibility/path before requesting full text. Hidden planning views
+must catch up on activation instead of scanning every typing notification.
+Outline position mapping must not trigger row-label queries or position writes.
+Map cached Markdown ranges only after proving stable parsed structure;
+list/quote edits may reproject the affected line. Keep current widget actions
+and explicit structural/typography invalidation. Compare incremental output
+with a fresh parse, including delimiter edits and source reveal.
+Keep the complete interaction inventory together when investigating further
+latency. Ordinary pointer handling must classify local tokens before whole-note
+reads. Index formatting visibility and math overlaps, retain unaffected math
+indexes, and bound code active-scope work to cached line entries. Completion
+triggers stream append context and rebuild only when the edit invalidates it.
+Mermaid validation reuse must stay bounded, distinguish renderer contexts,
+retain failure locations and stop obsolete lint passes before their next block.
+`editorRemainingWork.test.js` covers all ten consolidated findings at small and
+large sizes; retain fresh-parse, actual key/pointer and native checks as well.
+
 Use opt-in traces and the assembled work-limit regression
 before adding feature-local caches. Jest must use the shipped vendored Markdown
 implementation, including its downstream cursor/viewport patches.
@@ -310,9 +329,19 @@ uses: dirty paths for tree markers, document identity for Outline parsing,
 block/document identity for phrase segmentation, and source visibility for
 image/diagram/table/math decorations. Use the shared selection range index to
 bound visibility checks to old/new overlaps and patch only changed blocks.
+Retain visible list/quote and link descriptors; selection must not reparse source
+or remeasure indentation. Cache both line variants, with font and tab-size
+invalidation, and keep source marker fonts consistent with the measured font.
+Index writing findings once per result identity, cache viewport queries and
+mounted label plans, and skip unchanged gutter attributes and same-line relative
+number redraws. Test actual source/measurement/DOM access, including redraws.
 Use the conservative prose-edit adapter to map cached positions and decorations;
 check changed text and parsed paragraph/list/quote boundaries, while uncertain
-syntax must reparse. Resolve retained preview interactions from their current
+syntax must reparse. A partial parser tree may reuse a completed block only when
+its mapped extent and ancestor bounds match. Heading/code/table/soft-line edits
+replace only proven affected blocks; parser progress remains an invalidation.
+Settings unrelated to source reveal must retain cached block projections.
+Resolve retained preview interactions from their current
 mounted positions. Cache guide widths and normalized phrase ranges; index widget,
 viewport and phrase lookups. Use model-owned single-record buffer transitions to
 avoid unrelated tab classification/cursor reconciliation, preserving immutable
@@ -649,6 +678,12 @@ bundles the browser-safe `nspell` runtime plus the checked-in dependency
 versions of the US English, UK English, and Spanish Hunspell `.aff`/`.dic`
 assets with their individual license files. Do not replace those language
 assets or remove their notices without auditing the upstream dictionary terms.
+Manage personal spelling words through Settings → Editor → Personal dictionary,
+using its Manage dialog, also linked from Proofreading. Keep Settings limited to
+its count/launcher and the dialog list bounded independently of its search and
+actions. Reuse the shared modal/focus/resize adapters. Add/Remove share a serialized, pessimistic store; Undo
+adds the removed entry without replacing other words. Keep pure list planning,
+component failure/focus coverage, and rooted persistence tests synchronized.
 Personal spelling words are separate vault data in
 `.config/spelling-dictionary.json`; the application validates and atomically
 adds words without modifying bundled Hunspell resources or note contents.
@@ -660,7 +695,7 @@ Writing review preparation runs `scripts/vendor-writing.mjs` for the pinned
 remark/retext runtime and notices, then bundles the writing and activity workers.
 Vale's adapted source is vendored in `third_party/vale` and compiled by Go; its
 42 YAML rules and the pinned grammar dictionary are embedded from
-`internal/writing/styles`; 160 pure Go grammar checks are compiled from
+`internal/writing/styles`; 162 pure Go grammar checks are compiled from
 `internal/writing/grammar`. Native and cross builds
 need no Vale executable download or target preparation. Generated browser workers
 remain ignored; obsolete local CLI `.gz` files are ignored but never bundled.
@@ -982,7 +1017,8 @@ resolution stay in workers during analysis, never in typing handlers.
 Slopless changes must update the explicit rule imports/pure policy and
 [complete included/excluded inventory](docs/WRITING_SLOPLESS.md). Keep rules
 English-only, eager and worker-local; test every selected real rule, protected
-source ranges, individual curly-mark mapping, stable duplicate identities,
+source ranges, individual curly-mark mapping against the authored convention,
+convention changes after incremental edits, stable duplicate identities,
 examples and reversible Ignore. The imported subset is advisory: never forward
 upstream blanket rewrite instructions or typography preferences as mandatory fixes.
 
@@ -1006,11 +1042,17 @@ to NFC without normalizing note text or source coordinates.
 Keep URL-enclosing punctuation in the prose projection. Review new vocabulary
 entries separately from correction confidence; recognition never authorizes a
 replacement. Context guards must have positive controls and remain independent
-per lens. Both sentence-length paths check the mapped sentence above 30 words.
+per lens. For passive/existential guards, test every provider span shape, explicit
+actors after time/location, sentence/paragraph/protected-text boundaries, weak
+introductions and independent overlapping grammar. Require local semantic cues;
+do not turn an entire grammatical construction off. Both sentence-length paths check the mapped sentence above 30 words.
 Keep reverse/plural acronym recognition syntactic and within eligible prose.
 See [the corpus correction contract](docs/WRITING_CORPUS_FIXES.md); changes need
 real dictionary/package regressions plus pure policy and bulk-planner coverage.
 
+Keep local grammar eligibility explicit per rule. CountableAmount owns its
+complete phrase; CommaSplice has bounded clause evidence and no replacement.
+Test masked neighbors and serial coordination before changing those exceptions.
 Defined-acronym spelling recognition belongs to the current note, outside the
 shared suggestion cache. Test adding/removing definitions and protected text.
 When merging equivalent advice across lenses, preserve every source, independent
@@ -1079,8 +1121,9 @@ pure ranges in `core/writingFootnoteModel.js`; cover unresolved references and
 definition-body prose in both runtime and spelling tests. Rebuild the writing
 bundle after projection changes and bump its mapping configuration version.
 
-For retained writing review, keep range invalidation and remapping in
-`core/writingRetentionModel.js`. The CodeMirror adapter may read touched paragraphs
+For retained writing review, keep invalidation policy in
+`core/writingRetentionModel.js` and map persistent ranges in the CodeMirror
+adapter. Query touched ranges instead of enumerating findings. It may read touched paragraphs
 and change fragments, never serialize the full note on each key. Retained results
 must be read-only and keep their old analysis identity; a partial spelling reply
 must not blank the previous prose review before the other engines settle. Exercise
@@ -1089,3 +1132,12 @@ late replies, retries and note/configuration changes at the component/use-case l
 For adjacent rendered-block Vim entry, visual movement within the current source
 line must precede source reveal. Keep the focused Chromium and packaged native
 Up/Down, mouse and drag checks in sync.
+
+Feature-map repository references support scoped vendored package directories
+(such as `@replit`); absolute paths, parent traversal and globs remain invalid.
+
+Keep optional wheel easing separate from cursor, Find and Pure typewriter
+navigation. Preserve Apple's native events, reduced motion and interruption;
+never identify a trackpad solely by one delta or impose a global smooth-scroll
+style. Keep eligibility/easing pure and frame/scroll effects injected. Reuse the
+existing Settings toggle primitive and default new scrolling behavior off.

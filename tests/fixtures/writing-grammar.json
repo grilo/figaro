@@ -25,7 +25,50 @@
       "I have saw blades.",
       "We have rose bushes.",
       "He is a bore.",
-      "I have Ran on my team."
+      "I have Ran on my team.",
+      "She had saw blades in the shed.",
+      "We have saw dust on our boots.",
+      "He had a saw in his bag.",
+      "I saw the missing tool.",
+      "I have seen the tool.",
+      "They had already seen their friend."
+    ],
+    "additional": [
+      {
+        "source": "Maya said she had saw the missing tool.",
+        "actual": "saw",
+        "replacements": [
+          "seen"
+        ]
+      },
+      {
+        "source": "We have saw it before.",
+        "actual": "saw",
+        "replacements": [
+          "seen"
+        ]
+      },
+      {
+        "source": "He has already saw the result.",
+        "actual": "saw",
+        "replacements": [
+          "seen"
+        ]
+      },
+      {
+        "source": "They had not saw their friend.",
+        "actual": "saw",
+        "replacements": [
+          "seen"
+        ]
+      },
+      {
+        "source": "I've just saw a fox.",
+        "actual": "saw",
+        "replacements": [
+          "seen"
+        ]
+      }
     ]
   },
   {
@@ -5587,7 +5630,21 @@
       "The dead are buried.",
       "The blind are here.",
       "The unemployed have left.",
-      "The elderly are waiting."
+      "The elderly are waiting.",
+      "The small box of tools was waiting beside the window.",
+      "The instruments near the bridge have been checked twice.",
+      "If the box of tools were missing, we would notice.",
+      "I wish the box of tools were here.",
+      "The team near the bridge have finished.",
+      "The majority of the chairs are blue.",
+      "The box and the tools are ready.",
+      "The box of tools and the chairs are ready.",
+      "The chair that the children have painted is blue.",
+      "The keys to the room that he has cleaned are here.",
+      "The poor in the village are hungry.",
+      "The best of the paintings is here.",
+      "The bottles of water are ready.",
+      "The news from the islands is good."
     ],
     "additional": [
       {
@@ -5617,6 +5674,129 @@
         "replacements": [
           "were"
         ]
+      },
+      {
+        "source": "The small box of tools were waiting beside the window.",
+        "actual": "were",
+        "replacements": [
+          "was"
+        ]
+      },
+      {
+        "source": "The instruments near the bridge has been checked twice.",
+        "actual": "has",
+        "replacements": [
+          "have"
+        ]
+      },
+      {
+        "source": "The keys on the table is missing.",
+        "actual": "is",
+        "replacements": [
+          "are"
+        ]
+      },
+      {
+        "source": "The box with the tools are ready.",
+        "actual": "are",
+        "replacements": [
+          "is"
+        ]
+      },
+      {
+        "source": "My books in the cupboard has arrived.",
+        "actual": "has",
+        "replacements": [
+          "have"
+        ]
+      },
+      {
+        "source": "The handle of the doors have broken.",
+        "actual": "have",
+        "replacements": [
+          "has"
+        ]
+      },
+      {
+        "source": "These chairs beside the window was clean.",
+        "actual": "was",
+        "replacements": [
+          "were"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CountableAmount",
+    "source": "The maximum amount of times to retry the operation.",
+    "actual": "amount of times",
+    "replacements": [
+      "number of times"
+    ],
+    "valid": [
+      "The maximum number of times is three.",
+      "The amount of time is limited.",
+      "The amount of money is correct.",
+      "The amount of water is sufficient.",
+      "The amount of timesaving equipment is large.",
+      "The amount of error correction is sufficient.",
+      "The amount of goods is substantial.",
+      "We received a number of requests.",
+      "We received an enormous number of requests."
+    ],
+    "additional": [
+      {
+        "source": "We recorded a large amount of errors.",
+        "actual": "amount of errors",
+        "replacements": [
+          "number of errors"
+        ]
+      },
+      {
+        "source": "Limit the amount of requests per hour.",
+        "actual": "amount of requests",
+        "replacements": [
+          "number of requests"
+        ]
+      },
+      {
+        "source": "We received an amount of requests.",
+        "actual": "an amount of requests",
+        "replacements": [
+          "a number of requests"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CommaSplice",
+    "source": "The system is ready, it starts the next task.",
+    "actual": ",",
+    "replacements": [],
+    "valid": [
+      "If the system is ready, it starts the next task.",
+      "When the system is ready, it then starts the next task.",
+      "The system is ready, and it starts the next task.",
+      "The system is ready; it starts the next task.",
+      "The system is ready. It starts the next task.",
+      "The system, which checks the files, starts the next task.",
+      "I came, I saw, I conquered.",
+      "The system is ready, I think, for the next task.",
+      "If calling the function fails, it then retries the operation.",
+      "Until the last retry is reached, it then tries the next item.",
+      "The gate had been repaired, the tools were clean, and the sacks of fallen leaves could wait until tomorrow.",
+      "The system is ready, it has loaded the files, the workers have started the checks, and the queue is empty."
+    ],
+    "additional": [
+      {
+        "source": "If the request fails, the function is called again until the retries are reached, it then rejects with the last reason.",
+        "actual": ",",
+        "replacements": []
+      },
+      {
+        "source": "She has finished the report, he has already sent the letter.",
+        "actual": ",",
+        "replacements": []
       }
     ]
   }

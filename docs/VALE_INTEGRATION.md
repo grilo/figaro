@@ -2,10 +2,12 @@
 
 The original integration below was validated on 2026-09-08 against the pending
 changes after Figaro v1.38.0. The later [grammar expansion](WRITING_HARPER.md)
-adds 15 reviewed Harper-port rules, a dictionary, sequence support, and 160 pure
+adds 15 reviewed Harper-port rules, a dictionary, sequence support, and 162 pure
 Go checks to this same engine; its current inventory is 42 YAML rules.
 Historical timings and validation counts below describe the original integration.
-Grammar policy 7 broadens contexts within the same rule inventory; the
+Grammar policy 8 follows noun heads across modifiers and adds two independently
+authored local quantity/clause checks. The preceding policy 7 broadened existing
+contexts; the
 [quality follow-up](benchmarks/writing-quality-2026-09-20.md) records its current
 reference comparison, combined-provider document results and packaged checks.
 

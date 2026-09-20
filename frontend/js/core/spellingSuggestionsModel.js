@@ -75,7 +75,7 @@ export function isCorrectlySpelledProseWord(word, checkers, languages) {
         // belongs to the same active dictionary, while still flagging a typo
         // in any component.
         const components = word.split('-');
-        return components.length > 1 && components.every(component => checker.correct(component));
+        return components.length > 1 && components.every(component => checker.correct(component) || reviewedSpellingWord(component, languages));
     });
 }
 

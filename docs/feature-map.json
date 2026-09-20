@@ -6,17 +6,26 @@
       "frontend/js/editor.js",
       "frontend/js/core/linkedNoteNavigationModel.js",
       "frontend/js/usecases/linkedNoteNavigation.js",
-      "frontend/js/usecases/similarNoteReview.js"
+      "frontend/js/usecases/similarNoteReview.js",
+      "frontend/js/referenceLinks.js",
+      "frontend/js/editorLinkCompletions.js",
+      "frontend/js/core/completionTriggerModel.js",
+      "frontend/js/footnotes.js"
     ],
     "docs": [
       "docs/PROMPT.md#45-link-click-behavior",
-      "docs/testing/export.md#raw-text-preview-and-heading-link-regressions"
+      "docs/testing/export.md#raw-text-preview-and-heading-link-regressions",
+      "docs/EDITOR_PERFORMANCE.md#inline-cursor-navigation-follow-up"
     ],
     "tests": [
       "tests/frontend/unit/linkedNoteNavigationModel.test.js",
       "tests/frontend/unit/linkedNoteNavigation.test.js",
       "tests/frontend/unit/similarNoteReview.test.js",
-      "tests/frontend/unit/editor.test.js"
+      "tests/frontend/unit/editor.test.js",
+      "tests/frontend/unit/markdownLinksProjection.test.js",
+      "tests/frontend/unit/completionTriggerModel.test.js",
+      "tests/frontend/unit/editorLinkCompletions.test.js",
+      "tests/frontend/unit/markdownInteraction.test.js"
     ],
     "extraChecks": [
       "Follow docs/testing/editor.md for pointer, selection, or cursor changes; navigation planning alone is covered below the browser layer."
@@ -35,6 +44,19 @@
       ],
       "frontend/js/usecases/similarNoteReview.js": [
         "reviewMissingLinkedNote"
+      ],
+      "frontend/js/referenceLinks.js": [
+        "referenceLinkPlugin"
+      ],
+      "frontend/js/core/completionTriggerModel.js": [
+        "advanceCompletionTriggers"
+      ],
+      "frontend/js/editorLinkCompletions.js": [
+        "createEditorLinkCompletions"
+      ],
+      "frontend/js/footnotes.js": [
+        "getFootnoteAtPosition",
+        "resolveFootnoteNavigation"
       ]
     }
   },
@@ -58,7 +80,23 @@
       "frontend/js/core/markdownFormattingModel.js",
       "frontend/vendored/codemirror-live-markdown/index.js",
       "frontend/js/core/markdownProjectionModel.js",
-      "frontend/js/core/markdownBlockGuideModel.js"
+      "frontend/js/core/markdownBlockGuideModel.js",
+      "frontend/js/editorBlockActionLayout.js",
+      "frontend/js/markdownLineDecorations.js",
+      "frontend/js/core/markdownLineModel.js",
+      "frontend/js/markdownIndentation.js",
+      "frontend/js/referenceLinks.js",
+      "frontend/js/relativeLineNumbers.js",
+      "frontend/js/editorGutterAccessibility.js",
+      "frontend/styles/markdown.css",
+      "frontend/js/core/frontmatterPresentationModel.js",
+      "frontend/js/frontmatterPlugin.js",
+      "frontend/js/core/indentationMarkerModel.js",
+      "frontend/vendored/@replit/codemirror-indentation-markers/dist/index.js",
+      "frontend/js/core/wheelScrollModel.js",
+      "frontend/js/usecases/wheelScroll.js",
+      "frontend/js/editorWheelScroll.js",
+      "frontend/js/state.js"
     ],
     "docs": [
       "docs/LIVEPREVIEW.md#4-block-widget-geometry-contract",
@@ -72,7 +110,16 @@
       "frontend/vendored/codemirror-live-markdown/README.md",
       "docs/EDITOR_PERFORMANCE.md#bundled-markdown-cursor-work",
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
-      "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements"
+      "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements",
+      "docs/EDITOR_PERFORMANCE.md#inline-cursor-navigation-follow-up",
+      "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes",
+      "docs/EDITOR_PERFORMANCE.md#consolidated-interaction-findings",
+      "frontend/vendored/@replit/codemirror-indentation-markers/README.md",
+      "docs/benchmarks/editor-interaction-findings-2026-09-20.md",
+      "ARCHITECTURE.md#optional-editor-wheel-smoothing",
+      "docs/testing/editor.md#optional-wheel-scrolling",
+      "docs/EDITOR_PERFORMANCE.md#scoped-markdown-projection-reuse",
+      "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#editor-measurements"
     ],
     "tests": [
       "tests/frontend/unit/verticalCursorModel.test.js",
@@ -93,7 +140,20 @@
       "tests/frontend/unit/markdownFormattingModel.test.js",
       "tests/frontend/unit/vendoredMarkdownCursor.test.js",
       "tests/frontend/unit/markdownProjectionModel.test.js",
-      "tests/frontend/unit/markdownBlockGuideModel.test.js"
+      "tests/frontend/unit/markdownBlockGuideModel.test.js",
+      "tests/frontend/unit/editorBlockActionLayout.test.js",
+      "tests/frontend/unit/markdownLineModel.test.js",
+      "tests/frontend/unit/markdownLineDecorations.test.js",
+      "tests/frontend/unit/markdownLinksProjection.test.js",
+      "tests/frontend/unit/relativeLineNumbers.test.js",
+      "tests/frontend/unit/editorGutterAccessibility.test.js",
+      "tests/frontend/unit/bulletMarkers.test.js",
+      "tests/frontend/unit/editorTypingInventory.test.js",
+      "tests/frontend/unit/indentationMarkerModel.test.js",
+      "tests/frontend/unit/editorRemainingWork.test.js",
+      "tests/frontend/unit/markdownInteraction.test.js",
+      "tests/frontend/unit/wheelScroll.test.js",
+      "tests/frontend/unit/state.test.js"
     ],
     "extraChecks": [
       "Run the affected existing editorUX or vimVisualRows Playwright scenario for geometry changes and repeat in the packaged native webview."
@@ -148,25 +208,82 @@
       "frontend/js/sourceReveal.js": [
         "sourceRevealIndex",
         "updateSourceReveal",
-        "mapSourceReveal"
+        "mapSourceReveal",
+        "patchSourceReveal"
       ],
       "frontend/js/core/markdownFormattingModel.js": [
-        "formattingMarkerVisibility"
+        "formattingMarkerVisibility",
+        "formattingMarkerChanges"
       ],
       "frontend/vendored/codemirror-live-markdown/index.js": [
         "livePreviewPlugin",
         "markdownStylePlugin",
         "codeBlockField",
         "markdownWorkFacet",
-        "canMapMarkdownProseEdit"
+        "canMapMarkdownProseEdit",
+        "canMapMarkdownInlineEdit",
+        "markdownProjectionEdit",
+        "patchCodeBlockDescriptors"
       ],
       "frontend/js/core/markdownProjectionModel.js": [
         "markdownProseEditPreservesBlocks",
-        "mapMarkdownBlockDescriptors"
+        "mapMarkdownBlockDescriptors",
+        "markdownInlineStructuresMatch",
+        "markdownTextEditMayStayInBlock",
+        "replaceMarkdownBlockRegions"
       ],
       "frontend/js/core/markdownBlockGuideModel.js": [
         "markdownBlockGuideSpacerLength",
         "markdownGuidesInViewport"
+      ],
+      "frontend/js/editorBlockActionLayout.js": [
+        "synchronizeEditorBlockActionLayout"
+      ],
+      "frontend/js/markdownLineDecorations.js": [
+        "createMarkdownLineDecorations"
+      ],
+      "frontend/js/core/markdownLineModel.js": [
+        "markdownListNodePlan",
+        "markdownListIndentPlan",
+        "markdownQuoteIndentPlan",
+        "markdownExtraLinePlan",
+        "bulletMarkerForListDepth"
+      ],
+      "frontend/js/markdownIndentation.js": [
+        "markdownIndentationMetrics",
+        "markdownListHangingIndentAttributes",
+        "markdownBlockquoteHangingIndentAttributes"
+      ],
+      "frontend/js/referenceLinks.js": [
+        "referenceLinkPlugin"
+      ],
+      "frontend/js/relativeLineNumbers.js": [
+        "relativeLineNumbers"
+      ],
+      "frontend/js/editorGutterAccessibility.js": [
+        "syncEditorGutterAccessibility"
+      ],
+      "frontend/js/core/frontmatterPresentationModel.js": [
+        "frontmatterEditNeedsParse"
+      ],
+      "frontend/js/frontmatterPlugin.js": [
+        "createFrontmatterField"
+      ],
+      "frontend/js/core/indentationMarkerModel.js": [
+        "activeIndentationLines"
+      ],
+      "frontend/js/core/wheelScrollModel.js": [
+        "usesNativeAppleScrolling",
+        "smoothWheelDelta",
+        "wheelScrollTarget",
+        "wheelScrollStep"
+      ],
+      "frontend/js/usecases/wheelScroll.js": [
+        "createWheelScroll"
+      ],
+      "frontend/js/editorWheelScroll.js": [
+        "createEditorWheelScroll",
+        "initWheelScrollSettings"
       ]
     }
   },
@@ -207,7 +324,8 @@
       "frontend/js/usecases/interactionTrace.js",
       "frontend/js/state.js",
       "frontend/js/editor.js",
-      "frontend/js/core/workspaceCursorModel.js"
+      "frontend/js/core/workspaceCursorModel.js",
+      "frontend/js/usecases/tabContent.js"
     ],
     "docs": [
       "docs/EDITOR_UPDATES.md",
@@ -218,7 +336,14 @@
       "docs/EDITOR_UPDATES.md#installed-extension-audit",
       "docs/EDITOR_PERFORMANCE.md#bundled-markdown-cursor-work",
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
-      "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements"
+      "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements",
+      "docs/EDITOR_PERFORMANCE.md#inline-cursor-navigation-follow-up",
+      "docs/EDITOR_PERFORMANCE.md#lazy-typing-snapshots-and-mapped-projections",
+      "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes",
+      "docs/EDITOR_PERFORMANCE.md#consolidated-interaction-findings",
+      "docs/benchmarks/editor-interaction-findings-2026-09-20.md",
+      "docs/EDITOR_PERFORMANCE.md#scoped-markdown-projection-reuse",
+      "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#editor-measurements"
     ],
     "tests": [
       "tests/frontend/unit/editorInteractionContract.test.js",
@@ -230,7 +355,10 @@
       "tests/frontend/unit/sourceReveal.test.js",
       "tests/frontend/unit/vendoredMarkdownCursor.test.js",
       "tests/frontend/unit/workspaceCursorModel.test.js",
-      "tests/frontend/unit/searchMatchStatus.test.js"
+      "tests/frontend/unit/searchMatchStatus.test.js",
+      "tests/frontend/unit/editorTypingContract.test.js",
+      "tests/frontend/unit/editorTypingInventory.test.js",
+      "tests/frontend/unit/editorRemainingWork.test.js"
     ],
     "extraChecks": [
       "Run tabs/editor-layout and affected observer suites. Reuse editorUX/outline/vimVisualRows browser tests and isolated packaged native input checks."
@@ -258,6 +386,9 @@
       ],
       "frontend/js/editor.js": [
         "transferEditorHistory"
+      ],
+      "frontend/js/usecases/tabContent.js": [
+        "readTabContent"
       ]
     }
   },
@@ -287,15 +418,25 @@
     "sources": [
       "frontend/js/usecases/writingAnalysis.js",
       "frontend/js/writingRuntime.js",
-      "frontend/js/core/writingReviewWork.js"
+      "frontend/js/core/writingReviewWork.js",
+      "frontend/js/core/writingProjectionModel.js",
+      "frontend/js/usecases/writingSourceProjection.js",
+      "frontend/js/usecases/writingParagraphChecks.js"
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#asynchronous-execution-contract",
-      "docs/testing/writing.md#writing-review-regression-coverage"
+      "docs/testing/writing.md#writing-review-regression-coverage",
+      "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes",
+      "docs/WRITING_ENGINE.md#incremental-editing-work--10-september-2026",
+      "docs/EDITOR_PERFORMANCE.md#scoped-markdown-projection-reuse",
+      "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#writing-measurements"
     ],
     "tests": [
       "tests/frontend/unit/writingAnalysis.test.js",
-      "tests/frontend/unit/writingRuntime.test.js"
+      "tests/frontend/unit/writingRuntime.test.js",
+      "tests/frontend/unit/editorTypingInventory.test.js",
+      "tests/frontend/unit/writingIncremental.test.js",
+      "tests/frontend/unit/writingSourceProjection.test.js"
     ],
     "extraChecks": [
       "Use writing-grammar, writing-spelling, writing-retention, writing-inline, or writing-decisions for those changes. Worker/startup changes also need the existing productionBundle boundary."
@@ -306,10 +447,25 @@
       ],
       "frontend/js/writingRuntime.js": [
         "analyzeWriting",
-        "createIncrementalWritingAnalyzer"
+        "createIncrementalWritingAnalyzer",
+        "prepareWritingSource",
+        "createIncrementalWritingSource",
+        "projectWritingTree",
+        "parseWritingDocument",
+        "finishWritingProjection"
       ],
       "frontend/js/core/writingReviewWork.js": [
         "resolveWritingReview"
+      ],
+      "frontend/js/core/writingProjectionModel.js": [
+        "writingProjectionEdit",
+        "combineWritingProjections"
+      ],
+      "frontend/js/usecases/writingSourceProjection.js": [
+        "createWritingSourceProjection"
+      ],
+      "frontend/js/usecases/writingParagraphChecks.js": [
+        "createWritingParagraphChecks"
       ]
     }
   },
@@ -321,11 +477,16 @@
       "frontend/js/core/writingContextModel.js",
       "frontend/js/core/writingTextlintModel.js",
       "frontend/js/core/writingPackagePolicy.js",
-      "frontend/js/core/writingDecisionsModel.js"
+      "frontend/js/core/writingDecisionsModel.js",
+      "frontend/js/core/writingSloplessModel.js",
+      "frontend/js/core/writingTypographyModel.js"
     ],
     "docs": [
       "docs/WRITING_CORPUS_FIXES.md#september-quality-follow-up",
-      "docs/testing/writing.md#writing-quality-regression-coverage"
+      "docs/testing/writing.md#writing-quality-regression-coverage",
+      "docs/WRITING_CORPUS_FIXES.md#suggestion-relevance",
+      "docs/WRITING_SLOPLESS.md#integration-and-limits",
+      "docs/WRITING_CORPUS_FIXES.md#descriptive-and-existential-context"
     ],
     "tests": [
       "tests/frontend/unit/writingQuality.test.js",
@@ -333,7 +494,11 @@
       "tests/frontend/unit/writingTextlint.test.js",
       "tests/frontend/unit/writingDecisionsModel.test.js",
       "tests/frontend/unit/writingDecisionsIntegration.test.js",
-      "tests/frontend/unit/writingNextPackages.test.js"
+      "tests/frontend/unit/writingNextPackages.test.js",
+      "tests/frontend/unit/writingRelevance.test.js",
+      "tests/frontend/unit/writingPackageReview.test.js",
+      "tests/frontend/unit/writingSlopless.test.js",
+      "tests/frontend/unit/writingDescriptionContext.test.js"
     ],
     "symbols": {
       "frontend/js/core/writingContextModel.js": [
@@ -389,7 +554,8 @@
       "internal/writing/grammar/mechanics.go",
       "internal/writing/grammar/prepositions.go",
       "internal/writing/grammar/usage_words.go",
-      "internal/writing/grammar/noun_agreement.go"
+      "internal/writing/grammar/noun_agreement.go",
+      "internal/writing/grammar/clauses.go"
     ],
     "docs": [
       "docs/WRITING_HARPER.md#scope",
@@ -418,7 +584,8 @@
       "docs/benchmarks/writing-grammar-usage-2026-09-20.md#evidence-and-reproduction",
       "docs/WRITING_HARPER.md#broader-contexts-and-quality-follow-up",
       "docs/benchmarks/writing-quality-2026-09-20.md#grammar-comparison",
-      "docs/benchmarks/writing-quality-2026-09-20.md#packaged-linux-verification"
+      "docs/benchmarks/writing-quality-2026-09-20.md#packaged-linux-verification",
+      "docs/WRITING_HARPER.md#document-gap-corrections"
     ],
     "tests": [
       "tests/frontend/unit/writingGrammar.test.js",
@@ -466,12 +633,17 @@
       "docs/benchmarks/writing-quality-2026-09-20.md#scope-and-method",
       "docs/benchmarks/writing-quality-2026-09-20.md#known-document-regressions",
       "docs/benchmarks/writing-quality-2026-09-20.md#fresh-documents",
-      "docs/benchmarks/writing-quality-2026-09-20.md#evidence-and-limitations"
+      "docs/benchmarks/writing-quality-2026-09-20.md#evidence-and-limitations",
+      "docs/benchmarks/writing-gaps-2026-09-20.md",
+      "docs/benchmarks/writing-relevance-2026-09-20.md",
+      "docs/benchmarks/writing-context-2026-09-20.md"
     ],
     "tests": [
       "tests/frontend/unit/writingCorpusSafety.test.js",
       "tests/frontend/unit/writingSpelling.test.js",
-      "tests/frontend/unit/writingQuality.test.js"
+      "tests/frontend/unit/writingQuality.test.js",
+      "tests/frontend/unit/writingRelevance.test.js",
+      "tests/frontend/unit/writingDescriptionContext.test.js"
     ],
     "extraChecks": [
       "Run node scripts/evaluate-writing-documents.mjs --output /tmp/figaro-writing-documents.json to inspect actual combined-provider results. Preserve source/license hashes; manual labels are separate from output and do not establish held-out accuracy."
@@ -491,7 +663,12 @@
       "frontend/js/core/writingTechnicalModel.js",
       "internal/settings/spelling_words.go",
       "internal/desktop/app_spelling_dictionary.go",
-      "frontend/js/core/writingTextlintModel.js"
+      "frontend/js/core/writingTextlintModel.js",
+      "frontend/js/views/spellingDictionarySettings.js",
+      "frontend/js/tabManager.js",
+      "frontend/styles/features/settings.css",
+      "frontend/js/settingsNavigation.js",
+      "frontend/js/writingLenses.js"
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#editorial-scope-and-source-safety",
@@ -506,7 +683,8 @@
       "tests/frontend/unit/spellingDictionary.test.js",
       "tests/frontend/unit/writingTechnicalModel.test.js",
       "tests/frontend/unit/writingCorpusSafety.test.js",
-      "tests/frontend/unit/writingQuality.test.js"
+      "tests/frontend/unit/writingQuality.test.js",
+      "tests/frontend/unit/spellingDictionarySettings.test.js"
     ],
     "extraChecks": [
       "Personal-word resolution and shared technical masking also need writing. Persistence changes need go test ./internal/settings ./internal/desktop -run SpellingDictionary. Package mapping changes need the existing productionBundle boundary."
@@ -522,7 +700,8 @@
       "frontend/js/core/spellingDictionaryModel.js": [
         "spellingWordKey",
         "acceptedSpelling",
-        "filterAcceptedSpelling"
+        "filterAcceptedSpelling",
+        "personalDictionaryList"
       ],
       "frontend/js/usecases/spellingDictionary.js": [
         "createSpellingDictionary"
@@ -537,6 +716,10 @@
       "frontend/js/core/writingTextlintModel.js": [
         "writingAcronymDefinitions",
         "writingAcronymDefined"
+      ],
+      "frontend/js/views/spellingDictionarySettings.js": [
+        "createSpellingDictionarySettings",
+        "createSpellingDictionaryEditor"
       ]
     }
   },
@@ -551,13 +734,15 @@
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#retained-results-while-editing--10-september-2026",
-      "docs/testing/workspace.md#retained-writing-results-and-adjacent-mermaid-navigation"
+      "docs/testing/workspace.md#retained-writing-results-and-adjacent-mermaid-navigation",
+      "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes"
     ],
     "tests": [
       "tests/frontend/unit/writingRetentionModel.test.js",
       "tests/frontend/unit/writingAnalysis.test.js",
       "tests/frontend/unit/writingInline.test.js",
-      "tests/frontend/unit/writingResultsView.test.js"
+      "tests/frontend/unit/writingResultsView.test.js",
+      "tests/frontend/unit/editorTypingInventory.test.js"
     ],
     "extraChecks": [
       "Underlines, cursor geometry, and popup focus changes require the existing editorUX and packaged-native boundary."
@@ -565,7 +750,8 @@
     "symbols": {
       "frontend/js/core/writingRetentionModel.js": [
         "canRetainWritingResults",
-        "retainWritingFindings"
+        "retainWritingFindings",
+        "writingFindingDependsOnDocument"
       ],
       "frontend/js/writingInline.js": [
         "retainedInlineState"
@@ -581,15 +767,20 @@
     "sources": [
       "frontend/js/writingInline.js",
       "frontend/js/views/writingInlineView.js",
-      "frontend/js/core/writingInlineModel.js"
+      "frontend/js/core/writingInlineModel.js",
+      "frontend/js/writingLinkHints.js",
+      "frontend/js/core/writingLinkModel.js"
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#inline-review-and-personal-spelling-words",
-      "docs/WRITING.md#review-suggestions"
+      "docs/WRITING.md#review-suggestions",
+      "docs/EDITOR_PERFORMANCE.md#inline-cursor-navigation-follow-up",
+      "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes"
     ],
     "tests": [
       "tests/frontend/unit/writingInline.test.js",
-      "tests/frontend/unit/writingLinkHints.test.js"
+      "tests/frontend/unit/writingLinkHints.test.js",
+      "tests/frontend/unit/editorTypingInventory.test.js"
     ],
     "extraChecks": [
       "Changes to real hover, focus, or cursor geometry require the existing editorUX and packaged-native checks."
@@ -604,6 +795,13 @@
       ],
       "frontend/js/core/writingInlineModel.js": [
         "inlineWritingFindings"
+      ],
+      "frontend/js/writingLinkHints.js": [
+        "createWritingLinkHints"
+      ],
+      "frontend/js/core/writingLinkModel.js": [
+        "indexWritingLinkFindings",
+        "writingLinkFindingsInRange"
       ]
     }
   },
@@ -676,7 +874,8 @@
       "frontend/js/core/workspaceTabChanges.js",
       "frontend/js/core/workspaceTabModel.js",
       "frontend/js/core/workspaceCursorModel.js",
-      "frontend/js/session.js"
+      "frontend/js/session.js",
+      "frontend/js/usecases/tabContent.js"
     ],
     "docs": [
       "docs/PROMPT.md#2-tab-system",
@@ -723,6 +922,9 @@
         "getTabCursorState",
         "setTabCursorState",
         "getTabIndex"
+      ],
+      "frontend/js/usecases/tabContent.js": [
+        "readTabContent"
       ]
     }
   },
@@ -881,7 +1083,8 @@
       "frontend/js/kanban.js",
       "frontend/js/calendar.js",
       "internal/taskschedule/model.go",
-      "frontend/js/core/kanbanBufferModel.js"
+      "frontend/js/core/kanbanBufferModel.js",
+      "frontend/js/usecases/tabContent.js"
     ],
     "docs": [
       "docs/PROMPT.md#6-kanban-board",
@@ -893,7 +1096,8 @@
       "tests/frontend/unit/kanban.test.js",
       "tests/frontend/unit/calendarModel.test.js",
       "tests/frontend/unit/calendarTimelineModel.test.js",
-      "tests/frontend/unit/kanbanBufferModel.test.js"
+      "tests/frontend/unit/kanbanBufferModel.test.js",
+      "tests/frontend/unit/calendarCache.test.js"
     ],
     "extraChecks": [
       "Run go test ./internal/taskschedule for task policy; use existing Kanban/calendar browser scenarios only for geometry and native events."
@@ -906,6 +1110,9 @@
       "frontend/js/kanban.js": [
         "overlayDirtyKanbanBuffers",
         "refreshKanbanFromDirtyBuffers"
+      ],
+      "frontend/js/usecases/tabContent.js": [
+        "readTabContent"
       ]
     }
   },
@@ -944,7 +1151,9 @@
     "docs": [
       "docs/PDF_STYLING.md",
       "docs/testing/export.md",
-      "ARCHITECTURE.md#pdf-rendering-and-export-snapshots"
+      "ARCHITECTURE.md#pdf-rendering-and-export-snapshots",
+      "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#pdf-workflow-results",
+      "docs/PDF_STYLING.md#performance-measurements"
     ],
     "tests": [
       "tests/frontend/unit/pdfPreview.test.js",
@@ -991,16 +1200,24 @@
     "sources": [
       "frontend/js/mermaidEditor.js",
       "frontend/js/diagramRenderer.js",
-      "frontend/js/usecases/diagramRenderQueue.js"
+      "frontend/js/usecases/diagramRenderQueue.js",
+      "frontend/js/usecases/mermaidValidationReuse.js",
+      "frontend/js/usecases/markdownDocumentLint.js"
     ],
     "docs": [
       "docs/DIAGRAMS_AND_EXPORT.md#mermaid-diagrams",
-      "docs/PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite"
+      "docs/PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite",
+      "docs/EDITOR_PERFORMANCE.md#consolidated-interaction-findings",
+      "docs/benchmarks/editor-interaction-findings-2026-09-20.md"
     ],
     "tests": [
       "tests/frontend/unit/mermaidEditor.test.js",
       "tests/frontend/unit/mermaidPreviewSession.test.js",
-      "tests/frontend/unit/mermaidDiagramModel.test.js"
+      "tests/frontend/unit/mermaidDiagramModel.test.js",
+      "tests/frontend/unit/mermaidValidationReuse.test.js",
+      "tests/frontend/unit/markdownDocumentLint.test.js",
+      "tests/frontend/unit/diagramRenderer.test.js",
+      "tests/frontend/unit/editorRemainingWork.test.js"
     ],
     "extraChecks": [
       "Use charts for Vega/Vega-Lite editing. Add affected Draw.io/table tests for those formats; frame, geometry, or printable changes need existing browser boundaries."
@@ -1008,6 +1225,16 @@
     "symbols": {
       "frontend/js/mermaidEditor.js": [
         "openMermaidEditor"
+      ],
+      "frontend/js/usecases/mermaidValidationReuse.js": [
+        "createMermaidValidationReuse"
+      ],
+      "frontend/js/usecases/markdownDocumentLint.js": [
+        "collectMarkdownDocumentDiagnostics",
+        "createMarkdownDocumentLinter"
+      ],
+      "frontend/js/diagramRenderer.js": [
+        "validateMermaidSource"
       ]
     }
   },
@@ -1042,7 +1269,10 @@
     "sources": [
       "frontend/design-system/primitives.css",
       "frontend/design-system/approved-components.json",
-      "frontend/design-system/style-manifest.json"
+      "frontend/design-system/style-manifest.json",
+      "frontend/design-system/theme-surfaces.css",
+      "frontend/design-system/index.html",
+      "frontend/styles/features/settings.css"
     ],
     "docs": [
       "frontend/design-system/README.md",
@@ -1086,19 +1316,53 @@
     "sources": [
       "frontend/js/app.js",
       "internal/settings/model.go",
-      "internal/desktop/app_settings.go"
+      "internal/desktop/app_settings.go",
+      "frontend/js/views/spellingDictionarySettings.js",
+      "frontend/js/tabManager.js",
+      "frontend/js/core/wheelScrollModel.js",
+      "frontend/js/usecases/wheelScroll.js",
+      "frontend/js/editorWheelScroll.js",
+      "frontend/js/state.js",
+      "frontend/styles/shell.css",
+      "frontend/styles/features/settings.css",
+      "frontend/js/settingsNavigation.js",
+      "frontend/js/writingLenses.js"
     ],
     "docs": [
       "docs/PROMPT.md#21-settings-tab",
-      "ARCHITECTURE.md#machine-local-application-state"
+      "ARCHITECTURE.md#machine-local-application-state",
+      "ARCHITECTURE.md#optional-editor-wheel-smoothing",
+      "docs/testing/editor.md#optional-wheel-scrolling"
     ],
     "tests": [
       "tests/frontend/unit/settingsNavigation.test.js",
-      "tests/frontend/unit/settingsPicker.test.js"
+      "tests/frontend/unit/settingsPicker.test.js",
+      "tests/frontend/unit/spellingDictionarySettings.test.js",
+      "tests/frontend/unit/wheelScroll.test.js",
+      "tests/frontend/unit/state.test.js"
     ],
     "extraChecks": [
       "Run go test ./internal/settings ./internal/desktop for persistence, migrations, and native settings boundaries."
-    ]
+    ],
+    "symbols": {
+      "frontend/js/views/spellingDictionarySettings.js": [
+        "createSpellingDictionarySettings",
+        "createSpellingDictionaryEditor"
+      ],
+      "frontend/js/core/wheelScrollModel.js": [
+        "usesNativeAppleScrolling",
+        "smoothWheelDelta",
+        "wheelScrollTarget",
+        "wheelScrollStep"
+      ],
+      "frontend/js/usecases/wheelScroll.js": [
+        "createWheelScroll"
+      ],
+      "frontend/js/editorWheelScroll.js": [
+        "createEditorWheelScroll",
+        "initWheelScrollSettings"
+      ]
+    }
   },
   {
     "id": "release",

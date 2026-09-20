@@ -236,6 +236,8 @@ test('writing lens pickers preserve native focus, Pure pane geometry, and editor
     await info.press('Enter');
     await page.keyboard.press('Tab');
     await expect(help).toBeHidden();
+    await expect(page.locator('#writing-lenses-panel [data-manage-dictionary]')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(page.locator('#writing-lenses-panel input[value="clarity"]')).toBeFocused();
     await page.locator('#writing-lenses-panel').getByRole('checkbox', { name: 'Inclusive language', exact: true }).check();
     await page.locator('#writing-lenses-panel').getByRole('checkbox', { name: 'Clarity', exact: true }).check();

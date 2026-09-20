@@ -99,6 +99,7 @@ export const BACKEND_METHODS = Object.freeze([
     'SpellcheckSave',
     'SpellingDictionaryLoad',
     'SpellingDictionaryAdd',
+    'SpellingDictionaryRemove',
     'StartVaultLoad',
     'TabSizeLoad',
     'TabSizeSave',

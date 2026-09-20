@@ -1,3 +1,17 @@
+import { createSelectionRangeIndex, selectedRangeIndices } from './selectionRangeIndex.js';
+
+/** Build once per immutable review result; preserve its original finding order. */
+export function indexWritingLinkFindings(findings) {
+    return { findings, ranges: createSelectionRangeIndex(findings) };
+}
+
+/** Strict source overlap, including findings that begin before the visible range. */
+export function writingLinkFindingsInRange(index, from, to) {
+    return [...selectedRangeIndices(index.ranges, [{ from, to }]).indices]
+        .sort((a, b) => a - b).map(position => index.findings[position])
+        .filter(item => item.from < to && item.to > from);
+}
+
 /** Map a rendered label to its exact source, never to a destination or title. */
 export function writingLinkLabel(source, label, from) {
     const wiki = /^\[\[([^|\]]+)\|([^\]]+)\]\]$/u.exec(source);

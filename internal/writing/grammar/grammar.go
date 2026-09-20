@@ -9,7 +9,7 @@ import (
 	"unicode"
 )
 
-const Version = "7"
+const Version = "8"
 const MaxTokens = 65536
 const MaxFindings = 32768
 

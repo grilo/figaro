@@ -67,6 +67,9 @@ test.each([
     ['quality preposition phrase emphasis', 'with regard to', 'of', 'Beware **of** the loose wires.'],
     ['quality adverb emphasis', 'seam', 'seem', 'We all **seem** to agree.'],
     ['quality software emphasis', 'a software', 'a piece of software', 'We need **a piece of software** for analysis.'],
+    ['gap attraction emphasis', 'were', 'was', 'The small box of tools **was** waiting.'],
+    ['gap participle emphasis', 'saw', 'seen', 'Maya had **seen** the missing tool.'],
+    ['gap countable emphasis', 'amount of times', 'number of times', 'The **number of times** is limited to `10`.'],
     ['comma before emphasis', ',', ', ', 'Hello, *world*.'],
 ])('%s applies a native expansion as one Markdown-preserving Undo step', async (name, actual, replacement, corrected) => {
     jest.useFakeTimers();
@@ -85,6 +88,7 @@ test.each([
     ['DoubleModal', 'Review adjacent modal verbs', 'doublemodal'],
     ['MultipleSequentialPronouns', 'Review adjacent pronouns', 'multiplesequentialpronouns'],
     ['IfWouldve', 'Review past conditional', 'ifwouldve'],
+    ['CommaSplice', 'Review comma between clauses', 'commasplice'],
 ])('%s offers rule-specific Ignore without a guessed correction', async (rule, title, kind) => {
     jest.useFakeTimers();
     const sample = nativeCases.fixtures.find(f => f.rule === `FigaroGrammar.${rule}`);

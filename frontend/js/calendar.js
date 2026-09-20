@@ -1,3 +1,4 @@
+import { readTabContent } from './usecases/tabContent.js';
 import { backend } from './backend.js';
 import { toggledWorkspacePresentation } from './core/workspaceTabModel.js';
 /**
@@ -87,18 +88,18 @@ export function refreshCalendarIfVisible() {
 function dirtyCalendarNoteAssociations() {
     const associations = new Map();
     for (const tab of getState('openTabs') || []) {
-        if (tab?.type !== 'file' || tab.externalFileId || !tab.dirty || !tab.path || typeof tab._content !== 'string') continue;
-        associations.set(tab.path, calendarNoteAssociations(tab.path, tab._content));
+        if (tab?.type !== 'file' || tab.externalFileId || !tab.dirty || !tab.path || typeof readTabContent(tab) !== 'string') continue;
+        associations.set(tab.path, calendarNoteAssociations(tab.path, readTabContent(tab)));
     }
     return associations;
 }
 
-function rememberCalendarNoteBaseline(path) {
-    const tab = (getState('openTabs') || []).find(candidate => (
+function rememberCalendarNoteBaseline(path, previousTab) {
+    const tab = previousTab || (getState('openTabs') || []).find(candidate => (
         candidate?.type === 'file' && !candidate.externalFileId && candidate.path === path
     ));
-    if (!tab || typeof tab._content !== 'string') return;
-    calendarNoteBaselines.set(path, calendarNoteAssociations(path, tab._content));
+    if (!tab || tab.externalFileId || typeof readTabContent(tab) !== 'string') return;
+    calendarNoteBaselines.set(path, calendarNoteAssociations(path, readTabContent(tab)));
 }
 
 function updateCalendarNoteBaselineAfterSave(path, content) {
@@ -143,7 +144,7 @@ export function initCalendar() {
         refreshCalendarIfVisible();
     });
     document.addEventListener('active-file-dirty', event => {
-        rememberCalendarNoteBaseline(event.detail?.path);
+        rememberCalendarNoteBaseline(event.detail?.path, event.detail?.previousTab);
     });
     document.addEventListener('file-content-changed', scheduleLiveCalendarRefresh);
     document.addEventListener('vault-file-saved', event => {

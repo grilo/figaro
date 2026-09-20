@@ -1,0 +1,101 @@
+import { analyzeWriting, analyzeWritingFull, createIncrementalWritingAnalyzer, prepareWritingSource } from '../../../frontend/vendored/writing/runtime.js';
+import { resolveWritingFindings } from '../../../frontend/js/core/writingAnalysisModel.js';
+
+const preferences = { lenses: ['plain', 'direct', 'formulaic', 'consistency'], language: 'en-US' };
+const visible = result => result.groups.flatMap(group => group.findings);
+const review = async source => resolveWritingFindings({ source, ...await analyzeWriting(source), preferences });
+
+function nativeReview(source, actual, rule) {
+    const projection = prepareWritingSource(source), from = projection.text.indexOf(actual);
+    const raw = { engine: 'vale', rule, actual, from, to: from + actual.length, replacements: [] };
+    return resolveWritingFindings({ source, projection, observations: [raw], preferences });
+}
+
+test.each([
+    ['The callback is called after the promise settles.', 'is called'],
+    ['The callbacks will be invoked before the next retry.', 'be invoked'],
+    ['When `rejectOnClear` is enabled, pending promises are rejected.', 'is enabled'],
+    ['When `rejectOnClear` is enabled, pending promises are rejected.', 'are rejected'],
+    ['All retries will be aborted if the function throws.', 'be aborted'],
+    ['The first mapper rejection will be rejected back to the consumer.', 'be rejected'],
+    ['This is recommended if you await the returned promises.', 'is recommended'],
+    ['The error that was thrown is available in the callback.', 'was thrown'],
+    ['The function being retried by wrapping it in a callback receives arguments.', 'being retried'],
+])('technical process descriptions preserve every passive-provider shape: %s', (source, actual) => {
+    for (const [match, rule] of [[actual, 'write-good.Passive'], [actual, 'Microsoft.Passive'], [actual.split(' ').at(-1), 'retext-passive']]) {
+        const result = nativeReview(source, match, rule);
+        expect(visible(result)).toEqual([]);
+        expect(result.evidence[0].suppressed).toBeTruthy();
+    }
+});
+
+test.each([
+    ['The requests were rejected by the manager.', 'were rejected'],
+    ['The report was written yesterday.', 'was written'],
+    ['The promises were broken.', 'were broken'],
+    ['The function author was called by the supervisor.', 'was called'],
+    ['The function runs. The manager was called yesterday.', 'was called'],
+    ['The function runs.\n\nThis is recommended for the committee.', 'is recommended'],
+])('Directness retains actor-focused and unrelated prose: %s', (source, actual) => {
+    expect(visible(nativeReview(source, actual, 'Microsoft.Passive'))).toHaveLength(1);
+});
+
+test('ordinary vocabulary no longer creates synonym-only tasks while useful shortening remains', async () => {
+    const source = 'The labels remain correct. This object contains values. However, the readings reflect differences. '
+        + 'Provide a photo and identify its maker. The signal indicates readiness. Retain both copies. '
+        + 'The result is equivalent. The tests establish a cause. There are multiple roots, i.e. several starting points. '
+        + 'The promises are currently running. Retry immediately with no delay. We left in order to help.';
+    const result = await review(source);
+    const wordiness = visible(result).filter(finding => finding.kind === 'style.wordiness');
+    expect(wordiness.map(finding => finding.actual)).toEqual(['in order to']);
+    expect(wordiness[0].fixes.map(fix => fix.replacement)).toEqual(['to']);
+    expect(visible(await review('We utilize this tool to make a purchase with the exception of food.'))
+        .map(finding => finding.actual)).toEqual(expect.arrayContaining(['utilize', 'purchase', 'with the exception of']));
+});
+
+test.each([
+    ['Most of the ocean is completely dark.', 'completely'],
+    ['If you need a passport urgently, use the faster service.', 'urgently'],
+    ['The first bus was usually crowded.', 'usually'],
+    ['The instructions were deliberately short.', 'deliberately'],
+    ['This is a deliberately incorrect test string.', 'deliberately'],
+    ['Find the seam and work slowly.', 'slowly'],
+    ['The child took home a neatly mended bag.', 'neatly'],
+    ['Their waiting quietly helped the clerk.', 'quietly'],
+    ['The path is strictly a single directory.', 'strictly'],
+])('meaningful manner, frequency and degree survive generic adverb advice: %s', (source, actual) => {
+    expect(visible(nativeReview(source, actual, 'Microsoft.Adverbs'))).toEqual([]);
+});
+
+test.each([
+    ['The report is completely amazing.', 'completely'],
+    ['We urgently believe that this changes everything.', 'urgently'],
+    ['This is very good.', 'very'],
+])('broad emphasis remains reviewable: %s', (source, actual) => {
+    expect(visible(nativeReview(source, actual, 'Microsoft.Adverbs'))).toHaveLength(1);
+});
+
+test('Formulaic punctuation honors authored quotation and apostrophe conventions independently', async () => {
+    for (const source of ['She said “ready”. It’s done.', 'Use ‘single quotes’.', 'It’s ready.', 'She said “ready”. He said "done".']) {
+        expect(visible(await review(source)).filter(finding => finding.kind === 'formulaic.curly-punctuation')).toEqual([]);
+    }
+    const source = 'She said "ready". He said "done". They said “yes”. It\'s ready. It\'s done. It’s late.';
+    const curly = visible(await review(source)).filter(finding => finding.kind === 'formulaic.curly-punctuation');
+    expect(curly.map(finding => finding.actual)).toEqual(['“', '”', '’']);
+    expect(curly.every(finding => finding.fixes.length === 0 && source.slice(finding.from, finding.to) === finding.actual)).toBe(true);
+    const protectedSource = '```text\n"straight" "quotes"\n```\n\nShe said “ready”.';
+    expect(visible(await review(protectedSource)).filter(finding => finding.kind === 'formulaic.curly-punctuation')).toEqual([]);
+});
+
+test('relevance policy uses the current punctuation convention after incremental paragraph edits', async () => {
+    const analyzer = createIncrementalWritingAnalyzer();
+    const sources = ['Intro.\n\nShe said “ready”.', 'She said "one". He said "two".\n\nShe said “ready”.', 'Intro.\n\nShe said “ready”.'];
+    const counts = [];
+    for (const source of sources) {
+        const incremental = await analyzer.analyze(source), full = await analyzeWritingFull(source);
+        expect(incremental).toEqual(full);
+        const result = resolveWritingFindings({ source, ...incremental, preferences });
+        counts.push(visible(result).filter(finding => finding.kind === 'formulaic.curly-punctuation').length);
+    }
+    expect(counts).toEqual([0, 2, 0]);
+});

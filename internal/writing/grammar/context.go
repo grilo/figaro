@@ -123,6 +123,7 @@ func (s *grammarScan) expand() error {
 		s.massQuantifier(i)
 		s.phraseCorrections(i)
 		s.phraseConstructions(i)
+		s.commaSplice(i)
 		s.mechanics(i)
 		s.verbConstructions(i)
 		s.nounConstructions(i)

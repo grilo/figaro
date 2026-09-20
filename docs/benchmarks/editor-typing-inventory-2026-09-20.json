@@ -1,0 +1,183 @@
+{
+  "scenario": "Ten single-character edits; deterministic operation counts, not physical latency",
+  "before": [
+    {
+      "kind": "writing",
+      "count": 10,
+      "retentionItems": 100,
+      "visibleItems": 100
+    },
+    {
+      "kind": "writing",
+      "count": 1000,
+      "retentionItems": 10000,
+      "visibleItems": 10000
+    },
+    {
+      "kind": "properties",
+      "mode": "closed",
+      "parses": 10,
+      "characters": 210,
+      "replacements": 10
+    },
+    {
+      "kind": "properties",
+      "mode": "unfinished",
+      "parses": 10,
+      "characters": 140395,
+      "replacements": 0
+    },
+    {
+      "kind": "properties",
+      "mode": "absent",
+      "parses": 10,
+      "characters": 195,
+      "replacements": 10
+    },
+    {
+      "kind": "projections",
+      "edit": "prose",
+      "builds": {
+        "markers": 10,
+        "styles": 10,
+        "references": 10,
+        "lists": 0,
+        "extras": 0
+      }
+    },
+    {
+      "kind": "projections",
+      "edit": "list",
+      "builds": {
+        "markers": 10,
+        "styles": 10,
+        "references": 10,
+        "lists": 10,
+        "extras": 0
+      }
+    },
+    {
+      "kind": "projections",
+      "edit": "quote",
+      "builds": {
+        "markers": 10,
+        "styles": 10,
+        "references": 10,
+        "lists": 0,
+        "extras": 10
+      }
+    },
+    {
+      "kind": "diagrams",
+      "count": 1000,
+      "replacements": 10000
+    },
+    {
+      "kind": "math",
+      "count": 1000,
+      "replacements": 0
+    },
+    {
+      "kind": "pure",
+      "pure": false,
+      "styleWrites": 30,
+      "computedReads": 0
+    },
+    {
+      "kind": "pure",
+      "pure": true,
+      "styleWrites": 30,
+      "computedReads": 10
+    }
+  ],
+  "after": [
+    {
+      "kind": "writing",
+      "count": 10,
+      "retentionItems": 0,
+      "visibleItems": 0
+    },
+    {
+      "kind": "writing",
+      "count": 1000,
+      "retentionItems": 0,
+      "visibleItems": 0
+    },
+    {
+      "kind": "properties",
+      "mode": "closed",
+      "parses": 0,
+      "characters": 0,
+      "replacements": 0
+    },
+    {
+      "kind": "properties",
+      "mode": "unfinished",
+      "parses": 0,
+      "characters": 0,
+      "replacements": 0
+    },
+    {
+      "kind": "properties",
+      "mode": "absent",
+      "parses": 0,
+      "characters": 0,
+      "replacements": 0
+    },
+    {
+      "kind": "projections",
+      "edit": "prose",
+      "builds": {
+        "markers": 0,
+        "styles": 0,
+        "references": 0,
+        "lists": 0,
+        "extras": 0
+      }
+    },
+    {
+      "kind": "projections",
+      "edit": "list",
+      "builds": {
+        "markers": 0,
+        "styles": 0,
+        "references": 0,
+        "lists": 0,
+        "extras": 0
+      }
+    },
+    {
+      "kind": "projections",
+      "edit": "quote",
+      "builds": {
+        "markers": 0,
+        "styles": 0,
+        "references": 0,
+        "lists": 0,
+        "extras": 0
+      }
+    },
+    {
+      "kind": "diagrams",
+      "count": 1000,
+      "replacements": 0
+    },
+    {
+      "kind": "math",
+      "count": 1000,
+      "replacements": 0
+    },
+    {
+      "kind": "pure",
+      "pure": false,
+      "styleWrites": 0,
+      "computedReads": 0
+    },
+    {
+      "kind": "pure",
+      "pure": true,
+      "styleWrites": 0,
+      "computedReads": 0
+    }
+  ]
+}

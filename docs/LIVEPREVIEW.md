@@ -1,5 +1,10 @@
 # Functional & Behavioral Specification: Obsidian-Style Live Preview for CodeMirror 6
 
+List, checkbox and blockquote previews retain their cached ranges when ordinary
+prose changes elsewhere. Checkbox activation resolves the current source position
+after those shifts. Structural edits and changes inside the projected line refresh
+the preview; geometry and configuration changes refresh indentation metrics.
+
 Writing lenses analyze the owned unsaved Markdown snapshot and review suggestions
 in the shared pane and on dotted inline marks, including in Pure mode. The
 footnote identifiers themselves never receive writing or spelling marks, even
@@ -16,7 +21,8 @@ and makes one isolated undoable phrase transaction; result arrival never moves
 the selection. Reference IDs/definitions and indented code never receive spelling marks or
 actions. Explicit reference labels remain eligible; defined shortcut/collapsed
 link and image labels are advisory because changing their text also changes
-the reference key. The same restriction applies to prose fixes. Spelling leaves valid English
+the reference key. Rendered label hints use an indexed visible finding set and
+retain unchanged mounted plans across cursor movement and redraws. The same restriction applies to prose fixes. Spelling leaves valid English
 possessives unmarked, and stem corrections preserve the authored suffix.
 Proofreading owns its inline marks and right-click actions;
 its document language is authoritative and legacy Settings/Properties have no
@@ -63,12 +69,13 @@ Your implementation must accurately transition states for the following elements
 * **Quiet PDF refresh:** PDF Preview shows preparation feedback for its first document only. Once a snapshot is visible, editing Markdown keeps that settled page and status in place without flashing the transient loading badge or updating copy; the replacement is sent when ready, and failures still surface in the status row.
 
 ### Links (`[Display Text](https://url.com)`)
+* **Cursor work:** Ordinary and reference links retain visible source descriptors. An indexed selection check patches only links entering/leaving raw source; unchanged links keep their decoration and DOM. Document, parser, viewport and configuration changes invalidate the cache, while drag transitions preserve each provider’s established reveal behavior.
 * **Cursor inside node bounds:** Show the entire raw string exactly as written.
 * **Cursor outside node bounds:** Mask the opening `[`, the closing `]`, and the entire `(https://url.com)` token. Apply a distinct clickable link class to the remaining "Display Text".
 * **External URLs:** Ctrl/Cmd-left-clicking an HTTP or HTTPS target delegates the validated URL to the operating system's default browser from either the rendered label or revealed source, including when the label is the complete URL. A rendered external-link widget routes from its own validated destination without requiring CodeMirror to resolve a source coordinate; native-webview replacement geometry therefore cannot suppress the action. Vault Markdown targets remain in Figaro. The external hover tooltip shows the URL and repeats the modifier-click shortcut.
 * **Same-document fragments:** Clicking either the rendered label or the label/fragment in revealed source for `[Jump](#section)` moves the editor selection to the heading with that stable slug. The destination is link syntax, never a Kanban hashtag, and a missing fragment reports the missing heading without reading or creating a file.
 * **Missing-note review:** A click on a rendered conventional Markdown link must map the widget back to the exact source destination. When a same-folder canonical name match exists, **Use existing note** replaces only that revalidated destination as a normal undoable edit, keeps the display text byte-for-byte unchanged, and follows the existing note. A stale range, unavailable target, cancellation, or different-folder name-only match must not edit source.
-* **Reference links:** Full (`[text][id]`), collapsed (`[text][]`), and shortcut (`[text]`) references become clickable replacement widgets only when the document contains a matching definition. An unresolved bracket label stays source text with ordinary prose color, no underline, and a text cursor. Definitions are collected from non-frontmatter, non-fenced source lines when the document changes; the corresponding link-decoration pass remains limited to visible ranges. Reference widgets and their active raw source must preserve Arrow Up/Down movement, mouse placement, and bidirectional drag selection.
+* **Reference links:** Full (`[text][id]`), collapsed (`[text][]`), and shortcut (`[text]`) references become clickable replacement widgets only when the document contains a matching definition. An unresolved bracket label stays source text with ordinary prose color, no underline, and a text cursor. Definition tables survive ordinary prose edits and refresh when relevant source changes; collection excludes frontmatter and fenced code. The corresponding link-decoration pass remains limited to visible ranges. Reference widgets and their active raw source must preserve Arrow Up/Down movement, mouse placement, and bidirectional drag selection.
 * **Authoring a new target:** Link autocomplete ranks existing notes through the native search index, emphasizing titles and paths while retaining prefix, accent, and conservative typo matching, and may append one explicit **Create note** action. That action creates beside the current note through the normal same-name review, inserts the configured Markdown/Wikilink syntax only after successful creation, and leaves the current buffer active.
 * **URL paste:** Pasting an `http(s)`, `www`, `mailto`, or XMPP URL over selected plain prose wraps that exact label as a Markdown link. The same one-transaction source result applies to native paste, Vim Visual `p`/`P`, and the editor Paste menu; link/code selections and named Vim registers retain their normal paste behavior.
 * **Accepted source-reveal reflow:** Revealing the complete raw Markdown for a long destination can wrap the active paragraph and move following lines. This is intentional: the active range shows the exact editable source with stable font metrics, without reserving destination-sized space while rendered or substituting shortened source.
@@ -78,11 +85,13 @@ Your implementation must accurately transition states for the following elements
 * **Cursor contract:** One handled rich paste is one CodeMirror history transaction. Block insertion supplies only the blank-line boundaries needed to keep adjacent prose separate. Arrow Up/Down, mouse placement, and bidirectional drag selection around the inserted source remain native CodeMirror behavior; revealed table source accepts inline conversion without introducing block geometry.
 
 ### Footnotes (`text[^reference]` and `[^reference]: definition`)
+* **Pointer scope:** Ordinary clicks inspect the clicked line; only recognized footnote tokens request wider source for navigation.
 * **Existing definitions:** Clicking a reference selects and reveals its matching definition. Clicking that definition returns to the exact reference that initiated the jump; if no journey is recorded, the first matching reference is the fallback.
 * **Missing definitions:** Clicking an unresolved reference inserts `[^reference]: ` immediately after the complete source paragraph as one undoable edit. The definition retains at least one blank line before and after it, and the focused cursor lands after the trailing space so its body can be entered immediately.
 * **Scope:** Navigation and creation remain inside the active note and never fall through to note creation, file reads, or Kanban hashtag routing. Repeated clicks find the newly inserted definition instead of creating duplicates.
 
 ### Lists (`- item`, `1. item`)
+* **Cursor work and wrapping:** List/task and blockquote lines retain active/passive decorations and measured indentation. Selection changes patch affected lines without rereading source or measuring fonts. Source, viewport, parser, font and tab-size changes refresh the relevant state. Revealed list and quote markers inherit the body font; quotes are measured in italic so wrapped rows align with the first body character. Task controls retain pointer/keyboard toggling and mapped source positions.
 * **Exit behavior:** Pressing Enter on an empty second list item removes that marker and exits the list immediately. It must not require a second Enter or disturb Arrow Up/Down, mouse placement, or bidirectional drag selection across the boundary.
 
 ### Figaro authoring macros (`@date`, `@table`, `@todo`, `@mermaid`, `@drawio`)
@@ -153,8 +162,9 @@ Wrapped Markdown bullet, ordered-list, and plain blockquote rows use an inline
 hanging indent. Every continuation display row begins at the item or quote
 body. For blockquotes, the indent accounts for the visible `>` while the line
 is active and only its remaining separator whitespace while it is passive.
-The indent is recalculated with that line's preview state and must not change
-source, introduce a block widget, or alter vertical geometry.
+Both preview states retain their measured indent until source, typography or
+tab-size changes invalidate it. The indent must not change source, introduce a
+block widget, or alter vertical geometry.
 At the end of an otherwise empty blockquote line, Enter removes exactly one
 quote marker in one transaction. An outer quote becomes a blank line; a nested
 quote retains its outer markers and can be exited one level at a time.
@@ -174,12 +184,15 @@ overlaps, including source boundaries and multi-selection; math retains its
 primary-head policy. Source entry/exit patches only changed blocks' decorations.
 Proven prose edits, including formatted text and list/quote paragraphs, map
 code/image/table/guide positions and existing decorations while retaining source
-payloads; changed delimiters, newlines, image-bearing paragraphs and uncertain
-structure reparse. Code/table clicks resolve current mounted positions, including
+payloads. Completed blocks can reuse previews within a partially parsed note.
+A separate block check scopes heading/code/table edits and soft Enter/Backspace
+to affected blocks when parsed boundaries survive. Changed delimiters, split or
+merged blocks, image-line guide changes and uncertain structure retain fallbacks. Code/table clicks resolve current mounted positions, including
 after scroll remounting. Heading parents and section ends are indexed in one pass
 for sticky headings and guides. Guide widths are cached and viewport/widget
 lookup is indexed. Reveal indexes refresh only when descriptors move or reparse, and
-folding, drag settlement and configuration changes still refresh decorations.
+folding, drag settlement and reveal-policy changes still refresh decorations.
+Unrelated settings retain parsed blocks and their decorations.
 Source reveal, geometry, resizing and pointer selection retain the contracts
 below. The bundled formatting/style/code providers are covered by the
 same contract: visible syntax for inline marks, cached complete code descriptors
@@ -188,6 +201,10 @@ Source-type checks precede list-widget text reads, preventing a visited syntax
 root from materializing the whole note.
 
 ## 4. Block Widget Geometry Contract
+
+Hidden editor buffers retain their last measured gutter reservation. Zero-width
+measurements cannot clear rail widths or the writing inset, so returning from
+Settings or another workspace panel paints existing blocks at a stable writing edge.
 
 CodeMirror's vertical cursor movement, click mapping, selections, and scrolling
 depend on its internal height map matching the browser's rendered layout. The
@@ -643,7 +660,8 @@ aliases retain safe source mappings. Preserve native cursor/selection, Ctrl+.,
 Undo/Redo, and pending-save focus behavior as results arrive asynchronously.
 
 Formulaic writing adds advisory Slopless findings to the existing inline review
-path. Unspaced em dashes and individual curly quotes/apostrophes use the same
+path. Unspaced em dashes and individual curly quotes/apostrophes that differ from
+the authored straight convention use the same
 non-replacing marks. Quoted words remain protected, while the quote delimiters
 can be reviewed. No new decoration type, widget, cursor geometry or Markdown
 transformation is introduced. Examples and persistent Ignore use the existing
@@ -716,3 +734,26 @@ paragraphs, document-dependent advice, and structural Markdown edits invalidate
 the relevant marks. Stale actions remain rejected. Verify Up/Down, mouse
 placement, bidirectional drag, hovered controls during typing, and date/guide
 alignment through resize, folds and settings changes in browser/native checks.
+
+## Typing projection reuse
+
+Formatting/style/link projections share a parsed-inline-structure proof for
+ordinary edits; touched link payloads and structural edits refresh source.
+List/quote edits patch the affected line and retain other active/passive variants.
+Callouts retain conservative rebuilding. Diagram/math edits preserve replacement
+values and update indexed source visibility, including combined cursor jumps.
+Mounted source footprints skip metric reads when source/line count/authored size
+are unchanged and no real geometry invalidation occurred. Font/source/viewport
+changes still trigger measurement. See the [typing inventory](benchmarks/editor-typing-inventory-2026-09-20.md).
+
+Formatting marker visibility uses an interval index over inline spans and block
+marker lines; only changed visibility replaces a mark. Prose edits after the
+last formula retain math descriptors and the reveal index. Diagram projections,
+writing range trees, mapped inline projections and Properties retain the reuse
+contracts verified by the consolidated ten-finding regressions. Completion and
+Mermaid diagnostic work follow [the update contract](EDITOR_UPDATES.md).
+
+Optional wheel easing changes only the editor scroll offset. It does not change
+widget heights, source footprints, source reveal, Markdown parsing or printable
+output. Nested scrollable controls retain native wheel ownership; authored edits
+and selection changes cancel pending easing.

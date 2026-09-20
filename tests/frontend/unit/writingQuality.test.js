@@ -84,7 +84,7 @@ test.each([
 });
 
 test('duplicate indirect-opening advice retains both sources, either lens, and current and legacy Ignore decisions', () => {
-    const source = 'There are two large jugs on the shelf.';
+    const source = 'There are several ways in which we can improve this.';
     const { projection, observation } = observed(source, 'There are', 'write-good.ThereIs');
     const observations = [observation, { ...observation, rule: 'write-good.TooWordy' }];
     const resolve = (lenses, decisions = []) => resolveWritingFindings({ source, projection, observations, preferences: { ...preferences, lenses }, decisions, language: 'en-US' });
@@ -101,4 +101,58 @@ test('duplicate indirect-opening advice retains both sources, either lens, and c
             language: 'en-US', decisions: [{ ...decision, kind: 'style.wordiness' }] });
         expect(findings(partial)).toEqual([]);
     }
+});
+
+test.each(['en-US', 'en-GB'])('technical abbreviations and API members never offer unrelated replacements in %s', async language => {
+    const getChecker = async () => dictionary(language);
+    const source = 'Pass args to fn with exponential backoff. Debounce callbacks. Press Ctrl+C after SIGINT. '
+        + 'The lifecycle uses limit.clearQueue and AbortError. The p-debounce package is ready.\n\nA teh typo remains.';
+    expect((await writingSpellingObservations(source, language, getChecker)).map(item => item.actual)).toEqual(['teh']);
+    expect((await spellcheckDiagnostics(source, language, getChecker)).map(item => source.slice(item.from, item.to))).toEqual(['teh']);
+    for (const word of ['args', 'backoff', 'Debounce', 'Ctrl', 'clearQueue', 'AbortError']) {
+        expect(await spellcheckSuggestionsAtPosition(source, source.indexOf(word) + 1, language, getChecker)).toBeNull();
+    }
+});
+
+test.each([
+    ['This is a convenience function for processing inputs in batches.', 'function', 'write-good.TooWordy'],
+    ['If the function throws, all retries will be aborted.', 'function', 'write-good.TooWordy'],
+    ['### makeRetriable(function, options?)', 'function', 'write-good.TooWordy'],
+    ['The mapper function can produce concurrently.', 'function', 'write-good.TooWordy'],
+    ['The attempt number starts at one.', 'attempt', 'write-good.TooWordy'],
+    ['The maximum time in milliseconds is fixed.', 'maximum', 'write-good.TooWordy'],
+    ['I was tired, but I was glad we stayed.', 'was tired', 'Microsoft.Passive'],
+    ['The corner is exposed to cold winds.', 'is exposed', 'Microsoft.Passive'],
+    ['They are a welcome meal for the birds.', 'for the birds', 'proselint.Cliches'],
+    ['Nobody seemed to know who had booked it, so we made tea.', 'Nobody seemed to know who had booked it, so we made tea.', 'slopless/universalizing-claims'],
+])('observed literal meanings survive shared advice: %s', (source, actual, rule) => {
+    const { projection, observation } = observed(source, actual, rule);
+    expect(findings(resolveWritingFindings({ source, projection, observations: [observation], preferences: { ...preferences, lenses: [...preferences.lenses, 'formulaic'] } }))).toEqual([]);
+});
+
+test.each([
+    ['We left some food. This plan is for the birds.', 'for the birds', 'proselint.Cliches'],
+    ['This plan is for the birds.', 'for the birds', 'proselint.Cliches'],
+    ['The workers were tired by the long shift.', 'were tired', 'Microsoft.Passive'],
+    ['The secret was exposed by the reporter.', 'was exposed', 'Microsoft.Passive'],
+    ['Everyone knows that meetings waste time.', 'Everyone knows that meetings waste time.', 'slopless/universalizing-claims'],
+])('literal-meaning guards preserve relevant advice: %s', (source, actual, rule) => {
+    const { projection, observation } = observed(source, actual, rule);
+    expect(findings(resolveWritingFindings({ source, projection, observations: [observation], preferences: { ...preferences, lenses: [...preferences.lenses, 'formulaic'] } }))).toHaveLength(1);
+});
+
+test('temporal just is preserved while minimizing task language remains reviewable', async () => {
+    const inspect = async source => findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { ...preferences, lenses: ['inclusive'] } }));
+    for (const source of ['We arrived just before lunch.', 'We left just after noon.', 'It happened just yesterday.']) {
+        expect((await inspect(source)).filter(item => item.actual === 'just')).toEqual([]);
+    }
+    expect((await inspect('Just configure the database.')).some(item => item.actual.toLowerCase() === 'just')).toBe(true);
+});
+
+test('reported route descriptions, overlooked risks and technical classifications preserve their literal meaning', async () => {
+    const inspect = async source => findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { ...preferences, lenses: ['inclusive'] } }));
+    for (const source of ['The sign promised an easy route to the next village.', 'Layout problems are easy to miss in a list.', 'Treat client errors as just unhandled requests.']) {
+        expect(await inspect(source)).toEqual([]);
+    }
+    expect((await inspect('The task is easy. Just configure the database.')).map(item => item.actual.toLowerCase())).toEqual(['easy', 'just']);
 });

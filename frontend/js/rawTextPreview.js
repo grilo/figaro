@@ -1,3 +1,4 @@
+import { readTabContent } from './usecases/tabContent.js';
 /** Exact Markdown source preview for the shared right sidebar. */
 
 import { backend } from './backend.js';
@@ -237,8 +238,8 @@ async function activeOrSavedContent(path) {
     if (tab?.id === getState('activeTabId')) {
         return { content: getEditorContent(), mtime: tab.mtime ?? null };
     }
-    if (typeof tab?._content === 'string' && tab.dirty) {
-        return { content: tab._content, mtime: tab.mtime ?? null };
+    if (typeof readTabContent(tab) === 'string' && tab.dirty) {
+        return { content: readTabContent(tab), mtime: tab.mtime ?? null };
     }
     const result = await backend().ReadFile(path);
     return result && !result.binary && !result.issue ? result : null;

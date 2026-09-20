@@ -1,3 +1,6 @@
+import { initWheelScrollSettings } from './editorWheelScroll.js';
+import { readTabContent } from './usecases/tabContent.js';
+import { createSpellingDictionarySettings } from './views/spellingDictionarySettings.js';
 import { countEditorWork } from './editorDiagnostics.js';
 import { initStartupLogsSettings } from './views/startupLogsSettings.js';
 import { backend } from './backend.js';
@@ -503,10 +506,11 @@ export function reorderTab(tabId, targetTabId, placeAfter = false) {
     return true;
 }
 
-/**
- * Initialize tab manager
- */
-export function initTabManager() {
+let spellingDictionary = null;
+
+/** Initialize tab manager with the vault dictionary shared by writing review. */
+export function initTabManager({ dictionary = null } = {}) {
+    spellingDictionary = dictionary;
     const tabStrip = document.getElementById('tab-strip');
     if (tabStrip) {
         tabWheelAccumulatedDeltaY = 0;
@@ -1060,7 +1064,7 @@ async function renderFileTab(
         if (!tab) return;
         const configured = await configureEditorForFile(tab.path);
         if (!configured || !currentFileLoad(tab)) return;
-        const content = tab._content ?? '';
+        const content = readTabContent(tab) ?? '';
         const mounted = await setEditorContent(content, tab.id, fileMountSelection(tab, content, cursorState));
         if (mounted === false) return;
         refreshReactivatedImages(tab, refreshMountedImagePresentation);
@@ -1086,10 +1090,10 @@ async function loadFileContent(tab, cursorState = null, refreshMountedImagePrese
         // If we have cached content from a previous switch-away and the tab
         // is still dirty, use the cache instead of re-reading from disk.
         // This prevents data loss if the auto-save on switch-away failed.
-        if (tab._content != null && tab.dirty) {
+        if (readTabContent(tab) != null && tab.dirty) {
             const configured = await configureEditorForFile(tab.path);
             if (!configured || !currentFileLoad(tab)) return;
-            const mounted = await setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
+            const mounted = await setEditorContent(readTabContent(tab), tab.id, fileMountSelection(tab, readTabContent(tab), cursorState));
             if (mounted === false) return;
             refreshReactivatedImages(tab, refreshMountedImagePresentation);
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
@@ -1282,6 +1286,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         tab = tabs.find(candidate => candidate.id === tabId);
         if (!tab) return true;
         panel._settingsPanelDisposed = tab.type === 'settings';
+        panel._dictionarySettings?.dispose();
         panel._graphViewSession?.dispose?.();
         panel._kanbanSession?.dispose?.();
         panel._drawioSession?.dispose?.();
@@ -1469,7 +1474,7 @@ async function persistTabsBeforePathOperation(tabsToPrepare, operation) {
             continue;
         }
         if (!tab.dirty) continue;
-        const content = tab.id === getState('activeTabId') ? getEditorContent() : tab._content;
+        const content = tab.id === getState('activeTabId') ? getEditorContent() : readTabContent(tab);
         if (typeof content !== 'string') {
             return { success: false, error: `Could not save "${tab.title}" before ${operation} it` };
         }
@@ -1626,15 +1631,15 @@ export function markTabDirty(tabId, { alreadyDirty = false } = {}) {
 }
 
 /** Record a CodeMirror edit through the tab owner's immutable transition. */
-export function recordTabEdit(tabId) {
-    const transition = recordWorkspaceTabEdit(getState('openTabs'), tabId, getTabIndex(tabId));
+export function recordTabEdit(tabId, content) {
+    const transition = recordWorkspaceTabEdit(getState('openTabs'), tabId, getTabIndex(tabId), content);
     if (!transition.changed) return null;
     setState('openTabs', transition.tabs, transition);
     if (transition.becameDirty) {
         renderTabBar();
         if (transition.tab.id === getState('activeTabId') && transition.tab.path) {
             document.dispatchEvent(new CustomEvent('active-file-dirty', {
-                detail: { path: transition.tab.path },
+                detail: { path: transition.tab.path, previousTab: transition.previous },
             }));
         }
     }
@@ -1836,10 +1841,10 @@ export function saveActiveFile(options = {}) {
 function contentSnapshotForTab(tab) {
     const ownerId = getEditorDocumentTabId();
     if (ownerId === tab.id) return getEditorContent();
-    if (ownerId == null && getState('activeTabId') === tab.id && typeof tab._content !== 'string') {
+    if (ownerId == null && getState('activeTabId') === tab.id && typeof readTabContent(tab) !== 'string') {
         return getEditorContent();
     }
-    return typeof tab._content === 'string' ? tab._content : '';
+    return typeof readTabContent(tab) === 'string' ? readTabContent(tab) : '';
 }
 
 const saveFailureEpisodes = new Map();
@@ -2179,10 +2184,10 @@ function renderSettingsTab(panel, _tab) {
                         <div class="ui-menu ui-picker-menu font-picker-menu" id="code-font-picker-menu" role="listbox" aria-label="Code font options" hidden></div>
                     </div>
                 </div>
-                <div class="settings-section">
+                <div class="settings-section settings-section--inset" role="group" aria-labelledby="pure-settings-title">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3a6 6 0 1 0 6 6c0-.34-.03-.67-.08-1A8 8 0 1 1 11 1.06c.33-.04.66-.06 1-.06Z"/><path d="M17 3h4v4"/></svg>
-                        <span>Pure mode</span>
+                        <span id="pure-settings-title">Pure mode</span>
                     </div>
                     <div class="settings-row-group">
                         <div class="settings-row">
@@ -2213,6 +2218,17 @@ function renderSettingsTab(panel, _tab) {
             <!-- Editor -->
             <div class="settings-card">
                 <h2 class="settings-card-title">Editor</h2>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 7 4-4 4 4M12 3v18m-4-4 4 4 4-4"/></svg>
+                        <span id="smooth-wheel-scroll-label">Smooth mouse-wheel scrolling</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="smooth-wheel-scroll-toggle" aria-labelledby="smooth-wheel-scroll-label" aria-describedby="smooth-wheel-scroll-description">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <p id="smooth-wheel-scroll-description" class="settings-section-desc">Gently ease mouse-wheel scrolling in the editor. Off by default; macOS always uses native scrolling. Respects reduced motion.</p>
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 8 12 4 20 8"/><polyline points="4 16 12 20 20 16"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
@@ -2259,10 +2275,10 @@ function renderSettingsTab(panel, _tab) {
                         </label>
                     </div>
                 </div>
-                <div class="settings-section">
+                <div class="settings-section settings-section--inset" role="group" aria-labelledby="navigation-settings-title">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="19" cy="12" r="2"/></svg>
-                        <span>Navigation</span>
+                        <span id="navigation-settings-title">Navigation</span>
                     </div>
                     <div class="settings-row-group">
                         <div class="settings-row">
@@ -2295,10 +2311,10 @@ function renderSettingsTab(panel, _tab) {
                         </div>
                     </div>
                 </div>
-                <div class="settings-section">
+                <div class="settings-section settings-section--inset" role="group" aria-labelledby="vim-settings-title">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h4"/></svg>
-                        <span>Vim Mode</span>
+                        <span id="vim-settings-title">Vim Mode</span>
                     </div>
                     <div class="settings-row-group">
                         <div class="settings-row">
@@ -2516,7 +2532,13 @@ function renderSettingsTab(panel, _tab) {
         </div>`;
     panel.appendChild(container);
 
+    if (spellingDictionary) {
+        panel._dictionarySettings = createSpellingDictionarySettings(spellingDictionary);
+        container.querySelector('.settings-column--writing .settings-card:last-child').append(panel._dictionarySettings.element);
+    }
     initStartupLogsSettings(container, () => backend().OpenStartupLogs());
+    initWheelScrollSettings(container, { enabled: () => getState('smoothWheelScrolling'),
+        setEnabled: value => setState('smoothWheelScrolling', value) });
 
     container.querySelector('#open-vault-health')?.addEventListener('click', () => {
         openTab('vault-health', 'Vault health', 'health');

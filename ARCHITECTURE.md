@@ -1310,12 +1310,16 @@ composes the approved menu and buttons. `core/writingLinkModel.js` computes exac
 label ranges and disjoint paint segments without effects. `writingLinkHints.js`
 adapts mounted link widgets through public CodeMirror DOM positions, limits
 matching to the viewport, and decorates labels after drawing without rebuilding
-widgets. Covered source marks schedule a measure write even when CodeMirror
+widgets. The writing StateField owns persistent decoration range trees; mounted link
+labels query that tree directly, avoiding a rebuilt full finding-array index. Mounted labels retain their document/range/text and
+visible-findings plan; unchanged reconciliation skips source reads and painting. Covered source marks schedule a measure write even when CodeMirror
 needs no redraw. Hover requires the painted plan to belong to the current
-finding array, so cached choices cannot outlive result invalidation. Link hover uses the existing writing tooltip with the widget
+finding range tree, so cached choices cannot outlive result invalidation. Link hover uses the existing writing tooltip with the widget
 range for geometry and retains destination information. A document transaction closes the popup and uses `core/writingRetentionModel.js`
-to retain display-only findings outside edited paragraphs, shifting their ranges
-through actual changes. The CodeMirror adapter reads only touched paragraphs;
+for structural/global invalidation policy. The CodeMirror adapter filters only
+touched paragraph ranges from a separate local-finding tree and maps that tree
+through actual changes. Snapshot callers may lazily enumerate findings; editing
+and hover never need that array. The adapter reads only touched paragraphs;
 structural Markdown edits invalidate all marks, and document-dependent concepts
 are never retained. Retained marks have no action callbacks. The analysis
 coordinator keeps prior cards and their original analyzed identity while the
@@ -1345,17 +1349,34 @@ preserve quotes, possessives and numeric compounds. `core/spellingVocabulary.js`
 contains recognition-only English terms. The dictionary adapter marks reviewed
 corrections explicitly; the pure bulk planner requires this flag for spelling.
 `core/writingContextModel.js` bounds phrase context to nearby prose in the same
-block, guarding technical noun senses and reader-assumption advice. Acronym
+block, guarding technical noun senses, familiar vocabulary, meaningful modifiers
+and reader-assumption advice. Technical passive guards use nearby subject and
+predicate evidence; descriptive guards use bounded time, location, physical
+state and possessive-gerund cues. Passive context reads at most 256 projected
+characters on each side and does not cross sentence/block boundaries. Explicit
+actors remain reviewable, including after time/location phrases. Pure existential
+guards preserve reviewed quantity/location and availability wording within a
+160-character context; they retain weak introductions and never read hidden text.
+These decisions suppress only their editorial concern, preserving overlapping
+grammar corrections. The resolver computes the existing pure typography convention once
+when curly observations occur; raw paragraph caches remain unchanged and every
+resolution uses the current whole-note convention. Acronym
 definitions are cached per acronym within one resolution, never in global state.
 Spelling scans forward/reverse acronym definitions once per visible block,
 reusing the pure initial-matching policy while enforcing spelling's own source
 eligibility. Definition recognition never enters the shared suggestion cache.
-Technical masking includes lower-camel-case identifier shapes. A separate
+Technical masking includes lower-camel-case and PascalCase identifier shapes,
+including dotted members with at least one internal-capital segment. Ordinary
+slash/dot-separated prose remains eligible. A separate
 linear nesting check verifies visible opening marks inside one projection block
 before retaining a textlint unmatched-pair warning. Equivalent indirect-opening
 advice shares a canonical finding and retains its contributing lenses, raw
 evidence and legacy Ignore kind. No new effect boundary or input-handler work
-is introduced.
+is introduced. Pure grammar keeps bounded noun-head and clause decisions separate
+from the native adapter. Its CountableAmount finding spans the complete local
+phrase; advisory-only CommaSplice establishes its own finite-clause evidence.
+The frontend grants local eligibility only to these two explicit rule entries;
+other grammar rules retain whole-block masking and exact-source action guards.
 `core/writingAdditionalRules.js` owns curated consistency, punctuation, and
 sentence-length rules over mapped prose, with no external effects. The eager
 runtime eagerly initializes pinned article, contraction, redundant-acronym,
@@ -1366,7 +1387,7 @@ to meaningful adjacent words without crossing protected content or line breaks.
 The same pure policy restricts equality advice to reviewed generic expressions
 and handles reviewed/uncertain article pronunciations; exact source mapping is
 separate from editorial suitability.
-Mapping version 20 includes curated grammar policy 7, package pins, reviewed terms/acronym exceptions, editorial policy version 5, spelling vocabulary version 3, and formula options in snapshot
+Mapping version 23 includes curated grammar policy 8, package pins, reviewed terms/acronym exceptions, editorial policy version 8, spelling vocabulary version 4, and formula options in snapshot
 identity. The resolver keeps formula and length advice distinct, merging only equivalent
 concerns and retaining every contributing lens and native source. Enabled lenses
 alone may supply fixes; unreviewed simplification matches remain advisory. Readability never generates fixes.
@@ -1433,7 +1454,8 @@ support the real kernel. No runtime filesystem or dynamic import is introduced.
 `writingSloplessRuntime.js` statically imports 30 public Slopless 0.2.38 rule modules
 into this worker. Its CLI is not bundled. `core/writingSloplessModel.js` owns
 selection, neutral messages/examples, native-range validation, curly-mark splitting
-and first-occurrence anchors for each verified repeated word. Smart-quotes uses the typography projection;
+and first-occurrence anchors for each verified repeated word. Smart-quotes uses the typography projection and the resolver retains only
+curly outliers against the authored straight convention;
 other rules use protected prose. Snapshot configuration includes the exact rule map.
 The new Formulaic writing lens only filters the resulting advisory findings.
 See [the complete rule inventory](docs/WRITING_SLOPLESS.md).
@@ -1509,6 +1531,20 @@ text and UTF-16 ranges; read-only restoration does not rewrite old dictionaries.
 is persisted. The existing nspell package is eagerly mapped to its browser bundle.
 The Spelling
 lens owns all spelling enablement and language; no standalone linter is mounted.
+Settings mounts `views/spellingDictionarySettings.js` with the same injected
+`createSpellingDictionary` instance used by inline review. The Settings wrapper
+renders a compact count and Manage launcher; `createSpellingDictionaryEditor`
+retains the searchable editor across modal closes. `createDialogShell`,
+`activateModal` and `makeEditorModalResizable` own shell, inert/focus lifecycle
+and sizing. Pending completions only focus a connected editor; hidden failures
+remain visible in the launcher summary. Settings-target navigation can explicitly
+activate the launcher after revealing it, so Proofreading shortcuts open the same
+dialog. The subscriber is released when the Settings panel closes. Pure normalized filtering and bounded
+alphabetical list planning live in `core/spellingDictionaryModel.js`. Add and
+Remove share one pessimistic mutation queue; Undo calls Add for one entry rather
+than replacing a snapshot. Backend Remove holds the settings lock over a rooted
+read/plan/atomic write and preserves unknown metadata.
+
 `internal/settings/spelling_words.go` validates and plans dictionary changes
 purely; `app_spelling_dictionary.go` owns the locked rooted read/atomic-write
 boundary for `.config/spelling-dictionary.json`, preserving unreadable data.
@@ -1519,11 +1555,17 @@ Vale during startup without placing its readiness promise on the editor reveal b
 analysis port. `usecases/writingParagraphChecks.js` admits bounded exact-input
 paragraph caches through injected package/checkpoint ports. Cold misses run in
 batches of at most 64 paragraphs (a 16 Ki-character target, with a single larger
-paragraph kept intact). Each of the three caches has a 2,048-entry / 4 MiB
+paragraph kept intact). Each of the three caches has an 8,192-entry / 4 MiB
 estimated retained-data cap. `core/writingIncrementalModel.js` splits projected
 paragraphs and rebases native positions; it never stores source maps in caches.
-Markdown projection, convention and consistency policy, acronym definitions,
-source eligibility, and native Vale still see the complete current document.
+`usecases/writingSourceProjection.js` retains one note’s top-level block maps.
+`core/writingProjectionModel.js` plans safe paragraph/heading edits and rebases
+UTF-16 source/prose offsets. The Markdown adapter reparses the changed block when
+there are no reference definitions and its parsed type/bounds survive. Structural
+edits parse the complete note and reuse exact unchanged blocks only when reference
+context is unchanged. Failed work leaves the previous cache intact. Convention
+and consistency policy, acronym definitions, source eligibility and native Vale
+still receive the complete current document.
 The worker adapter yields between batches after about 8 ms; an individual
 synchronous package call is not preemptible, and the watchdog remains the bound.
 Cancellation acknowledgements gate the next request so old and new scans cannot
@@ -1609,6 +1651,10 @@ pane.
 
 ## Editor buffer ownership and undo history
 
+The shared gutter-layout adapter ignores zero-width hidden editor measurements,
+retaining the last valid widths/inset across Settings and workspace-panel visits.
+This prevents a first-frame flex-layout shift when an existing buffer returns.
+
 File tabs share one CodeMirror `EditorView`, but never its undo state. The pure
 `usecases/editorDocumentSession.js` coordinator decides when a requested mount
 changes document ownership, rejects stale mounts, and requires a history swap
@@ -1636,6 +1682,16 @@ only the leading prefix. The active tab and document owner guard every stage;
 switching away cancels queued work, while edits made after source completion
 are retained. Visible source, saved cursor, isolated undo history, and the
 complete Markdown feature set are unchanged—only their scheduling differs.
+
+Edits publish dirty state, generation and an immutable lazy content handle in one
+transition. `usecases/tabContent.js` resolves either that handle or a saved string
+at save, switch, preview and planning read boundaries. The frame-coalesced
+`file-content-changed` detail carries document identity, generation and a shared
+`readContent()` accessor (with a compatible lazy `content` getter); stale saved or
+closed generations are discarded before notification. Paused statistics share
+the same materialization cache. A clean-to-dirty event includes the previous tab
+for Calendar's saved-date baseline. Hidden Kanban does not request a buffer
+projection on typing; warm activation projects current dirty buffers before paint.
 
 ## Editor text scale ownership
 
@@ -1795,21 +1851,38 @@ plugins. Inline formatting/style descriptors are viewport-scoped, with pure
 retains decoration identity. Code blocks retain complete descriptors for document
 geometry and use `core/selectionRangeIndex.js` for reveal changes. A pure plan
 patches only changed blocks' owned decorations. `canMapMarkdownProseEdit` checks
-complete parser trees, unchanged paragraph/list/quote boundaries and nonstructural
+completed paragraph boundaries within equally advanced parser trees, unchanged
+paragraph/list/quote ancestry and nonstructural
 changed text before mapping code, image, table and guide descriptors with
 `core/markdownProjectionModel.js`. It accepts prose in formatted paragraphs and
-rejects newlines, changed delimiters and image-bearing paragraphs. Source payloads
+rejects newlines, changed delimiters and image-bearing paragraphs. The separate
+`markdownProjectionEdit` plan accepts local heading, code, table and safe soft-line
+edits only when parsed block and ancestor bounds survive. Code/image/table/diagram
+adapters replace affected payloads and retain unrelated decorations. Guides update
+changed heading titles and fence labels locally; image-line changes and uncertain
+syntax retain their fallback. Source payloads
 and decoration values survive those edits; unchanged descriptor arrays retain
 their reveal indexes. Code/table pointer handlers resolve current positions from
 the mounted decoration, including a remount after scrolling. Structural/uncertain edits and parser changes invalidate
-caches; folding, configuration and drag settlement retain explicit refreshes.
+caches; folding, reveal-policy changes and drag settlement refresh projections.
+Unrelated reconfiguration retains descriptors and decorations in these fields.
 `markdownWorkFacet` injects diagnostic counts at editor composition; the vendor
 adapter imports only pure application transformations. Architecture checks follow
-the actual editor-to-vendor import edge and enforce those pure dependencies.
+the actual editor-to-vendor import edges for live Markdown and conventional-code
+indentation markers and enforce their pure application dependencies.
 The list-widget visitor
 filters syntax types before reading text, so a Document/container node cannot
 materialize unrelated source during a local update. See the
 [installed extension audit](docs/EDITOR_UPDATES.md#installed-extension-audit).
+
+List/extras projections distinguish a viewport moved by the user from one mapped
+through an edit. Proven prose edits outside their owned lines map cached ranges
+and source-reveal variants; task clicks resolve the mounted widget position.
+Proven inline edits inside a list/quote line reread and patch only that line.
+Callouts, changed block/inline structure, parser, viewport and configuration
+changes retain the full visible projection fallback. Plain prose with no indented blocks reads no computed
+indentation style; mapped edits retain existing metrics, while later geometry
+or configuration changes recheck typography.
 
 Shell adapters compare their derived presentation before writing attributes or
 calling the native window-title bridge. Breadcrumb DOM survives cursor/content
@@ -1821,7 +1894,8 @@ set. Pure `outlineEditNeedsParse` conservatively rejects structural, multiline,
 and Setext-adjacent edits; ordinary single-line prose maps heading positions
 through `mapOutlineHeadings`. Parser fallbacks preserve frontmatter/fence rules.
 Rows with unchanged labels/levels retain identity and focus, and their click
-handler reads the current mapped position. Document/owner changes always
+handler resolves its stable heading index in the current model. Position-only
+edits skip row-label comparisons and position attributes, including sticky rows. Document/owner changes always
 refresh. `outlineHeadingStructure` builds parent and next-section indexes in
 one pass; sticky ancestry follows at most six parents after binary search,
 and guide folding uses the indexed next boundary. Active-row references are
@@ -1876,6 +1950,25 @@ range and visible document are unchanged. Edits, viewport changes, Find,
 selection, pointer drag, nested blocks, and settings changes retain their
 invalidation paths; widget focus synchronization is coalesced per microtask.
 
+The formatting adapter indexes inline marker spans and whole block-marker lines;
+selection updates inspect current overlaps plus previously visible markers and
+patch only changed ranges. The pure `indentationMarkerModel.js` selects active
+code scopes from cached entries without walking absent document lines.
+Pointer footnote classification reads the clicked line before materializing the
+note for a recognized reference/definition journey. Automatic heading/hashtag
+triggers retain a pure streaming line summary; appends consume inserted text,
+while replacements or cursor relocation rebuild context once. Empty-link
+autofill gates wider reads on its local closing suffix and checks document
+identity before applying a queued replacement.
+
+Mermaid validation uses the injected `mermaidValidationReuse.js` coordinator:
+exact source and the initialized renderer identity own successful, failed and
+pending results, bounded to 128 entries and 2,000,000 retained source characters.
+Renderer initialization owns the fixed parser configuration. A changed renderer
+invalidates reuse; safety/availability checks precede it. Lint maps cached errors
+onto current fence offsets and abandons obsolete documents before the next
+parser call. A parser call already running cannot be interrupted.
+
 The vertical-motion adapter coalesces requests within one animation frame. It
 retains the keyed coordinate check and the post-paint physical-scroll repair,
 then requests ordinary CodeMirror reconciliation without a third identical
@@ -1887,17 +1980,27 @@ decorations, so a selection move or edit outside those ranges maps or preserves
 the existing state instead of reparsing the whole note. Diagram fields also retain parsed fences when entering/leaving source or
 folding, and reuse the complete decoration state for motion within the same
 revealed fence. Content edits invalidate or map those records as before.
-Frontmatter similarly parses only after document/configuration changes. The remaining interactive
-decorations—links, list widgets, hashtags, and extras—are built from the
-visible document region and rebuilt on viewport changes. Cursor movement only
-rebuilds source-aware decorations when it crosses an affected line or widget.
+Frontmatter reparses only header/delimiter changes and retains metadata through body edits.
+`core/markdownLineModel.js` owns pure list/task, quote, callout, rule and inline-mark
+plans. `markdownLineDecorations.js` reads visible source and retains active/passive
+line decorations; the shared reveal index patches only changed line states.
+`markdownIndentation.js` owns font reads and prefix measurements, cached per view
+and font. Source/parser/viewport/configuration changes refresh descriptors;
+geometry refreshes indentation only when the measured font changes.
+The bundled link provider and `referenceLinks.js` retain visible descriptors and
+use the same interval index to patch changed link reveal states. Reference
+definitions keep their separate document/edit invalidation. Drag start/settlement
+preserves each provider’s existing source policy. Hashtags and color swatches
+still read only visible source on their own invalidation boundaries.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
 The adjacent relative-number gutter follows the same bounded rule:
 `core/relativeLineNumberModel.js` owns distance labels and stable spacer width,
 while `relativeLineNumbers.js` caches the primary cursor line for each state and
-asks CodeMirror to redraw only the rendered gutter rows after selection or
-document changes.
+asks CodeMirror to redraw rendered rows only after the primary logical line or
+document changes. Fold-gutter accessibility work is coalesced on structural,
+viewport, geometry or configuration changes, and gutter attributes are written
+only when their value changes.
 Stable block sizing uses the same dependency direction. The pure
 `core/sourceFootprintModel.js` module owns the approved block-kind allowlist,
 source-line counting, and downscale-only graphic plan. The DOM adapter in
@@ -2233,9 +2336,10 @@ Syntax-tree/frontmatter inspection stays in the editor adapter because it
 depends on the live CodeMirror state.
 
 List-marker lines carry an inline hanging-indent decoration that aligns wrapped
-display rows with the visible item body. It is recalculated together with the
-cursor-aware list marker replacement and never adds block height or changes
-Markdown source.
+display rows with the visible item body. Active/passive variants retain their
+measured prefixes across cursor movement and refresh with source, typography
+or tab-size changes. Revealed markers inherit the measured body font, including
+numbered markers; quote measurements use the rendered italic style. The decoration never adds block height or changes Markdown source.
 
 Tab width is one portable editor preference rather than a file-mode default.
 The pure `frontend/js/core/tabSizeModel.js` owns the four-space default,
@@ -2268,7 +2372,7 @@ document has since changed.
 Proofreading owns local spelling checks through its dedicated spelling worker and
 shared inline findings. Its English US/UK and Spanish Hunspell assets are bundled
 and cached locally. The document’s lens combination and analysis language are
-authoritative; Settings and frontmatter no longer configure spelling. Legacy
+authoritative for spelling enablement and language; Settings manages accepted personal words and frontmatter no longer configures spelling. Legacy
 settings/YAML are preserved without effect. A hyphenated prose compound
 is accepted when every component is recognized by the same active dictionary,
 so terms such as `faster-than-usual` remain unmarked despite dictionary
@@ -3034,3 +3138,32 @@ fresh results restore interaction after replacement engines settle.
 Status-only analysis updates do not republish unchanged inline decorations.
 Each edit advances the source revision even when Undo restores the same immutable
 document object before the deferred snapshot runs.
+
+### Typing invalidation boundaries
+
+`frontmatterPresentationModel.frontmatterEditNeedsParse` decides whether changed
+header/delimiter lines can affect Properties; its adapter owns document reads
+and parsing. An unfinished header scans once at creation and again only when
+changed delimiter lines warrant it. `markdownInlineStructuresMatch` compares
+parsed inline boundaries through an injected position mapper; the vendored
+adapter shares that proof across markers, styles, links and line projections.
+Diagram/math edits map retained decorations and query old/new source visibility.
+Pure typography refreshes on settings, appearance or actual geometry changes;
+source-footprint inputs distinguish changed source from unrelated typing before
+reading geometry. The [full typing inventory](docs/benchmarks/editor-typing-inventory-2026-09-20.md)
+records necessary remaining whole-document and descriptor work.
+
+### Optional editor wheel smoothing
+
+`core/wheelScrollModel.js` owns platform/gesture eligibility, bounded target
+accumulation and elapsed-time easing. `usecases/wheelScroll.js` coordinates one
+animation through injected clock, frame and scroll ports, preserving fractional
+progress even when native offsets round. `editorWheelScroll.js` adapts CodeMirror,
+DOM cancellation, reduced-motion/resize observation and the existing Settings
+toggle. Composition injects reactive preference access; code loads eagerly.
+`smoothWheelScrolling` defaults false and uses existing local webview state
+storage rather than portable vault settings. Apple platforms bypass smoothing
+regardless of stored preference. Browser wheel events do not reliably identify
+the device: the conservative gate accepts line/page steps or integral vertical
+pixel deltas of at least 50, and passes fine/fractional/horizontal input through.
+No global scroll style or document source is changed.

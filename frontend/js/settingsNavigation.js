@@ -21,11 +21,14 @@ export function initSettingsNavigation({ root = document, openSettings } = {}) {
         const selector = String(event.detail?.selector || '');
         if (!selector) return;
         openSettings?.();
-        (root.defaultView || window).setTimeout(() => revealSettingsTarget(root, selector), 0);
+        (root.defaultView || window).setTimeout(() => {
+            const target = revealSettingsTarget(root, selector);
+            if (event.detail?.activate) target?.click();
+        }, 0);
     });
     return true;
 }
 
-export function requestSettingsTarget(root, selector) {
-    root.dispatchEvent(new CustomEvent(SETTINGS_TARGET_EVENT, { detail: { selector } }));
+export function requestSettingsTarget(root, selector, { activate = false } = {}) {
+    root.dispatchEvent(new CustomEvent(SETTINGS_TARGET_EVENT, { detail: activate ? { selector, activate: true } : { selector } }));
 }

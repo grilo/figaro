@@ -26,7 +26,7 @@ import { outlineHeadingStructure } from './core/outlineModel.js';
 import { createSelectionRangeIndex, selectedRangeIndices } from './core/selectionRangeIndex.js';
 import { markdownGuidesInViewport } from './core/markdownBlockGuideModel.js';
 import { mapMarkdownBlockDescriptors } from './core/markdownProjectionModel.js';
-import { canMapMarkdownProseEdit } from 'codemirror-live-markdown';
+import { canMapMarkdownProseEdit, markdownProjectionEdit } from 'codemirror-live-markdown';
 import { calendarIcon, kanbanIcon } from './icons.js';
 
 const foldAnchorReserveProperty = '--markdown-fold-anchor-reserve';
@@ -47,9 +47,36 @@ function cachedGuideSpacerLength(guides, showImageReset) {
 /** Preserve guide policy and payloads through a proven nonstructural prose edit. */
 export function mapMarkdownBlockGuides(update) {
     const cached = documentGuides.get(update.startState.doc);
-    if (!cached || cached.tree !== syntaxTree(update.startState) || !canMapMarkdownProseEdit(update)) return false;
-    const guides = mapMarkdownBlockDescriptors(cached.guides, position => update.changes.mapPos(position));
-    if (guideWidths.has(cached.guides)) guideWidths.set(guides, guideWidths.get(cached.guides));
+    if (!cached || cached.tree !== syntaxTree(update.startState)) return false;
+    const regions = canMapMarkdownProseEdit(update) ? [] : markdownProjectionEdit(update);
+    if (!regions || regions.some(region => region.name === 'Table')) return false;
+    // Image guides depend on the complete containing line, including whitespace.
+    if (regions.some(region => cached.guides.some(guide => (guide.type === 'image' || guide.type === 'drawio')
+        && guide.from < region.to && guide.to > region.from))) return false;
+    let containsImage = false;
+    for (const region of regions) syntaxTree(update.state).iterate({ from: region.nextFrom, to: region.nextTo,
+        enter(node) { if (node.name === 'Image') containsImage = true; } });
+    if (containsImage) return false;
+    let guides = mapMarkdownBlockDescriptors(cached.guides, position => update.changes.mapPos(position));
+    for (const region of regions) {
+        if (!region.topLevel || !/Heading|FencedCode/.test(region.name)) continue;
+        const at = guides.findIndex(guide => guide.from === region.nextFrom);
+        if (at < 0) return false;
+        const source = update.state.sliceDoc(region.nextFrom, region.nextTo);
+        const info = region.name === 'FencedCode' ? source.split('\n', 1)[0].replace(/^\s*(?:`{3,}|~{3,})\s*/, '').trim() : '';
+        const plan = markdownBlockGuidePlan({ name: region.name, source, info });
+        const previous = guides[at];
+        const foldFrom = plan.level ? region.nextTo : update.state.doc.lineAt(region.nextFrom).to;
+        const foldTo = plan.level ? previous.foldTo : region.nextTo;
+        const replacement = { ...previous, ...plan, foldFrom, foldTo, foldable: foldTo > foldFrom,
+            title: plan.level ? source.replace(/^#{1,6}[ \t]+/, '').replace(/[ \t]+#*[ \t]*$/u, '').split(/\r?\n/, 1)[0].trim() : '',
+            ...(plan.label === 'vega-lite' ? { managedChart: isFigaroVegaLiteChartSource(fencedBlockBody(source)) } : {}),
+        };
+        if (plan.label !== 'vega-lite') delete replacement.managedChart;
+        if (guides === cached.guides) guides = guides.slice();
+        guides[at] = replacement;
+    }
+    if (!regions.length && guideWidths.has(cached.guides)) guideWidths.set(guides, guideWidths.get(cached.guides));
     documentGuides.set(update.state.doc, { tree: syntaxTree(update.state), guides });
     return true;
 }

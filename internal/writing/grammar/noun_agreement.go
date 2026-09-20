@@ -1,9 +1,8 @@
 package grammar
 
-// A determiner, an unambiguous common noun and an adjacent auxiliary provide
-// enough evidence for these narrow decisions. Attraction across prepositional
-// phrases, collective nouns, invariant nouns and singular counterfactual
-// “were” deliberately remain outside this rule.
+// A determiner and a common-noun head establish number even across one
+// bounded prepositional modifier. Coordinations, relatives, collectives and
+// counterfactual singular “were” remain outside this rule.
 func (s *grammarScan) nounSubjectAgreement(i int) {
 	if in(s.at(i, -1).word, "and or nor") || !s.subjectPosition(i) || !in(s.tokens[i].word, "the a an this that these those my your his her our their") {
 		return
@@ -15,12 +14,24 @@ func (s *grammarScan) nounSubjectAgreement(i int) {
 		if token.word == "" || token.actual != token.word || labels&(noun|adjective|adverb) == 0 || in(token.word, "of in on with and or nor between among for from to at by near under over through about before after without within during against beside beneath behind beyond despite until since than as") {
 			break
 		}
-		if labels&noun != 0 && in(s.at(i, offset+1).word, "is are was were has have") {
+		if labels&noun != 0 && (in(s.at(i, offset+1).word, "is are was were has have") || in(s.at(i, offset+1).word, "of in on near beside behind under over above below with at by from beneath")) {
 			head = i + offset
 			break
 		}
 	}
-	if head < 0 || s.at(i, head-i).word == "" {
+	verbAt := head + 1
+	if head >= 0 && in(s.at(head, 1).word, "of in on near beside behind under over above below with at by from beneath") {
+		start := head + 2
+		if in(s.at(head, 2).word, "the a an this that these those my your his her our their") {
+			start++
+		}
+		complement := s.nominalHead(start)
+		if complement < 0 || s.at(head, complement-head).word == "" {
+			return
+		}
+		verbAt = complement + 1
+	}
+	if head < 0 || s.at(i, head-i).word == "" || !in(s.at(head, verbAt-head).word, "is are was were has have") {
 		return
 	}
 	w := s.tokens[head].word
@@ -39,7 +50,7 @@ func (s *grammarScan) nounSubjectAgreement(i int) {
 	if cue == 1 && plural || cue == 2 && singular {
 		return
 	}
-	verb := s.at(head, 1).word
+	verb := s.at(head, verbAt-head).word
 	replacement := ""
 	if plural {
 		switch verb {
@@ -48,19 +59,21 @@ func (s *grammarScan) nounSubjectAgreement(i int) {
 		case "was":
 			replacement = "were"
 		case "has":
-			if s.lex.isParticiple(s.at(head, 2).word) {
+			if s.lex.isParticiple(s.at(head, verbAt-head+1).word) {
 				replacement = "have"
 			}
 		}
 	} else if singular {
-		if verb == "are" {
+		if verb == "were" && s.initial(i) {
+			replacement = "was"
+		} else if verb == "are" {
 			replacement = "is"
-		} else if verb == "have" && s.at(i, -1).word != "that" && s.lex.isParticiple(s.at(head, 2).word) {
+		} else if verb == "have" && s.at(i, -1).word != "that" && s.lex.isParticiple(s.at(head, verbAt-head+1).word) {
 			replacement = "has"
 		}
 	}
 	if replacement != "" {
-		s.emit("NounSubjectAgreement", "Match the auxiliary verb to this singular or plural noun subject.", head+1, head+1, replacement)
+		s.emit("NounSubjectAgreement", "Match the auxiliary verb to this singular or plural noun subject.", verbAt, verbAt, replacement)
 	}
 }
 

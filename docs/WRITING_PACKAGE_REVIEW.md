@@ -12,7 +12,7 @@ guards and stricter spelling replacement safety while retaining this inventory.
 
 ## Changes
 
-- Formulaic writing expands from 21 to 30 pinned Slopless rules. It includes clichés, corporate phrasing, wordiness, redundant phrases, complex-word density, exclamation density, word frequency, hedge stacking, and layered qualifications. Em dashes and curly punctuation remain included. [All 47 remaining exclusions](WRITING_SLOPLESS.md) remain explicit.
+- Formulaic writing expands from 21 to 30 pinned Slopless rules. It includes clichés, corporate phrasing, wordiness, redundant phrases, complex-word density, exclamation density, word frequency, hedge stacking, and layered qualifications. Em dashes and curly punctuation remain included; curly findings now require a mismatch with the authored straight convention. [All 47 remaining exclusions](WRITING_SLOPLESS.md) remain explicit.
 - Plain language now exposes the full retext-simplify phrase inventory and native wordiness observations as advice. Only the existing seven reviewed phrase forms can contribute automatic simplification edits. The corpus follow-up suppresses mismatched technical/postal noun senses, including “request”, while retaining useful verb/phrase advice.
 - The later quality policy also guards technical options/limits, forwarding, web addresses, literal end-of-day instructions and emotional states; equivalent indirect-opening advice shares a finding across Plain language and Directness while preserving independent lenses and saved Ignore decisions. Balanced multiline punctuation is verified within its visible block before retaining a warning. Provider pins and included rules are unchanged; see the [quality contract](WRITING_CORPUS_FIXES.md#september-quality-follow-up).
 - Restore 20 previously unbundled Vale rules: five write-good, ten proselint, and five Microsoft. These extend existing lenses with openings, modifiers, jargon, archaic or potentially ambiguous wording, redundant acronyms, spelling consistency, and sentence length. No new lens or visual component is introduced.
@@ -26,14 +26,14 @@ All application modules remain eagerly bundled. Slopless and retext execute in t
 
 Microsoft’s sentence-length rule emits a first-word anchor. The pure Vale adapter validates it and maps it to the full existing prose sentence before source validation and deduplication; the corpus follow-up also verifies that sentence’s own above-30-word count. The local length check uses the same threshold. Protected text and unmappable spans remain rejected. Slopless frequency reports identify the first occurrence of each repeated word and its verified count, so separate words can be ignored independently.
 
-Current mapping version **20**, editorial policy **5**, spelling vocabulary **3**, with curated grammar policy **7** (the initial package review used mapping 10 / policy 3). Dependency versions and upstream revisions are unchanged. The 29 canonical names are defined in `frontend/js/core/writingTextlintModel.js`; the 43 additional Inclusive advisory IDs are in `frontend/js/core/writingPackagePolicy.js` and have individual real-adapter fixtures.
+Current mapping version **23**, editorial policy **8**, spelling vocabulary **4**, with curated grammar policy **8** (the initial package review used mapping 10 / policy 3). Dependency versions and upstream revisions are unchanged. The 29 canonical names are defined in `frontend/js/core/writingTextlintModel.js`; the 43 additional Inclusive advisory IDs are in `frontend/js/core/writingPackagePolicy.js` and have individual real-adapter fixtures.
 
 ## Package-by-package decisions
 
 | Provider | Review outcome and retained limits |
 | --- | --- |
 | retext-simplify 8.0.0 | Retain the native phrase inventory with contextual technical/postal noun guards. Keep Apply restricted to seven reviewed forms; no provider rule is omitted. |
-| retext-passive 5.0.0 | All native detections remain enabled; advisory only because participles can describe states. |
+| retext-passive 5.0.0 | All native detections remain enabled; shared context policy withholds reviewed process/state descriptions and preserves explicit actors. Retained advice has no automatic edit. |
 | retext-repeated-words 5.0.0 | All native detections remain enabled, including intentional repetitions such as “had had”; reviewed source edits remain optional. |
 | retext-indefinite-article 5.0.0 | Retain reviewed pronunciation corrections and the explicit uncertain-pronunciation guard. Dialect-sensitive “herb”, “historic”, and ambiguous initialisms need pronunciation information the engine lacks. |
 | retext-contractions 6.0.0 | Retain contraction checks. Curly-to-straight typography-only changes are routed to the typography lenses; preserve the author’s apostrophe convention for actual contraction repairs. |

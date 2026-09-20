@@ -667,7 +667,16 @@ export async function initApp() {
     await startupTimings.measure('editor', initEditor);
     
     // Protect the restored editor before it can accept input.
-    initTabManager();
+    const spellingDictionary = createSpellingDictionary({
+        load: () => backend().SpellingDictionaryLoad(),
+        add: word => backend().SpellingDictionaryAdd(word),
+        remove: word => backend().SpellingDictionaryRemove(word),
+        onChange: words => {
+            setSpellingWords(words);
+            document.dispatchEvent(new Event('figaro:spellcheck-changed'));
+        },
+    });
+    initTabManager({ dictionary: spellingDictionary });
     const saveProtectionReady = startupTimings.measure('save-protection', installStartupSaveProtection);
     initEditorBreadcrumb();
     initFileTree();
@@ -701,14 +710,6 @@ export async function initApp() {
     // Document outline; Calendar remains independent in the left sidebar.
     initPDFPreview();
     initRawTextPreview();
-    const spellingDictionary = createSpellingDictionary({
-        load: () => backend().SpellingDictionaryLoad(),
-        add: word => backend().SpellingDictionaryAdd(word),
-        onChange: words => {
-            setSpellingWords(words);
-            document.dispatchEvent(new Event('figaro:spellcheck-changed'));
-        },
-    });
     const dictionaryReady = startupTimings.measure('dictionary', () => spellingDictionary.restore()).catch(error => log.warn('Could not load the spelling dictionary:', error));
     const writingReady = startupTimings.measure('writing', () => {
         writingLensesController = initWritingLenses({

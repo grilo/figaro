@@ -25,9 +25,10 @@ export function updateWorkspaceTab(tabs, tabId, update, knownIndex) {
     return { tabs: next, tab, previous, changed: true, source, index };
 }
 
-export function recordWorkspaceTabEdit(tabs, tabId, knownIndex) {
+export function recordWorkspaceTabEdit(tabs, tabId, knownIndex, content) {
     const result = updateWorkspaceTab(tabs, tabId, tab => tab.type === 'file' ? {
         dirty: true,
+        ...(content === undefined ? {} : { _content: content }),
         _editGeneration: (tab._editGeneration || 0) + 1,
     } : null, knownIndex);
     return { ...result, becameDirty: result.changed && !result.previous?.dirty };

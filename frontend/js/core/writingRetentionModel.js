@@ -13,7 +13,7 @@ export function writingEditChangesStructure({ removed, inserted, beforeLine, aft
 
 const documentKinds = new Set(['style.consistency', 'style.capitalization', 'style.quotation',
     'style.apostrophe', 'clarity.undefined-acronym']);
-function dependsOnDocument(finding) {
+export function writingFindingDependsOnDocument(finding) {
     return documentKinds.has(finding.kind) || (finding.members || []).some(member => documentKinds.has(member.kind));
 }
 
@@ -22,7 +22,7 @@ export function retainWritingFindings(findings, { changes, paragraphs, structura
     if (structural) return [];
     const offset = position => changes.reduce((sum, change) => sum
         + (change.to <= position ? change.insertedLength - (change.to - change.from) : 0), 0);
-    return findings.filter(finding => !dependsOnDocument(finding)
+    return findings.filter(finding => !writingFindingDependsOnDocument(finding)
         && !paragraphs.some(range => finding.from <= range.to && finding.to >= range.from))
         .map(finding => ({ ...finding, from: finding.from + offset(finding.from), to: finding.to + offset(finding.to) }));
 }

@@ -1,0 +1,318 @@
+{
+  "date": "2026-09-20",
+  "method": "Operation counts from production modules and controlled jsdom viewports, not native input latency. Twenty updates per case unless quietPasses says five. Completion after results are warmed append context; non-append changes still rebuild context once. Math instrumentation is installed once on retained ranges so measuring does not count its own reads.",
+  "before": [
+    {
+      "feature": "format-marker cursor visibility",
+      "count": 10,
+      "moves": 20,
+      "markers": 20,
+      "markerChecks": 400,
+      "decorationsRetained": true
+    },
+    {
+      "feature": "format-marker cursor visibility",
+      "count": 1000,
+      "moves": 20,
+      "markers": 2000,
+      "markerChecks": 40000,
+      "decorationsRetained": true
+    },
+    {
+      "feature": "typing outside visible links and formatting",
+      "count": 10,
+      "edits": 20,
+      "counters": {
+        "source.slices.links": 220,
+        "syntax.nodes.links": 2880,
+        "decorations.links": 20,
+        "syntax.nodes.markers": 1400,
+        "decorations.markers": 20,
+        "decorations.styles": 20,
+        "syntax.nodes.styles": 1400
+      }
+    },
+    {
+      "feature": "typing outside visible links and formatting",
+      "count": 1000,
+      "edits": 20,
+      "counters": {
+        "source.slices.links": 20020,
+        "syntax.nodes.links": 280080,
+        "decorations.links": 20,
+        "syntax.nodes.markers": 140000,
+        "decorations.markers": 20,
+        "decorations.styles": 20,
+        "syntax.nodes.styles": 140000
+      }
+    },
+    {
+      "feature": "diagram replacement allocations during prose typing",
+      "count": 10,
+      "edits": 20,
+      "replacements": 200
+    },
+    {
+      "feature": "diagram replacement allocations during prose typing",
+      "count": 1000,
+      "edits": 20,
+      "replacements": 20000
+    },
+    {
+      "feature": "math index rebuilding for edits after all math",
+      "count": 10,
+      "edits": 20,
+      "rangeReads": 600,
+      "unchangedIndex": 0
+    },
+    {
+      "feature": "math index rebuilding for edits after all math",
+      "count": 1000,
+      "edits": 20,
+      "rangeReads": 60000,
+      "unchangedIndex": 0
+    },
+    {
+      "feature": "frontmatter reparsing for body typing",
+      "count": 10,
+      "edits": 20,
+      "sameMetadata": 0,
+      "slices": 20,
+      "characters": 2560
+    },
+    {
+      "feature": "frontmatter reparsing for body typing",
+      "count": 1000,
+      "edits": 20,
+      "sameMetadata": 0,
+      "slices": 20,
+      "characters": 277960
+    },
+    {
+      "feature": "ordinary writing marks and hover scans",
+      "count": 10,
+      "queries": 20,
+      "viewportReads": 400,
+      "hoverReads": 200
+    },
+    {
+      "feature": "ordinary writing marks and hover scans",
+      "count": 1000,
+      "queries": 20,
+      "viewportReads": 40000,
+      "hoverReads": 20000
+    },
+    {
+      "feature": "code indentation active-block scope",
+      "count": 10,
+      "moves": 20,
+      "visibleCharacters": 50,
+      "mapHas": 400
+    },
+    {
+      "feature": "code indentation active-block scope",
+      "count": 10000,
+      "moves": 20,
+      "visibleCharacters": 50,
+      "mapHas": 200200
+    },
+    {
+      "feature": "unchanged Mermaid validation after prose edits",
+      "count": 10,
+      "quietPasses": 5,
+      "validations": 50
+    },
+    {
+      "feature": "unchanged Mermaid validation after prose edits",
+      "count": 100,
+      "quietPasses": 5,
+      "validations": 500
+    },
+    {
+      "feature": "long-line automatic completion prefixes",
+      "count": 100,
+      "edits": 20,
+      "slices": 40,
+      "characters": 4420
+    },
+    {
+      "feature": "long-line automatic completion prefixes",
+      "count": 100000,
+      "edits": 20,
+      "slices": 40,
+      "characters": 4000420
+    }
+  ],
+  "after": [
+    {
+      "feature": "format-marker cursor visibility",
+      "count": 10,
+      "moves": 20,
+      "markers": 20,
+      "markerChecks": 0,
+      "decorationsRetained": true
+    },
+    {
+      "feature": "format-marker cursor visibility",
+      "count": 1000,
+      "moves": 20,
+      "markers": 2000,
+      "markerChecks": 0,
+      "decorationsRetained": true
+    },
+    {
+      "feature": "typing outside visible links and formatting",
+      "count": 10,
+      "edits": 20,
+      "counters": {
+        "syntax.nodes.inlineEdit": 40,
+        "selection.rangeNodes.links": 40,
+        "selection.visibilityChecks.links": 0,
+        "selection.rangeNodes.markers": 0
+      }
+    },
+    {
+      "feature": "typing outside visible links and formatting",
+      "count": 1000,
+      "edits": 20,
+      "counters": {
+        "syntax.nodes.inlineEdit": 40,
+        "selection.rangeNodes.links": 40,
+        "selection.visibilityChecks.links": 0,
+        "selection.rangeNodes.markers": 0
+      }
+    },
+    {
+      "feature": "diagram replacement allocations during prose typing",
+      "count": 10,
+      "edits": 20,
+      "replacements": 0
+    },
+    {
+      "feature": "diagram replacement allocations during prose typing",
+      "count": 1000,
+      "edits": 20,
+      "replacements": 0
+    },
+    {
+      "feature": "math index rebuilding for edits after all math",
+      "count": 10,
+      "edits": 20,
+      "rangeReads": 0,
+      "unchangedIndex": 20
+    },
+    {
+      "feature": "math index rebuilding for edits after all math",
+      "count": 1000,
+      "edits": 20,
+      "rangeReads": 0,
+      "unchangedIndex": 20
+    },
+    {
+      "feature": "frontmatter reparsing for body typing",
+      "count": 10,
+      "edits": 20,
+      "sameMetadata": 20,
+      "slices": 0,
+      "characters": 0
+    },
+    {
+      "feature": "frontmatter reparsing for body typing",
+      "count": 1000,
+      "edits": 20,
+      "sameMetadata": 20,
+      "slices": 0,
+      "characters": 0
+    },
+    {
+      "feature": "code indentation active-block scope",
+      "count": 10,
+      "moves": 20,
+      "visibleCharacters": 50,
+      "mapHas": 100
+    },
+    {
+      "feature": "code indentation active-block scope",
+      "count": 10000,
+      "moves": 20,
+      "visibleCharacters": 50,
+      "mapHas": 100
+    },
+    {
+      "feature": "unchanged Mermaid validation after prose edits",
+      "count": 10,
+      "quietPasses": 5,
+      "validations": 1
+    },
+    {
+      "feature": "unchanged Mermaid validation after prose edits",
+      "count": 100,
+      "quietPasses": 5,
+      "validations": 1
+    },
+    {
+      "feature": "long-line automatic completion prefixes",
+      "count": 100,
+      "edits": 20,
+      "slices": 40,
+      "characters": 40
+    },
+    {
+      "feature": "long-line automatic completion prefixes",
+      "count": 100000,
+      "edits": 20,
+      "slices": 40,
+      "characters": 40
+    },
+    {
+      "feature": "current ordinary writing indexed no-hit queries",
+      "count": 10,
+      "queries": 20,
+      "boundReads": 0,
+      "stateRetained": true
+    },
+    {
+      "feature": "current ordinary writing indexed no-hit queries",
+      "count": 1000,
+      "queries": 20,
+      "boundReads": 0,
+      "stateRetained": true
+    }
+  ],
+  "pointerBefore": [
+    {
+      "feature": "ordinary prose pointer placement",
+      "lines": 100,
+      "charactersInDocument": 2117,
+      "clicks": 20,
+      "wholeDocumentReads": 20,
+      "serializedCharacters": 42340
+    },
+    {
+      "feature": "ordinary prose pointer placement",
+      "lines": 10000,
+      "charactersInDocument": 210017,
+      "clicks": 20,
+      "wholeDocumentReads": 20,
+      "serializedCharacters": 4200340
+    }
+  ],
+  "pointerAfter": [
+    {
+      "feature": "ordinary prose pointer placement",
+      "lines": 100,
+      "charactersInDocument": 2117,
+      "clicks": 20,
+      "wholeDocumentReads": 0,
+      "serializedCharacters": 0
+    },
+    {
+      "feature": "ordinary prose pointer placement",
+      "lines": 10000,
+      "charactersInDocument": 210017,
+      "clicks": 20,
+      "wholeDocumentReads": 0,
+      "serializedCharacters": 0
+    }
+  ]
+}

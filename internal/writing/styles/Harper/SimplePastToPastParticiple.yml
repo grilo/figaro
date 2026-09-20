@@ -77,3 +77,6 @@ swap:
   '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))wore\b': "worn"
   '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))wove\b': "woven"
   '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s))wrote\b': "written"
+  # “saw” can name a tool. An explicit object licenses the seeing sense;
+  # “have saw blades/dust” stays unchanged. Reviewed adverbs may intervene.
+  '(?<=(?i:\b(?:have|has|had|having)\s|[''’]ve\s)(?:(?i:not|never|already|just|recently|often)\s){0,2})saw(?=\s+(?i:the|a|an|this|that|these|those|my|your|his|her|our|their|it|him|us|them|you|me)\b)': "seen"

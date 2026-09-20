@@ -2,8 +2,8 @@
 
 This contract follows the eight-document pattern audit. It covers correctness
 and review safety; it does not establish general writing quality or complete
-grammar coverage. Mapping version 20 (including the later grammar-context and quality updates), editorial policy 5, local-rule version 3
-and spelling vocabulary version 3 invalidate older analysis snapshots. This corpus-safety work preserves provider versions, independent lens memberships,
+grammar coverage. Mapping version 23 (including the later grammar-context and quality updates), editorial policy 8, local-rule version 3
+and spelling vocabulary version 4 invalidate older analysis snapshots. This corpus-safety work preserves provider versions, independent lens memberships,
 and saved review data. The later [curated grammar expansion](WRITING_HARPER.md)
 adds separately reviewed rules.
 
@@ -56,6 +56,34 @@ Grammar policy 7 broadens existing families; see
 The [quality report](benchmarks/writing-quality-2026-09-20.md) replays the known
 six documents and evaluates a separately frozen eight-document sample after
 tuning. It reports retained errors and advice as well as improvements.
+
+The [document-gap follow-up](benchmarks/writing-gaps-2026-09-20.md) fixes the
+unsafe choices and five missed errors found in that sample, adds identifier and
+literal-sense controls, and explicitly converts it to development regression
+material. It does not claim that arbitrary dictionary alternatives are safe.
+
+## Suggestion relevance
+
+The [relevance review](benchmarks/writing-relevance-2026-09-20.md) groups the
+remaining unnecessary findings before changing policy. Reviewed familiar words
+no longer produce synonym-only tasks. Meaningful manner, frequency and degree
+retain bounded context guards. Technical passive descriptions require a
+reviewed predicate and nearby subject/context, while explicit actors remain
+reviewable. Curly punctuation must conflict with the current authored straight
+convention; it is not evidence of a formulaic passage by itself. Useful
+shortening, grammar corrections and all selected package rules remain available.
+
+## Descriptive and existential context
+
+The [context follow-up](benchmarks/writing-context-2026-09-20.md) implements the
+next selected batch: reviewed timed maintenance, physical/location descriptions,
+elliptical API behavior, possessive-gerund reactions and meaningful existential
+quantity, location and availability. Explicit actors, weak introductions and
+independent grammar findings remain available. Shared pure policy handles both
+full native passive spans and participle-only package spans. Sentence, paragraph
+and protected-text boundaries cannot provide missing context. All 32 targeted
+unnecessary findings disappear from the existing development sets, leaving five
+other findings; prior editorial labels and source bytes remain unchanged.
 
 ## Verification and evaluation limits
 

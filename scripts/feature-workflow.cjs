@@ -14,7 +14,7 @@ function validateFeatureMap(features) {
             }
         }
         for (const ref of [...feature.sources, ...feature.docs, ...feature.tests]) {
-            if (!/^[a-zA-Z0-9_.\/-]+(?:#[a-z0-9-]+)?$/.test(ref) || ref.startsWith('/') || ref.split('/').includes('..')) {
+            if (!/^[a-zA-Z0-9_@.\/-]+(?:#[a-z0-9-]+)?$/.test(ref) || ref.startsWith('/') || ref.split('/').includes('..')) {
                 throw new Error(`Invalid repository reference: ${ref}`);
             }
         }

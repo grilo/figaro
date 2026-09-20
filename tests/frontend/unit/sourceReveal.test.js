@@ -220,3 +220,71 @@ describe.each(mappedFixtures)('%s mapped edits during a drag', (_name, syntax, c
         expect(state.sliceDoc(state.field(field).blocks[0].from, state.field(field).blocks[0].to)).toBe(syntax);
     });
 });
+
+const scopedFixtures = [...mappedFixtures, fixtures[2]];
+describe.each(scopedFixtures)('%s scoped block updates', (_name, syntax, createField) => {
+    test('heading text and soft Enter/Backspace retain unrelated preview decorations', () => {
+        const field = createField();
+        const source = '# Heading title\n\nOrdinary paragraph text.\n\n' + Array(100).fill(syntax + '\n\n').join('');
+        let state = mount(source, field);
+        const original = state.field(field).decorations.iter().value;
+        const check = () => {
+            const current = state.field(field);
+            expect(current.decorations.iter().value).toBe(original);
+            const fresh = mount(state.doc.toString(), field).field(field);
+            expect(current.blocks.map(({ sourceIdentity, ...block }) => block)).toEqual(fresh.blocks);
+        };
+        state = state.update({ changes: { from: 5, insert: 'x' } }).state;
+        check();
+        const at = state.doc.toString().indexOf('paragraph') + 4;
+        state = state.update({ changes: { from: at, insert: '\n' } }).state;
+        check();
+        state = state.update({ changes: { from: at, to: at + 1 } }).state;
+        check();
+    });
+    test('unrelated configuration retains parsed blocks and mounted decorations', () => {
+        const field = createField(), config = new Compartment();
+        let state = mount('Before prose\n\n' + syntax + '\n\nAfter prose', field, [config.of(EditorState.tabSize.of(4))]);
+        const initial = state.field(field);
+        state = state.update({ effects: config.reconfigure(EditorState.tabSize.of(8)) }).state;
+        expect(state.field(field)).toBe(initial);
+    });
+});
+
+test.each([
+    ['code', '```js\nlet value = 1;\n```', () => codeBlockField({})[0], 'value', 'x'],
+    ['tables', '| A | B |\n| - | - |\n| one | two |', fixtures[1][2], 'one', 'x'],
+    ['images', '![Alt](image.png)', fixtures[0][2], 'Alt', 'x'],
+    ['diagrams', fixtures[2][1], fixtures[2][2], 'TD', 'x'],
+])('%s payload edit replaces only its own preview', (_name, syntax, createField, target, insert) => {
+    const field = createField();
+    const source = 'Before prose\n\n' + Array(30).fill(syntax + '\n\n').join('');
+    let state = mount(source, field);
+    const original = state.field(field);
+    const first = original.decorations.iter().value;
+    const last = original.decorations.iter(original.blocks.at(-1).from).value;
+    state = state.update({ changes: { from: source.indexOf(target), insert } }).state;
+    const changed = state.field(field);
+    expect(changed.decorations.iter().value).not.toBe(first);
+    expect(changed.decorations.iter(changed.blocks.at(-1).from).value).toBe(last);
+    const fresh = mount(state.doc.toString(), field).field(field);
+    expect(changed.blocks.map(({ sourceIdentity, ...block }) => block)).toEqual(fresh.blocks);
+});
+
+test('prose inside the completed part of a large partial tree maps previews and later parser progress discovers the rest', () => {
+    const field = codeBlockField({})[0];
+    const source = 'Ordinary opening prose.\n\n' + Array(6000).fill('```js\nlet value = 1;\n```\n\nMore prose.\n\n').join('');
+    let state = EditorState.create({ doc: source, extensions: [markdown({ base: markdownLanguage }), collapseOnSelectionFacet.of(true), mouseSelectingField, field] });
+    ensureSyntaxTree(state, 10000, 10000);
+    state = state.update({}).state;
+    const initial = state.field(field);
+    expect(initial.blocks.length).toBeGreaterThan(0);
+    expect(initial.blocks.length).toBeLessThan(6000);
+    const transaction = state.update({ changes: { from: 5, insert: 'x' } });
+    expect(canMapMarkdownProseEdit(transaction)).toBe(true);
+    state = transaction.state;
+    expect(state.field(field).decorations.iter().value).toBe(initial.decorations.iter().value);
+    ensureSyntaxTree(state, state.doc.length, 10000);
+    state = state.update({}).state;
+    expect(state.field(field).blocks).toHaveLength(6000);
+});

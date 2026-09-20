@@ -175,6 +175,7 @@ export function createNativeAppMock() {
 		WritingDecisionsLoad: jest.fn().mockResolvedValue([]),
 		WritingDecisionsChange: jest.fn().mockResolvedValue([]),
 		SpellingDictionaryLoad: jest.fn().mockResolvedValue([]),
+		SpellingDictionaryRemove: jest.fn().mockResolvedValue([]),
 		SpellingDictionaryAdd: jest.fn().mockImplementation(async word => [word]),
 		AutoSaveLoad: jest.fn().mockResolvedValue(300),
 		AutoSaveSave: jest.fn().mockResolvedValue({ success: true }),

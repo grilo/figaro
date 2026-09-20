@@ -125,6 +125,7 @@ function debugAPI() {
             return [...reviewDecisions.get(path)];
         },
         SpellingDictionaryLoad: async () => spellingWords.slice(),
+        SpellingDictionaryRemove: async word => { spellingWords = spellingWords.filter(value => value !== word.toLowerCase()); return spellingWords.slice(); },
         SpellingDictionaryAdd: async word => { spellingWords = [...new Set([...spellingWords, word.toLowerCase()])]; return spellingWords.slice(); },
         LinkStyleLoad: mock({ style: 'markdown' }),
         ChangeLinkStyle: mock({ success: true, style: 'markdown', updated_links: [] }),

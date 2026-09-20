@@ -12,12 +12,13 @@ export function syncEditorGutterAccessibility(view) {
             const family = families.find(([name]) => gutter.classList.contains(name));
             if (family) {
                 interactive = true;
-                gutter.removeAttribute('aria-hidden');
-                gutter.setAttribute('role', 'group');
-                gutter.setAttribute('aria-label', family[1]);
-            } else gutter.setAttribute('aria-hidden', 'true');
+                if (gutter.hasAttribute('aria-hidden')) gutter.removeAttribute('aria-hidden');
+                if (gutter.getAttribute('role') !== 'group') gutter.setAttribute('role', 'group');
+                if (gutter.getAttribute('aria-label') !== family[1]) gutter.setAttribute('aria-label', family[1]);
+            } else if (gutter.getAttribute('aria-hidden') !== 'true') gutter.setAttribute('aria-hidden', 'true');
         }
-        if (interactive) rail.removeAttribute('aria-hidden');
-        else rail.setAttribute('aria-hidden', 'true');
+        if (interactive) {
+            if (rail.hasAttribute('aria-hidden')) rail.removeAttribute('aria-hidden');
+        } else if (rail.getAttribute('aria-hidden') !== 'true') rail.setAttribute('aria-hidden', 'true');
     }
 }

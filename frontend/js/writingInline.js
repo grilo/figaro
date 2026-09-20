@@ -1,9 +1,11 @@
 import { StateEffect, StateField } from '@codemirror/state';
-import { Decoration, ViewPlugin, activateHover, closeHoverTooltip, hoverTooltip, keymap, tooltips } from '@codemirror/view';
-import { inlineWritingFindings, writingFindingsAt, visibleWritingRanges, writingTooltipBounds } from './core/writingInlineModel.js';
+import { Decoration, EditorView, activateHover, closeHoverTooltip, hoverTooltip, keymap, tooltips } from '@codemirror/view';
+import { inlineWritingFindings, writingFindingsAt, writingTooltipBounds } from './core/writingInlineModel.js';
 import { createWritingInlineView } from './views/writingInlineView.js';
 import { createWritingLinkHints } from './writingLinkHints.js';
-import { retainWritingFindings, writingEditChangesStructure } from './core/writingRetentionModel.js';
+import { writingFindingDependsOnDocument, writingEditChangesStructure } from './core/writingRetentionModel.js';
+
+import { countEditorWork } from './editorDiagnostics.js';
 
 export const setInlineWriting = StateEffect.define();
 /** Adapt CodeMirror coordinates to plain source-change data for review anchors. */
@@ -12,7 +14,23 @@ export function writingChangedRanges(changes) {
     changes.iterChangedRanges((from, to, nextFrom, nextTo) => ranges.push({ from, to, insertedLength: nextTo - nextFrom }));
     return ranges;
 }
-const empty = () => ({ findings: [], actions: {} });
+function findingsInRange(decorations, from, to) {
+    const findings = [];
+    decorations.between(from, to, (start, end, value) => {
+        countEditorWork('writing.inlineRanges');
+        const finding = value.spec.finding;
+        findings.push(start === finding.from && end === finding.to ? finding : { ...finding, from: start, to: end });
+    });
+    return findings;
+}
+
+function inlineState(decorations = Decoration.none, local = Decoration.none, actions = {}, stale = false) {
+    let findings;
+    return { decorations, local, actions, ...(stale ? { stale } : {}),
+        // Snapshot/debug callers may enumerate. Editing and hover query the range tree.
+        get findings() { return findings ??= findingsInRange(decorations, 0, Number.MAX_SAFE_INTEGER); } };
+}
+const empty = () => inlineState();
 
 // Read only edited paragraphs from CodeMirror's immutable Text. A keystroke
 // must not serialize or parse the whole note to retain unrelated underlines.
@@ -24,18 +42,24 @@ function editedParagraph(doc, from, to) {
 }
 
 function retainedInlineState(value, transaction) {
-    if (!value.findings.length) return empty();
-    const changes = [], paragraphs = [];
+    if (!value.decorations.size) return empty();
+    const paragraphs = [];
     let structural = false;
     transaction.changes.iterChanges((from, to, nextFrom, nextTo, inserted) => {
         const before = transaction.startState.doc, after = transaction.newDoc;
-        changes.push({ from, to, insertedLength: inserted.length });
         paragraphs.push(editedParagraph(before, from, to));
         structural ||= writingEditChangesStructure({ removed: before.sliceString(from, to), inserted: inserted.toString(),
             beforeLine: before.sliceString(before.lineAt(from).from, before.lineAt(to).to),
             afterLine: after.sliceString(after.lineAt(nextFrom).from, after.lineAt(nextTo).to) });
     });
-    return { findings: retainWritingFindings(value.findings, { changes, paragraphs, structural }), actions: {}, stale: true };
+    if (structural) return inlineState(Decoration.none, Decoration.none, {}, true);
+    let decorations = value.local;
+    for (const paragraph of paragraphs) {
+        decorations = decorations.update({ filterFrom: paragraph.from, filterTo: paragraph.to,
+            filter: (from, to) => { countEditorWork('writing.inlineInvalidation'); return from > paragraph.to || to < paragraph.from; } });
+    }
+    decorations = decorations.map(transaction.changes);
+    return inlineState(decorations, decorations, {}, true);
 }
 export const inlineWritingState = StateField.define({
     create: empty,
@@ -46,32 +70,22 @@ export const inlineWritingState = StateField.define({
             // Status publications must not erase the mapped display-only marks.
             if (snapshot?.stale) continue;
             const findings = inlineWritingFindings(snapshot);
-            value = { findings, actions };
+            const ranges = findings.map(finding => Decoration.mark({ finding,
+                class: 'cm-lintRange cm-writing-range', attributes: { 'data-writing-id': finding.id },
+            }).range(finding.from, finding.to));
+            value = inlineState(Decoration.set(ranges, true),
+                Decoration.set(ranges.filter(range => !writingFindingDependsOnDocument(range.value.spec.finding)), true), actions);
         }
         return value;
     },
+    provide: field => EditorView.decorations.from(field, value => value.decorations),
 });
 
-function visibleMarks(view) {
-    return Decoration.set(visibleWritingRanges(view.state.field(inlineWritingState).findings, view.visibleRanges)
-        .map(({ finding, from, to }) => Decoration.mark({
-            class: 'cm-lintRange cm-writing-range', attributes: { 'data-writing-id': finding.id },
-        }).range(from, to)), true);
-}
-const writingMarks = ViewPlugin.fromClass(class {
-    constructor(view) { this.decorations = visibleMarks(view); }
-    update(update) {
-        if (update.viewportChanged || update.startState.field(inlineWritingState) !== update.state.field(inlineWritingState)) {
-            this.decorations = visibleMarks(update.view);
-        }
-    }
-}, { decorations: plugin => plugin.decorations });
-
-const writingLinkHints = createWritingLinkHints(state => state.field(inlineWritingState).findings);
+const writingLinkHints = createWritingLinkHints(state => state.field(inlineWritingState).decorations, findingsInRange);
 const writingHover = hoverTooltip((view, position, side) => {
     const state = view.state.field(inlineWritingState);
-    const link = view.plugin(writingLinkHints)?.at(position, state.findings);
-    const findings = link?.findings || writingFindingsAt(state.findings, position, side);
+    const link = view.plugin(writingLinkHints)?.at(position, state.decorations);
+    const findings = link?.findings || writingFindingsAt(findingsInRange(state.decorations, position, position), position, side);
     if (!findings.length) return null;
     return { pos: link?.from ?? Math.min(...findings.map(item => item.from)), end: link?.to ?? Math.max(...findings.map(item => item.to)), above: false,
         create() {
@@ -105,9 +119,9 @@ const writingHover = hoverTooltip((view, position, side) => {
     || transaction.effects.some(effect => effect.is(setInlineWriting)) });
 
 export function openInlineWriting(view) {
-    const { findings } = view.state.field(inlineWritingState, false) || empty();
+    const { decorations } = view.state.field(inlineWritingState, false) || empty();
     const position = view.state.selection.main.head;
-    const found = writingFindingsAt(findings, position)[0];
+    const found = writingFindingsAt(findingsInRange(decorations, position, position), position)[0];
     // Consume the review shortcut while checks refresh instead of invoking GTK's emoji picker.
     if (!found) return Boolean(view.state.field(inlineWritingState, false));
     activateHover(view, Math.max(found.from, Math.min(position, found.to - 1)), 1, { tooltip: writingHover });
@@ -115,7 +129,7 @@ export function openInlineWriting(view) {
     return true;
 }
 
-export const writingInlineExtension = [inlineWritingState, writingMarks, writingLinkHints, writingHover,
+export const writingInlineExtension = [inlineWritingState, writingLinkHints, writingHover,
     tooltips({ tooltipSpace: view => {
         const viewport = view.dom.ownerDocument.defaultView;
         if (!view.dom.querySelector('.cm-writing-tooltip')) return { left: 0, top: 0, right: viewport.innerWidth, bottom: viewport.innerHeight };

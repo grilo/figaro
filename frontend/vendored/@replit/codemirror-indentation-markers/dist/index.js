@@ -1,3 +1,4 @@
+import { activeIndentationLines } from '../../../../js/core/indentationMarkerModel.js';
 import { getIndentUnit } from '@codemirror/language';
 import { Facet, combineConfig, RangeSetBuilder } from '@codemirror/state';
 import { ViewPlugin, EditorView, Decoration } from '@codemirror/view';
@@ -228,53 +229,9 @@ class IndentationMap {
      * the active indent level for the lines in the block.
      */
     findAndSetActiveLines() {
-        const currentLine = getCurrentLine(this.state);
-        if (!this.has(currentLine)) {
-            return;
-        }
-        let current = this.get(currentLine);
-        // check if the current line is starting a new block, if yes, we want to
-        // start from inside the block.
-        if (this.has(current.line.number + 1)) {
-            const next = this.get(current.line.number + 1);
-            if (next.level > current.level) {
-                current = next;
-            }
-        }
-        // same, but if the current line is ending a block
-        if (this.has(current.line.number - 1)) {
-            const prev = this.get(current.line.number - 1);
-            if (prev.level > current.level) {
-                current = prev;
-            }
-        }
-        if (current.level === 0) {
-            return;
-        }
-        current.active = current.level;
-        let start;
-        let end;
-        // iterate to the start of the block
-        for (start = current.line.number; start > 1; start--) {
-            if (!this.has(start - 1)) {
-                continue;
-            }
-            const prev = this.get(start - 1);
-            if (prev.level < current.level) {
-                break;
-            }
-            prev.active = current.level;
-        }
-        // iterate to the end of the block
-        for (end = current.line.number; end < this.state.doc.lines; end++) {
-            if (!this.has(end + 1)) {
-                continue;
-            }
-            const next = this.get(end + 1);
-            if (next.level < current.level) {
-                break;
-            }
-            next.active = current.level;
+        const entries = [...this.map.values()].map(entry => ({ number: entry.line.number, level: entry.level }));
+        for (const { number, level } of activeIndentationLines(entries, getCurrentLine(this.state).number)) {
+            this.get(number).active = level;
         }
     }
 }

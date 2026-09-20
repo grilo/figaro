@@ -1,7 +1,7 @@
 /** Reuse only exact paragraph inputs. The adapter supplies pinned package work
  * and cooperative yielding; offsets and document-wide policy are applied later.
  */
-export function createWritingParagraphChecks({ analyze, maximumEntries = 2048, maximumWeight = 4 * 1024 * 1024 }) {
+export function createWritingParagraphChecks({ analyze, maximumEntries = 8192, maximumWeight = 4 * 1024 * 1024 }) {
     const entries = new Map();
     let weight = 0, hits = 0, scans = 0, batches = 0;
     function retain(text, value) {

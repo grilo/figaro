@@ -1,8 +1,10 @@
 /** Reviewed English technical vocabulary supplements the bundled small dictionary.
  * Recognition only: these entries do not authorize replacements or infer identity.
  */
-export const spellingVocabularyVersion = '3';
+export const spellingVocabularyVersion = '4';
 const technicalWords = new Set([
+    'args', 'backoff', 'backoffs', 'ctrl', 'debounce', 'debounced', 'debounces', 'debouncing',
+    'fn', 'lifecycle', 'lifecycles', 'sigint', 'unref', 'whatwg',
     'async', 'backpressure', 'dotfile', 'dotfiles', 'etag', 'etags', 'fallback', 'fallbacks',
     'fallthrough', 'middleware', 'npm', 'pathname', 'pathnames',
     'anonymized', 'api', 'apis', 'bigint', 'citable', 'conda', 'containerized', 'dependences', 'destructuring', 'doi', 'dois',

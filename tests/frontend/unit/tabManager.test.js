@@ -515,6 +515,28 @@ describe('Tab Manager', () => {
             expect(setEditorContent).toHaveBeenLastCalledWith('# Second\n', 'external:second', null);
         });
 
+        test('Settings mounts the shared personal dictionary under Editor and disposes its subscription on close', async () => {
+            const unsubscribe = jest.fn();
+            const dictionary = { words: () => ['figaro'], restore: async () => ['figaro'], subscribe: jest.fn(() => unsubscribe) };
+            initTabManager({ dictionary });
+            try {
+                openTab('settings', 'Settings', 'settings');
+                await testUtils.waitFor(0);
+                const section = document.querySelector('.spelling-dictionary-settings');
+                expect(section.closest('.settings-card').querySelector('h2').textContent).toBe('Editor');
+                expect(section.textContent).toContain('1 accepted word');
+                expect(section.querySelector('ul, input')).toBeNull();
+                for (const id of ['navigation-settings-title', 'vim-settings-title', 'pure-settings-title']) {
+                    const heading = document.getElementById(id);
+                    const group = heading.closest('.settings-section--inset');
+                    expect(group.getAttribute('aria-labelledby')).toBe(id);
+                    expect(group.querySelectorAll('input[type=checkbox]').length).toBeGreaterThan(1);
+                }
+                await closeTab('settings');
+                expect(unsubscribe).toHaveBeenCalledTimes(1);
+            } finally { initTabManager(); }
+        });
+
         test('reinitializes settings when the settings tab is reopened', async () => {
             openTab('note.md', 'Note', 'file', { path: 'note.md' });
             openTab('settings', 'Settings', 'settings');

@@ -42,7 +42,7 @@ const help = {
         ],
     },
     formulaic: {
-        coverage: 'Reviews stock framing, rhetorical patterns, wordiness, repetition, stacked qualifications, unspaced em dashes, and curly quotes or apostrophes.',
+        coverage: 'Reviews stock framing, rhetorical patterns, wordiness, repetition, stacked qualifications, unspaced em dashes, and curly punctuation that differs from the note’s prevailing straight style.',
         limits: 'These are optional style and typography preferences, not evidence of AI authorship. They can be intentional. Formulaic advice requires manual editing; the examples do not rewrite your text.',
         examples: [
             { label: 'Stock framing', before: 'It is worth noting that the draft is ready.', after: 'The draft is ready.' },

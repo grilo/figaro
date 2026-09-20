@@ -86,6 +86,7 @@
 }
 .cm-line.cm-blockquote-line .cm-formatting-block {
     color: var(--quote-border);
+    font-family: inherit;
 }
 .cm-code { background: var(--hover-bg) !important; padding: 0.15em 0.4em !important; border-radius: 4px !important; font-size: 0.9em !important; font-family: var(--font-mono) !important; }
 
@@ -204,6 +205,10 @@
 .cm-editor .cm-line.cm-markdown-list-item {
     padding-left: var(--cm-list-hanging-indent) !important;
     text-indent: var(--cm-list-hanging-outdent) !important;
+}
+.cm-editor .cm-line.cm-markdown-list-item .cm-formatting-block {
+    /* Match the source-prefix font used by the cached hanging-indent measure. */
+    font-family: inherit;
 }
 .cm-formatting-code { color: var(--text-dim); }
 

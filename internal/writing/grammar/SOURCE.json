@@ -1,6 +1,6 @@
 {
   "implementation": "Pure Go grammar decisions with reviewed phrase mappings adapted from Harper and conservative contextual guards; no native Harper runtime or Rust source bundled",
-  "policyVersion": "7",
+  "policyVersion": "8",
   "reference": {
     "package": "Automattic/harper",
     "version": "2.10.0",
@@ -191,8 +191,10 @@
     "CapitalizePersonalPronouns",
     "CaseInPoint",
     "CommaFixes",
+    "CommaSplice",
     "CompoundSubjectI",
     "CorrectNumberSuffix",
+    "CountableAmount",
     "CriteriaPhenomena",
     "CureFor",
     "CuriousAbout",
@@ -319,9 +321,11 @@
     "WroteToRote",
     "YourPredicateAdjective"
   ],
-  "scope": "These 154 added IDs, alongside the original six pure checks, name reviewed subsets. Policy 6 adds 60 contextual usage checks and an independently authored NounSubjectAgreement rule, and broadens MassNouns for fewer with reviewed uncountable heads. The Harper sources document reference families, not equivalence or full upstream behavior. Valid regional, literal, technical and ambiguous readings abstain; the accepted variants suffice to say, none the less and intransitive crave for are preserved. Policy 5 and earlier guardrails remain in force.",
+  "scope": "These 156 added IDs, alongside the original six pure checks, name reviewed subsets. Policy 8 extends noun-subject agreement across one bounded prepositional modifier and adds independently authored CountableAmount and advisory CommaSplice checks. Policy 7 broadens 29 existing families; earlier literal, regional, technical, compound and ambiguous-reading guards remain in force. Harper reference families are not claims of equivalent behavior.",
   "tests": "tests/fixtures/writing-grammar.json",
   "independentRuleIDs": [
-    "NounSubjectAgreement"
+    "NounSubjectAgreement",
+    "CountableAmount",
+    "CommaSplice"
   ]
 }

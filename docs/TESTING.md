@@ -7,8 +7,23 @@ the shared strategy and commands; linked feature contracts retain the detailed r
 
 Cursor performance checks include the active bundled Markdown providers,
 actual syntax visits/source slices, decoration identity and bounded range/Outline
-work as well as parsing and I/O limits; see the
+work as well as parsing and I/O limits. Inline regressions cover cached list/quote
+indentation, ordinary/reference link source reveal, indexed writing hints and
+same-line gutter reuse; see the
 [editor update contract regressions](testing/editor.md#editor-update-contract-regressions).
+
+Typing regressions advance scheduled frames with controlled time so CPU load
+cannot turn a typing burst into an unintended statistics pause. They observe actual full-document
+reads, Outline DOM mutations, hidden Kanban parsing, list/extras projection builds,
+and indentation style reads. Lazy snapshots must remain current for preview/save
+readers, while warm Kanban activation catches up to the newest unsaved task.
+
+The consolidated `editorRemainingWork.test.js` checks all ten interaction
+findings at small and large scales. Complement it with pointer/footnote tests,
+streamed completion equivalence and invalidation, indentation-scope equivalence,
+bounded Mermaid success/failure reuse and stale-lint cancellation. Operation
+counts establish avoided work; browser/native key and pointer checks establish
+selection geometry. See [the consolidated report](benchmarks/editor-interaction-findings-2026-09-20.md).
 
 The editor interaction regressions also cover rich-prose mapping, retained
 preview clicks, indexed helper-rail and Pure phrase lookup, and single-record
@@ -654,6 +669,14 @@ specimen is wired to that production controller. `editorUX.spec.js` keeps one
 actual Settings path for focus entry, semantic headings, keyboard selection,
 and normal Tab continuation.
 
+Settings cutout groups have catalogue/registry coverage and use the same
+workspace surface in every theme. The existing Settings browser scenario also
+covers the dictionary dialog's bounded overflow, resize fit and focus handoff.
+Personal dictionary list/mutation coverage is documented in the
+[writing contract](testing/writing.md#writing-review-regression-coverage). Settings
+return geometry retains per-frame coverage in the
+[editor contract](testing/editor.md#editor-buffer-undo-ownership).
+
 The Settings component contract also requires every picker, stepper, and short
 choice in the Settings template to opt into its approved quiet modifier. The
 catalogue browser boundary compares a pointer-open picker with keyboard focus:
@@ -782,7 +805,8 @@ See [Windows keyboard-layout regressions](testing/editor.md#windows-keyboard-lay
 
 See [Editor update contract regressions](testing/editor.md#editor-update-contract-regressions)
 for notification isolation, tracing and assembled cursor/typing work limits.
-That contract also owns mapped prose edits, selective block source projection,
+That contract also owns mapped prose edits, scoped heading/code/soft-line updates,
+partial-parser progress, unrelated settings reuse, selective block source projection,
 heading indexes, cached Find counts and direct cursor-store work budgets.
 
 ## Block widget and cursor regressions
@@ -936,7 +960,7 @@ continuity, staging rollback, and coalesced session metadata.
 
 The curated English grammar expansion has a dedicated
 [lower-layer and native verification contract](testing/writing.md#curated-grammar-regression-coverage),
-including 175 grammar rule IDs, reviewed valid sentences, Unicode/Markdown source
+including 177 grammar rule IDs, reviewed valid sentences, Unicode/Markdown source
 spans, native Harper comparison, and dense-line mapping.
 The [whole-document evaluation](benchmarks/writing-documents-2026-09-20.md)
 combines every writing provider and the selected spelling dictionary with
@@ -949,5 +973,18 @@ The [quality follow-up](benchmarks/writing-quality-2026-09-20.md) adds technical
 spelling and contextual/duplicate-advice regressions, broader existing grammar
 contexts, and a separately frozen eight-document evaluation. Run the same runner
 with `--manifest tests/fixtures/writing-quality-documents/manifest.json`; follow
-the [quality regression contract](testing/writing.md#writing-quality-regression-coverage)
+the [quality regression contract](testing/writing.md#writing-quality-regression-coverage),
+including [suggestion relevance](benchmarks/writing-relevance-2026-09-20.md) and
+[descriptive/existential context](benchmarks/writing-context-2026-09-20.md),
 for dictionary, full/incremental, Ignore and Markdown Apply/Undo boundaries.
+
+The [full typing inventory](benchmarks/editor-typing-inventory-2026-09-20.md)
+records operation-count evidence and the installed-consumer audit. Its regression
+ownership is in [editor testing](testing/editor.md#full-typing-inventory-regressions)
+and [writing testing](testing/writing.md); fresh-parse comparisons protect
+incremental rendering semantics alongside the native interaction matrix.
+
+Optional editor wheel smoothing uses the pure/controller/adapter matrix in
+`wheelScroll.test.js`, preference persistence in `state.test.js`, and one
+real-wheel geometry workflow in `editorUX.spec.js`. See
+[optional wheel scrolling](testing/editor.md#optional-wheel-scrolling).

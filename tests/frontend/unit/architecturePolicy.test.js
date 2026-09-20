@@ -4,7 +4,10 @@ import { BACKEND_METHODS } from '../../../frontend/js/backendContract.js';
 
 const JS_ROOT = path.resolve('frontend/js');
 // Follow reviewed adapter imports through their real eager application edge.
-const ADAPTER_IMPORTS = new Map([['codemirror-live-markdown', path.resolve('frontend/vendored/codemirror-live-markdown/index.js')]]);
+const ADAPTER_IMPORTS = new Map([
+    ['codemirror-live-markdown', path.resolve('frontend/vendored/codemirror-live-markdown/index.js')],
+    ['@replit/codemirror-indentation-markers', path.resolve('frontend/vendored/@replit/codemirror-indentation-markers/dist/index.js')],
+]);
 
 function sourceFiles(directory, extension = '.js') {
     if (!fs.existsSync(directory)) return [];
@@ -213,6 +216,13 @@ describe('frontend architecture policy', () => {
             path.join(JS_ROOT, 'core/selectionRangeIndex.js'),
         ]));
         expect(graph.get(adapter).every(file => file.startsWith(path.join(JS_ROOT, 'core/')))).toBe(true);
+    });
+
+    test('the reviewed indentation adapter connects eagerly and depends only on pure core helpers', () => {
+        const graph = firstPartyImportGraph();
+        const adapter = ADAPTER_IMPORTS.get('@replit/codemirror-indentation-markers');
+        expect(graph.get(path.join(JS_ROOT, 'editor.js'))).toContain(adapter);
+        expect(graph.get(adapter)).toEqual([path.join(JS_ROOT, 'core/indentationMarkerModel.js')]);
     });
 
     test('every first-party module is reachable from an application or renderer-build entry point', () => {

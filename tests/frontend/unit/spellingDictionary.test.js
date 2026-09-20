@@ -63,3 +63,21 @@ test('adding the possessive first suppresses its base only after a successful sa
     expect(await spellcheckDiagnostics(source, 'en-US', checker, dictionary.words())).toEqual([]);
     expect(await spellcheckSuggestionsAtPosition(source, 2, 'en-US', checker, dictionary.words())).toBeNull();
 });
+
+test('dictionary removal serializes with additions and Undo adds only the removed entry', async () => {
+    let words = ['figaro', 'codex'], finish;
+    const remove = jest.fn(() => new Promise(resolve => { finish = () => { words = ['figaro']; resolve(words); }; }));
+    const dictionary = createSpellingDictionary({ load: async () => words, remove, add: async word => (words = [...new Set([...words, word])]) });
+    const listener = jest.fn(), unsubscribe = dictionary.subscribe(listener);
+    await dictionary.restore();
+    const removal = dictionary.remove('codex');
+    const addition = dictionary.add('other');
+    await Promise.resolve(); await Promise.resolve();
+    expect(dictionary.words()).toEqual(['figaro', 'codex']);
+    finish(); await removal; await addition;
+    expect(dictionary.words()).toEqual(['figaro', 'other']);
+    await dictionary.add('codex');
+    expect(dictionary.words()).toEqual(['figaro', 'other', 'codex']);
+    unsubscribe(); const count = listener.mock.calls.length;
+    await dictionary.add('last'); expect(listener).toHaveBeenCalledTimes(count);
+});

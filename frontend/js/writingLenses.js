@@ -1,3 +1,4 @@
+import { requestSettingsTarget } from './settingsNavigation.js';
 import { subscribeEditorUpdates } from './editorUpdates.js';
 import { deferEditorWork, readEditorDocument } from './editorDiagnostics.js';
 import { createWritingPathContinuity } from './usecases/writingPathContinuity.js';
@@ -52,6 +53,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
     const viewOptions = {
         onChange: action => { if (!applyAll.snapshot().applying) preferences?.update(action); },
         onRetry: () => void (applyAll.snapshot().applyError ? applyAll.retry() : preferences?.retry()),
+        onManageDictionary: () => { closeQuick(); requestSettingsTarget(document, '#personal-dictionary-manage', { activate: true }); },
         onApplyAll: () => { if (preferences) void applyAll.apply(preferences.snapshot().preferences); },
     };
     const paneView = createWritingLensesView({ id: 'writing-lenses-pane', ...viewOptions });

@@ -1,4 +1,4 @@
-import { analyzeWritingFull, createIncrementalWritingAnalyzer } from '../../../frontend/vendored/writing/runtime.js';
+import { analyzeWritingFull, createIncrementalWritingAnalyzer, createIncrementalWritingSource, prepareWritingSource } from '../../../frontend/vendored/writing/runtime.js';
 import { createWritingParagraphChecks } from '../../../frontend/js/usecases/writingParagraphChecks.js';
 import editorial from '../../fixtures/writing-editorial.json';
 
@@ -62,4 +62,54 @@ test('paragraph caches are bounded and never retain failed package work', async 
     await expect(cache.check('fail')).rejects.toThrow('failed');
     await expect(cache.check('fail')).rejects.toThrow('failed');
     expect(analyze.mock.calls.filter(([text]) => text === 'fail')).toHaveLength(2);
+});
+
+test('paragraph retention covers a large note without exceeding the existing memory budget', async () => {
+    const cache = createWritingParagraphChecks({ analyze: text => ({ length: text.length }) });
+    const paragraphs = Array.from({ length: 4100 }, (_, index) => `Unique short paragraph ${index}.\n\n`);
+    for (const paragraph of paragraphs) await cache.check(paragraph);
+    const cold = cache.stats();
+    for (const paragraph of paragraphs) await cache.check(paragraph);
+    expect(cache.stats().scans).toBe(cold.scans);
+    expect(cache.stats().entries).toBe(paragraphs.length);
+    expect(cache.stats().weight).toBeLessThanOrEqual(4 * 1024 * 1024);
+    const tiny = createWritingParagraphChecks({ analyze: text => ({ text }), maximumWeight: 1000 });
+    for (const paragraph of paragraphs) await tiny.check(paragraph);
+    expect(tiny.stats().weight).toBeLessThanOrEqual(1000);
+    expect(tiny.stats().entries).toBeLessThan(paragraphs.length);
+});
+
+
+test('Markdown projection reuses untouched blocks and preserves exact Unicode, quote, entity and exclusion maps', () => {
+    const runtime = createIncrementalWritingSource();
+    const initial = '# A heading\n\n😀 Café **prose** with &amp; and \"quoted words\".\r\nA second line.\n\n- A list item.\n\n> Quoted block.\n\n```js\nconst value = 1;\n```\n\n[[Note|Visible words]] and [^marker].';
+    expect(runtime.prepare(initial)).toEqual(prepareWritingSource(initial));
+    const edited = initial.replace('Café', 'Cafeteria');
+    expect(runtime.prepare(edited)).toEqual(prepareWritingSource(edited));
+    expect(runtime.stats()).toMatchObject({ fullParses: 1, blockParses: 1, projectedBlocks: 7, reusedBlocks: 5 });
+    const sourceMap = runtime.prepare(edited);
+    const repeated = runtime.prepare(edited);
+    expect(repeated).toEqual(sourceMap);
+    expect(repeated.units[0]).toBe(sourceMap.units[0]);
+    for (const source of [edited.replace('A heading', 'A useful heading'), edited.replace('second line', 'second\nsoft line'),
+        edited.replace('Cafeteria', 'Cafeteria\n\nOther prose'), edited.replace('const value = 1', 'const value = 2'),
+        `Inserted paragraph.\n\n${edited}`, initial]) {
+        expect(runtime.prepare(source)).toEqual(prepareWritingSource(source));
+    }
+});
+
+test('projection invalidates reference definitions and frontmatter while reusing exact maps through structural edits', () => {
+    const runtime = createIncrementalWritingSource();
+    const sources = [
+        'A [label][ref] and ![photo][ref].\n\n[ref]: /one',
+        'A [label][ref] and ![photo][ref].\n\n[other]: /one',
+        'A [label][ref] and ![photo][ref].\n\n[ref]: /two',
+        '---\ntitle: hidden\n---\n\nA paragraph.',
+        '---\ntitle: hidden\n\nA paragraph.',
+        'A first paragraph.\n\nA second paragraph.',
+        'A first paragraph.\n\nNew paragraph.\n\nA second paragraph.',
+        'A first paragraph.\n\nNew paragraph.\n\nA second paragraph.\n\n[^note]: Footnote prose.',
+    ];
+    for (const source of sources) expect(runtime.prepare(source)).toEqual(prepareWritingSource(source));
+    expect(runtime.stats().reusedBlocks).toBeGreaterThan(1);
 });

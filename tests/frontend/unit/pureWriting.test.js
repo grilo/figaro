@@ -114,6 +114,16 @@ describe('Pure writing CodeMirror presentation', () => {
         expect(plugin.focusCache.phrases).not.toBe(phrases);
     });
 
+    test('typing avoids presentation writes while explicit appearance refresh still applies', () => {
+        const write = jest.spyOn(view.dom.style, 'setProperty');
+        try {
+            for (let index = 0; index < 10; index++) view.dispatch({ changes: { from: 43, insert: 'x' }, userEvent: 'input.type' });
+            expect(write).not.toHaveBeenCalled();
+            refreshPureWriting(view);
+            expect(write).toHaveBeenCalled();
+        } finally { write.mockRestore(); }
+    });
+
     test('Pure cursor motion queries cached phrases without reading every sentence', () => {
         focusScope = 'phrase';
         const source = Array(1000).fill('One ordinary sentence. ').join('');

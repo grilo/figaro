@@ -42,7 +42,7 @@ with the note’s selected analysis language. There is no automatic language det
 | Dependency / immutable pin | Upstream and notices | Emitted checks / scope | Fix support |
 | --- | --- | --- | --- |
 | Vale 3.20.0 | [Vale release](https://github.com/vale-cli/vale/releases/tag/v3.20.0), MIT in `third_party/vale/LICENSE` | Embedded Go library; in-memory Figaro rules, projected prose, compatible JSON output | Style rules are advisory; reviewed grammar actions require exact source validation |
-| Harper port 0.1.0 + Figaro grammar 7 | Apache-2.0 rules/dictionary in `internal/writing/styles/Harper`; [reviewed scope](WRITING_HARPER.md) | Fifteen selected YAML rules and 160 pure Go checks in the existing native worker | Bounded allowlisted literal replacements; exact, editable source only |
+| Harper port 0.1.0 + Figaro grammar 8 | Apache-2.0 rules/dictionary in `internal/writing/styles/Harper`; [reviewed scope](WRITING_HARPER.md) | Fifteen selected YAML rules and 162 pure Go checks in the existing native worker | Bounded allowlisted literal replacements; exact, editable source only |
 | write-good `c9ceca7f574248a201d5524b001099c5626c7519` | [Pinned style source](https://github.com/vale-cli/write-good/tree/c9ceca7f574248a201d5524b001099c5626c7519), MIT in `internal/writing/styles/LICENSE` | Seven rules: Passive, TooWordy, Cliches, Illusions, So, ThereIs, Weasel; E-Prime and Vale built-ins disabled | Detection only; compatible retext evidence can contribute a phrase fix |
 | retext-passive 5.0.0 | [Source](https://github.com/retextjs/retext-passive), MIT | `retext-passive` plus native rule IDs; participle-based possible passive detection | Advisory only |
 | retext-simplify 8.0.0 | [Source](https://github.com/retextjs/retext-simplify), MIT | `retext-simplify` plus native message subtypes; all native phrases map to contextual wordiness or vocabulary advice | Seven reviewed phrase forms offer verified alternatives, case matched, contiguous source only |
@@ -57,7 +57,7 @@ with the note’s selected analysis language. There is no automatic language det
 | retext-readability 8.0.0 | [Source](https://github.com/retextjs/retext-readability), MIT | Conservative complex-sentence advice under Readability | Advisory only; length and complexity remain separate concerns |
 | @textlint-rule/textlint-rule-no-unmatched-pair 2.0.4 | [Source](https://github.com/textlint-rule/textlint-rule-no-unmatched-pair), MIT | Unmatched opening punctuation under Grammar & punctuation | Advisory example; no guessed closing position |
 | textlint-rule-terminology 5.2.16 | [Source](https://github.com/sapegin/textlint-rule-terminology), MIT | 29 reviewed technical names under Consistency; defaults/file configuration disabled | Exact canonical spelling, individual safe source edits |
-| Slopless 0.2.38 | [Source](https://github.com/berelevant-ai/slopless), MIT in bundled writing notices | 30 selected English rules under Formulaic writing; [all 47 exclusions](WRITING_SLOPLESS.md) | Advisory examples and reversible Ignore only, including em-dash/curly-punctuation advice |
+| Slopless 0.2.38 | [Source](https://github.com/berelevant-ai/slopless), MIT in bundled writing notices | 30 selected English rules under Formulaic writing; [all 47 exclusions](WRITING_SLOPLESS.md) | Advisory examples and reversible Ignore only, including em dashes and curly outliers against authored straight punctuation |
 | Microsoft `8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e` | [Pinned source](https://github.com/vale-cli/Microsoft/tree/8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e), MIT in `internal/writing/styles/Microsoft/LICENSE` | Acronyms, Adverbs, Jargon, Passive, SentenceLength, Wordiness; hashes in `SOURCE.json` | General example only; no guessed expansion |
 | proselint `8e24adbaa5dc6593b331f8bfab23c9af044af406` | [Pinned source](https://github.com/vale-cli/proselint/tree/8e24adbaa5dc6593b331f8bfab23c9af044af406), BSD-3-Clause in `internal/writing/styles/proselint/LICENSE` | Fourteen selected rules; full inventory in [package review](WRITING_PACKAGE_REVIEW.md), hashes in `SOURCE.json` | General examples only; no generated replacements |
 | Figaro writing rules 1 | `frontend/js/core/writingAdditionalRules.js`, repository license | Curated consistency, punctuation, and paragraph sentence length | Individual term/punctuation fixes; Readability is advisory |
@@ -199,14 +199,14 @@ Article context must reach the next prose word without crossing an excluded
 range. Sentence-initial “A” becomes “An”; acronym capitalization alternatives
 retain the chosen form. Contractions repair missing/misplaced apostrophes while
 preserving the existing style, or using the prevailing convention if absent.
-Correct straight/curly contraction typography belongs to Consistency or optional Formulaic style advice, rather than Grammar. Ellipses and expressive punctuation remain unchanged.
+Correct straight/curly contraction typography belongs to Consistency or optional Formulaic style advice, rather than Grammar. Formulaic curly marks must differ from the note’s prevailing straight quote or apostrophe convention; consistent authored curly styles are preserved. Ellipses and expressive punctuation remain unchanged.
 
-Editorial policy version 5 retains the correction to the upstream article treatment for reviewed
+Editorial policy version 8 retains the correction to the upstream article treatment for reviewed
 consonant-sounding vowels (“a unicorn,” “a European”) and silent consonants
 (“an hour,” “an honest answer”). Unknown `u`/`eu` families and dialect-dependent
 `herb`/`historic`, SQL, and URL pronunciations are withheld. Reviewed cases can
 span a soft wrap within eligible prose; context cannot cross protected spans.
-Fifteen reviewed Harper-port rules and 160 pure Go checks add conservative agreement, infinitive, auxiliary, number, possessive, homophone, word-choice, compound-subject, question, phrase, word-boundary, ordinal, capitalization, and comma coverage (175 IDs). Reviewed preposition/word-choice contexts and determiner-led noun-subject auxiliaries add usage coverage; fewer → less preserves countable noun compounds. Selected adjacent-pronoun conflicts remain advisory. These are selected patterns, not complete grammar analysis; see [the grammar contract](WRITING_HARPER.md). Blocks with masked quotation/code/technical context are withheld from the new checks.
+Fifteen reviewed Harper-port rules and 162 pure Go checks add conservative agreement, infinitive, auxiliary, number, possessive, homophone, word-choice, compound-subject, question, phrase, word-boundary, ordinal, capitalization, and comma coverage (177 IDs). Reviewed preposition/word-choice contexts and determiner-led noun-subject auxiliaries add usage coverage; fewer → less preserves countable noun compounds. Selected adjacent-pronoun conflicts remain advisory. These are selected patterns, not complete grammar analysis; see [the grammar contract](WRITING_HARPER.md). Contextual grammar retains whole-block masking. CountableAmount instead verifies its complete visible phrase, and advisory-only CommaSplice verifies bounded clauses while treating technical subjects as opaque; neither can alter hidden text.
 
 The unmatched-pair rule flags supported opening marks left without a matching
 closer, including parentheses, brackets, braces, and straight double quotes.
@@ -230,7 +230,7 @@ length findings from Figaro and Microsoft retain both native sources. Microsoft
 uses the same threshold; its native anchor expands only when the mapped sentence itself exceeds 30 words. The local check preserves eligible long-sentence coverage when native sentence boundaries disagree. The explanation distinguishes measured length from formula
 estimates and includes a general splitting/simplifying example; no automatic
 rewrite or reading-grade score is offered, and the estimates do not measure
-writing quality. Mapping/configuration version 20 includes package pins, editorial policy version 5, spelling vocabulary version 3,
+writing quality. Mapping/configuration version 23 includes package pins, editorial policy version 8, spelling vocabulary version 4,
 reviewed terms/acronym exceptions, and formula options so stale findings cannot survive a policy change. All prose
 lenses support English US/UK, save independently with the existing version 3
 preferences, and reuse dotted marks, grouped cards, Ignore, and guarded fixes.
@@ -314,7 +314,7 @@ Version 3 saves lens combinations and language per note path. Versions 1/2
 read primary plus overlays as independent lenses and retain legacy vault choices
 as defaults; explicit save migrates without losing unknown fields or other notes.
 The former profile gate is removed. Proofreading and the analysis language are the sole
-spelling controls; old Settings and YAML values are preserved but ignored.
+spelling enablement/language controls; old Settings and YAML values are preserved but ignored. Settings also manages the vault’s accepted personal words.
 
 Spelling eligibility uses the existing pure Lezer Markdown parser through
 `core/spellingModel.js`. It excludes explicit link-reference IDs/definitions, footnote identifiers and
@@ -350,7 +350,7 @@ invented possessive apostrophes are withheld, while reviewed contraction shapes
 remain available. Generated English alternatives cannot merely remove a final
 plural `s` from an unknown word. Recognition of a term never
 authorizes a rewrite. Analysis parsing and resolution remain worker-only; no scans are added
-to input handlers. Mapping/configuration version 20 invalidates older evidence.
+to input handlers. Mapping/configuration version 23 invalidates older evidence.
 
 ## Corpus context guards
 
@@ -370,6 +370,23 @@ verified within one projection block before retaining an unmatched-pair warning.
 Equivalent “there is/are” advice merges across Plain language and Directness,
 preserving independent selection, every source and legacy occurrence Ignore
 decisions. Grammar policy 7 broadens existing contexts without adding rule IDs.
+The later [document-gap corrections](WRITING_HARPER.md#document-gap-corrections)
+add countable-quantity and advisory comma-splice checks, extend agreement across
+one prepositional modifier, and disambiguate perfect “saw” from tool nouns.
+Spelling recognizes further technical abbreviations and compound components;
+PascalCase and dotted identifier members share the pure token policy. Temporal,
+literal, observed-scene and adjectival-state guards remove mismatched advice.
+The later [suggestion-relevance review](benchmarks/writing-relevance-2026-09-20.md)
+adds reviewed familiar-word, meaningful-modifier and technical-passive guards.
+It retains explicit actors, useful phrase shortening and general passive advice.
+Curly punctuation follows the same current-note convention as Consistency,
+computed once during resolution without changing raw paragraph caches.
+
+The [descriptive-context follow-up](benchmarks/writing-context-2026-09-20.md)
+extends bounded guards to timed maintenance, physical/location descriptions,
+elliptical API behavior, possessive-gerund reactions and meaningful existential
+statements. It preserves explicit actors, weak introductions and independent
+grammar corrections while removing 32 further reviewed unnecessary findings.
 
 ## Inline review and personal spelling words
 
@@ -411,8 +428,14 @@ accepted s-ending base or regular plural. Inline review and the existing context
 lens owns both paths and deselecting it turns off spelling for this note. Saves
 are serialized and pessimistic, and the rooted adapter preserves unknown fields,
 rejects invalid/newer files and outside symlinks, and writes atomically. Failure
-keeps the suggestion and offers retry. There is no dictionary management UI;
-occurrence Ignore remains separate, is saved per note, and can be reversed in
+keeps the suggestion and offers retry. Settings → Editor → Personal dictionary
+shows a count and Manage launcher for a resizable dialog with normalized search,
+a bounded alphabetical list, Add, Remove, and Undo for the last removal. Proofreading links to it
+with Manage dictionary… in both lens views. Writes share the serialized dictionary
+use case; Undo adds only the removed entry and preserves intervening additions.
+The list mounts 100 matching entries at a time with Show more; failed loads/saves
+remain retryable and do not change effective spelling words.
+Occurrence Ignore remains separate, is saved per note, and can be reversed in
 Saved review decisions.
 
 ## Durable review decisions
@@ -481,7 +504,7 @@ removes one occurrence decision; **Review acronym again** removes one acronym
 acceptance. Reversal is available even with disabled lenses or changed text.
 The controls show saving/errors and preserve accessible focus. Successful async
 inline actions restore focus only while the originating editor/source still
-owns it. The decisions participate in mapping/configuration version 20; adding
+owns it. The decisions participate in mapping/configuration version 23; adding
 or removing them reuses current analyzer evidence and invalidates stale actions.
 
 ## Bounded review and bulk changes
@@ -1204,9 +1227,14 @@ platform or the current app.
 Unchanged projected paragraphs reuse exact retext/textlint package results, with
 native diagnostic positions rebased onto the current projection. Cold paragraphs
 are batched to amortize package setup. Each paragraph cache retains at most
-2,048 entries / 4 MiB estimated text-and-result data. Spelling reuses up to 4,096
+8,192 entries / 4 MiB estimated text-and-result data. Spelling reuses up to 4,096
 language/word lookups while recomputing current-source eligibility and ranges.
-Markdown projection, punctuation conventions, consistency, acronym definitions,
+Markdown projection retains one current note’s unchanged top-level block maps.
+Ordinary edits inside an independent paragraph or heading reparse that block when
+its bounds/type survive and the note has no reference definitions. Structural
+edits parse the complete note and reuse exact blocks only if reference context
+is unchanged. UTF-16 source positions, exclusions and quotation ranges are rebased
+onto the current note. Punctuation conventions, consistency, acronym definitions,
 review resolution and native Vale still receive complete-note context.
 
 Workers yield between bounded batches and spelling groups; cancellation rejects

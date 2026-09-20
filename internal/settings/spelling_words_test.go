@@ -50,3 +50,27 @@ func TestSpellingDictionaryAcceptsPossessivesAndCanonicalUnicode(t *testing.T) {
 		}
 	}
 }
+
+func TestSpellingDictionaryRemoveNormalizesAndPreservesMetadata(t *testing.T) {
+	data := []byte(`{"version":1,"words":["café","figaro"],"future":{"keep":true}}`)
+	next, words, err := RemoveSpellingWord(data, "CAFE\u0301")
+	if err != nil || len(words) != 1 || words[0] != "figaro" {
+		t.Fatalf("remove = %s %v %v", next, words, err)
+	}
+	record, _, err := ReadSpellingWords(next)
+	if err != nil || string(record["future"]) != "{\n    \"keep\": true\n  }" {
+		t.Fatalf("metadata = %s %v", record["future"], err)
+	}
+	for _, invalid := range []string{`{"version":9,"words":[]}`, `{broken`} {
+		if _, _, err := RemoveSpellingWord([]byte(invalid), "figaro"); err == nil {
+			t.Fatal("accepted invalid file")
+		}
+	}
+	if _, _, err := RemoveSpellingWord(data, "two words"); err == nil {
+		t.Fatal("accepted invalid word")
+	}
+	_, words, err = RemoveSpellingWord(nil, "absent")
+	if err != nil || len(words) != 0 {
+		t.Fatalf("missing = %v %v", words, err)
+	}
+}

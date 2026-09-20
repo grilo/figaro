@@ -69,3 +69,16 @@ test.each([12, 24])('reserved helper space remains stable with %ipx base padding
     expect(dom.style.getPropertyValue('--editor-block-writing-inset')).toBe('0px');
     dom.remove();
 });
+
+
+test('hidden buffers retain measured rail reservations until visible geometry is available', () => {
+    const dom = document.createElement('div');
+    dom.style.setProperty('--editor-block-before-rail-width', '78px');
+    dom.style.setProperty('--editor-activity-rail-width', '87px');
+    dom.style.setProperty('--editor-block-writing-inset', '24px');
+    const before = dom.style.cssText;
+    const contentDOM = { getBoundingClientRect: jest.fn() };
+    synchronizeEditorBlockActionLayout({ dom, contentDOM }, 0);
+    expect(dom.style.cssText).toBe(before);
+    expect(contentDOM.getBoundingClientRect).not.toHaveBeenCalled();
+});

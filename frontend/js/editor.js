@@ -1,3 +1,6 @@
+import { createEditorWheelScroll } from './editorWheelScroll.js';
+import { createMarkdownLineDecorations } from './markdownLineDecorations.js';
+import { referenceLinkPlugin } from './referenceLinks.js';
 import { publishEditorUpdate } from './editorUpdates.js';
 import { editorUpdateReasons } from './core/editorUpdateContract.js';
 import { editorDiagnostics, editorInputTrace, countEditorWork, traceEditorWork, deferEditorWork, readEditorDocument } from './editorDiagnostics.js';
@@ -23,7 +26,6 @@ import { createMarkdownImageField, resetMarkdownImageSize } from './markdownImag
 import { requestSourceFootprintMeasure, sourceFootprintExtension } from './sourceFootprint.js';
 import {
     defaultTabSize,
-    expandedTabText,
     normalizeTabSize,
     tabSizeIndentUnit,
 } from './core/tabSizeModel.js';
@@ -32,7 +34,6 @@ import { getFileLanguage, loadLanguageSupport } from './languageSupport.js';
 import { createFrontmatterField } from './frontmatterPlugin.js';
 import { getFrontmatterRegion } from './frontmatter.js';
 import { FRONTMATTER_UPWARD_REVEAL_USER_EVENT } from './core/frontmatterPresentationModel.js';
-import { taskCheckboxLabel, taskCheckboxReplacement } from './core/taskCheckboxModel.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
 import { createAuthoringMacroCompletionSource } from './authoringMacroCompletions.js';
@@ -89,12 +90,8 @@ import { reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
 import {
     markdownEditorNavigationAtPosition,
     markdownLinkDestinationAtPosition,
-    markdownReferenceDefinitions,
-    markdownReferenceLinesMayChange,
-    markdownReferenceLink,
     modifiedExternalBrowserURL,
     planMarkdownLinkTargetReplacement,
-    resolveMarkdownReferenceLink,
 } from './core/noteLinks.js';
 import {
     configureContextMenu,
@@ -238,7 +235,6 @@ export function configureEditorWorkspace(ports) {
         'openRawTextPreview',
         'openTab',
         'refreshFileTree',
-        'recordTabContent',
         'recordTabCursor',
         'recordTabEdit',
         'replaceActiveFileTab',
@@ -266,7 +262,6 @@ function openPDFPreview(...args) { return workspace().openPDFPreview(...args); }
 function openRawTextPreview(...args) { return workspace().openRawTextPreview(...args); }
 function openTab(...args) { return workspace().openTab(...args); }
 function refreshFileTree(...args) { return workspace().refreshFileTree(...args); }
-function recordTabContent(...args) { return workspace().recordTabContent(...args); }
 function recordTabCursor(...args) { return workspace().recordTabCursor(...args); }
 function recordTabEdit(...args) { return workspace().recordTabEdit(...args); }
 function replaceActiveFileTab(...args) { return workspace().replaceActiveFileTab(...args); }
@@ -1147,18 +1142,6 @@ export function handleExternalFileDrop(event) {
     return true;
 }
 
-export function isBlockquoteLine(line) {
-    return /^ {0,3}>\s?/.test(line);
-}
-
-export function selectionLineSignature(doc, selection) {
-    return (selection?.ranges || []).map(range => {
-        const first = doc.lineAt(range.from).number;
-        const last = doc.lineAt(range.to).number;
-        return first + ':' + last;
-    }).join('|');
-}
-
 // Link hover can fire repeatedly while the pointer crosses a rendered link's
 // child nodes. Keep the preview informative without reopening the same note on
 // every mouse event; a short TTL avoids presenting a long-lived stale preview.
@@ -1450,100 +1433,6 @@ export function handleVerticalBoundaryWheel(event, view) {
 
     scroller.scrollTop = target;
     return true;
-}
-
-const bulletMarkers = ['\u2022', '\u25E6', '\u25AA'];
-
-// Lezer includes the current BulletList in the ancestor chain for ListMark,
-// so depth 1 is the top-level list. Cycle a conventional, stable hierarchy
-// rather than shifting the first marker or flattening every deeper level.
-export function bulletMarkerForListDepth(depth) {
-    const normalizedDepth = Math.max(1, Math.floor(Number(depth) || 1));
-    return bulletMarkers[(normalizedDepth - 1) % bulletMarkers.length];
-}
-
-/**
- * Return CSS custom properties for a wrapped Markdown list item. The first
- * display row stays at the source margin, while subsequent visual rows start
- * where the item body begins. A source-column fallback keeps non-layout
- * environments deterministic; a live editor measures the current raw or
- * rendered marker so the decoration never changes the document.
- */
-export function markdownListHangingIndentAttributes(lineText, metrics = null) {
-    const match = String(lineText ?? '').match(/^([ \t]*)(?:[-*+]|\d+[.)])([ \t]+)/);
-    if (!match) return null;
-
-    const tabSize = normalizeTabSize(metrics?.tabSize ?? metrics?.view?.state?.tabSize);
-    const columns = expandedTabText(match[0], tabSize).columns;
-    let indent = `${columns}ch`;
-    if (metrics?.view && metrics.markerText) {
-        const computed = getComputedStyle(metrics.view.contentDOM);
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext?.('2d');
-        if (context) {
-            const family = computed.fontFamily || 'sans-serif';
-            const size = computed.fontSize || '16px';
-            const style = computed.fontStyle || 'normal';
-            const sourceFont = `${style} ${computed.fontWeight || '400'} ${size} ${family}`;
-            const markerFont = `${style} ${metrics.markerWeight || computed.fontWeight || '400'} ${size} ${family}`;
-            const expandedLeadingWhitespace = expandedTabText(match[1], tabSize).text;
-            const expandedTrailingWhitespace = expandedTabText(
-                metrics.trailingSourceWhitespace || '',
-                tabSize,
-                columns,
-            ).text;
-            context.font = sourceFont;
-            const leadingWidth = context.measureText(
-                expandedLeadingWhitespace + expandedTrailingWhitespace
-            ).width;
-            context.font = markerFont;
-            const markerWidth = context.measureText(metrics.markerText).width + (metrics.markerMargin || 0);
-            indent = `${leadingWidth + markerWidth}px`;
-        }
-    }
-    return {
-        class: 'cm-markdown-list-item',
-        style: `--cm-list-hanging-indent: ${indent}; --cm-list-hanging-outdent: -${indent};`,
-    };
-}
-
-/**
- * Keep wrapped blockquote rows aligned with the first body character. The
- * source marker is visible only on the active line, while its separator
- * whitespace remains visible in passive live preview, so each state needs its
- * own non-destructive hanging indent.
- */
-export function markdownBlockquoteHangingIndentAttributes(
-    lineText,
-    { view = null, markerVisible = false, tabSize = view?.state?.tabSize } = {}
-) {
-    const match = String(lineText ?? '').match(/^([ \t]{0,3})((?:>[ \t]?)+)/);
-    if (!match) return null;
-
-    const visibleMarkerPrefix = markerVisible ? match[2] : match[2].replace(/>/g, '');
-    const visiblePrefix = match[1] + visibleMarkerPrefix;
-    const expanded = expandedTabText(visiblePrefix, tabSize);
-    const { columns } = expanded;
-    const expandedPrefix = expanded.text;
-
-    let indent = `${columns}ch`;
-    if (view && expandedPrefix) {
-        const computed = getComputedStyle(view.contentDOM);
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext?.('2d');
-        if (context) {
-            const family = computed.fontFamily || 'sans-serif';
-            const size = computed.fontSize || '16px';
-            const style = computed.fontStyle || 'normal';
-            context.font = `${style} ${computed.fontWeight || '400'} ${size} ${family}`;
-            indent = `${context.measureText(expandedPrefix).width}px`;
-        }
-    }
-
-    return {
-        class: 'cm-blockquote-line',
-        style: `--cm-blockquote-hanging-indent: ${indent}; --cm-blockquote-hanging-outdent: -${indent};`,
-    };
 }
 
 const codeHighlighting = syntaxHighlighting(HighlightStyle.define([
@@ -1865,113 +1754,6 @@ async function completeLinkedNoteCreation(view, request, plan) {
     }
 }
 
-function safeReferenceHref(target) {
-    const value = String(target || '').trim();
-    if (!value || /^(?:javascript|vbscript|data):/i.test(value)) return '';
-    try { return encodeURI(value); } catch (_) { return ''; }
-}
-
-class ReferenceLinkWidget extends WidgetType {
-    constructor(link) {
-        super();
-        this.link = link;
-    }
-
-    eq(other) {
-        return other.link.label === this.link.label && other.link.target === this.link.target;
-    }
-
-    toDOM() {
-        const anchor = document.createElement('a');
-        anchor.className = 'cm-link-widget cm-reference-link-widget';
-        anchor.textContent = this.link.label;
-        anchor.title = this.link.target;
-        const href = safeReferenceHref(this.link.target);
-        if (href) anchor.setAttribute('href', href);
-        return anchor;
-    }
-
-    ignoreEvent() {
-        return false;
-    }
-}
-
-function referenceLinkPlugin() {
-    let document, definitions;
-    const buildDecorations = view => {
-        countEditorWork('decorations.references');
-        const state = view.state;
-        if (document !== state.doc) {
-            definitions = markdownReferenceDefinitions(state.doc.toString());
-            document = state.doc;
-        }
-
-        const decorations = [];
-        const seen = new Set();
-        const isDragging = state.field(mouseSelectingField, false);
-        for (const range of view.visibleRanges) {
-            syntaxTree(state).iterate({
-                from: range.from,
-                to: range.to,
-                enter: node => {
-                    countEditorWork('syntax.nodes.references');
-                    if (node.name !== 'Link') return;
-                    const key = `${node.from}:${node.to}`;
-                    if (seen.has(key)) return;
-                    seen.add(key);
-                    countEditorWork('source.slices.references');
-                    const source = state.doc.sliceString(node.from, node.to);
-                    const reference = markdownReferenceLink(source);
-                    if (!reference) return;
-                    const resolved = resolveMarkdownReferenceLink(source, definitions);
-                    if (!resolved) {
-                        decorations.push(Decoration.mark({ class: 'cm-unresolved-reference' }).range(node.from, node.to));
-                        return;
-                    }
-                    if (shouldShowSource(state, node.from, node.to) || isDragging) {
-                        decorations.push(Decoration.mark({
-                            class: 'cm-reference-link-source',
-                            attributes: {
-                                'data-reference-label': resolved.label,
-                                'data-reference-target': resolved.target,
-                            },
-                        }).range(node.from, node.to));
-                        return;
-                    }
-                    decorations.push(Decoration.replace({
-                        widget: new ReferenceLinkWidget(resolved),
-                    }).range(node.from, node.to));
-                },
-            });
-        }
-        return Decoration.set(decorations.sort((a, b) => a.from - b.from), true);
-    };
-
-    return ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.decorations = buildDecorations(view);
-        }
-
-        update(update) {
-            if (update.docChanged && document === update.startState.doc) {
-                let invalidate = false;
-                update.changes.iterChangedRanges((fromA, toA, fromB, toB) => {
-                    const lines = (doc, from, to) => doc.sliceString(doc.lineAt(from).from, doc.lineAt(to).to);
-                    invalidate ||= markdownReferenceLinesMayChange(lines(update.startState.doc, fromA, toA), lines(update.state.doc, fromB, toB));
-                });
-                if (!invalidate) document = update.state.doc;
-            }
-            if (update.docChanged || update.viewportChanged || update.selectionSet) {
-                this.decorations = buildDecorations(update.view);
-                return;
-            }
-            const dragging = update.state.field(mouseSelectingField, false);
-            const wasDragging = update.startState.field(mouseSelectingField, false);
-            if (dragging !== wasDragging) this.decorations = buildDecorations(update.view);
-        }
-    }, { decorations: value => value.decorations });
-}
-
 function createFoldGutterAccessibilityPlugin() {
     // CodeMirror marks its complete gutter rail aria-hidden because line
     // numbers and ordinary markers are decorative. Fold arrows and Markdown
@@ -1980,12 +1762,21 @@ function createFoldGutterAccessibilityPlugin() {
         constructor(view) {
             this.view = view;
             this.sync();
-            queueMicrotask(() => this.sync());
+            this.schedule();
         }
 
-        update() {
-            this.sync();
-            queueMicrotask(() => this.sync());
+        update(update) {
+            if (update.docChanged || update.viewportChanged || update.geometryChanged
+                || update.transactions.some(transaction => transaction.reconfigured)) this.schedule();
+        }
+
+        schedule() {
+            if (this.scheduled) return;
+            this.scheduled = true;
+            queueMicrotask(() => {
+                this.scheduled = false;
+                this.sync();
+            });
         }
 
         sync() {
@@ -2103,6 +1894,7 @@ function createEmptyLinkAutofillPlugin() {
             const selection = update.state.selection.main;
             if (!selection.empty) return;
             const lineStart = documentText.lineAt(selection.head).from;
+            if (documentText.sliceString(Math.max(lineStart, selection.head - 3), selection.head) !== ']()') return;
             const before = documentText.sliceString(lineStart, selection.head);
             const emptyLink = before.match(/\[([^\]]+)\]\(\)$/);
             if (!emptyLink) return;
@@ -2116,7 +1908,7 @@ function createEmptyLinkAutofillPlugin() {
             const replacement = `(${fileName.replace(/ /g, '%20')})`;
             queueMicrotask(() => {
                 const view = update.view;
-                if (view.isDestroyed) return;
+                if (view.isDestroyed || view.state.doc !== documentText) return;
                 view.dispatch({
                     changes: { from: selection.head - 2, to: selection.head, insert: replacement },
                     selection: { anchor: selection.head - 2 + replacement.length },
@@ -2141,251 +1933,7 @@ function createEditorView() {
     const frontmatterField = createFrontmatterEditorField();
     const hashtagPlugin = createHashtagDecorationPlugin();
 
-    // Widget plugin — cursor-aware bullet points and interactive checkboxes
-    const bulletW = (char) => new (class extends WidgetType {
-        toDOM() { const s = document.createElement('span'); s.className = 'cm-bullet'; s.textContent = char; return s; }
-    })();
-    const checkboxW = (checked, view, from, label) => new (class extends WidgetType {
-        constructor() {
-            super();
-            this.checked = checked;
-            this.from = from;
-            this.label = label;
-        }
-
-        toDOM() {
-            const hitbox = document.createElement('span');
-            hitbox.className = 'cm-task-checkbox-hitbox';
-            const input = document.createElement('input');
-            input.type = 'checkbox';
-            input.className = 'cm-task-checkbox';
-            input.checked = checked;
-            input.setAttribute('aria-label', label);
-            input.dataset.taskFrom = String(from);
-
-            hitbox.addEventListener('mousedown', (event) => {
-                if (event.detail > 0) event.preventDefault();
-            });
-            hitbox.addEventListener('click', (event) => {
-                event.preventDefault();
-                view.dispatch({
-                    changes: {
-                        from: from + 1,
-                        to: from + 2,
-                        insert: taskCheckboxReplacement(checked),
-                    },
-                    userEvent: 'input.task-checkbox',
-                });
-                if (event.detail === 0) {
-                    requestAnimationFrame(() => {
-                        view.dom.querySelector(`.cm-task-checkbox[data-task-from="${from}"]`)?.focus();
-                    });
-                }
-            });
-            hitbox.append(input);
-            return hitbox;
-        }
-        eq(other) { return other.checked === checked && other.label === label && other.from === from; }
-    })();
-
-    const widgetPlugin = ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.activeLineSignature = selectionLineSignature(view.state.doc, view.state.selection);
-            this.decorations = this.build(view);
-        }
-        update(update) {
-            const nextSignature = selectionLineSignature(update.state.doc, update.state.selection);
-            if (update.docChanged || update.geometryChanged || update.viewportChanged
-                || (update.selectionSet && nextSignature !== this.activeLineSignature)) {
-                this.decorations = this.build(update.view);
-                this.activeLineSignature = nextSignature;
-            }
-        }
-        build(view) {
-            countEditorWork('decorations.listWidgets');
-            const decos = [];
-            const activeLines = new Set();
-            const seenNodes = new Set();
-            for (const r of view.state.selection.ranges) {
-                const sl = view.state.doc.lineAt(r.from).number;
-                const el = view.state.doc.lineAt(r.to).number;
-                for (let l = sl; l <= el; l++) activeLines.add(l);
-            }
-            // Interactive list decorations only matter while they are in the
-            // viewport. Rebuild them on viewport changes instead of walking
-            // every syntax node in a large note after each keystroke.
-            for (const { from, to } of view.visibleRanges) {
-                syntaxTree(view.state).iterate({
-                    from,
-                    to,
-                    enter: (ref) => {
-                        countEditorWork('syntax.nodes.listWidgets');
-                        const nodeKey = ref.type.id + ':' + ref.from + ':' + ref.to;
-                        if (seenNodes.has(nodeKey)) return;
-                        seenNodes.add(nodeKey);
-                        if (ref.type.name !== 'ListMark' && ref.type.name !== 'Task') return;
-                        countEditorWork('source.slices.listWidgets');
-                        const text = view.state.doc.sliceString(ref.from, ref.to);
-                        const lineNum = view.state.doc.lineAt(ref.from).number;
-                        const isActive = activeLines.has(lineNum);
-                        if (ref.type.name === 'ListMark') {
-                            const m = text.match(/^(\s*)([-*+]|\d+[.)])\s?/);
-                            if (m) {
-                                const start = ref.from + m[1].length;
-                                const end = ref.to;
-                                // Determine depth and list type
-                                let depth = 0, isOrdered = false, p = ref.node.parent;
-                                while (p) {
-                                    if (p.type.name === 'BulletList') depth++;
-                                    else if (p.type.name === 'OrderedList') isOrdered = true;
-                                    p = p.parent;
-                                }
-                                let widgetChar;
-                                if (isOrdered) {
-                                    widgetChar = m[2] + ' ';
-                                } else {
-                                    widgetChar = bulletMarkerForListDepth(depth) + ' ';
-                                }
-                                const line = view.state.doc.lineAt(ref.from);
-                                const sourceMarker = line.text.match(/^([ \t]*)(?:[-*+]|\d+[.)])([ \t]+)/);
-                                const attributes = markdownListHangingIndentAttributes(line.text, {
-                                    view,
-                                    markerText: isActive
-                                        ? sourceMarker?.[0].slice(sourceMarker[1].length)
-                                        : widgetChar,
-                                    markerWeight: isActive ? null : '700',
-                                    // The raw ListMark's visible source span
-                                    // carries CodeMirror's inline cursor buffer;
-                                    // include its measured three-pixel tail so
-                                    // an active line and its continuation meet.
-                                    markerMargin: isActive ? 3 : 2,
-                                    // Lezer's ListMark ends before this
-                                    // separator, so it remains in the DOM
-                                    // beside the replacement widget.
-                                    trailingSourceWhitespace: isActive ? '' : sourceMarker?.[2] || '',
-                                });
-                                if (attributes) {
-                                    decos.push(Decoration.line({ attributes }).range(line.from));
-                                }
-                                if (!isActive) {
-                                    decos.push(Decoration.replace({
-                                        widget: bulletW(widgetChar)
-                                    }).range(start, end));
-                                }
-                            }
-                        } else if (ref.type.name === 'Task') {
-                            const m = text.match(/\[([ xX])\]/);
-                            if (m) {
-                                const start = ref.from + m.index;
-                                if (!isActive) {
-                                    const line = view.state.doc.lineAt(start);
-                                    decos.push(Decoration.replace({
-                                        widget: checkboxW(
-                                            m[1] !== ' ',
-                                            view,
-                                            start,
-                                            taskCheckboxLabel(line.text, m[1] !== ' '),
-                                        )
-                                    }).range(start, start + m[0].length));
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            return Decoration.set(decos.sort((a, b) => a.from - b.from), true);
-        }
-    }, { decorations: v => v.decorations });
-
-    // Extras plugin: highlight, callouts, footnotes, horizontal rules
-    const extrasPlugin = ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.activeLineSignature = selectionLineSignature(view.state.doc, view.state.selection);
-            this.decorations = this.build(view);
-        }
-        update(update) {
-            const nextSignature = selectionLineSignature(update.state.doc, update.state.selection);
-            if (update.docChanged || update.geometryChanged || update.viewportChanged
-                || (update.selectionSet && nextSignature !== this.activeLineSignature)) {
-                this.decorations = this.build(update.view);
-                this.activeLineSignature = nextSignature;
-            }
-        }
-        build(view) {
-            countEditorWork('decorations.extras');
-            const builder = new RangeSetBuilder();
-            const doc = view.state.doc;
-            const activeLines = new Set();
-            for (const r of view.state.selection.ranges) {
-                const sl = doc.lineAt(r.from).number;
-                const el = doc.lineAt(r.to).number;
-                for (let l = sl; l <= el; l++) activeLines.add(l);
-            }
-            for (const { from, to } of view.visibleRanges) {
-                countEditorWork('source.slices.extras');
-                const text = doc.sliceString(from, to);
-                const lines = text.split('\n');
-                let pos = from;
-                let inCallout = false;
-                let calloutType = '';
-                const calloutRe = /^>\s*\[!(\w+)\]\s*(.*)$/;
-
-                for (const line of lines) {
-                    const lineEnd = pos + line.length;
-                    const lineNum = doc.lineAt(Math.min(pos, doc.length - 1)).number;
-                    const isActive = activeLines.has(lineNum);
-                    const calloutMatch = line.match(calloutRe);
-                    const continuesCallout = !calloutMatch && inCallout && isBlockquoteLine(line);
-
-                    // Plain blockquotes are line decorations so the border
-                    // spans every quoted line (rather than only the `>` mark).
-                    // Callouts keep their own stronger visual treatment.
-                    if (isBlockquoteLine(line) && !calloutMatch && !continuesCallout) {
-                        const attributes = markdownBlockquoteHangingIndentAttributes(line, {
-                            view,
-                            markerVisible: isActive,
-                        });
-                        builder.add(pos, pos, Decoration.line({ attributes }));
-                    }
-                    if (calloutMatch) {
-                        inCallout = true;
-                        calloutType = calloutMatch[1].toLowerCase();
-                        builder.add(pos, pos, Decoration.line({ class: `cm-callout cm-callout-${calloutType}` }));
-                    } else if (continuesCallout) {
-                        builder.add(pos, pos, Decoration.line({ class: `cm-callout cm-callout-${calloutType}` }));
-                    } else {
-                        inCallout = false;
-                        calloutType = '';
-                    }
-
-                    // Highlight: ==text==
-                    const hlRe = /==([^=]+)==/g;
-                    let m;
-                    while ((m = hlRe.exec(line)) !== null) {
-                        const s = pos + m.index;
-                        builder.add(s, s + m[0].length, Decoration.mark({ class: 'cm-highlight' }));
-                    }
-
-                    // Footnote reference: [^1] or [^label]
-                    const fnRe = /\[\^([^\]]+)\]/g;
-                    while ((m = fnRe.exec(line)) !== null) {
-                        const s = pos + m.index;
-                        builder.add(s, s + m[0].length, Decoration.mark({ class: 'cm-footnote' }));
-                    }
-
-                    // Horizontal rule: ---, ***, ___
-                    const hrRe = /^(-{3,}|\*{3,}|_{3,})\s*$/;
-                    if (hrRe.test(line)) {
-                        const cls = isActive ? 'cm-hr-active' : 'cm-hr-passive';
-                        builder.add(pos, pos, Decoration.line({ class: cls }));
-                    }
-
-                    pos = lineEnd + 1; // +1 for newline
-                }
-            }
-            return builder.finish();
-        }
-    }, { decorations: v => v.decorations });
+    const markdownLines = createMarkdownLineDecorations();
 
     const emptyLinkAutofillPlugin = createEmptyLinkAutofillPlugin();
 
@@ -2511,8 +2059,7 @@ function createEditorView() {
         sourceFootprintExtension,
         hexColorExtension,
         hashtagPlugin,
-        widgetPlugin,
-        extrasPlugin,
+        ...markdownLines,
         emptyLinkAutofillPlugin,
         EditorView.domEventHandlers({
             mousedown: handleMouseDown,
@@ -2596,6 +2143,8 @@ function createEditorView() {
             searchExtension({ top: false }),
             searchMatchStatusExtension,
             editorInputTrace,
+            createEditorWheelScroll({ enabled: () => getState('smoothWheelScrolling'),
+                subscribeEnabled: callback => subscribe('smoothWheelScrolling', callback) }),
             EditorView.updateListener.of(update => {
                 const replacingDocument = update.docChanged && _programmaticChange;
                 if (update.docChanged) traceEditorWork('editor.buffer', 'document', () => handleDocChange(update));
@@ -3292,21 +2841,21 @@ function flushPendingContentNotification() {
     contentNotificationFrame = null;
     if (!pending) return;
 
-    const content = materializedDocumentContent(pending.document);
-    // The tab owner validates the edit generation, so a delayed observer can
-    // never resurrect content after a switch or successful save.
-    if (!recordTabContent(pending.tabId, pending.generation, content)) return;
+    const tab = getState('openTabs').find(tab => tab.id === pending.tabId);
+    if (!tab?.dirty || tab._editGeneration !== pending.generation) return;
     document.dispatchEvent(new CustomEvent('file-content-changed', {
-        detail: { path: pending.path, content },
+        detail: { path: pending.path, generation: pending.generation, document: pending.document,
+            readContent: pending.readContent, get content() { return pending.readContent(); } },
     }));
 }
 
-function scheduleContentNotification(tab, editorDocument) {
+function scheduleContentNotification(tab, editorDocument, readContent) {
     pendingContentNotification = {
         tabId: tab.id,
         path: tab.path,
         generation: tab._editGeneration,
         document: editorDocument,
+        readContent,
     };
     if (contentNotificationFrame !== null) return;
 
@@ -3342,13 +2891,16 @@ function handleDocChange(update) {
     }
     const at = getState('openTabs').find(t => t.id === getEditorDocumentTabId());
     if (at && at.type === 'file') {
-        const updatedTab = recordTabEdit(at.id);
+        const document = update.state.doc;
+        let content;
+        const readContent = () => content ??= materializedDocumentContent(document);
+        const updatedTab = recordTabEdit(at.id, { readContent });
         if (!updatedTab) return;
         // Kanban and the PDF preview need the current in-memory text, but
         // each can consume the newest frame rather than every transaction in
         // a rapid typing burst. Saves and tab switches read the editor state
         // directly, so this never weakens the dirty-buffer guarantee.
-        scheduleContentNotification(updatedTab, update.state.doc);
+        scheduleContentNotification(updatedTab, update.state.doc, readContent);
         scheduleStatsUpdate(update.state.doc);
     }
 }
@@ -3445,10 +2997,11 @@ function footnoteReturnKey(label) {
 }
 
 function handleFootnoteNavigation(event, view, position) {
-    const text = view.state.doc.toString();
-    const token = getFootnoteAtPosition(text, position);
+    const line = view.state.doc.lineAt(position);
+    const token = getFootnoteAtPosition(line.text, position - line.from);
     if (!token) return false;
 
+    const text = view.state.doc.toString();
     const key = footnoteReturnKey(token.label);
     const navigation = resolveFootnoteNavigation(text, position, footnoteReturnPositions.get(key));
     if (!navigation) return false;

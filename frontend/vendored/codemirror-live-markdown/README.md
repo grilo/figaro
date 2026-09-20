@@ -9,18 +9,30 @@ contracts rather than copying over this artifact.
 
 Formatting markers and Markdown styles visit only `view.visibleRanges`. Marker
 visibility is a pure plan in `frontend/js/core/markdownFormattingModel.js`;
-unchanged reveal state retains decoration identity. Block code uses complete
+an interval index queries current/previously visible markers and only changed
+visibility patches decorations. Unchanged reveal state retains decoration identity. Block code uses complete
 cached descriptors because its replacements participate in document geometry,
 then consults the shared pure selection interval index on cursor updates and
-patches only changed blocks. `canMapMarkdownProseEdit` checks complete trees,
+patches only changed blocks. `canMapMarkdownProseEdit` checks completed paragraphs
+within equally advanced partial or complete trees,
 unchanged paragraph/list/quote ancestry and the shared changed-text prose policy
 before mapping cached code/image/table/guide positions and decorations. Formatted
 prose and Unicode punctuation are eligible; changed delimiters, newlines and
-image-bearing paragraphs fall back. Unmoved descriptors retain their reveal
+image-bearing paragraphs use the broader block check or fall back.
+`markdownProjectionEdit` proves local parsed block/ancestor bounds before
+heading, code, table and soft line-break updates patch only affected payloads.
+Code descriptors read only changed fences. Unmoved descriptors retain their reveal
 index. Code widgets resolve click positions from the mounted decoration, so
 retained payloads remain correct when scrolled out of view and remounted. Structural/uncertain edits, parser,
-folding, drag and configuration changes retain explicit invalidation.
+folding, drag and reveal-policy changes retain explicit invalidation; unrelated
+settings keep block descriptors and decorations.
 The existing code widget and click handler own DOM and input.
+
+Ordinary links separately retain visible descriptors and a selection interval
+index. Cursor movement patches only changed source reveal; document/parser/
+viewport/configuration changes refresh source. Drag settlement reprojects cached
+descriptors. Link widget equality includes its title and callback configuration
+so cached labels never retain stale actions or tooltips.
 
 `markdownWorkFacet` accepts an optional counter callback. The application wires
 its diagnostics collector at editor composition; standalone uses have a no-op
@@ -33,7 +45,15 @@ used to report locations in the changed code. Production is rebuilt eagerly
 with `npm run build:app`.
 
 Run `vendoredMarkdownCursor.test.js`, `markdownFormattingModel.test.js`,
+`markdownLinksProjection.test.js`,
 `editorInteractionContract.test.js`, `codeBlockInteraction.test.js`, and the
 broader checks in `docs/testing/editor.md`. Retain the existing browser/native
 cursor, folding, copy-button, pointer and source-height workflows. Do not use
 operation counts as claims about input-to-display latency.
+
+Typing follow-up: `canMapMarkdownInlineEdit` shares the block proof and compares
+inline syntax boundaries in affected paragraphs through the pure
+`markdownInlineStructuresMatch` helper. Formatting markers/styles map their
+ranges; ordinary links map only when no link source was touched. New/changed
+inline structures fall back to visible syntax projection. The differential
+`editorTypingInventory.test.js` compares incremental and fresh projections.

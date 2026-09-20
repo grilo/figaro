@@ -47,6 +47,13 @@ session snapshots, duplicate-selection suppression and immutable rename planning
 `editorUpdates.test.js` checks declared observer dependencies, combined changes,
 coalesced delivery, disposal and failure isolation. `interactionTrace.test.js`
 checks disabled overhead, deferred attribution, eviction and snapshot isolation.
+`editorTypingContract.test.js` advances ten edits across controlled animation frames in notes
+with 11 and 1,001 headings. It spies on full-text reads and real Outline mutations,
+requires one buffer publication per edit and no hidden Kanban parse, list/extras
+rebuild or indentation style read, then reads retained event snapshots to prove
+lazy content is current, shared and immutable. `markdownLineDecorations.test.js`
+checks mapped reveal ranges and checkbox actions after repeated prose shifts,
+plus structural and typography invalidation.
 `editorInteractionContract.test.js` assembles the real editor, tab manager,
 notification hub, Outline and shell adapters: 100 warmed cursor updates must
 cause no full-document conversion, preview parse, presentation notification,
@@ -56,6 +63,13 @@ Outline rows, update renamed titles, persist the latest cursor and preserve
 parked Undo history through an immutable file move. Its large-note scenario
 also applies 20 prose insert/delete transactions with code, table and image
 previews: no code/image/table/guide reparse or code-payload extraction is allowed.
+
+`sourceReveal.test.js` also compares scoped heading, code, image, table, diagram
+and soft Enter/Backspace edits with a freshly parsed state; it requires unrelated
+decoration identity to survive. A partial-tree test proves reuse before the parser
+finishes and discovery of the remaining blocks afterward. Unrelated settings must
+retain complete field identity. Guide tests compare title/language/fold boundaries
+with a fresh model and guard newly standalone images.
 
 Jest maps `codemirror-live-markdown` to the production vendored build. Image
 adapter coverage verifies retained descriptors across cursor motion and parsing
@@ -79,7 +93,26 @@ only two rows, and closing/reopening initializes the active row again.
 The architecture policy rejects broad editor events/raw tab subscriptions.
 Keep actual key/pointer geometry in the existing browser/native matrix below.
 
+`editorRemainingWork.test.js` retains the consolidated ten-finding scale matrix:
+ordinary formatting motion touches no unrelated marker descriptors; code scope
+checks remain bounded with 10,000 offscreen lines; math edits after all formulas
+retain their index; unchanged Mermaid fences validate once per source/context;
+completion appends read inserted characters rather than the full prefix. The
+same matrix preserves writing point queries, diagram allocations, mapped inline
+projections and Properties reuse. `markdownInteraction.test.js` checks ordinary
+clicks without full-text conversion and preserves the footnote create/return/Undo
+journey. Pure completion and indentation tests compare against the existing
+source matchers/scope oracle. Cache eviction, failed-result relocation and
+obsolete-lint cancellation remain below the browser layer. Run existing heading
+completion, hashtag, footnote, code tab-size, editor cursor and Vim workflows in
+Chromium and the packaged native webview.
+
 ## Block widget and cursor regressions
+
+The gutter-fold browser scenario waits for CodeMirror's measurement after
+replacing its source fixture before recording the writing-column baseline.
+Changing the fixture's line count can resize the number gutter independently
+of folding; the fold/unfold checks retain their subpixel alignment assertions.
 
 `vendoredMarkdownCursor.test.js` observes the shipped formatting/style/code
 providers directly: 20 ordinary cursor moves across 10/1,000 blocks do no
@@ -93,6 +126,22 @@ of diagnostics, including a 1,000-section fixture with an injected visible-range
 boundary because jsdom has no physical viewport. A visited syntax root must not
 cause the list-widget pass to read the whole note. Run the existing folding,
 code copy/click, Markdown cursor/drag, Outline and Vim browser/native matrix.
+
+`markdownLineModel.test.js` owns pure marker/indent/extra plans.
+`markdownLineDecorations.test.js` and `markdownLinksProjection.test.js` observe
+10/1,000 visible entries: unchanged selection motion must do no syntax/source
+reads, font measurements or unrelated decoration replacement. They cover active
+line/link boundaries, multiple/backwards selections, drag transitions, edits,
+Undo/Redo, parser/configuration changes, task actions and reference definitions.
+`writingLinkHints.test.js` checks indexed finding access and actual redraw
+reconciliation, with no visits to 1,000 offscreen findings. Gutter tests require
+no unchanged accessibility writes or same-logical-line label redraw. The existing
+wrapped-list browser scenario checks active numbered markers and live font-scale
+changes as well as bullet/quote wrapping. Native verification repeats horizontal
+and Up/Down movement, pointer placement, bidirectional drag, task Space/click,
+Tab/Shift+Tab and empty-list Enter. For WebKit character ranges at a wrap, inspect
+the nonzero client rectangle: its bounding union can include a zero-width
+rectangle on the previous row.
 
 Table/math component tests count document reads across source entry, repeated
 motion, and exit, then require edits/folding to refresh. Guide tests retain
@@ -535,7 +584,8 @@ across it with line numbers off and on. Windows WebView2 and macOS WKWebView
 were unavailable locally and were not verified by this run.
 
 `relativeLineNumbers.test.js` owns the pure distance/spacer rules and a concrete
-CodeMirror gutter update when the primary cursor changes lines. The focused
+CodeMirror gutter update when the primary cursor changes lines, while
+horizontal movement leaves labels unchanged. The focused
 Settings/editor browser scenario keeps the gutter enabled while exercising
 Arrow Down/Up, mouse placement, and forward drag selection, asserting the
 visible relative labels after each move. The same scenario owns Focus scope's
@@ -955,6 +1005,18 @@ autocomplete/date-picker activation, Arrow Up/Down, and drag selection.
 
 ## Editor buffer undo ownership
 
+The Settings-return case in `editorUX.spec.js` samples every visible animation
+frame and requires a stable horizontal writing edge while retaining the cursor.
+It reproduces the erased hidden-gutter reservation (about 39px in Chromium).
+`editorBlockActionLayout.test.js` proves zero-width buffers retain the previous
+rail widths/inset without reading content geometry. Repeat the return and
+Arrow Up/Down/mouse/drag checks in packaged WebKitGTK when changing this adapter.
+The September 20 check passed in production-tagged Linux WebKitGTK: Settings
+and Graph returns had stable writing edges, with cursor restoration, Arrow
+Up/Down, mouse placement, and bidirectional drag across a table preserving source.
+Native input was DOM-dispatched on an isolated headless Weston display; physical
+input and Windows/macOS native runtimes were not tested.
+
 `editorDocumentSession.test.js` owns the pure scheduling and ownership rule:
 every real tab-owner change requests a history swap, including when two
 buffers have identical source. `editor.test.js` supplies the real CodeMirror
@@ -1253,3 +1315,33 @@ npm run test:unit -- --runTestsByPath \
 go test ./internal/desktop -run 'Test(Vim|MarkdownLint|WritingLenses|WritingLensCombinations|SpellingDictionary)'
 npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownTables.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawioLoading.spec.js tests/e2e/drawio.spec.js
 ```
+
+### Full typing inventory regressions
+
+`editorTypingInventory.test.js` compares incremental formatting, links, reference
+links, list/quote and static-mark output with a fresh parse after insertions,
+deletions, delimiter changes and source-reveal moves. It bounds unfinished
+Properties body reads and compares delimiter transitions to the full parser.
+`graphicFootprintObservation.test.js` distinguishes unchanged-source edits from
+font/source invalidation; `pureWriting.test.js` checks typing versus explicit
+appearance refresh. Keep existing browser/native list wrapping, tasks, link
+selection, Properties, diagrams and Pure resize/typewriter cases. Operation
+counts complement those checks; they do not measure physical input latency.
+
+### Optional wheel scrolling
+
+`wheelScroll.test.js` owns platform/gesture gating, off-by-default Settings,
+reduced-motion bypass, interruption, reversal, bounded targets, externally moved
+scroll offsets and convergence with rounded native offsets. `state.test.js`
+checks opt-in persistence. The existing editorUX spec adds one real-wheel
+workflow for progressive frames, unchanged source/selection, cancellation,
+Arrow Up/Down, pointer placement and drag. Repeat that boundary in packaged
+WebKitGTK/WebView2; simulated Mac platform tests prove only the bypass branch,
+not physical WKWebView trackpad feel. Native macOS wheel events remain untouched.
+
+The 2026-09-20 check passed in Chromium with real wheel input and in packaged
+Linux WebKitGTK with 11 assertions covering Settings, progressive frames,
+interruption, arrows, pointer placement and drag selection. Native automation
+used DOM-dispatched input and CodeMirror transactions; it does not establish
+physical device feel on Windows or macOS. The full frontend run passed 318
+suites / 2,944 tests with all coverage floors met.

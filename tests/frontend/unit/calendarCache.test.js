@@ -432,11 +432,12 @@ describe('Calendar cache', () => {
             id: 'tab-plan', type: 'file', path: 'notes/plan.md', title: 'plan.md',
             dirty: true, _content: 'No date yet',
         };
+        const previousTab = { ...tab };
+        tab._content = { readContent: () => '[2025-01-16](2025-01-16.md)' };
         setState('openTabs', [tab]);
-        document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: tab.path } }));
-        tab._content = '[2025-01-16](2025-01-16.md)';
+        document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: tab.path, previousTab } }));
         document.dispatchEvent(new CustomEvent('file-content-changed', {
-            detail: { path: tab.path, content: tab._content },
+            detail: { path: tab.path, readContent: tab._content.readContent },
         }));
         await new Promise(resolve => setTimeout(resolve, 25));
         await flushCalendar();

@@ -41,7 +41,9 @@ prepare in the background. Auto-Save and the close guard are installed before
 you can type. Saving writes the note to disk first; Git history and task/index
 updates follow. A failure in those follow-up steps leaves your saved text intact.
 The writing engine runs inside Figaro and reuses its bundled rules in memory.
-It does not extract or launch a separate Vale executable.
+It does not extract or launch a separate Vale executable. Unchanged Markdown
+block mappings and paragraph checks are retained while you edit; review still
+uses the current complete note for consistency and punctuation conventions.
 
 ## Focus on a draft
 
@@ -125,6 +127,12 @@ identifiers and acronyms defined in your note avoid misleading spelling advice.
 Balanced multiline parentheses and literal end-of-day instructions receive
 fewer false warnings. Equivalent “there is/are” advice appears once even when
 both Clarity and Directness are selected; saved Ignore decisions still apply.
+Checks now follow a noun subject across one prepositional modifier, such as
+“the box of tools were,” and distinguish “had saw the tool” from “saw blades.”
+“Amount of times” can become “number of times.” A possible comma splice receives
+advice so you can choose the connection between the clauses. API members,
+PascalCase identifiers and reviewed technical abbreviations avoid unrelated
+spelling guesses. Literal timing, bird food and adjectival states are preserved.
 
 English US and UK support spelling and prose checks. Spanish supports spelling
 only under Proofreading. Changing the language clears unsupported checks.
@@ -176,6 +184,11 @@ actions. An unsuccessful write does not count as a saved choice.
 
 ## Keep and reverse decisions
 
+Manage accepted words from **Settings → Editor → Personal dictionary → Manage…**
+or the **Manage dictionary…** shortcut under Proofreading. The resizable dialog
+keeps search and actions above/below its scrolling list, with immediate saves
+and Undo for removal; Settings retains only the count and launcher.
+
 Ignored occurrences, accepted acronyms, the personal dictionary, and document
 choices survive restarts. Open **Saved review decisions** to choose **Restore
 suggestion** or **Review acronym again**. You can also remove inactive decisions.
@@ -200,7 +213,28 @@ prose. A definition can appear before or after the first use. It does not verify
 expansion is correct. Code, math, metadata, and link destinations are protected;
 prose lenses also skip quoted passages. Number/unit spacing is not checked.
 
+Writing review avoids synonym-only advice for familiar words such as “remain,”
+“contains” and “however,” and preserves reviewed descriptions of manner,
+frequency and degree. Directness leaves reviewed technical process descriptions
+alone while retaining actor-focused passive advice. Timed maintenance, reviewed
+physical states, elliptical API descriptions and possessive-gerund reactions
+also stay unmarked. Concrete “there is/are” statements about location, quantity
+or availability, such as “there is still time,” remain unchanged. Weak
+introductions such as “there is a need to” stay reviewable. These are bounded
+context guards, not a claim to understand every sentence.
+
 Formulaic writing includes optional advice about unspaced em dashes and curly
-quotes or apostrophes. Those preferences do not establish AI authorship.
+quotes or apostrophes that differ from the note’s prevailing straight style.
+Consistent curly punctuation is preserved. Quotation and apostrophe conventions
+are inferred separately, with first occurrence breaking ties; code and quoted
+wording do not set the prose apostrophe convention. Those preferences do not
+establish AI authorship.
 See [rule coverage](WRITING_SLOPLESS.md), the [writing engine reference](WRITING_ENGINE.md),
 and the [evaluation limits](WRITING_CORPUS_FIXES.md) for more detail.
+
+
+While typing, retained underlines use mapped source ranges and invalidate the
+edited paragraph without enumerating all findings in a long note. They remain
+read-only until fresh review arrives; changing Markdown structure still clears
+stale marks. See the [typing inventory](benchmarks/editor-typing-inventory-2026-09-20.md)
+for measured work and the remaining analysis costs.

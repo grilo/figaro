@@ -1,4 +1,4 @@
-import { bulletMarkerForListDepth } from '../frontend/js/editor.js';
+import { bulletMarkerForListDepth } from '../frontend/js/core/markdownLineModel.js';
 
 describe('Markdown bullet hierarchy', () => {
     test('starts at a filled bullet and cycles predictably for deeper nesting', () => {

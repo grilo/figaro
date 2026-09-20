@@ -1,6 +1,6 @@
 import { ViewPlugin } from '@codemirror/view';
 import { startCompletion } from '@codemirror/autocomplete';
-import { isHashtagCompletionTrigger } from './core/taskDueDateCompletionModel.js';
+import { advanceCompletionTriggers } from './core/completionTriggerModel.js';
 import {
     headingLinkCompletionMatch,
     markdownHeadingTargets,
@@ -25,17 +25,33 @@ function collectFiles(items, select, result = []) {
     return result;
 }
 
-function inputCompletionActivator(matches) {
+function inputCompletionActivator(kind) {
     return ViewPlugin.fromClass(class {
+        constructor(view) { this.read(view.state); }
+        read(state) {
+            this.document = state.doc;
+            this.head = state.selection.main.head;
+            const line = state.doc.lineAt(this.head);
+            this.context = advanceCompletionTriggers(state.doc.sliceString(line.from, this.head));
+        }
         update(update) {
             if (!update.docChanged || !update.state.selection.main.empty) return;
             const typed = update.transactions.some(transaction => transaction.isUserEvent?.('input.type'));
             if (!typed) return;
             const head = update.state.selection.main.head;
-            const line = update.state.doc.lineAt(head);
-            if (!matches(update.state.doc.sliceString(line.from, head))) return;
+            let appended = null, count = 0;
+            update.changes.iterChanges((from, to, _nextFrom, nextTo, inserted) => {
+                count++;
+                if (from === this.head && from === to && nextTo === head) appended = inserted;
+            });
+            if (this.document === update.startState.doc && count === 1 && appended) {
+                this.context = advanceCompletionTriggers(appended.toString(), this.context);
+                this.document = update.state.doc;
+                this.head = head;
+            } else this.read(update.state);
+            if (!this.context[kind]) return;
             queueMicrotask(() => {
-                if (!update.view.isDestroyed) startCompletion(update.view);
+                if (!update.view.isDestroyed && update.view.state === update.state) startCompletion(update.view);
             });
         }
     });
@@ -197,7 +213,7 @@ export function createEditorLinkCompletions({
         imageCompletions,
         fileLinkCompletions,
         headingLinkCompletions,
-        headingLinkCompletionActivator: inputCompletionActivator(headingLinkCompletionMatch),
-        hashtagCompletionActivator: inputCompletionActivator(isHashtagCompletionTrigger),
+        headingLinkCompletionActivator: inputCompletionActivator('heading'),
+        hashtagCompletionActivator: inputCompletionActivator('hashtag'),
     };
 }

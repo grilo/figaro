@@ -44,6 +44,7 @@ let documentOutlineEnabled = true;
 let stickySignature = '';
 let outlineRows = [];
 let activeOutlineRow = null;
+let renderedHeadingPresentation = [];
 const stickyHeadingMeasureKey = {};
 let stickyMeasureView = null;
 let stickyScrollDOM = null;
@@ -165,7 +166,7 @@ function refreshOutlineModel(update = {}) {
             stopHeadingAlignment();
             model = { ...model, document, source: null, headings: mapOutlineHeadings(model.headings, changes) };
             scheduleStickyHeadingMeasure();
-            return true;
+            return false; // Positions changed; row presentation and order did not.
         }
     }
     const source = getEditorContent();
@@ -264,11 +265,11 @@ function navigateToHeading(from) {
     for (const type of inputs) if (active) document.addEventListener(type, cancel, { passive: true, capture: true });
 }
 
-function headingButton(heading, className) {
+function headingButton(heading, className, index = activeOutlineHeadingIndex(model.headings, heading.from)) {
     const item = document.createElement('button');
     item.type = 'button';
     item.className = className;
-    item.dataset.position = String(heading.from);
+    item.dataset.index = String(index);
     item.title = heading.text;
 
     const type = document.createElement('span');
@@ -280,7 +281,7 @@ function headingButton(heading, className) {
     text.textContent = heading.text;
     item.setAttribute('aria-label', `Go to h${heading.level} ${heading.text}`);
     item.append(type, text);
-    item.addEventListener('click', () => navigateToHeading(Number(item.dataset.position)));
+    item.addEventListener('click', () => navigateToHeading(model.headings[index]?.from));
     return item;
 }
 
@@ -291,7 +292,7 @@ function renderStickyHeadingsAtPosition(position) {
     const hierarchy = stickyHeadingsEnabled && model.headings.length && position >= 0
         ? activeOutlineHeadingHierarchy(model.headings, position, model.headingStructure)
         : [];
-    const signature = hierarchy.map(heading => `${heading.level}:${heading.from}:${heading.text}`).join('|');
+    const signature = hierarchy.map(heading => `${activeOutlineHeadingIndex(model.headings, heading.from)}:${heading.level}:${heading.text}`).join('|');
     if (signature === stickySignature && sticky.childElementCount === hierarchy.length) return false;
     stickySignature = signature;
     sticky.replaceChildren(...hierarchy.map(heading => headingButton(heading, 'sticky-heading-item')));
@@ -348,24 +349,17 @@ function renderOutlinePanel() {
     const { content } = outlineElements();
     if (!content || !sidebarOwnsOutline()) return;
 
-    const existing = [...content.querySelectorAll('.outline-item')];
-    if (existing.length === model.headings.length && existing.every((item, index) => (
-        item.querySelector('.outline-item-text')?.textContent === model.headings[index].text
-        && item.querySelector('.outline-item-type')?.textContent === `h${model.headings[index].level}`
-    ))) {
-        outlineRows = existing;
-        existing.forEach((item, index) => {
-            const position = String(model.headings[index].from);
-            if (item.dataset.position !== position) item.dataset.position = position;
-        });
+    if (outlineRows.length === model.headings.length && outlineRows[0]?.isConnected
+        && renderedHeadingPresentation.every((heading, index) =>
+            heading.text === model.headings[index].text && heading.level === model.headings[index].level)) {
         updateActiveOutlineItem();
         return;
     }
 
     const focusedHeading = content.contains(document.activeElement)
-        ? document.activeElement.closest('.outline-item')
-        : null;
-    const focusedPosition = focusedHeading ? Number(focusedHeading.dataset.position) : null;
+        ? document.activeElement.closest('.outline-item') : null;
+    const focusedIndex = focusedHeading ? Number(focusedHeading.dataset.index) : null;
+    renderedHeadingPresentation = model.headings;
     content.querySelector('.outline-panel')?.remove();
     const panel = document.createElement('section');
     panel.className = 'outline-panel';
@@ -383,7 +377,7 @@ function renderOutlinePanel() {
     activeOutlineRow = null;
     const baseLevel = Math.min(...model.headings.map(heading => heading.level));
     model.headings.forEach((heading, index) => {
-        const item = headingButton(heading, 'outline-item');
+        const item = headingButton(heading, 'outline-item', index);
         item.dataset.index = String(index);
         item.style.paddingInlineStart = `${8 + (heading.level - baseLevel) * 12}px`;
         list.append(item);
@@ -392,8 +386,8 @@ function renderOutlinePanel() {
     panel.append(list);
     content.append(panel);
     updateActiveOutlineItem();
-    if (focusedPosition !== null) {
-        const index = Math.max(0, activeOutlineHeadingIndex(model.headings, focusedPosition));
+    if (focusedIndex !== null) {
+        const index = Math.min(focusedIndex, model.headings.length - 1);
         list.children[index]?.focus({ preventScroll: true });
     }
 }

@@ -24,6 +24,7 @@ const DEFAULTS = {
     rightSidebarWidth: 320,
     sidebarCollapsed: false,
     showEditorBreadcrumbs: false,
+    smoothWheelScrolling: false,
     pureTypewriterEnabled: true,
     pureFocusScope: 'off',
     pureAdaptiveTypographyEnabled: false,
@@ -54,6 +55,16 @@ describe('State Management', () => {
         });
         mockLocalStorage.clear();
         jest.clearAllMocks();
+    });
+
+    test('smooth wheel preference defaults off and persists only an explicit opt-in', () => {
+        initState(); expect(getState('smoothWheelScrolling')).toBe(false);
+        setState('smoothWheelScrolling', true);
+        expect(localStorage.getItem('smoothWheelScrolling')).toBe('true');
+        state.smoothWheelScrolling = false; initState();
+        expect(getState('smoothWheelScrolling')).toBe(true);
+        setState('smoothWheelScrolling', false); initState();
+        expect(getState('smoothWheelScrolling')).toBe(false);
     });
 
     describe('getState / setState', () => {

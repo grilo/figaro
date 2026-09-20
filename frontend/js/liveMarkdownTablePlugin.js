@@ -1,6 +1,6 @@
-import { sourceRevealIndex, updateSourceReveal, mapSourceReveal } from './sourceReveal.js';
-import { canMapMarkdownProseEdit } from 'codemirror-live-markdown';
-import { countEditorWork, readEditorDocument } from './editorDiagnostics.js';
+import { sourceRevealIndex, updateSourceReveal, patchSourceReveal } from './sourceReveal.js';
+import { canMapMarkdownProseEdit, markdownProjectionEdit, collapseOnSelectionFacet } from 'codemirror-live-markdown';
+import { countEditorWork } from './editorDiagnostics.js';
 /**
  * Source-preserving live GFM table previews.
  *
@@ -110,21 +110,25 @@ export function renderedTableCellMouseSelection(view, event, EditorSelection) {
 }
 
 /** Return top-level GFM table ranges from CodeMirror's Markdown syntax tree. */
-export function scanMarkdownTables(state) {
+export function scanMarkdownTables(state, regions = null) {
     countEditorWork('parse.tables');
     const tables = [];
-    const documentSource = readEditorDocument(state.doc, 'tables');
-    if (!documentSource.includes('|')) return tables;
-    const tree = syntaxTree(state);
-    for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
-        if (node.name !== 'Table') continue;
-        const to = markdownTableMetadataEnd(documentSource, node.to);
-        tables.push({
-            from: node.from,
-            to,
-            source: state.sliceDoc(node.from, to),
-            sourceLines: tableSourceLines(state, node.from, to),
-        });
+    for (const region of regions || [{ nextFrom: 0, nextTo: state.doc.length }]) {
+        syntaxTree(state).iterate({ from: region.nextFrom, to: region.nextTo, enter(node) {
+            if (node.to <= region.nextFrom || node.from >= region.nextTo) return false;
+            if (node.name === 'Document') return;
+            if (node.name !== 'Table' || node.node.parent?.name !== 'Document') return false;
+            let to = node.to;
+            while (to < state.doc.length) {
+                const nextLine = state.doc.lineAt(to + 1);
+                const suffix = state.sliceDoc(to, nextLine.to);
+                if (markdownTableMetadataEnd(suffix, 0) !== suffix.length) break;
+                to = nextLine.to;
+            }
+            tables.push({ from: node.from, to, source: state.sliceDoc(node.from, to),
+                sourceLines: tableSourceLines(state, node.from, to) });
+            return false;
+        } });
     }
     return tables;
 }
@@ -239,18 +243,19 @@ export function createMarkdownTableField(
     const field = StateField.define({
         create: buildState,
         update(value, transaction) {
-            if (transaction.reconfigured || transaction.docChanged
-                || syntaxTree(transaction.startState) !== syntaxTree(transaction.state)) {
-                if (!transaction.reconfigured && canMapMarkdownProseEdit(transaction)) {
-                    const mapped = mapSourceReveal(value, transaction);
-                    if (transaction.effects.length || transaction.state.field(mouseSelectingField, false)
-                        || transaction.startState.field(mouseSelectingField, false)) return buildState(transaction.state, mapped.blocks);
-                    mapped.ranges = mapped.blocks === value.blocks ? value.ranges
-                        : mapped.blocks.map(({ from, to }) => ({ from, to }));
-                    return updateSourceReveal(mapped, transaction, shouldShowSource, projectBlock);
-                }
-                return buildState(transaction.state);
+            if (transaction.docChanged || syntaxTree(transaction.startState) !== syntaxTree(transaction.state)) {
+                const regions = canMapMarkdownProseEdit(transaction) ? [] : markdownProjectionEdit(transaction);
+                if (!regions || regions.some(region => region.name !== 'Table' && value.blocks.some(block =>
+                    block.from < region.to && block.to > region.from))) return buildState(transaction.state);
+                const tableRegions = regions.filter(region => region.name === 'Table');
+                value = patchSourceReveal(value, transaction, tableRegions,
+                    tableRegions.length ? scanMarkdownTables(transaction.state, tableRegions) : [], shouldShowSource, projectBlock);
+                value.ranges = value.blocks.map(({ from, to }) => ({ from, to }));
+                if (transaction.effects.length || transaction.state.field(mouseSelectingField, false)
+                    || transaction.startState.field(mouseSelectingField, false)) return buildState(transaction.state, value.blocks);
+                return updateSourceReveal(value, transaction, shouldShowSource, projectBlock);
             }
+            if (transaction.startState.facet(collapseOnSelectionFacet) !== transaction.state.facet(collapseOnSelectionFacet)) return buildState(transaction.state, value.blocks);
 
             const isDragging = transaction.state.field(mouseSelectingField, false);
             const wasDragging = transaction.startState.field(mouseSelectingField, false);

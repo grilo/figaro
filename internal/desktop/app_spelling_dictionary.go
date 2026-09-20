@@ -44,3 +44,21 @@ func (a *App) SpellingDictionaryAdd(word string) ([]string, error) {
 	}
 	return words, nil
 }
+
+// SpellingDictionaryRemove atomically removes one word without rewriting notes or Git refs.
+func (a *App) SpellingDictionaryRemove(word string) ([]string, error) {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+	data, err := a.readSpellingDictionary()
+	if err != nil {
+		return nil, err
+	}
+	next, words, err := settings.RemoveSpellingWord(data, word)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.writeVaultFileAtomic(spellingDictionaryPath, next, 0600); err != nil {
+		return nil, err
+	}
+	return words, nil
+}

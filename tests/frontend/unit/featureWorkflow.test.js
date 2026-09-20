@@ -95,6 +95,8 @@ describe('feature index and focused verification workflow', () => {
 
     test('rejects duplicate ownership IDs, missing checks, traversal, and test globs', () => {
         expect(() => workflow.validateFeatureMap([features[0], features[0]])).toThrow('duplicate');
+        expect(() => workflow.validateFeatureMap([{ ...features[0], sources: [...features[0].sources,
+            'frontend/vendored/@replit/codemirror-indentation-markers/dist/index.js'] }])).not.toThrow();
         expect(() => workflow.validateFeatureMap([{ ...features[0], extraChecks: [] }])).toThrow('Missing extraChecks');
         expect(() => workflow.validateFeatureMap([{ ...features[0], sources: ['../outside.js'] }])).toThrow('Invalid repository reference');
         expect(() => workflow.validateFeatureMap([{ ...features[0], tests: ['tests/frontend/**/*.test.js'] }])).toThrow('Invalid repository reference');

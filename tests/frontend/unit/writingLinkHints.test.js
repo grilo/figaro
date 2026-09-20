@@ -1,6 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView, Decoration, WidgetType, activateHover } from '@codemirror/view';
-import { writingLinkLabel, writingLinkSegments } from '../../../frontend/js/core/writingLinkModel.js';
+import { indexWritingLinkFindings, writingLinkFindingsInRange, writingLinkLabel, writingLinkSegments } from '../../../frontend/js/core/writingLinkModel.js';
+import { createWritingLinkHints } from '../../../frontend/js/writingLinkHints.js';
 import { updateInlineWriting, writingInlineExtension, openInlineWriting } from '../../../frontend/js/writingInline.js';
 
 test.each([
@@ -30,6 +31,40 @@ test('link labels reject unmatched display text and bare wiki destinations, and 
 class Link extends WidgetType {
     toDOM() { const a = document.createElement('a'); a.className = 'cm-link-widget'; a.textContent = 'teh label'; a.title = 'Destination title'; a.href = 'https://teh.test'; return a; }
 }
+
+test('indexed writing findings retain overlap and input order with bounded offscreen work', () => {
+    let reads = 0;
+    const findings = Array.from({ length: 1000 }, (_, i) => ({
+        get from() { reads++; return i * 20; }, get to() { reads++; return i * 20 + 10; },
+    }));
+    const spanning = { from: 0, to: 10000 };
+    findings.unshift(spanning);
+    const index = indexWritingLinkFindings(findings); reads = 0;
+    expect(writingLinkFindingsInRange(index, 100, 110)).toEqual([spanning, findings[6]]);
+    expect(reads).toBeLessThan(20);
+    expect(writingLinkFindingsInRange(index, 110, 120)).toEqual([spanning]);
+    expect(writingLinkFindingsInRange(indexWritingLinkFindings([]), 0, 100)).toEqual([]);
+});
+
+test('writing link redraws reuse the viewport query, and a changed viewport finds formerly offscreen results', () => {
+    let reads = 0;
+    const findings = Array.from({ length: 1000 }, (_, i) => ({ id: String(i),
+        get from() { reads++; return 100 + i * 20; }, get to() { reads++; return 103 + i * 20; }, actual: 'teh' }));
+    const hints = createWritingLinkHints(() => findings);
+    const view = new EditorView({ parent: document.body, state: EditorState.create({
+        doc: 'Prose.\n\n' + 'x'.repeat(20100), extensions: [hints],
+    }) });
+    let viewport = { from: 0, to: 50 };
+    Object.defineProperty(view, 'viewport', { configurable: true, get: () => viewport });
+    try {
+        const plugin = view.plugin(hints); plugin.docViewUpdate(view); reads = 0;
+        for (let i = 0; i < 20; i++) plugin.docViewUpdate(view);
+        expect(reads).toBe(0);
+        viewport = { from: 100, to: 120 }; plugin.docViewUpdate(view);
+        expect(plugin.visible.findings).toEqual([findings[0]]);
+        expect(reads).toBeLessThan(10);
+    } finally { delete view.viewport; view.destroy(); }
+});
 test('a concrete replaced link receives writing marks without rebuilding its widget, then restores ordinary tooltip information when checks clear', async () => {
     const source = 'Before\n\n[teh label](https://teh.test)\n\nAfter', from = source.indexOf('['), to = source.indexOf(')') + 1;
     const replacement = Decoration.set([Decoration.replace({ widget: new Link() }).range(from, to)]);

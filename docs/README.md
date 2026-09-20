@@ -34,8 +34,15 @@ the product specification records detailed behavior and edge cases.
   native comparison, whole-document results and packaged-app measurements. The
   [usage-batch report](benchmarks/writing-grammar-usage-2026-09-20.md) covers the
   next 60 checks, noun-subject agreement and mass-noun quantifiers.
+  The [suggestion-relevance review](benchmarks/writing-relevance-2026-09-20.md)
+  reduces unnecessary advice and selects the next context batch. The
+  [context follow-up](benchmarks/writing-context-2026-09-20.md) implements it,
+  preserving factual descriptions and meaningful existential statements.
+  The [document-gap corrections](benchmarks/writing-gaps-2026-09-20.md) fix the
+  remaining reviewed unsafe choices, missed errors and misleading literal advice.
   The [quality follow-up](benchmarks/writing-quality-2026-09-20.md) covers safer
   spelling, less misleading and duplicate advice, broader existing grammar
   contexts, and a fresh eight-document evaluation.
 
 - [Editor updates and interaction diagnostics](EDITOR_UPDATES.md): cursor/typing notification ownership, allowed work, tracing and regression workflow.
+- [Full typing inventory](benchmarks/editor-typing-inventory-2026-09-20.md): installed consumers, worthwhile fixes, before/after work counts, remaining costs and verification.

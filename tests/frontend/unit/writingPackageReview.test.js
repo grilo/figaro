@@ -70,10 +70,10 @@ test('independent Formulaic cliché evidence merges the same concern from Vale w
     }
 });
 
-test('Plain language retains contextual advice while preserving technical request nouns', () => {
-    const source = 'The request contains a body and a response code.', data = analyzeRetext(source);
+test('Plain language preserves familiar technical wording while retaining useful phrase advice', () => {
+    const source = 'The request contains a body and a response code. We act with the exception of holidays.', data = analyzeRetext(source);
     const findings = visible(resolve(source, data, ['plain']));
-    expect(findings.map(f => f.actual)).toEqual(['contains']);
+    expect(findings.map(f => f.actual)).toEqual(['with the exception of']);
     for (const finding of findings) {
         expect(finding.fixes).toEqual([]); expect(finding.message).toContain('contextual review');
         expect(writingSuggestionExamples(finding)[0].label).toBe('Example');

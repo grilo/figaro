@@ -46,7 +46,8 @@ export function relativeLineNumbers() {
                 relativeLineNumberLabel(lineNumber, cursorLine(view.state)),
             );
         },
-        lineMarkerChange: update => update.selectionSet || update.docChanged,
+        lineMarkerChange: update => update.docChanged || (update.selectionSet
+            && cursorLine(update.startState) !== cursorLine(update.state)),
         initialSpacer: view => spacer(view.state.doc.lines),
         updateSpacer(current, update) {
             const next = spacer(update.state.doc.lines);
