@@ -108,6 +108,22 @@ live-Markdown providers. This table describes work at the extension boundary;
 CodeMirror's internal layout, parser and selection algorithms remain separate
 from application counters.
 
+Viewport removal and source reveal can discard mounted widgets even while their
+parsed descriptors remain current. Live diagrams retain a bounded set of
+completed SVG nodes for those returns, and source footprints retain exact
+source/width/typography measurements across mounts. Ordinary prepared returns
+bypass generation and SVG parsing; active key repeat defers Mermaid attachment
+until quiet, while composition defers both Mermaid and Vega. Instrument
+attachment/layout separately from generation when assessing this path.
+
+Code, math, tables and loaded images retain completed content across remounts
+through bounded per-editor sessions. Code avoids highlighting and markup
+construction, math avoids KaTeX rendering, tables avoid parsing/cell creation,
+and images transfer the loaded element. Wrappers and handlers remain current;
+source, renderer and image activation changes invalidate reuse. Late image
+results cannot publish into a disposed mount. Count content generation
+separately from element attachment and native layout.
+
 | Installed provider or service | Update dependency and work boundary |
 | --- | --- |
 | Bundled formatting markers | Map descriptors on proven inline edits; visible syntax fallback on structural/parser/viewport/configuration changes; indexed selected/previously visible markers on selection or drag settlement; patch only changed marker decorations |

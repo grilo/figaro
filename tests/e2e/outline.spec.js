@@ -644,9 +644,9 @@ test('sticks the complete active heading hierarchy and keeps every row navigable
 
     await page.evaluate(async markdown => {
         const editor = await import('/js/editor.js');
-        editor.setEditorContent(markdown);
+        await document.fonts.ready;
+        await editor.setEditorContent(markdown);
         const view = window.__stickyOutlineView = editor.getEditorView();
-        while (view.state.doc.toString() !== markdown) await new Promise(resolve => setTimeout(resolve, 10));
         view.scrollDOM.scrollTop = 0;
         view.scrollDOM.dispatchEvent(new Event('scroll'));
         view.focus();
@@ -657,10 +657,15 @@ test('sticks the complete active heading hierarchy and keeps every row navigable
     await expect(sticky).toBeHidden();
 
     const crossStickyBoundary = async (line, offset) => {
-        await page.evaluate(({ targetLine, targetOffset }) => {
+        await page.evaluate(async ({ targetLine, targetOffset }) => {
             const view = window.__stickyOutlineView;
+            const position = view.state.doc.line(targetLine).from;
+            // An offscreen lineBlockAt height is an estimate. Mount and measure
+            // the heading before placing it 6px before or 2px past the boundary.
+            view.dispatch({ effects: view.constructor.scrollIntoView(position, { y: 'center' }) });
+            await new Promise(resolve => view.requestMeasure({ read: () => null, write: resolve }));
             const stickyElement = document.getElementById('sticky-heading-stack');
-            const block = view.lineBlockAt(view.state.doc.line(targetLine).from);
+            const block = view.lineBlockAt(position);
             const editorTop = view.scrollDOM.getBoundingClientRect().top;
             const stackHeight = stickyElement.hidden ? 0 : stickyElement.getBoundingClientRect().height;
             const headingTop = view.documentTop + block.top;

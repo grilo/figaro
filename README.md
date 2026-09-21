@@ -111,7 +111,9 @@ source note.
 Return to a project note and see when its passages changed. Enable **Activity
 dates** in **Settings → Editor → Navigation**, then click a margin date such as
 **7 Sep 26** to review the recorded changes. Dates and block controls stay clear
-of the text when you switch line numbers or block guides on or off. Adding a new
+of the text when you switch line numbers or block guides on or off. Edits that
+change a block label keep the centered text steady while you focus elsewhere
+and return, including with Activity dates or Pure mode. Adding a new
 meeting at the top preserves the older text's dates. New writing shows today's
 date immediately while waiting for history to record it. Use explicit date links
 for the meeting's scheduled day. Activity works for notes inside folders too,
@@ -208,8 +210,13 @@ also lists the log folders you can open directly.
 
 Build a table, sketch a Mermaid diagram, or turn a table into a chart without
 leaving your note. Figaro renders these alongside your writing and carries them
-into PDF output. Unchanged chart previews are reused when you return to them,
-and pending diagrams wait for a pause in typing or scrolling.
+into PDF output. Returning to a prepared diagram restores its preview without
+the rendering delay, and rendered blocks retain measured source heights across
+navigation. During held-key bursts, Mermaid previews settle after navigation pauses.
+New or invalidated diagrams wait for a pause in typing or scrolling.
+Code, formulas, tables, and loaded images also reuse prepared content when you
+return from their source or scroll back. Editing the content refreshes its
+preview; image resizing and Draw.io file refreshes keep their normal behavior.
 
 ![A library proposal beside its styled PDF preview in Figaro](docs/images/figaro-pdf.png)
 

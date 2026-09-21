@@ -58,6 +58,147 @@ describe('live diagram preview', () => {
         return view.dom.querySelector('.cm-live-diagram-view');
     }
 
+    function mountSourcePreview(language, code, second = false) {
+        const fence = '```' + language + '\n' + code + '\n```';
+        const source = ['Before', '', fence, '', 'After', ...(second ? ['', fence, '', 'End'] : [])].join('\n');
+        const field = createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField);
+        view = new EditorView({ state: EditorState.create({ doc: source,
+            extensions: [markdownLanguage, collapseOnSelectionFacet.of(true), mouseSelectingField, field],
+        }), parent: document.body });
+        return { source, inside: source.indexOf(code),
+            reveal: () => view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf(code) } }),
+            restore: () => view.dispatch({ selection: { anchor: 0 } }),
+        };
+    }
+
+    test.each(['mermaid', 'vega-lite'])('prepared %s previews retain their SVG and local IDs across repeated source entry and mapped edits', async language => {
+        jest.useFakeTimers();
+        window.mermaid.render.mockImplementation(async id => ({ svg: `<svg id="${id}"><use href="#${id}"/></svg>` }));
+        window.vegaEmbed = jest.fn().mockResolvedValue({ view: { toSVG: async () => '<svg id="local"><use href="#local"/></svg>', finalize() {} } });
+        try {
+            const fixture = mountSourcePreview(language, language === 'mermaid' ? 'flowchart LR; A-->B' : '{"mark":"bar"}', true);
+            await jest.advanceTimersByTimeAsync(350);
+            const originals = [...view.dom.querySelectorAll('.cm-live-diagram-view svg')];
+            expect(originals).toHaveLength(2);
+            expect(originals[0].id).not.toBe(originals[1].id);
+            const render = language === 'mermaid' ? window.mermaid.render : window.vegaEmbed;
+            expect(render).toHaveBeenCalledTimes(1);
+            for (let i = 0; i < 8; i++) {
+                fixture.reveal();
+                expect(originals[0].isConnected).toBe(false);
+                expect(originals[1].isConnected).toBe(true);
+                fixture.restore();
+                // Flush mount microtasks without advancing the quiet-time delay.
+                await jest.advanceTimersByTimeAsync(0);
+                expect([...view.dom.querySelectorAll('.cm-live-diagram-view svg')]).toEqual(originals);
+                expect(originals[0].querySelector('use').getAttribute('href')).toBe('#' + originals[0].id);
+            }
+            view.dispatch({ changes: { from: 0, insert: 'Mapped ' } });
+            fixture.reveal(); fixture.restore(); await jest.advanceTimersByTimeAsync(0);
+            expect([...view.dom.querySelectorAll('.cm-live-diagram-view svg')]).toEqual(originals);
+            fixture.reveal(); fixture.restore(); fixture.reveal();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(originals[0].isConnected).toBe(false);
+            fixture.restore(); await jest.advanceTimersByTimeAsync(0);
+            expect([...view.dom.querySelectorAll('.cm-live-diagram-view svg')]).toEqual(originals);
+            expect(render).toHaveBeenCalledTimes(1);
+            expect(view.state.doc.toString()).toBe('Mapped ' + fixture.source);
+        } finally { view.destroy(); jest.useRealTimers(); }
+    });
+
+    test('prepared Mermaid output invalidates while revealed for theme, font, source and renderer changes', async () => {
+        jest.useFakeTimers();
+        const fonts = new EventTarget(); fonts.status = 'loaded';
+        const previousFonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+        Object.defineProperty(document, 'fonts', { configurable: true, value: fonts });
+        try {
+            const fixture = mountSourcePreview('mermaid', 'flowchart LR; A-->B');
+            await jest.advanceTimersByTimeAsync(200);
+            for (const invalidate of [
+                () => document.documentElement.style.setProperty('--text-color', '#f03212'),
+                () => fonts.dispatchEvent(new Event('loadingdone')),
+                () => { window.mermaid = { initialize: jest.fn(), render: jest.fn().mockResolvedValue({ svg: '<svg data-engine="new"/>' }) }; },
+            ]) {
+                const previous = view.dom.querySelector('.cm-live-diagram-view svg');
+                fixture.reveal(); invalidate(); fixture.restore(); await jest.advanceTimersByTimeAsync(0);
+                expect(view.dom.querySelector('.cm-live-diagram-view svg')).toBeNull();
+                await jest.advanceTimersByTimeAsync(200);
+                expect(view.dom.querySelector('.cm-live-diagram-view svg')).not.toBe(previous);
+            }
+            fixture.reveal();
+            view.dispatch({ changes: { from: fixture.inside, to: fixture.inside + 'flowchart LR; A-->B'.length, insert: 'flowchart LR; A-->C' } });
+            fixture.restore(); await jest.advanceTimersByTimeAsync(0);
+            expect(view.dom.querySelector('.cm-live-diagram-view svg')).toBeNull();
+            await jest.advanceTimersByTimeAsync(200);
+            expect(window.mermaid.render.mock.calls.at(-1)[1]).toContain('A-->C');
+        } finally {
+            view.destroy(); jest.useRealTimers(); document.documentElement.style.removeProperty('--text-color');
+            if (previousFonts) Object.defineProperty(document, 'fonts', previousFonts); else delete document.fonts;
+        }
+    });
+
+    test('prepared Mermaid SVG restoration stays out of held-key bursts and resumes without generation after quiet', async () => {
+        jest.useFakeTimers();
+        try {
+            const fixture = mountSourcePreview('mermaid', 'flowchart LR; A-->B');
+            await jest.advanceTimersByTimeAsync(200);
+            const graphic = view.dom.querySelector('.cm-live-diagram-view svg');
+            fixture.reveal();
+            view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', repeat: true, bubbles: true }));
+            fixture.restore(); await jest.advanceTimersByTimeAsync(0);
+            for (let i = 0; i < 8; i++) {
+                view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', repeat: true, bubbles: true }));
+                await jest.advanceTimersByTimeAsync(33);
+                expect(graphic.isConnected).toBe(false);
+            }
+            await jest.advanceTimersByTimeAsync(150);
+            expect(view.dom.querySelector('.cm-live-diagram-view svg')).toBe(graphic);
+            expect(window.mermaid.render).toHaveBeenCalledTimes(1);
+            fixture.reveal();
+            Object.defineProperty(view, 'composing', { configurable: true, writable: true, value: true });
+            fixture.restore(); await jest.advanceTimersByTimeAsync(300);
+            expect(graphic.isConnected).toBe(false);
+            view.composing = false; await jest.advanceTimersByTimeAsync(200);
+            expect(view.dom.querySelector('.cm-live-diagram-view svg')).toBe(graphic);
+        } finally { view.destroy(); jest.useRealTimers(); }
+    });
+
+    test('prepared responsive Vega output checks connected width and external data remains on the render path', async () => {
+        jest.useFakeTimers();
+        let width = 500;
+        const widths = jest.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width);
+        window.vegaEmbed = jest.fn().mockResolvedValue({ view: { toSVG: async () => '<svg viewBox="0 0 40 30"/>', finalize() {} } });
+        try {
+            const fixture = mountSourcePreview('vega-lite', '{"width":"container","mark":"bar"}');
+            await jest.advanceTimersByTimeAsync(200);
+            fixture.reveal(); width = 700; fixture.restore(); await jest.advanceTimersByTimeAsync(0);
+            expect(view.dom.querySelector('.cm-live-diagram-view svg')).toBeNull();
+            await jest.advanceTimersByTimeAsync(200);
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
+            expect(window.vegaEmbed.mock.calls.at(-1)[0].style.width).toBe('700px');
+            const ready = view.dom.querySelector('.cm-live-diagram-view svg');
+            fixture.reveal();
+            view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', repeat: true, bubbles: true }));
+            fixture.restore(); await jest.advanceTimersByTimeAsync(0);
+            expect(view.dom.querySelector('.cm-live-diagram-view svg')).toBe(ready);
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
+            fixture.reveal();
+            Object.defineProperty(view, 'composing', { configurable: true, writable: true, value: true });
+            fixture.restore(); await jest.advanceTimersByTimeAsync(300);
+            expect(ready.isConnected).toBe(false);
+            view.composing = false; await jest.advanceTimersByTimeAsync(200);
+            expect(view.dom.querySelector('.cm-live-diagram-view svg')).toBe(ready);
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
+            view.destroy();
+            const external = mountSourcePreview('vega-lite', '{"data":{"url":"data.csv"},"mark":"bar"}');
+            await jest.advanceTimersByTimeAsync(200);
+            external.reveal(); external.restore(); await jest.advanceTimersByTimeAsync(0);
+            expect(view.dom.querySelector('.cm-live-diagram-view svg')).toBeNull();
+            await jest.advanceTimersByTimeAsync(200);
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(4);
+        } finally { view.destroy(); widths.mockRestore(); jest.useRealTimers(); }
+    });
+
     test('diagram adapter postpones pending rendering during repeated key input and releases it after quiet', async () => {
         jest.useFakeTimers();
         window.vegaEmbed = jest.fn().mockResolvedValue({ view: {

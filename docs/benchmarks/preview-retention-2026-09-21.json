@@ -1,0 +1,2976 @@
+{
+  "date": "2026-09-21",
+  "baseCommit": "f21faa5da24699da81b049c27077b5a30168f54f",
+  "environment": {
+    "gtk": "3.24.52",
+    "webkitGTK": "2.52.6",
+    "productionTags": [
+      "production",
+      "webkit2_41"
+    ],
+    "display": "Private Xvfb with software rendering, 1600x1000 root and 1280x800 app",
+    "isolation": "Separate user/network namespace and disposable vault/configuration",
+    "input": "XTest ArrowDown held 2.8 seconds immediately followed by ArrowUp held 2.8 seconds; 180ms repeat delay and 30Hz repeat",
+    "roundsPerFixture": 3,
+    "warmReturnsPerFixture": 8,
+    "quantile": "nearest rank, milliseconds rounded to two decimals",
+    "timingCaveats": "Sequential small samples with coarse clocks. Return includes transaction and up to 5ms DOM polling, not paint or physical input latency. Frame timing varied substantially even in baseline reruns. No other builds/tests ran during timings."
+  },
+  "baselineSourceSha256": {
+    "frontend/vendored/codemirror-live-markdown/index.js": "359af7c1b5cc87eae932574401ddad2d217bf98c8add4f1e0c6d0fc8339efaf6",
+    "frontend/js/mathPlugin.js": "705243c27e3c8e98320d06f53b9209ad25a5d93be32b9baaaf7b10330f8e852c",
+    "frontend/js/markdownImagePlugin.js": "25b211b1f0ae6b1146e22f7cbe5b4ed34ccb1a631462705ddba86834da555f63",
+    "frontend/js/liveMarkdownTablePlugin.js": "87a0f1aa207f67f1f3fa18655ad5fb4bdb25ec4e5acc089f2f448d034b0ee840",
+    "frontend/js/markdownTableRenderer.js": "e56ab88dda3efb9cef208bbd6cb66541c6122ebb21dbc9b26c8fecaf68e9ba6f",
+    "frontend/js/sourceFootprint.js": "38d25ba06b1c141aecfed3f0c7f61d2900eb0cd123bcb7a43a802d1df92c9c83"
+  },
+  "finalSourceSha256": {
+    "frontend/js/domPreviewCache.js": "a4f5ef4f0c90dcb1a16a4040295d2f111f48a7a1b9c1ab7651e564cbbc908d2a",
+    "frontend/js/mathPlugin.js": "f9c31409fbdf83aca0ba7e9cc3f13b12abb729c4e818773a7a4ed0ae73bd17e3",
+    "frontend/js/liveMarkdownTablePlugin.js": "c1aedf1f42a0dab6c2d80173c956a3157f4a0e3fc220832d347d5e3f16470057",
+    "frontend/js/markdownImagePlugin.js": "8a4b3f79141320cfe6b32f652238d65c246873dd86446343746c13ad6b863562",
+    "frontend/js/editor.js": "409e41267b57da1d0b23ea196aac0371049f486656d7ec79c33c9a44db3995dd",
+    "frontend/vendored/codemirror-live-markdown/index.js": "2d42914f55efcda76f792a1c3cbf1baf7b34abc50564bc455e049242c5520d34",
+    "frontend/js/core/previewCache.js": "f196687cd34d8cb3995e7863e38c326cebd6a537a2d136f24e3c6b1ca29d9867"
+  },
+  "binarySha256": {
+    "baseline": "6e0f5f447c33cc45aa9c59bf9ea456285b45b77d5e24124558e1a7214be5432c",
+    "measuredCandidate": "470777d41589cddcd59135b804f80c7fb4d775bf3938c35180873eaf66741a76",
+    "finalVerified": "432e60da0ac4fb8bd640260e8085071f13cf443a8401a0b117aa6d8da07653a1"
+  },
+  "finalBuildDifference": "After timing, code retention additionally bypasses fallback output when the highlighter throws. A malformed-grammar regression proves retry; successful rendering paths measured here are unchanged.",
+  "measurements": {
+    "baselineRepeated": [
+      {
+        "kind": "code",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 8,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1920,
+        "switches": [
+          {
+            "ms": 18,
+            "sameNode": false
+          },
+          {
+            "ms": 12,
+            "sameNode": false
+          },
+          {
+            "ms": 13,
+            "sameNode": false
+          },
+          {
+            "ms": 18,
+            "sameNode": false
+          },
+          {
+            "ms": 15.0,
+            "sameNode": false
+          },
+          {
+            "ms": 15,
+            "sameNode": false
+          },
+          {
+            "ms": 16,
+            "sameNode": false
+          },
+          {
+            "ms": 14,
+            "sameNode": false
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 15.0,
+          "p95": 18,
+          "max": 18
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_0",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6018,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 5.0,
+          "p95": 16,
+          "max": 31
+        },
+        "frameGapMs": {
+          "samples": 86,
+          "median": 66.0,
+          "p95": 92,
+          "max": 129
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_1",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 17,
+          "max": 30
+        },
+        "frameGapMs": {
+          "samples": 87,
+          "median": 67,
+          "p95": 99,
+          "max": 133
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_2",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6005,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 13,
+          "max": 24
+        },
+        "frameGapMs": {
+          "samples": 96,
+          "median": 61.0,
+          "p95": 93,
+          "max": 134
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 0,
+        "imageCreates": 0,
+        "mathRenders": 8,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1946,
+        "switches": [
+          {
+            "ms": 22,
+            "sameNode": false
+          },
+          {
+            "ms": 19,
+            "sameNode": false
+          },
+          {
+            "ms": 23.0,
+            "sameNode": false
+          },
+          {
+            "ms": 30,
+            "sameNode": false
+          },
+          {
+            "ms": 27,
+            "sameNode": false
+          },
+          {
+            "ms": 31.0,
+            "sameNode": false
+          },
+          {
+            "ms": 22,
+            "sameNode": false
+          },
+          {
+            "ms": 23,
+            "sameNode": false
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 23.0,
+          "p95": 31.0,
+          "max": 31.0
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_0",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 14,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6006,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 5.0,
+          "p95": 28,
+          "max": 39
+        },
+        "frameGapMs": {
+          "samples": 91,
+          "median": 61,
+          "p95": 97,
+          "max": 125
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1436
+          },
+          "ArrowUp": {
+            "first": 1436,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_1",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 13,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 157,
+        "keyRepeats": 155,
+        "keyHandlerMs": {
+          "samples": 157,
+          "median": 6,
+          "p95": 29,
+          "max": 44.0
+        },
+        "frameGapMs": {
+          "samples": 106,
+          "median": 61.0,
+          "p95": 93,
+          "max": 122
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1436
+          },
+          "ArrowUp": {
+            "first": 1436,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_2",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 13,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6007,
+        "keyEvents": 156,
+        "keyRepeats": 154,
+        "keyHandlerMs": {
+          "samples": 156,
+          "median": 6.0,
+          "p95": 23.0,
+          "max": 33
+        },
+        "frameGapMs": {
+          "samples": 92,
+          "median": 62.0,
+          "p95": 88,
+          "max": 122
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1433
+          },
+          "ArrowUp": {
+            "first": 1433,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 8,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1853,
+        "switches": [
+          {
+            "ms": 8,
+            "sameNode": false
+          },
+          {
+            "ms": 11,
+            "sameNode": false
+          },
+          {
+            "ms": 10,
+            "sameNode": false
+          },
+          {
+            "ms": 9,
+            "sameNode": false
+          },
+          {
+            "ms": 10,
+            "sameNode": false
+          },
+          {
+            "ms": 8,
+            "sameNode": false
+          },
+          {
+            "ms": 9,
+            "sameNode": false
+          },
+          {
+            "ms": 11,
+            "sameNode": false
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 9.5,
+          "p95": 11,
+          "max": 11
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_0",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6015,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 13,
+          "max": 20
+        },
+        "frameGapMs": {
+          "samples": 93,
+          "median": 60,
+          "p95": 98,
+          "max": 130
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_1",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 14.0,
+          "max": 27
+        },
+        "frameGapMs": {
+          "samples": 90,
+          "median": 62.5,
+          "p95": 104,
+          "max": 125
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_2",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 13,
+          "max": 18
+        },
+        "frameGapMs": {
+          "samples": 95,
+          "median": 61,
+          "p95": 100,
+          "max": 115
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 8,
+        "imageCreates": 8,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1895,
+        "switches": [
+          {
+            "ms": 8.0,
+            "sameNode": false
+          },
+          {
+            "ms": 11,
+            "sameNode": false
+          },
+          {
+            "ms": 11,
+            "sameNode": false
+          },
+          {
+            "ms": 12,
+            "sameNode": false
+          },
+          {
+            "ms": 12,
+            "sameNode": false
+          },
+          {
+            "ms": 14,
+            "sameNode": false
+          },
+          {
+            "ms": 12,
+            "sameNode": false
+          },
+          {
+            "ms": 12,
+            "sameNode": false
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 12.0,
+          "p95": 14,
+          "max": 14
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_0",
+        "markupWrites": 11,
+        "imageCreates": 10,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.0,
+          "p95": 9,
+          "max": 17.0
+        },
+        "frameGapMs": {
+          "samples": 192,
+          "median": 34.0,
+          "p95": 50,
+          "max": 88
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_1",
+        "markupWrites": 10,
+        "imageCreates": 9,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 1.0,
+          "p95": 8,
+          "max": 14.0
+        },
+        "frameGapMs": {
+          "samples": 220,
+          "median": 30.0,
+          "p95": 44,
+          "max": 71
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_2",
+        "markupWrites": 10,
+        "imageCreates": 9,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6001.0,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 1.0,
+          "p95": 9,
+          "max": 15
+        },
+        "frameGapMs": {
+          "samples": 220,
+          "median": 30.0,
+          "p95": 42,
+          "max": 69
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      }
+    ],
+    "candidate": [
+      {
+        "kind": "code",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 0,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1868,
+        "switches": [
+          {
+            "ms": 13,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 11.0,
+            "sameNode": true
+          },
+          {
+            "ms": 10,
+            "sameNode": true
+          },
+          {
+            "ms": 11,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 11,
+            "sameNode": true
+          },
+          {
+            "ms": 13,
+            "sameNode": true
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 11.5,
+          "p95": 13,
+          "max": 13
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_0",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6005.0,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 5.0,
+          "p95": 14,
+          "max": 25
+        },
+        "frameGapMs": {
+          "samples": 86,
+          "median": 66.0,
+          "p95": 96,
+          "max": 117
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_1",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 12.0,
+          "max": 22
+        },
+        "frameGapMs": {
+          "samples": 91,
+          "median": 63,
+          "p95": 100,
+          "max": 128
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_2",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004.0,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 12,
+          "max": 24
+        },
+        "frameGapMs": {
+          "samples": 90,
+          "median": 63.0,
+          "p95": 97,
+          "max": 117
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 0,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1938.0,
+        "switches": [
+          {
+            "ms": 23.0,
+            "sameNode": true
+          },
+          {
+            "ms": 25.0,
+            "sameNode": true
+          },
+          {
+            "ms": 19.0,
+            "sameNode": true
+          },
+          {
+            "ms": 19,
+            "sameNode": true
+          },
+          {
+            "ms": 22,
+            "sameNode": true
+          },
+          {
+            "ms": 23,
+            "sameNode": true
+          },
+          {
+            "ms": 19.0,
+            "sameNode": true
+          },
+          {
+            "ms": 20,
+            "sameNode": true
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 21.0,
+          "p95": 25.0,
+          "max": 25.0
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_0",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 5.0,
+          "p95": 22,
+          "max": 34
+        },
+        "frameGapMs": {
+          "samples": 95,
+          "median": 59,
+          "p95": 97,
+          "max": 112
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1436
+          },
+          "ArrowUp": {
+            "first": 1436,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_1",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6002,
+        "keyEvents": 157,
+        "keyRepeats": 155,
+        "keyHandlerMs": {
+          "samples": 157,
+          "median": 6.0,
+          "p95": 28,
+          "max": 40
+        },
+        "frameGapMs": {
+          "samples": 104,
+          "median": 63.0,
+          "p95": 95,
+          "max": 129
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1436
+          },
+          "ArrowUp": {
+            "first": 1436,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_2",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 6.0,
+          "p95": 25.0,
+          "max": 36
+        },
+        "frameGapMs": {
+          "samples": 94,
+          "median": 60.5,
+          "p95": 94,
+          "max": 131
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1436
+          },
+          "ArrowUp": {
+            "first": 1436,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 0,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1855,
+        "switches": [
+          {
+            "ms": 8,
+            "sameNode": true
+          },
+          {
+            "ms": 8,
+            "sameNode": true
+          },
+          {
+            "ms": 10,
+            "sameNode": true
+          },
+          {
+            "ms": 9,
+            "sameNode": true
+          },
+          {
+            "ms": 8,
+            "sameNode": true
+          },
+          {
+            "ms": 7,
+            "sameNode": true
+          },
+          {
+            "ms": 7,
+            "sameNode": true
+          },
+          {
+            "ms": 6,
+            "sameNode": true
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 8.0,
+          "p95": 10,
+          "max": 10
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_0",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6005,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 15.0,
+          "max": 19.0
+        },
+        "frameGapMs": {
+          "samples": 96,
+          "median": 58.0,
+          "p95": 96,
+          "max": 119
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_1",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 14,
+          "max": 18
+        },
+        "frameGapMs": {
+          "samples": 98,
+          "median": 59.0,
+          "p95": 96,
+          "max": 129
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_2",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6006,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 13,
+          "max": 19.0
+        },
+        "frameGapMs": {
+          "samples": 102,
+          "median": 57.5,
+          "p95": 87,
+          "max": 129
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 0,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1990,
+        "switches": [
+          {
+            "ms": 11,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 11.0,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 11.0,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 16.0,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 12.0,
+          "p95": 16.0,
+          "max": 16.0
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_0",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004,
+        "keyEvents": 157,
+        "keyRepeats": 155,
+        "keyHandlerMs": {
+          "samples": 157,
+          "median": 3,
+          "p95": 18,
+          "max": 31.0
+        },
+        "frameGapMs": {
+          "samples": 136,
+          "median": 52.0,
+          "p95": 88,
+          "max": 120
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_1",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 3.0,
+          "p95": 18,
+          "max": 29.0
+        },
+        "frameGapMs": {
+          "samples": 139,
+          "median": 52,
+          "p95": 84,
+          "max": 139
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_2",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 19,
+          "max": 32.0
+        },
+        "frameGapMs": {
+          "samples": 135,
+          "median": 55,
+          "p95": 89,
+          "max": 119
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      }
+    ],
+    "initialBaselineHeldOnly": [
+      {
+        "kind": "code",
+        "label": "held_down_up_0",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6006,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 3.0,
+          "p95": 8,
+          "max": 17
+        },
+        "frameGapMs": {
+          "samples": 134,
+          "median": 44.0,
+          "p95": 66,
+          "max": 87
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_1",
+        "markupWrites": 9,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6011,
+        "keyEvents": 147,
+        "keyRepeats": 145,
+        "keyHandlerMs": {
+          "samples": 147,
+          "median": 2,
+          "p95": 7,
+          "max": 18.0
+        },
+        "frameGapMs": {
+          "samples": 125,
+          "median": 40,
+          "p95": 62,
+          "max": 92
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 287
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_2",
+        "markupWrites": 10,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.0,
+          "p95": 8,
+          "max": 17
+        },
+        "frameGapMs": {
+          "samples": 118,
+          "median": 48.0,
+          "p95": 72,
+          "max": 101
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_0",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 14,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 2.0,
+          "p95": 17,
+          "max": 23.0
+        },
+        "frameGapMs": {
+          "samples": 137,
+          "median": 45,
+          "p95": 67,
+          "max": 81
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1452
+          },
+          "ArrowUp": {
+            "first": 1452,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_1",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 13,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 2.0,
+          "p95": 15,
+          "max": 22
+        },
+        "frameGapMs": {
+          "samples": 142,
+          "median": 43.0,
+          "p95": 64,
+          "max": 89
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1452
+          },
+          "ArrowUp": {
+            "first": 1452,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "math",
+        "label": "held_down_up_2",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 13,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6002,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.5,
+          "p95": 17,
+          "max": 30
+        },
+        "frameGapMs": {
+          "samples": 126,
+          "median": 45.0,
+          "p95": 67,
+          "max": 92
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1436
+          },
+          "ArrowUp": {
+            "first": 1436,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_0",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 157,
+        "keyRepeats": 155,
+        "keyHandlerMs": {
+          "samples": 157,
+          "median": 2,
+          "p95": 8,
+          "max": 12
+        },
+        "frameGapMs": {
+          "samples": 150,
+          "median": 42.0,
+          "p95": 66,
+          "max": 82
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_1",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.0,
+          "p95": 8,
+          "max": 22
+        },
+        "frameGapMs": {
+          "samples": 136,
+          "median": 42.0,
+          "p95": 72,
+          "max": 90
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "table",
+        "label": "held_down_up_2",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.0,
+          "p95": 9.0,
+          "max": 12.0
+        },
+        "frameGapMs": {
+          "samples": 138,
+          "median": 43.0,
+          "p95": 69,
+          "max": 80
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1944
+          },
+          "ArrowUp": {
+            "first": 1944,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_0",
+        "markupWrites": 11,
+        "imageCreates": 10,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.0,
+          "p95": 12,
+          "max": 20
+        },
+        "frameGapMs": {
+          "samples": 175,
+          "median": 39,
+          "p95": 63,
+          "max": 99
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_1",
+        "markupWrites": 10,
+        "imageCreates": 9,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6002.0,
+        "keyEvents": 156,
+        "keyRepeats": 154,
+        "keyHandlerMs": {
+          "samples": 156,
+          "median": 2.0,
+          "p95": 12,
+          "max": 20
+        },
+        "frameGapMs": {
+          "samples": 175,
+          "median": 40,
+          "p95": 63,
+          "max": 103
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4388
+          },
+          "ArrowUp": {
+            "first": 4388,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "held_down_up_2",
+        "markupWrites": 10,
+        "imageCreates": 9,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004.0,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 1,
+          "p95": 8.0,
+          "max": 19.0
+        },
+        "frameGapMs": {
+          "samples": 197,
+          "median": 32,
+          "p95": 52,
+          "max": 102
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4532
+          },
+          "ArrowUp": {
+            "first": 4532,
+            "last": 0
+          }
+        }
+      }
+    ],
+    "candidateCodeReuseDisabled": [
+      {
+        "kind": "code",
+        "label": "held_down_up_0",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6005,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 11,
+          "max": 21
+        },
+        "frameGapMs": {
+          "samples": 91,
+          "median": 64,
+          "p95": 96,
+          "max": 121
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_1",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 4.0,
+          "p95": 11,
+          "max": 22
+        },
+        "frameGapMs": {
+          "samples": 90,
+          "median": 67.0,
+          "p95": 98,
+          "max": 134
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_2",
+        "markupWrites": 11,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003.0,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 3.0,
+          "p95": 10.0,
+          "max": 23
+        },
+        "frameGapMs": {
+          "samples": 98,
+          "median": 58.5,
+          "p95": 88,
+          "max": 112
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2538
+          },
+          "ArrowUp": {
+            "first": 2538,
+            "last": 1
+          }
+        }
+      }
+    ],
+    "candidateImageReuseOnOffOn": [
+      {
+        "kind": "image",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 0,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 2013,
+        "switches": [
+          {
+            "ms": 13,
+            "sameNode": true
+          },
+          {
+            "ms": 12.0,
+            "sameNode": true
+          },
+          {
+            "ms": 14,
+            "sameNode": true
+          },
+          {
+            "ms": 16,
+            "sameNode": true
+          },
+          {
+            "ms": 16,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 16,
+            "sameNode": true
+          },
+          {
+            "ms": 16,
+            "sameNode": true
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 15.0,
+          "p95": 16,
+          "max": 16
+        }
+      },
+      {
+        "kind": "image",
+        "label": "retained_held_down_up_0",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6005,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 3.0,
+          "p95": 16,
+          "max": 29
+        },
+        "frameGapMs": {
+          "samples": 158,
+          "median": 43.0,
+          "p95": 78,
+          "max": 116
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "retained_held_down_up_1",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004.0,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 3.0,
+          "p95": 15,
+          "max": 28
+        },
+        "frameGapMs": {
+          "samples": 148,
+          "median": 50.0,
+          "p95": 80,
+          "max": 132
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 8,
+        "imageCreates": 8,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1980,
+        "switches": [
+          {
+            "ms": 12,
+            "sameNode": false
+          },
+          {
+            "ms": 10,
+            "sameNode": false
+          },
+          {
+            "ms": 11.0,
+            "sameNode": false
+          },
+          {
+            "ms": 12.0,
+            "sameNode": false
+          },
+          {
+            "ms": 12.0,
+            "sameNode": false
+          },
+          {
+            "ms": 12,
+            "sameNode": false
+          },
+          {
+            "ms": 12,
+            "sameNode": false
+          },
+          {
+            "ms": 12.0,
+            "sameNode": false
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 12.0,
+          "p95": 12.0,
+          "max": 12.0
+        }
+      },
+      {
+        "kind": "image",
+        "label": "fresh_held_down_up_0",
+        "markupWrites": 11,
+        "imageCreates": 10,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6008,
+        "keyEvents": 157,
+        "keyRepeats": 155,
+        "keyHandlerMs": {
+          "samples": 157,
+          "median": 3,
+          "p95": 18,
+          "max": 26
+        },
+        "frameGapMs": {
+          "samples": 144,
+          "median": 51.0,
+          "p95": 79,
+          "max": 118
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4388
+          },
+          "ArrowUp": {
+            "first": 4388,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "fresh_held_down_up_1",
+        "markupWrites": 10,
+        "imageCreates": 9,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 3.0,
+          "p95": 16.0,
+          "max": 30
+        },
+        "frameGapMs": {
+          "samples": 153,
+          "median": 45,
+          "p95": 73,
+          "max": 107
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "warm_source_preview_switch",
+        "markupWrites": 0,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1957,
+        "switches": [
+          {
+            "ms": 11.0,
+            "sameNode": true
+          },
+          {
+            "ms": 11,
+            "sameNode": true
+          },
+          {
+            "ms": 10,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          },
+          {
+            "ms": 12,
+            "sameNode": true
+          }
+        ],
+        "returnMs": {
+          "samples": 8,
+          "median": 12.0,
+          "p95": 12,
+          "max": 12
+        }
+      },
+      {
+        "kind": "image",
+        "label": "retained_again_held_down_up_0",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003.0,
+        "keyEvents": 157,
+        "keyRepeats": 155,
+        "keyHandlerMs": {
+          "samples": 157,
+          "median": 3,
+          "p95": 15,
+          "max": 34.0
+        },
+        "frameGapMs": {
+          "samples": 139,
+          "median": 53,
+          "p95": 81,
+          "max": 137
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "image",
+        "label": "retained_again_held_down_up_1",
+        "markupWrites": 1,
+        "imageCreates": 0,
+        "mathRenders": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6005,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 3.0,
+          "p95": 15.0,
+          "max": 29
+        },
+        "frameGapMs": {
+          "samples": 139,
+          "median": 54,
+          "p95": 91,
+          "max": 136
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 4461
+          },
+          "ArrowUp": {
+            "first": 4461,
+            "last": 0
+          }
+        }
+      }
+    ]
+  },
+  "probeSource": "window.remountProbe = (() => {\n const view = document.querySelector('.cm-content').cmTile.root.view;\n const wait = ms => new Promise(resolve => setTimeout(resolve, ms));\n let active = null, frame = null, lastFrame = 0;\n const rows = [], ids = new WeakMap(); let nextID = 0;\n const svgID = svg => { if (!ids.has(svg)) ids.set(svg, ++nextID); return ids.get(svg); };\n const inner = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');\n const bounds = Element.prototype.getBoundingClientRect;\n const create = Document.prototype.createElement;\n Document.prototype.createElement=function(name,...args){if(active&&name.toLowerCase()==='img')active.imageCreates++;return create.call(this,name,...args);};\n const mathRender=window.katex.render;window.katex.render=function(...args){if(active)active.mathRenders++;return mathRender.apply(this,args);};\n Object.defineProperty(Element.prototype, 'innerHTML', {...inner, set(value) {\n  if (active) active.markupWrites++;\n  return inner.set.call(this, value);\n }});\n Element.prototype.getBoundingClientRect = function(...args) {\n  if (active && this.classList?.contains('cm-source-footprint-sizer')) active.rulerReads++;\n  return bounds.apply(this,args);\n };\n const keyBegin = event => {\n  if (!active || !['ArrowDown','ArrowUp'].includes(event.key)) return;\n  active.keys.push({key:event.key,repeat:event.repeat,start:performance.now(),before:view.state.selection.main.head});\n };\n const keyEnd = event => {\n  if (!active || !['ArrowDown','ArrowUp'].includes(event.key)) return;\n  const key=active.keys.at(-1);if(key){key.end=performance.now();key.after=view.state.selection.main.head;}\n };\n document.addEventListener('keydown',keyBegin,true);window.addEventListener('keydown',keyEnd);\n const tick = now => {if(active){active.frames.push(now-lastFrame);lastFrame=now;}frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);\n function select(at) {view.dispatch({selection:{anchor:at},effects:view.constructor.scrollIntoView(at,{y:'center'})});view.focus();}\n function fixture(kind) {\n  let text='# Native retained previews\\n\\n';\n  for(let i=0;i<12;i++){\n   const code=Array.from({length:12},(_,n)=>`const item${n} = {name: \"Row ${i}-${n}\", value: Math.max(${n}, ${i})};`).join('\\n');\n   const math='\\\\begin{aligned}\\n'+Array.from({length:5},(_,n)=>`f_{${n}}(x) &= \\\\frac{x^{${n+1}} + \\\\sqrt{${i+1}}}{1+x^2}`).join(' '+String.fromCharCode(92,92)+'\\n')+'\\n\\\\end{aligned}';\n   const table='| Name | Description | Count |\\n| --- | --- | ---: |\\n'+Array.from({length:12},(_,n)=>`| **Row ${i}-${n}** | Item with text | ${n*3} |`).join('\\n');\n   const svg=`<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"260\" viewBox=\"0 0 800 260\"><rect width=\"800\" height=\"260\" fill=\"#345777\"/>${Array.from({length:36},(_,n)=>`<circle cx=\"${20+n%12*66}\" cy=\"${40+Math.floor(n/12)*80}\" r=\"18\" fill=\"hsl(${(n*19+i*11)%360} 65% 65%)\"/>`).join('')}</svg>`;\n   const block=kind==='code'?'```js\\n'+code+'\\n```':kind==='math'?'$$\\n'+math+'\\n$$':kind==='table'?table:'![Native image '+i+'](data:image/svg+xml;base64,'+btoa(svg)+')';\n   text+='## Block '+i+'\\n\\nBefore block '+i+'.\\n\\n'+block+'\\n\\nAfter block '+i+'.\\n\\nPlain paragraph for navigation '+i+'.\\n\\n';\n  }\n  return text+'End of the measured document.\\n';\n }\n const api = {view,rows,done:false,error:null,source:'',kind:'',\n  prepare(kind){api.done=false;api.error=null;(async()=>{\n   api.kind=kind;api.source=fixture(kind);view.dispatch({changes:{from:0,to:view.state.doc.length,insert:api.source},selection:{anchor:0}});view.focus();await wait(500);\n   // Visit every block while quiet so return navigation measures prepared output.\n   for(let i=0;i<12;i++){select(api.source.indexOf('Before block '+i));await wait(400);}\n   select(0);await wait(500);\n  })().catch(e=>api.error=String(e.stack||e)).finally(()=>api.done=true);},\n  start(label){lastFrame=performance.now();active={kind:api.kind,label,keys:[],frames:[],markupWrites:0,imageCreates:0,mathRenders:0,rulerReads:0,started:lastFrame};},\n  stop(){const row=active;active=null;row.elapsed=performance.now()-row.started;row.sourceIntact=view.state.doc.toString()===api.source;rows.push(row);return row;},\n  remount(){api.done=false;api.error=null;(async()=>{\n   const before=api.source.indexOf('Before block 0');\n   const startBlock=api.source.indexOf('\\n\\n',before)+2,inside=startBlock+3;\n   const selector={code:'.cm-codeblock-widget code',math:'.cm-math-block .cm-source-footprint-graphic',table:'.cm-live-table table',image:'.cm-image-widget img'}[api.kind];\n   const rootSelector={code:'.cm-codeblock-widget',math:'.cm-math-block',table:'.cm-block-widget--table',image:'.cm-image-widget'}[api.kind];\n   const targetSVG=()=>[...view.dom.querySelectorAll(selector)].find(node=>view.posAtDOM(node.closest(rootSelector),0)===startBlock)||null;\n   select(before);await wait(500);\n   api.start('warm_source_preview_switch');\n   active.switches=[];\n   for(let i=0;i<8;i++){\n    const previous=targetSVG();\n    const prior=previous?svgID(previous):null;\n    select(inside);await wait(50);const start=performance.now();select(before);\n    let graphic=null;for(let n=0;n<100;n++){graphic=targetSVG();if(graphic)break;await wait(5);}\n    active.switches.push({ms:performance.now()-start,sameSVG:graphic?svgID(graphic)===prior:null});await wait(160);\n   }\n   api.stop();select(0);await wait(300);\n  })().catch(e=>api.error=String(e.stack||e)).finally(()=>api.done=true);},\n  dispose(){if(frame!==null)cancelAnimationFrame(frame);Document.prototype.createElement=create;window.katex.render=mathRender;document.removeEventListener('keydown',keyBegin,true);window.removeEventListener('keydown',keyEnd);Object.defineProperty(Element.prototype,'innerHTML',inner);Element.prototype.getBoundingClientRect=bounds;},\n };return api;\n})();true;\n",
+  "nativeInputHarness": "from pathlib import Path\nimport ctypes,time,json,re,subprocess,os,sys\nphase=sys.argv[1];warm_only='--warm-only' in sys.argv;base=Path('/tmp/figaro-preview-retention')/phase\nsys.path.insert(0,str(base));from native_inspector import Inspector\ndisplay_name=':'+base.joinpath('xdisplay').read_text().strip()\nenv={**os.environ,'DISPLAY':display_name}\nfor _ in range(100):\n windows=subprocess.check_output(['xwininfo','-root','-tree'],env=env,text=True)\n match=re.search(r'(0x[0-9a-f]+) \"Cost.md \u2014 Figaro\"',windows)\n if match:break\n time.sleep(.1)\nassert match,windows\nwindow=int(match[1],16)\nX=ctypes.CDLL('libX11.so.6');T=ctypes.CDLL('libXtst.so.6')\nX.XOpenDisplay.argtypes=[ctypes.c_char_p];X.XOpenDisplay.restype=ctypes.c_void_p\ndisplay=X.XOpenDisplay(display_name.encode());assert display\nX.XSetInputFocus.argtypes=[ctypes.c_void_p,ctypes.c_ulong,ctypes.c_int,ctypes.c_ulong]\nX.XMoveResizeWindow.argtypes=[ctypes.c_void_p,ctypes.c_ulong,ctypes.c_int,ctypes.c_int,ctypes.c_uint,ctypes.c_uint]\nX.XFlush.argtypes=[ctypes.c_void_p]\nX.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong];X.XKeysymToKeycode.restype=ctypes.c_uint\nT.XTestFakeKeyEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]\nx=Inspector();x.sock.settimeout(60)\ndef key(symbol,down):T.XTestFakeKeyEvent(display,X.XKeysymToKeycode(display,symbol),int(down),0);X.XFlush(display)\ndef wait_done():\n for _ in range(1200):\n  time.sleep(.05);p=x.evaluate('({done:remountProbe.done,error:remountProbe.error})')\n  if p['error']:raise RuntimeError(p['error'])\n  if p['done']:return\n raise RuntimeError('probe timeout')\ntry:\n X.XMoveResizeWindow(display,window,80,100,1280,800);X.XSetInputFocus(display,window,1,0);X.XFlush(display)\n subprocess.run(['xset','r','rate','180','30'],env=env,check=True)\n x.evaluate((base.parent/'probe.js').read_text())\n for kind in ['code','math','table','image']:\n  x.evaluate('remountProbe.prepare('+json.dumps(kind)+')');wait_done()\n  if True:x.evaluate('remountProbe.remount()');wait_done()\n  for iteration in range(0 if warm_only else 3):\n   x.evaluate('remountProbe.view.dispatch({selection:{anchor:0},effects:remountProbe.view.constructor.scrollIntoView(0,{y:\"start\"})});remountProbe.view.focus()');time.sleep(.4)\n   x.evaluate('remountProbe.start('+json.dumps('held_down_up_'+str(iteration))+')')\n   key(0xff54,True);time.sleep(2.8);key(0xff54,False);key(0xff52,True);time.sleep(2.8);key(0xff52,False)\n   time.sleep(.4);row=x.evaluate('remountProbe.stop()');print(json.dumps({'kind':kind,'iteration':iteration,'keys':len(row['keys']),'repeat':sum(k['repeat'] for k in row['keys']),'markupWrites':row['markupWrites'],'imageCreates':row['imageCreates'],'mathRenders':row['mathRenders'],'rulerReads':row['rulerReads']}),flush=True)\n   assert row['sourceIntact'] and len(row['keys'])>60\n  result=x.evaluate('remountProbe.rows');base.joinpath('switch-results.json' if warm_only else 'results.json').write_text(json.dumps(result,indent=2))\nfinally:\n key(0xff54,False);key(0xff52,False)\n x.evaluate('remountProbe.dispose()');x.close()\n",
+  "nativeChecks": {
+    "cursorPointerEdit": [
+      {
+        "name": "native editor has focus",
+        "ok": true
+      },
+      {
+        "name": "code payload edit/backspace restores exact source",
+        "ok": true
+      },
+      {
+        "name": "code Down advances",
+        "ok": true,
+        "before": 68,
+        "after": 78
+      },
+      {
+        "name": "code Down advances",
+        "ok": true,
+        "before": 78,
+        "after": 79
+      },
+      {
+        "name": "code Down advances",
+        "ok": true,
+        "before": 79,
+        "after": 85
+      },
+      {
+        "name": "code Down advances",
+        "ok": true,
+        "before": 85,
+        "after": 102
+      },
+      {
+        "name": "code Down advances",
+        "ok": true,
+        "before": 102,
+        "after": 122
+      },
+      {
+        "name": "code Down advances",
+        "ok": true,
+        "before": 122,
+        "after": 126
+      },
+      {
+        "name": "code Down exits source",
+        "ok": true,
+        "positions": [
+          78,
+          79,
+          85,
+          102,
+          122,
+          126
+        ]
+      },
+      {
+        "name": "code Up reverses",
+        "ok": true,
+        "before": 126,
+        "after": 122
+      },
+      {
+        "name": "code Up reverses",
+        "ok": true,
+        "before": 122,
+        "after": 102
+      },
+      {
+        "name": "code Up reverses",
+        "ok": true,
+        "before": 102,
+        "after": 85
+      },
+      {
+        "name": "code Up reverses",
+        "ok": true,
+        "before": 85,
+        "after": 79
+      },
+      {
+        "name": "code Up reverses",
+        "ok": true,
+        "before": 79,
+        "after": 78
+      },
+      {
+        "name": "code Up exits source",
+        "ok": true,
+        "positions": [
+          122,
+          102,
+          85,
+          79,
+          78
+        ]
+      },
+      {
+        "name": "code mouse placement",
+        "ok": true
+      },
+      {
+        "name": "code forward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 65,
+          "to": 132,
+          "head": 132
+        }
+      },
+      {
+        "name": "code backward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 68,
+          "to": 131,
+          "head": 68
+        },
+        "first": {
+          "x": 484.5,
+          "y": 214.1875
+        },
+        "last": {
+          "x": 491.5,
+          "y": 410.1875
+        }
+      },
+      {
+        "name": "code navigation leaves source intact",
+        "ok": true
+      },
+      {
+        "name": "math payload edit/backspace restores exact source",
+        "ok": true
+      },
+      {
+        "name": "math Down advances",
+        "ok": true,
+        "before": 143,
+        "after": 153
+      },
+      {
+        "name": "math Down advances",
+        "ok": true,
+        "before": 153,
+        "after": 154
+      },
+      {
+        "name": "math Down advances",
+        "ok": true,
+        "before": 154,
+        "after": 157
+      },
+      {
+        "name": "math Down advances",
+        "ok": true,
+        "before": 157,
+        "after": 180
+      },
+      {
+        "name": "math Down advances",
+        "ok": true,
+        "before": 180,
+        "after": 183
+      },
+      {
+        "name": "math Down exits source",
+        "ok": true,
+        "positions": [
+          153,
+          154,
+          157,
+          180,
+          183
+        ]
+      },
+      {
+        "name": "math Up reverses",
+        "ok": true,
+        "before": 183,
+        "after": 180
+      },
+      {
+        "name": "math Up reverses",
+        "ok": true,
+        "before": 180,
+        "after": 157
+      },
+      {
+        "name": "math Up reverses",
+        "ok": true,
+        "before": 157,
+        "after": 154
+      },
+      {
+        "name": "math Up reverses",
+        "ok": true,
+        "before": 154,
+        "after": 153
+      },
+      {
+        "name": "math Up exits source",
+        "ok": true,
+        "positions": [
+          180,
+          157,
+          154,
+          153
+        ]
+      },
+      {
+        "name": "math mouse placement",
+        "ok": true
+      },
+      {
+        "name": "math forward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 140,
+          "to": 189,
+          "head": 189
+        }
+      },
+      {
+        "name": "math backward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 143,
+          "to": 188,
+          "head": 143
+        },
+        "first": {
+          "x": 484.5,
+          "y": 257.1875
+        },
+        "last": {
+          "x": 491.5,
+          "y": 425.1875
+        }
+      },
+      {
+        "name": "math navigation leaves source intact",
+        "ok": true
+      },
+      {
+        "name": "table payload edit/backspace restores exact source",
+        "ok": true
+      },
+      {
+        "name": "table Down advances",
+        "ok": true,
+        "before": 200,
+        "after": 211
+      },
+      {
+        "name": "table Down advances",
+        "ok": true,
+        "before": 211,
+        "after": 212
+      },
+      {
+        "name": "table Down advances",
+        "ok": true,
+        "before": 212,
+        "after": 229
+      },
+      {
+        "name": "table Down advances",
+        "ok": true,
+        "before": 229,
+        "after": 243
+      },
+      {
+        "name": "table Down advances",
+        "ok": true,
+        "before": 243,
+        "after": 259
+      },
+      {
+        "name": "table Down advances",
+        "ok": true,
+        "before": 259,
+        "after": 274
+      },
+      {
+        "name": "table Down exits source",
+        "ok": true,
+        "positions": [
+          211,
+          212,
+          229,
+          243,
+          259,
+          274
+        ]
+      },
+      {
+        "name": "table Up reverses",
+        "ok": true,
+        "before": 274,
+        "after": 259
+      },
+      {
+        "name": "table Up reverses",
+        "ok": true,
+        "before": 259,
+        "after": 243
+      },
+      {
+        "name": "table Up reverses",
+        "ok": true,
+        "before": 243,
+        "after": 229
+      },
+      {
+        "name": "table Up reverses",
+        "ok": true,
+        "before": 229,
+        "after": 212
+      },
+      {
+        "name": "table Up reverses",
+        "ok": true,
+        "before": 212,
+        "after": 211
+      },
+      {
+        "name": "table Up exits source",
+        "ok": true,
+        "positions": [
+          259,
+          243,
+          229,
+          212,
+          211
+        ]
+      },
+      {
+        "name": "table mouse placement",
+        "ok": true
+      },
+      {
+        "name": "table forward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 197,
+          "to": 280,
+          "head": 280
+        }
+      },
+      {
+        "name": "table backward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 200,
+          "to": 279,
+          "head": 200
+        },
+        "first": {
+          "x": 484.5,
+          "y": 229.1875
+        },
+        "last": {
+          "x": 491.5,
+          "y": 425.1875
+        }
+      },
+      {
+        "name": "table navigation leaves source intact",
+        "ok": true
+      },
+      {
+        "name": "diagram payload edit/backspace restores exact source",
+        "ok": true
+      },
+      {
+        "name": "diagram Down advances",
+        "ok": true,
+        "before": 292,
+        "after": 305
+      },
+      {
+        "name": "diagram Down advances",
+        "ok": true,
+        "before": 305,
+        "after": 306
+      },
+      {
+        "name": "diagram Down advances",
+        "ok": true,
+        "before": 306,
+        "after": 317
+      },
+      {
+        "name": "diagram Down advances",
+        "ok": true,
+        "before": 317,
+        "after": 333
+      },
+      {
+        "name": "diagram Down advances",
+        "ok": true,
+        "before": 333,
+        "after": 337
+      },
+      {
+        "name": "diagram Down exits source",
+        "ok": true,
+        "positions": [
+          305,
+          306,
+          317,
+          333,
+          337
+        ]
+      },
+      {
+        "name": "diagram Up reverses",
+        "ok": true,
+        "before": 337,
+        "after": 333
+      },
+      {
+        "name": "diagram Up reverses",
+        "ok": true,
+        "before": 333,
+        "after": 317
+      },
+      {
+        "name": "diagram Up reverses",
+        "ok": true,
+        "before": 317,
+        "after": 306
+      },
+      {
+        "name": "diagram Up reverses",
+        "ok": true,
+        "before": 306,
+        "after": 305
+      },
+      {
+        "name": "diagram Up exits source",
+        "ok": true,
+        "positions": [
+          333,
+          317,
+          306,
+          305
+        ]
+      },
+      {
+        "name": "diagram mouse placement",
+        "ok": true
+      },
+      {
+        "name": "diagram forward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 289,
+          "to": 360,
+          "head": 360
+        }
+      },
+      {
+        "name": "diagram backward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 278,
+          "to": 342,
+          "head": 278
+        },
+        "first": {
+          "x": 484.5,
+          "y": -2.8125
+        },
+        "last": {
+          "x": 491.5,
+          "y": 425.1875
+        }
+      },
+      {
+        "name": "diagram navigation leaves source intact",
+        "ok": true
+      },
+      {
+        "name": "chart payload edit/backspace restores exact source",
+        "ok": true
+      },
+      {
+        "name": "chart Down advances",
+        "ok": true,
+        "before": 357,
+        "after": 368
+      },
+      {
+        "name": "chart Down advances",
+        "ok": true,
+        "before": 368,
+        "after": 369
+      },
+      {
+        "name": "chart Down advances",
+        "ok": true,
+        "before": 369,
+        "after": 382
+      },
+      {
+        "name": "chart Down advances",
+        "ok": true,
+        "before": 382,
+        "after": 448
+      },
+      {
+        "name": "chart Down advances",
+        "ok": true,
+        "before": 448,
+        "after": 521
+      },
+      {
+        "name": "chart Down advances",
+        "ok": true,
+        "before": 521,
+        "after": 525
+      },
+      {
+        "name": "chart Down exits source",
+        "ok": true,
+        "positions": [
+          368,
+          369,
+          382,
+          448,
+          521,
+          525
+        ]
+      },
+      {
+        "name": "chart Up reverses",
+        "ok": true,
+        "before": 525,
+        "after": 521
+      },
+      {
+        "name": "chart Up reverses",
+        "ok": true,
+        "before": 521,
+        "after": 448
+      },
+      {
+        "name": "chart Up reverses",
+        "ok": true,
+        "before": 448,
+        "after": 382
+      },
+      {
+        "name": "chart Up reverses",
+        "ok": true,
+        "before": 382,
+        "after": 369
+      },
+      {
+        "name": "chart Up reverses",
+        "ok": true,
+        "before": 369,
+        "after": 368
+      },
+      {
+        "name": "chart Up exits source",
+        "ok": true,
+        "positions": [
+          521,
+          448,
+          382,
+          369,
+          368
+        ]
+      },
+      {
+        "name": "chart mouse placement",
+        "ok": true
+      },
+      {
+        "name": "chart forward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 354,
+          "to": 531,
+          "head": 531
+        }
+      },
+      {
+        "name": "chart backward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 357,
+          "to": 530,
+          "head": 357
+        },
+        "first": {
+          "x": 484.5,
+          "y": 262.1875
+        },
+        "last": {
+          "x": 491.5,
+          "y": 458.1875
+        }
+      },
+      {
+        "name": "chart navigation leaves source intact",
+        "ok": true
+      },
+      {
+        "name": "image payload edit/backspace restores exact source",
+        "ok": true
+      },
+      {
+        "name": "image Down advances",
+        "ok": true,
+        "before": 543,
+        "after": 554
+      },
+      {
+        "name": "image Down advances",
+        "ok": true,
+        "before": 554,
+        "after": 555
+      },
+      {
+        "name": "image Down advances",
+        "ok": true,
+        "before": 555,
+        "after": 561
+      },
+      {
+        "name": "image Down advances",
+        "ok": true,
+        "before": 561,
+        "after": 630
+      },
+      {
+        "name": "image Down advances",
+        "ok": true,
+        "before": 630,
+        "after": 698
+      },
+      {
+        "name": "image Down advances",
+        "ok": true,
+        "before": 698,
+        "after": 742
+      },
+      {
+        "name": "image Down exits source",
+        "ok": true,
+        "positions": [
+          554,
+          555,
+          561,
+          630,
+          698,
+          742
+        ]
+      },
+      {
+        "name": "image Up reverses",
+        "ok": true,
+        "before": 742,
+        "after": 555
+      },
+      {
+        "name": "image Up reverses",
+        "ok": true,
+        "before": 555,
+        "after": 554
+      },
+      {
+        "name": "image Up exits source",
+        "ok": true,
+        "positions": [
+          555,
+          554
+        ]
+      },
+      {
+        "name": "image mouse placement",
+        "ok": true
+      },
+      {
+        "name": "image forward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 540,
+          "to": 748,
+          "head": 748
+        }
+      },
+      {
+        "name": "image backward drag spans replacement",
+        "ok": true,
+        "selection": {
+          "from": 543,
+          "to": 747,
+          "head": 543
+        },
+        "first": {
+          "x": 484.5,
+          "y": 514.1875
+        },
+        "last": {
+          "x": 491.5,
+          "y": 638.1875
+        }
+      },
+      {
+        "name": "image navigation leaves source intact",
+        "ok": true
+      },
+      {
+        "name": "retained table cell click reveals its current source row",
+        "ok": true
+      },
+      {
+        "name": "code Tab indents source",
+        "ok": true
+      },
+      {
+        "name": "code Shift+Tab restores exact source",
+        "ok": true
+      },
+      {
+        "name": "soft paragraph Enter inserts one line",
+        "ok": true
+      },
+      {
+        "name": "soft paragraph Backspace rejoins source",
+        "ok": true
+      },
+      {
+        "name": "code line Enter inserts one line",
+        "ok": true
+      },
+      {
+        "name": "code line Backspace rejoins source",
+        "ok": true
+      },
+      {
+        "name": "Welcome Arrow Up leaves line 23 for line 22",
+        "ok": true
+      },
+      {
+        "name": "Welcome Arrow Down returns to line 23",
+        "ok": true
+      }
+    ],
+    "imageControls": [
+      {
+        "name": "returned image keeps the same loaded node",
+        "ok": true
+      },
+      {
+        "name": "returned image handle is inside viewport",
+        "ok": true,
+        "point": {
+          "x": 650.5,
+          "y": 344.6875
+        }
+      },
+      {
+        "name": "native drag changes current mapped image source",
+        "ok": true,
+        "source": "Intro before retained preview.\n\n# Retained image controls\n\nBefore image.\n\n![Alt|270x121](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iNDAiPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iNDAiIGZpbGw9InRlYWwiLz48L3N2Zz4=)\n\nAfter image.\n"
+      },
+      {
+        "name": "native drag adds 80 pixels to the returned image",
+        "ok": true,
+        "before": {
+          "height": 121,
+          "width": 190
+        },
+        "after": {
+          "height": 121,
+          "width": 270
+        }
+      },
+      {
+        "name": "native Undo restores exact image source",
+        "ok": true
+      },
+      {
+        "name": "native Undo restores original image dimensions",
+        "ok": true,
+        "before": {
+          "height": 121,
+          "width": 190
+        },
+        "restored": {
+          "height": 121,
+          "width": 190
+        }
+      }
+    ]
+  },
+  "verification": {
+    "frontend": {
+      "suites": 321,
+      "tests": 3002,
+      "coverage": {
+        "statements": 83.93,
+        "branches": 72.95,
+        "functions": 84.05,
+        "lines": 87.35
+      }
+    },
+    "browser": {
+      "fullRunPassed": 135,
+      "fullRunFailed": 1,
+      "skippedOptInStressProfiles": 2,
+      "correctedFixture": "Optional wheel scenario now awaits setEditorContent before selecting line 25",
+      "focusedRerunPassed": 1,
+      "enabledScenariosVerified": 136
+    },
+    "native": {
+      "cursorPointerEditChecks": 111,
+      "imageControlsChecks": 6,
+      "screenshotVisuallyInspected": true
+    },
+    "other": [
+      "lint",
+      "production JavaScript build",
+      "production WebKitGTK native build",
+      "architecture fixtures",
+      "release-tool fixtures",
+      "feature index",
+      "test integrity",
+      "Markdown documentation audit"
+    ],
+    "logs": "/tmp/figaro-preview-retention"
+  }
+}

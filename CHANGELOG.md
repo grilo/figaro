@@ -8,8 +8,18 @@ remain as originally published.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.41.1] - 2026-09-21
+
 ### Fixed
 
+- Returning to code, math, tables, and images reuses their prepared content,
+  avoiding repeated rendering while preserving current editing and resize controls.
+- Keyboard navigation reuses prepared diagrams and measured block heights,
+  while keeping costly Mermaid preview updates out of held-key bursts.
+- The editor keeps text steady through focus and background updates, preserving
+  Activity dates and Pure mode layout when gutter labels or focus change.
 - Proofreading shows one comma-spacing suggestion and one Apply action when
   multiple grammar checks propose the same correction.
 - Release verification now checks combined JavaScript and native grammar results,
@@ -2338,7 +2348,8 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.41.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.41.1...HEAD
+[1.41.1]: https://github.com/grilo/figaro/compare/v1.41.0...v1.41.1
 [1.41.0]: https://github.com/grilo/figaro/compare/v1.40.0...v1.41.0
 [1.40.0]: https://github.com/grilo/figaro/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/grilo/figaro/compare/v1.38.3...v1.39.0

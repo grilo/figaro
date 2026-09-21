@@ -320,6 +320,21 @@ retain failure locations and stop obsolete lint passes before their next block.
 `editorRemainingWork.test.js` covers all ten consolidated findings at small and
 large sizes; retain fresh-parse, actual key/pointer and native checks as well.
 
+Keep prepared SVG and source-height retention bounded and owned by the editor.
+Cached graphics must transfer to one mount, preserve unique local references,
+and follow the renderer's source/appearance/font/width and volatile-data policy.
+Measure held-key bursts separately from ordinary preview return: fast cached
+attachment must not move expensive SVG layout into continuous input. Keep the
+existing cold-render and composition scheduling protections.
+
+Code, math, table and image retention uses `domPreviewCache.js`; pass its narrow
+port into the vendored code adapter at editor composition. Retain content only,
+with fresh controls/current source positions on each wrapper. Account for image
+pixels in the memory estimate, discard stale async loads, preserve Draw.io
+activation/deletion refreshes and keep failures retryable. Test node identity
+and invalidation below the browser, then verify first-paint geometry and native
+held-key navigation separately.
+
 Use opt-in traces and the assembled work-limit regression
 before adding feature-local caches. Jest must use the shipped vendored Markdown
 implementation, including its downstream cursor/viewport patches.

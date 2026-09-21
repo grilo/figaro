@@ -12,14 +12,18 @@ import { markBlockWidget } from './blockWidget.js';
 import { mathPreviewBlocks } from './core/mathPreviewModel.js';
 import { sourceLineCount } from './core/sourceFootprintModel.js';
 import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
+import { createDOMPreviewCache } from './domPreviewCache.js';
+
+const mathPreviews = createDOMPreviewCache();
 
 class MathWidget extends WidgetType {
-    constructor(text, displayMode, sourceLines = 1, sourceText = '') {
+    constructor(text, displayMode, sourceLines = 1, sourceText = '', sourceIdentity = null) {
         super();
         this.text = text;
         this.displayMode = displayMode;
         this.sourceLines = sourceLines;
         this.sourceText = sourceText;
+        this.sourceIdentity = sourceIdentity;
         this.stopGraphicFit = null;
     }
     eq(other) {
@@ -31,7 +35,11 @@ class MathWidget extends WidgetType {
     toDOM(view) {
         const span = document.createElement(this.displayMode ? 'div' : 'span');
         span.className = this.displayMode ? 'cm-math-block' : 'cm-math-inline';
-        const renderTarget = this.displayMode ? document.createElement('div') : span;
+        const session = mathPreviews.forView(view);
+        const signature = JSON.stringify([this.text, this.displayMode]);
+        const renderer = window.katex?.render;
+        const prepared = session?.take(this.sourceIdentity, signature, renderer);
+        const renderTarget = prepared?.node || document.createElement(this.displayMode ? 'div' : 'span');
         if (this.displayMode) {
             markBlockWidget(span);
             markSourceFootprint(span, {
@@ -41,12 +49,15 @@ class MathWidget extends WidgetType {
                 sourceText: this.sourceText,
             });
             renderTarget.className = 'cm-source-footprint-graphic';
-            span.appendChild(renderTarget);
         }
+        span.appendChild(renderTarget);
+        let completed = Boolean(prepared);
         try {
-            if (window.katex) {
+            if (!prepared && window.katex) {
                 window.katex.render(this.text, renderTarget, { displayMode: this.displayMode, throwOnError: false });
-            } else {
+                countEditorWork('render.mathPreview');
+                completed = !renderTarget.querySelector('.katex-error');
+            } else if (!prepared) {
                 renderTarget.textContent = '$' + this.text + '$';
             }
         } catch (e) {
@@ -56,11 +67,18 @@ class MathWidget extends WidgetType {
             this.stopGraphicFit?.();
             this.stopGraphicFit = fitGraphicToSourceFootprint(span, span, renderTarget);
         }
+        if (completed) {
+            span._figaroMathPreview = { session, key: this.sourceIdentity,
+                entry: prepared || mathPreviews.prepare(renderTarget, signature, renderer) };
+            if (prepared) countEditorWork('dom.mathPreviewRestored');
+        }
         return span;
     }
 
-    destroy() {
+    destroy(dom) {
         this.stopGraphicFit?.();
+        const preview = dom?._figaroMathPreview;
+        preview?.session?.retain(preview.key, preview.entry);
     }
 }
 
@@ -74,7 +92,7 @@ function mathBlockDecorations(state, block, visible) {
     return [Decoration.replace({
         widget: new MathWidget(block.text, block.displayMode,
             block.displayMode ? sourceLineCount(state.doc, block.from, block.to) : 1,
-            block.displayMode ? block.source : ''),
+            block.displayMode ? block.source : '', block.sourceIdentity || block),
         block: block.displayMode, sourceBlock: block.sourceIdentity || block,
     }).range(block.from, block.to)];
 }
@@ -143,5 +161,5 @@ export const mathField = StateField.define({
         return updateSourceReveal(value, transaction,
             (state, from, to) => mathSourceVisible(state, { from, to }), mathBlockDecorations, headRange);
     },
-    provide: field => EditorView.decorations.from(field, value => value.decorations)
+    provide: field => [mathPreviews.extension, EditorView.decorations.from(field, value => value.decorations)]
 });

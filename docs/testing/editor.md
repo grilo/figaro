@@ -109,10 +109,23 @@ Chromium and the packaged native webview.
 
 ## Block widget and cursor regressions
 
-The gutter-fold browser scenario waits for CodeMirror's measurement after
-replacing its source fixture before recording the writing-column baseline.
-Changing the fixture's line count can resize the number gutter independently
-of folding; the fold/unfold checks retain their subpixel alignment assertions.
+The gutter-fold browser scenario samples every animation frame while equal-line-
+count fixtures widen and shrink the helper labels, blur/refocus the editor, and
+fold/unfold a containing heading. With enough writing margin, both the content
+and source-line left edges must stay within 0.5px; measured helper width must
+match its negative-margin reservation on every frame. Establish the initial
+fixture before recording, but never wait away the transitions under test.
+`markdownBlockGuides.test.js` separately proves batched updates read the final
+installed spacer after the DOM update and that removing the extension cancels
+pending publication. Existing geometry, cursor, and drag checks remain required.
+
+The September 21 packaged Linux WebKitGTK check observed zero horizontal shift
+and zero reservation mismatch across 109 frames each with default settings,
+line numbers, Activity dates, and Pure mode. All four retained Arrow Up/Down, mouse placement,
+forward/reverse selection across a folded Mermaid block, expansion, and exact
+source (34 checks), including retained date visibility and Pure layout classes
+through focus changes. Input was DOM-dispatched on an isolated Weston display;
+physical input, Windows WebView2, and macOS WKWebView were not tested.
 
 `vendoredMarkdownCursor.test.js` observes the shipped formatting/style/code
 providers directly: 20 ordinary cursor moves across 10/1,000 blocks do no
@@ -158,8 +171,32 @@ and then introduce a heading to exercise the parser fallback. The pure policy
 covers Setext, fences, frontmatter delimiters, and multiline edits.
 Footprint adapter tests require all wrapping rulers mounted before the first
 height read, reuse on unchanged viewport updates, source/typography invalidation,
-and no wrapping metrics for empty prose or authored chart sizes. Keep the same
+and no wrapping metrics for empty prose or authored chart sizes. They also
+replace mounted elements repeatedly, require cached heights with no new ruler,
+and invalidate for changed width/source, font completion and loading fonts.
+`previewCache.test.js` bounds entry count/weight, replacement, eviction, disposal
+and one-time transfer. `liveDiagramPlugin.test.js` requires the same SVG nodes
+and local references after repeated source entry/exit and mapped edits without
+advancing the quiet timer. It invalidates retained output for changed source,
+appearance, fonts, engine and responsive width, and rejects external-data reuse.
+Mermaid held-key and both renderers’ composition cases must defer attachment,
+then restore the same SVG without another generation after quiet; cancelling a mount must leave retained
+output available for the next valid return.
+The existing footprint browser scenario checks fitted SVG dimensions on the
+first paint after restoring a prepared diagram. Keep the same
 native and browser cursor/drag/resize boundaries below.
+
+`domPreviewCache.test.js` verifies per-view transfer, validity checks, retention
+limits and extension disposal. Code/math/table/image component cases require
+retained content after repeated source returns and mapped edits, then fresh
+output for changed sources/renderers. Malformed code grammars must retry
+highlighting rather than retain failed output. Image cases cover oversized payloads,
+late loads, cancelled mounts, fresh controls/Undo and Draw.io activation URLs.
+The existing footprint browser case checks first-paint code/math/table/diagram
+sizes; the image resize case checks first-paint image size before using its new
+controls. Native verification repeats warmed source crossings, clicks, drags,
+resizing and held-arrow reversal for all four retained content families.
+
 
 Cursor-only reuse is covered below layout: `fileTreeModel.test.js` compares dirty
 path sets, and `fileTree.test.js` defensively passes 100 cursor-only snapshots
@@ -1335,7 +1372,9 @@ reduced-motion bypass, interruption, reversal, bounded targets, externally moved
 scroll offsets and convergence with rounded native offsets. `state.test.js`
 checks opt-in persistence. The existing editorUX spec adds one real-wheel
 workflow for progressive frames, unchanged source/selection, cancellation,
-Arrow Up/Down, pointer placement and drag. Repeat that boundary in packaged
+Arrow Up/Down, pointer placement and drag. Its setup must await the document
+mount promise before selecting a source line; one animation frame cannot
+establish that the replacement document is mounted. Repeat that boundary in packaged
 WebKitGTK/WebView2; simulated Mac platform tests prove only the bypass branch,
 not physical WKWebView trackpad feel. Native macOS wheel events remain untouched.
 

@@ -338,9 +338,12 @@ on Chromium 131 or newer. Customize it through the three
 Live and printable consumers share the bounded diagram renderer. Vega/Vega-Lite
 cache identity includes the effective specification, appearance, container size
 and font generation; cached SVG IDs and local references are unique per mount.
+Mermaid output also invalidates for changed font or renderer generations.
 External-data specifications bypass reuse. PDF preview and generated PDFs retain
 their existing authored appearance and sizing; the editor's typing/scroll quiet
-scheduler does not delay printable rendering.
+scheduler does not delay printable rendering. Editor-only retained code, math,
+table and image nodes do not enter printable documents; the shared table renderer
+still produces fresh DOM for each printable consumer.
 
 ## Performance measurements
 

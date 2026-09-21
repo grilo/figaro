@@ -25,6 +25,7 @@ import { createMermaidValidationReuse } from './usecases/mermaidValidationReuse.
 export const diagramLanguages = ['mermaid', 'vega', 'vega-lite'];
 
 let initializedMermaid = null;
+let mermaidGeneration = 0;
 let renderSequence = 0;
 const DIAGRAM_RENDER_CACHE_LIMIT = 64;
 const diagramRenderCache = new Map();
@@ -53,6 +54,7 @@ function initialiseMermaid() {
     if (!mermaid || typeof mermaid.initialize !== 'function' || typeof mermaid.render !== 'function') {
         return false;
     }
+    observeDiagramFonts();
     if (initializedMermaid === mermaid) return true;
 
     mermaid.initialize({
@@ -63,6 +65,7 @@ function initialiseMermaid() {
     diagramRenderCache.clear();
     pendingDiagramRenders.clear();
     initializedMermaid = mermaid;
+    mermaidGeneration++;
     return true;
 }
 
@@ -87,13 +90,12 @@ function writeCachedDiagram(key, entry) {
     }
 }
 
-async function renderMermaidSVG(code, idPrefix) {
-    const key = diagramRenderCacheKey('mermaid', code);
+async function renderMermaidSVG(code, idPrefix, key) {
     const targetId = nextMermaidRenderId(idPrefix);
-    const cached = readCachedDiagram(key);
+    const cached = key ? readCachedDiagram(key) : null;
     if (cached) return rebaseDiagramSvgIds(cached.svg, cached.renderId, targetId);
 
-    let pending = pendingDiagramRenders.get(key);
+    let pending = key ? pendingDiagramRenders.get(key) : null;
     if (!pending) {
         const renderId = targetId;
         pending = withMermaid(() => window.mermaid.render(renderId, code))
@@ -101,13 +103,13 @@ async function renderMermaidSVG(code, idPrefix) {
                 const svg = typeof result?.svg === 'string' && result.svg ? result.svg : null;
                 if (!svg) return null;
                 const entry = { svg, renderId };
-                writeCachedDiagram(key, entry);
+                if (key) writeCachedDiagram(key, entry);
                 return entry;
             })
             .finally(() => {
                 if (pendingDiagramRenders.get(key) === pending) pendingDiagramRenders.delete(key);
             });
-        pendingDiagramRenders.set(key, pending);
+        if (key) pendingDiagramRenders.set(key, pending);
     }
 
     const entry = await pending;
@@ -257,18 +259,28 @@ function initialiseVega() {
         vegaOutput.clear();
         initializedVega = embed;
     }
+    observeDiagramFonts();
+    return true;
+}
+
+function observeDiagramFonts() {
     if (typeof document !== 'undefined' && document.fonts && observedFonts !== document.fonts) {
         observedFonts = document.fonts;
-        observedFonts.addEventListener('loadingdone', () => {
+        const invalidate = () => {
             fontGeneration++;
             vegaOutput.clear();
-        });
-        observedFonts.addEventListener('loadingerror', () => {
-            fontGeneration++;
-            vegaOutput.clear();
-        });
+            diagramRenderCache.clear();
+        };
+        observedFonts.addEventListener('loadingdone', invalidate);
+        observedFonts.addEventListener('loadingerror', invalidate);
     }
-    return true;
+}
+
+function diagramFontIdentity() {
+    if (typeof document === 'undefined') return [fontGeneration];
+    const style = getComputedStyle(document.documentElement);
+    return [fontGeneration, document.fonts?.status, style.font,
+        style.getPropertyValue('--font-editor').trim(), style.getPropertyValue('--font-ui').trim()];
 }
 
 async function renderVegaOutput({ language, spec, dimensions, embed }) {
@@ -314,12 +326,7 @@ function assertRenderableVegaSVG(svg) {
     return svg;
 }
 
-/**
- * Render a diagram source block to standalone SVG. Unsupported renderers
- * return null; malformed diagram input rejects so callers can keep the
- * original source block visible instead of losing document content.
- */
-export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diagram', options = {}) {
+function diagramRenderInputs(language, source, options) {
     const normalizedLanguage = String(language || '').trim().toLowerCase();
     const code = String(source || '');
 
@@ -329,7 +336,9 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
         const renderSource = options.appearance === 'application'
             ? applicationThemedMermaidSource(code)
             : code;
-        return renderMermaidSVG(renderSource, idPrefix);
+        const key = typeof document !== 'undefined' && document.fonts?.status === 'loading' ? null
+            : JSON.stringify([mermaidGeneration, diagramRenderCacheKey('mermaid', renderSource), diagramFontIdentity()]);
+        return { language: normalizedLanguage, renderer: initializedMermaid, code: renderSource, key };
     }
 
     if ((normalizedLanguage === 'vega' || normalizedLanguage === 'vega-lite') &&
@@ -340,16 +349,32 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
             ? applicationThemedVegaSpec(authoredSpec)
             : authoredSpec;
         const dimensions = vegaRenderDimensions(options.containerWidth, spec.height);
-        const fonts = [fontGeneration, document.fonts?.status,
-            getComputedStyle(document.documentElement).font,
-            cssThemeValue('--font-editor', ''), cssThemeValue('--font-ui', '')];
+        const fonts = diagramFontIdentity();
         const key = document.fonts?.status === 'loading' ? null
             : vegaRenderCacheKey(normalizedLanguage, spec, dimensions, fonts);
-        const svg = await vegaOutput.render(key, {
-            language: normalizedLanguage, spec, dimensions, embed: window.vegaEmbed,
-        });
-        return uniqueVegaSvg(svg, idPrefix);
+        return { language: normalizedLanguage, renderer: initializedVega, spec, dimensions, key };
     }
 
     return null;
+}
+
+/** Identity for completed live previews, using the renderer's exact reuse policy. */
+export function diagramRenderIdentity(language, source, options = {}) {
+    const input = diagramRenderInputs(language, source, options);
+    return input?.key ? { key: input.key, renderer: input.renderer } : null;
+}
+
+/**
+ * Render a diagram source block to standalone SVG. Unsupported renderers
+ * return null; malformed diagram input rejects so callers can keep the
+ * original source block visible instead of losing document content.
+ */
+export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diagram', options = {}) {
+    const input = diagramRenderInputs(language, source, options);
+    if (!input) return null;
+    if (input.language === 'mermaid') return renderMermaidSVG(input.code, idPrefix, input.key);
+    const svg = await vegaOutput.render(input.key, {
+        language: input.language, spec: input.spec, dimensions: input.dimensions, embed: input.renderer,
+    });
+    return uniqueVegaSvg(svg, idPrefix);
 }

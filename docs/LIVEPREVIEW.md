@@ -193,6 +193,29 @@ for sticky headings and guides. Guide widths are cached and viewport/widget
 lookup is indexed. Reveal indexes refresh only when descriptors move or reparse, and
 folding, drag settlement and reveal-policy changes still refresh decorations.
 Unrelated settings retain parsed blocks and their decorations.
+Completed diagram SVG subtrees also survive source reveal and viewport removal
+in a bounded per-editor cache. Reattaching a valid subtree bypasses the rendering
+delay and SVG parsing; its wrapper controls and fitting observers are new.
+Source, appearance, fonts, engine and responsive width must still match, and
+external/ambient-data charts bypass retention. New or invalidated output follows
+the existing quiet scheduler. Held-key bursts also delay prepared Mermaid
+attachment until quiet; Vega restores immediately. Active composition delays both to protect its input region.
+Source-height measurements retain their exact
+source/width/typography key across mounts, with bounded storage and font/explicit
+typography invalidation. Both paths preserve the first painted replacement height.
+
+Code, math and table previews retain their completed content in separate
+per-editor caches, each capped at 32 entries and 4 MiB estimated source/DOM data.
+Code skips repeat highlighting, math skips KaTeX rendering and tables skip
+Markdown/cell reconstruction. Images retain up to 16 loaded elements under a
+32 MiB estimate that includes decoded pixels. Current wrappers recreate controls
+and source mappings; connected geometry is measured/fitted again where needed.
+Changed source/renderers invalidate reuse; tables containing images or math
+errors stay fresh. Image source/base-path/activation identity preserves Draw.io
+refreshes and file-deletion behavior. Failed or oversized content is not retained,
+and a removed image mount discards late loader/inspection results. Ordinary
+returns remain immediate; the separate Mermaid repeat guard is unchanged.
+
 Source reveal, geometry, resizing and pointer selection retain the contracts
 below. The bundled formatting/style/code providers are covered by the
 same contract: visible syntax for inline marks, cached complete code descriptors
@@ -205,6 +228,11 @@ root from materializing the whole note.
 Hidden editor buffers retain their last measured gutter reservation. Zero-width
 measurements cannot clear rail widths or the writing inset, so returning from
 Settings or another workspace panel paints existing blocks at a stable writing edge.
+Visible guide changes also synchronize after CodeMirror installs the new gutter
+DOM and before paint. A wider or narrower label must not briefly recenter text
+while waiting for focus, pointer, or background measurements. Activity and Pure
+layout classes belong to CodeMirror's editor-attribute facet so its focus updates
+preserve their gutter visibility and typewriter padding.
 
 CodeMirror's vertical cursor movement, click mapping, selections, and scrolling
 depend on its internal height map matching the browser's rendered layout. The
@@ -346,20 +374,24 @@ or bottom. A horizontal-only scrollbar therefore never traps a vertical
 gesture. Table source height is its header plus the separator and body rows.
 
 Mermaid, Vega and Vega-Lite widgets reuse unchanged SVG output when remounted.
-Mermaid keeps its source-keyed 64-entry cache; Vega/Vega-Lite additionally bound
-retained source/output to 4,194,304 UTF-16 code units and key effective appearance,
-normalized container dimensions and font generation. Each mount receives unique
+Mermaid keeps its 64-entry cache keyed by source, engine and font identity;
+Vega/Vega-Lite additionally bound retained source/output to 4,194,304 UTF-16 code units and key effective appearance,
+normalized container dimensions and font generation. Concurrent mounts have unique
 SVG IDs with local references preserved. Source edits and appearance/size/font
 changes invalidate pending widget results and refresh output. Vega specs reading external data, time, randomness or window/screen state
 bypass reuse so revisits fetch fresh data.
 
-The shared render queue waits 120 ms after typing, composition or scrolling, then
+Prepared live SVG nodes are retained separately from generated SVG strings, under
+the bounded per-editor ownership contract above. Ordinary returns reattach them
+before paint; active key repeat defers Mermaid attachment, and composition
+defers both renderers. New/invalidated output and those busy returns use the
+shared render queue, which waits 120 ms after typing, composition or scrolling, then
 an idle opportunity. Further input cancels that idle slot; composition blocks it
 even if the idle timeout expires. Already running renderer JavaScript cannot be
 preempted. Graphic fitting coalesces resize notifications into an animation frame
 outside observer delivery; disposed widgets cancel pending fitting. Source-height
 rulers defer resize notifications into a frame, including restored scrolled notes.
-Source/mount updates still measure before paint to preserve replacement height. Ordinary prose edits retain existing widgets. Inline SVG, measured
+Source/mount updates restore or measure height before paint. Ordinary prose edits retain existing widgets. Inline SVG, measured
 source footprints, source reveal, keyboard movement and mouse selection retain
 their existing contracts. Mermaid source without authored theme/custom variables
 still receives a temporary application palette from Figaro tokens. Its widget
@@ -367,10 +399,11 @@ and focused canvas use `--editor-surface`; explicit source styling remains
 authoritative. Printable consumers retain authored appearance and separate cache
 identity.
 
-Wrapping rulers for newly mounted or changed source are inserted together, read
-together, and removed before footprint height writes. Overflow checks follow
-all height writes. Unchanged source/metrics reuse their measured heights;
-explicit typography refresh invalidates that cache. Plain prose and authored
+Wrapping rulers for source without a matching retained measurement are inserted
+together, read together, and removed before footprint height writes. Overflow checks follow
+all height writes. Unchanged source/metrics reuse their measured heights across
+mounts; explicit typography refresh and completed fonts invalidate that cache,
+and loading fonts bypass retention. Plain prose and authored
 chart heights need no wrapping rulers. Table/math source navigation reuses
 parsed descriptors until content or source visibility changes. Block-guide
 structure is cached by document/parser identity independently of visible

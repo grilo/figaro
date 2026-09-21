@@ -74,6 +74,7 @@
       "frontend/js/mathPlugin.js",
       "frontend/js/core/mathPreviewModel.js",
       "frontend/js/markdownBlockGuides.js",
+      "frontend/js/activityGutter.js",
       "frontend/js/markdownImagePlugin.js",
       "frontend/js/core/selectionRangeIndex.js",
       "frontend/js/sourceReveal.js",
@@ -96,7 +97,9 @@
       "frontend/js/core/wheelScrollModel.js",
       "frontend/js/usecases/wheelScroll.js",
       "frontend/js/editorWheelScroll.js",
-      "frontend/js/state.js"
+      "frontend/js/state.js",
+      "frontend/js/core/previewCache.js",
+      "frontend/js/domPreviewCache.js"
     ],
     "docs": [
       "docs/LIVEPREVIEW.md#4-block-widget-geometry-contract",
@@ -119,7 +122,13 @@
       "ARCHITECTURE.md#optional-editor-wheel-smoothing",
       "docs/testing/editor.md#optional-wheel-scrolling",
       "docs/EDITOR_PERFORMANCE.md#scoped-markdown-projection-reuse",
-      "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#editor-measurements"
+      "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#editor-measurements",
+      "docs/testing/writing.md#passage-activity-dates",
+      "docs/testing/workspace.md#pure-mode-regressions",
+      "docs/EDITOR_PERFORMANCE.md#prepared-diagram-return",
+      "docs/benchmarks/diagram-remount-2026-09-21.md#native-measurements",
+      "docs/EDITOR_PERFORMANCE.md#prepared-code-math-table-and-image-returns",
+      "docs/benchmarks/preview-retention-2026-09-21.md#native-measurements"
     ],
     "tests": [
       "tests/frontend/unit/verticalCursorModel.test.js",
@@ -153,7 +162,10 @@
       "tests/frontend/unit/editorRemainingWork.test.js",
       "tests/frontend/unit/markdownInteraction.test.js",
       "tests/frontend/unit/wheelScroll.test.js",
-      "tests/frontend/unit/state.test.js"
+      "tests/frontend/unit/state.test.js",
+      "tests/frontend/unit/activityGutter.test.js",
+      "tests/frontend/unit/previewCache.test.js",
+      "tests/frontend/unit/domPreviewCache.test.js"
     ],
     "extraChecks": [
       "Run the affected existing editorUX or vimVisualRows Playwright scenario for geometry changes and repeat in the packaged native webview."
@@ -284,6 +296,15 @@
       "frontend/js/editorWheelScroll.js": [
         "createEditorWheelScroll",
         "initWheelScrollSettings"
+      ],
+      "frontend/js/activityGutter.js": [
+        "activityGutterExtension"
+      ],
+      "frontend/js/core/previewCache.js": [
+        "createPreviewCache"
+      ],
+      "frontend/js/domPreviewCache.js": [
+        "createDOMPreviewCache"
       ]
     }
   },
@@ -1206,13 +1227,18 @@
       "frontend/js/diagramRenderer.js",
       "frontend/js/usecases/diagramRenderQueue.js",
       "frontend/js/usecases/mermaidValidationReuse.js",
-      "frontend/js/usecases/markdownDocumentLint.js"
+      "frontend/js/usecases/markdownDocumentLint.js",
+      "frontend/js/core/previewCache.js",
+      "frontend/js/liveDiagramPlugin.js",
+      "frontend/js/usecases/diagramQuietScheduler.js"
     ],
     "docs": [
       "docs/DIAGRAMS_AND_EXPORT.md#mermaid-diagrams",
       "docs/PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite",
       "docs/EDITOR_PERFORMANCE.md#consolidated-interaction-findings",
-      "docs/benchmarks/editor-interaction-findings-2026-09-20.md"
+      "docs/benchmarks/editor-interaction-findings-2026-09-20.md",
+      "docs/EDITOR_PERFORMANCE.md#prepared-diagram-return",
+      "docs/benchmarks/diagram-remount-2026-09-21.md#native-measurements"
     ],
     "tests": [
       "tests/frontend/unit/mermaidEditor.test.js",
@@ -1221,7 +1247,9 @@
       "tests/frontend/unit/mermaidValidationReuse.test.js",
       "tests/frontend/unit/markdownDocumentLint.test.js",
       "tests/frontend/unit/diagramRenderer.test.js",
-      "tests/frontend/unit/editorRemainingWork.test.js"
+      "tests/frontend/unit/editorRemainingWork.test.js",
+      "tests/frontend/unit/previewCache.test.js",
+      "tests/frontend/unit/liveDiagramPlugin.test.js"
     ],
     "extraChecks": [
       "Use charts for Vega/Vega-Lite editing. Add affected Draw.io/table tests for those formats; frame, geometry, or printable changes need existing browser boundaries."
@@ -1238,7 +1266,19 @@
         "createMarkdownDocumentLinter"
       ],
       "frontend/js/diagramRenderer.js": [
-        "validateMermaidSource"
+        "validateMermaidSource",
+        "diagramRenderIdentity",
+        "renderDiagramSVG"
+      ],
+      "frontend/js/core/previewCache.js": [
+        "createPreviewCache"
+      ],
+      "frontend/js/liveDiagramPlugin.js": [
+        "createDiagramField"
+      ],
+      "frontend/js/usecases/diagramQuietScheduler.js": [
+        "scheduleDiagramAfterQuiet",
+        "DIAGRAM_QUIET_MS"
       ]
     }
   },

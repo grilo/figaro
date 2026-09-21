@@ -65,6 +65,43 @@ test('hidden activity dates do no rail measurements while typing, and toggling d
     } finally { view.destroy(); parent.remove(); }
 });
 
+test('background activity toggles reserve the latest gutter before paint and cancel when destroyed', async () => {
+    const parent = document.body.appendChild(document.createElement('div'));
+    const view = new EditorView({ parent, state: EditorState.create({ doc: source, extensions: [activityGutterExtension] }) });
+    view.dom.getBoundingClientRect = () => ({ left: 0, width: 1000 });
+    const rail = view.scrollDOM.querySelector('.cm-activityGutter');
+    rail.getBoundingClientRect = () => ({ right: 87, width: view.dom.classList.contains('activity-dates-enabled') ? 87 : 0 });
+    const contentRead = jest.spyOn(view.contentDOM, 'getBoundingClientRect');
+    try {
+        view.dispatch({ effects: setActivityData.of({ enabled: true }) });
+        view.dispatch({ effects: setActivityData.of({ enabled: false }) });
+        view.dispatch({ effects: setActivityData.of({ enabled: true }) });
+        expect(contentRead).not.toHaveBeenCalled();
+        await new Promise(queueMicrotask);
+        expect(view.dom.style.getPropertyValue('--editor-activity-rail-width')).toBe('87px');
+        // The adapter reads twice only when publishing a changed reservation.
+        expect(contentRead).toHaveBeenCalledTimes(2);
+        view.focus();
+        view.update([]);
+        expect(view.dom.classList.contains('activity-dates-enabled')).toBe(true);
+        view.contentDOM.blur();
+        view.update([]);
+        expect(view.dom.classList.contains('activity-dates-enabled')).toBe(true);
+        view.dispatch({ effects: setActivityData.of({ enabled: false }) });
+        await new Promise(queueMicrotask);
+        expect(view.dom.style.getPropertyValue('--editor-activity-rail-width')).toBe('0px');
+        view.dispatch({ effects: setActivityData.of({ enabled: true }) });
+        view.destroy();
+        contentRead.mockClear();
+        await new Promise(queueMicrotask);
+        expect(contentRead).not.toHaveBeenCalled();
+    } finally {
+        contentRead.mockRestore();
+        if (!view.isDestroyed) view.destroy();
+        parent.remove();
+    }
+});
+
 test('temporary edit dates use local calendar fields without constructing Intl formatters on each key', () => {
     const formatter = jest.spyOn(Intl, 'DateTimeFormat');
     const time = new Date(2026, 8, 10, 12).getTime();

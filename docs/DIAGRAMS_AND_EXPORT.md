@@ -59,10 +59,20 @@ reference, and open the Draw.io Editor. A missing Draw.io image reference offers
 saved SVG output stays local and can be viewed offline. Closing an unsaved blank
 diagram leaves its empty local file available to reopen.
 
-Unchanged Mermaid, Vega and Vega-Lite previews are reused when you return to them.
-Pending diagrams wait for a pause in typing or scrolling. Changing chart source,
-appearance or available width refreshes the output. Charts that load external
-data fetch it again when rendered rather than reusing an old snapshot.
+Returning to a prepared Mermaid, Vega or Vega-Lite preview restores the finished
+diagram without the rendering delay. A bounded cache retains these previews
+while navigating through source or away from the viewport. New or invalidated
+diagrams wait for a pause in typing or scrolling. Changing source, appearance,
+fonts or responsive width refreshes the output. Charts that load external data
+fetch it again when rendered rather than reusing an old snapshot.
+During held-key navigation, prepared Mermaid previews wait for the pause while
+Vega previews return immediately. Text composition defers both until quiet,
+keeping their layout work out of the active input region.
+
+Tables, code, formulas and ordinary images also retain prepared content while
+navigating within the note. Editing their source refreshes the preview, and
+returning after a Draw.io edit still reloads the saved image. These editor caches
+do not alter PDF rendering or export.
 
 ## Preview and generate a PDF
 

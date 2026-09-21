@@ -20,6 +20,7 @@ import { scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { recordVaultFileIssue, showFileIssues } from './fileIssues.js';
 import { mathField } from './mathPlugin.js';
+import { createDOMPreviewCache } from './domPreviewCache.js';
 import { createDiagramField, diagramLanguages, scanDiagramFences } from './liveDiagramPlugin.js';
 import { createMarkdownTableField, scanMarkdownTables, renderedTableSourceRange } from './liveMarkdownTablePlugin.js';
 import { createMarkdownImageField, resetMarkdownImageSize } from './markdownImagePlugin.js';
@@ -2054,7 +2055,7 @@ function createEditorView() {
         }),
         referenceLinkPlugin(),
         linkPreview(),
-        ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages }),
+        ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages, previewReuse: createDOMPreviewCache() }),
         codeBlockScrollbarGuardExtension,
         sourceFootprintExtension,
         hexColorExtension,

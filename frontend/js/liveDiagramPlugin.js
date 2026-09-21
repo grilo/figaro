@@ -14,12 +14,14 @@ import { countEditorWork, readEditorDocument } from './editorDiagnostics.js';
 import { log } from './log.js';
 import { foldedRanges } from '@codemirror/language';
 import { Transaction } from '@codemirror/state';
-import { diagramLanguages, renderDiagramSVG } from './diagramRenderer.js';
+import { ViewPlugin } from '@codemirror/view';
+import { diagramLanguages, diagramRenderIdentity, renderDiagramSVG } from './diagramRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
 import { createDiagramRenderQueue } from './usecases/diagramRenderQueue.js';
-import { scheduleDiagramAfterQuiet } from './usecases/diagramQuietScheduler.js';
+import { DIAGRAM_QUIET_MS, scheduleDiagramAfterQuiet } from './usecases/diagramQuietScheduler.js';
 import { vegaRenderDimensions, vegaUsesContainerSize } from './core/diagramRenderCacheModel.js';
+import { createPreviewCache } from './core/previewCache.js';
 import {
     setVegaLiteChartHeight,
     vegaLiteChartHeight,
@@ -137,6 +139,33 @@ function setMessage(container, className, text) {
 
 const DIAGRAM_IDLE_TIMEOUT = 500;
 const pendingViewActivity = new WeakMap();
+const preparedDiagramPreviews = new WeakMap();
+
+function diagramPreviewSession(view) {
+    if (!view?.dom) return null;
+    let session = preparedDiagramPreviews.get(view);
+    if (!session) {
+        session = { active: true, repeatedInput: false, lastInput: 0,
+            cache: createPreviewCache({ maximumEntries: 32, maximumWeight: 4 * 1024 * 1024 }) };
+        preparedDiagramPreviews.set(view, session);
+    }
+    return session;
+}
+
+const preparedDiagramPreviewExtension = ViewPlugin.define(view => {
+    const session = diagramPreviewSession(view);
+    const input = event => {
+        session.repeatedInput = event.repeat;
+        session.lastInput = view.dom.ownerDocument.defaultView.performance.now();
+    };
+    view.dom.addEventListener('keydown', input, true);
+    return { destroy() {
+        view.dom.removeEventListener('keydown', input, true);
+        session.active = false;
+        session.cache.clear();
+        preparedDiagramPreviews.delete(view);
+    } };
+});
 
 function scheduleDiagramIdle(callback, view) {
     const win = view?.dom?.ownerDocument?.defaultView || globalThis;
@@ -182,6 +211,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
             sourceText = '',
             from = 0,
             to = 0,
+            sourceIdentity = null,
         ) {
             super();
             this.lang = lang;
@@ -191,6 +221,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
             this.sourceText = sourceText;
             this.from = from;
             this.to = to;
+            this.sourceIdentity = sourceIdentity;
             this.chartHeight = lang === 'vega-lite' ? vegaLiteChartHeight(code) : null;
             this.mermaidHeight = lang === 'mermaid' ? mermaidDiagramHeight(code) : null;
             this.diagramHeight = this.chartHeight || this.mermaidHeight;
@@ -310,6 +341,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
         toDOM(view) {
             this.destroyed = false;
             this.renderVersion += 1;
+            this.previewSession = diagramPreviewSession(view);
             const dom = document.createElement('div');
             dom.className = 'cm-live-diagram';
             dom.dataset.lang = this.lang;
@@ -353,7 +385,29 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 if (this.destroyed) return;
                 const version = ++this.renderVersion;
                 this.renderTask?.cancel?.();
-                this.renderTask = renderQueue.enqueue(() => this.renderInto(content, wrapper, version), view);
+                this.completedPreview = null;
+                // The widget must be connected before checking responsive width.
+                // A prepared preview returns before paint; only missing output
+                // enters the quiet queue used for expensive generation.
+                queueMicrotask(() => {
+                    if (this.destroyed || version !== this.renderVersion) return;
+                    const session = this.previewSession;
+                    const repeating = session?.repeatedInput
+                        && content.ownerDocument.defaultView.performance.now() - session.lastInput < DIAGRAM_QUIET_MS;
+                    if (((repeating && this.lang === 'mermaid') || view?.composing) && session?.cache.get(this.sourceIdentity)) {
+                        // Attaching Mermaid SVG still costs substantial layout
+                        // during native key repeat. Restore it after that burst;
+                        // Vega benefits from immediate restoration. Composition
+                        // keeps both paths out of the active input region.
+                        this.renderTask = renderQueue.enqueue(() => {
+                            if (this.destroyed || version !== this.renderVersion) return;
+                            if (!this.restorePreview(content, wrapper)) return this.renderInto(content, wrapper, version);
+                        }, view);
+                        return;
+                    }
+                    if (this.restorePreview(content, wrapper)) return;
+                    this.renderTask = renderQueue.enqueue(() => this.renderInto(content, wrapper, version), view);
+                });
             };
             // Container width and appearance are render inputs, even while the
             // source remains unchanged. Invalidate pending output immediately;
@@ -386,14 +440,44 @@ function createDiagramWidget(WidgetType, renderQueue) {
             return wrapper;
         }
 
+        renderOptions(container, root) {
+            return {
+                appearance: this.lang === 'mermaid' || this.chartHeight ? 'application' : 'authored',
+                containerWidth: container.clientWidth || root.clientWidth,
+            };
+        }
+
+        fitPreview(container, root, preview) {
+            preview.graphic.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            this.stopGraphicFit?.();
+            this.stopGraphicFit = fitGraphicToSourceFootprint(root, container, preview.graphic);
+            this.completedPreview = preview;
+        }
+
+        restorePreview(container, root) {
+            const preview = this.previewSession?.cache.take(this.sourceIdentity);
+            if (!preview) return false;
+            try {
+                const identity = diagramRenderIdentity(this.lang, this.code, this.renderOptions(container, root));
+                if (!identity || identity.key !== preview.identity.key || identity.renderer !== preview.identity.renderer) return false;
+                container.replaceChildren(preview.graphic);
+                this.fitPreview(container, root, preview);
+                countEditorWork('dom.diagramPreviewRestored');
+                return true;
+            } catch (_) {
+                // Rendering owns the visible error; a failed identity check must
+                // never reuse stale output or bypass the normal error path.
+                return false;
+            }
+        }
+
         async renderInto(container, root, version = ++this.renderVersion) {
             if (this.destroyed || version !== this.renderVersion) return;
 
             try {
-                const svg = await renderDiagramSVG(this.lang, this.code, 'figaro-live-diagram', {
-                    appearance: this.lang === 'mermaid' || this.chartHeight ? 'application' : 'authored',
-                    containerWidth: container.clientWidth || root.clientWidth,
-                });
+                const options = this.renderOptions(container, root);
+                const identity = diagramRenderIdentity(this.lang, this.code, options);
+                const svg = await renderDiagramSVG(this.lang, this.code, 'figaro-live-diagram', options);
                 if (this.destroyed || version !== this.renderVersion) return;
 
                 if (typeof svg !== 'string' || !svg) {
@@ -402,12 +486,14 @@ function createDiagramWidget(WidgetType, renderQueue) {
                     return;
                 }
 
+                countEditorWork('dom.diagramSVGParse');
                 container.innerHTML = svg;
                 const graphic = container.querySelector('svg');
                 if (graphic) {
-                    graphic.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-                    this.stopGraphicFit?.();
-                    this.stopGraphicFit = fitGraphicToSourceFootprint(root, container, graphic);
+                    this.fitPreview(container, root, { graphic, identity,
+                        weight: identity ? 2 * (svg.length + identity.key.length)
+                            + 256 * (graphic.querySelectorAll('*').length + 1) : 0,
+                    });
                 }
             } catch (error) {
                 if (this.destroyed || version !== this.renderVersion) return;
@@ -428,6 +514,14 @@ function createDiagramWidget(WidgetType, renderQueue) {
             this.renderTask?.cancel?.();
             this.stopRenderObservation?.();
             this.stopGraphicFit?.();
+            const preview = this.completedPreview;
+            this.completedPreview = null;
+            if (preview?.identity && this.sourceIdentity && this.previewSession?.active
+                && this.previewSession.cache.set(this.sourceIdentity, preview, preview.weight)) {
+                // Retain only the SVG subtree. Wrappers and their input handlers
+                // belong to the old mount and must not survive through the cache.
+                preview.graphic.remove();
+            }
         }
     };
 }
@@ -487,6 +581,7 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                 block.sourceText,
                 block.from,
                 block.to,
+                block.sourceIdentity || block,
             ),
             block: true, sourceBlock: block.sourceIdentity || block,
         }).range(block.from, block.to));
@@ -583,6 +678,7 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                 : value;
         },
         provide: field => [
+            preparedDiagramPreviewExtension,
             EditorView.decorations.from(field, value => value.decorations),
             EditorView.updateListener.of(update => {
                 if (update.docChanged) pendingViewActivity.get(update.view)?.();

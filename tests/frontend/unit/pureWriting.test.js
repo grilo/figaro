@@ -170,4 +170,23 @@ describe('Pure writing CodeMirror presentation', () => {
         expect(parseFloat(view.dom.style.getPropertyValue('--pure-typewriter-top-space'))).toBeLessThan(170);
     });
 
+    test('focus and background updates preserve Pure layout classes', () => {
+        view.dispatch({ selection: { anchor: 1 } });
+        refreshPureWriting(view);
+        const expectPresentation = () => {
+            expect(view.dom.classList.contains('cm-pure-writing')).toBe(true);
+            expect(view.dom.classList.contains('cm-pure-typewriter')).toBe(true);
+            expect(view.dom.classList.contains('cm-pure-caret-at-start')).toBe(true);
+        };
+        expectPresentation();
+        view.focus();
+        view.update([]);
+        expectPresentation();
+        view.contentDOM.blur();
+        view.update([]);
+        expectPresentation();
+        view.dispatch({ changes: { from: view.state.doc.length, insert: '\nBackground text' } });
+        expectPresentation();
+    });
+
 });

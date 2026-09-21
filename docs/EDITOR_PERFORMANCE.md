@@ -669,3 +669,27 @@ partial-parser progress, retained widget identity and current reveal behavior.
 The [paired native results and subsequent PDF profile](benchmarks/reparse-and-pdf-cost-2026-09-20.md)
 record the measured improvements, the complete-tree prose counterexample,
 writing-cache behavior and the remaining preview DOM/export costs.
+
+## Prepared diagram return
+
+Source-height measurements and completed SVG subtrees now survive replacement
+mounts under bounded per-editor caches. The
+[September 21 native comparison](benchmarks/diagram-remount-2026-09-21.md)
+records warm preview return, held-arrow navigation with immediate reversals,
+invalidation and native cursor/resize checks. Mermaid return fell from 145 to
+17 ms and Vega-Lite from 142.5 to 10 ms. Vega-Lite's median round p95 frame gap
+fell from 74 to 50 ms; Mermaid held-arrow gaps stayed similar. Prepared Mermaid
+attachment waits through key repeat to avoid a measured SVG layout regression.
+These software-rendered Linux results are not physical input latency guarantees.
+
+## Prepared code, math, table and image returns
+
+Bounded per-editor retention now also preserves highlighted code, rendered
+formulas, semantic tables and loaded image elements across source reveal and
+viewport removal. The [September 21 comparison](benchmarks/preview-retention-2026-09-21.md)
+records eight successful content transfers per family with no repeat generation.
+Ordinary returns were modestly faster for code/math/tables; images were unchanged.
+Held-arrow frame timings varied substantially in baseline reruns and same-build
+controls, so they do not establish a responsiveness gain. Controls, current
+source mapping, image refresh and first-paint geometry retain their existing
+contracts; failures and oversized content remain on the fresh rendering path.

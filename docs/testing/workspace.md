@@ -40,7 +40,8 @@ selection/Find/pointer exclusions, 42% target clamping, motion duration plus
 reduced-motion behavior, and adaptive typography hysteresis.
 `tests/frontend/unit/pureWriting.test.js` mounts a concrete CodeMirror view and
 proves paragraph/phrase decoration updates, normal-mode non-interference,
-selection/Find suspension, typewriter class/padding state, and Arrow Up/Down in
+selection/Find suspension, typewriter class/padding state, retained Pure and
+first-line classes through focus/background updates, and Arrow Up/Down in
 both directions across the changed presentation. Keep this below the browser;
 do not duplicate every scope or input annotation in Playwright.
 
@@ -95,6 +96,10 @@ observes actual attribute mutations, requiring no changes within a section and
 only the old/new row at section crossings. Before-first-heading selection clears
 the active row; panel remount initializes it correctly. Existing browser/native
 Outline cases retain focus, viewport-following, and sticky-heading geometry.
+The sticky-boundary browser fixture waits for fonts and document mounting,
+then brings each target heading into the measured viewport before placing it
+just above or below the sticky strip. Offscreen estimated row heights must not
+determine the crossing assertion.
 
 Calendar, Kanban, and Graph are persistent sidebar destinations, not title-bar
 toggles. Retain focused coverage that they remain in the footer below the file tree,
@@ -829,6 +834,13 @@ replacements, record editor work and frame gaps, and verify exact source restora
 Cold-input coverage must send key/input events or CodeMirror transactions while a
 previously unseen diagram is queued, then prove deferred work resumes after quiet.
 A timer or idle timeout cannot authorize rendering during active composition.
+Separately warm the visible diagrams, hold ArrowDown, immediately reverse with
+ArrowUp and repeat. Record source-reveal/remount SVG parsing, wrapping-ruler
+reads, actual key repeats and frame gaps. Returning to a prepared preview must
+not wait for the cold-render quiet interval outside active composition or
+Mermaid key repeat. During those bursts, SVG attachment waits for quiet while
+retaining its output; prepared Vega stays immediate during key repeat.
+Keep source and viewport geometry intact; cached-node identities and invalidation policy belong in component tests.
 
 Keep policy and renderer-work counts below the browser; do not use millisecond
 latency thresholds in CI. Extend the existing Chart Editor geometry workflow for

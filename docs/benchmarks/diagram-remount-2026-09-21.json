@@ -1,0 +1,1483 @@
+{
+  "date": "2026-09-21",
+  "baseCommit": "f21faa5da24699da81b049c27077b5a30168f54f",
+  "environment": {
+    "gtk": "3.24.52",
+    "webkitGTK": "2.52.6",
+    "productionTags": [
+      "production",
+      "webkit2_41"
+    ],
+    "display": "private Xvfb, software rendering, 1600x1000 root, 1280x800 app",
+    "isolation": "separate user/network namespace and disposable vault/configuration",
+    "input": "XTest ArrowDown held 2.8 seconds, immediately ArrowUp held 2.8 seconds; 180ms repeat delay, 30 repeats/second",
+    "roundsPerFixture": 3,
+    "warmSwitchesPerDiagram": 8,
+    "quantile": "nearest rank; ms rounded to two decimals",
+    "timingCaveats": "Coarse performance.now clock, requestAnimationFrame gaps and event handler span, no physical input-to-display latency. Warm switch detection polls SVG presence every 5ms. Before and final were sequential; no other builds/tests ran during timing."
+  },
+  "baselineSourceSha256": {
+    "frontend/js/liveDiagramPlugin.js": "bd377d7f096cce4828ffe03267ca4a9e8d4efaae4e2f63007d8fa7bf42facdee",
+    "frontend/js/sourceFootprint.js": "6e97ffcd89458d45bf4bb619f61bfdf923bcbd05a5cf50732a5720f32f57bf0b",
+    "frontend/js/diagramRenderer.js": "e4a34b7d54b9073d56c46a5c4eda5d4501f26a8f9625cacda7f3548b8c056cb5",
+    "frontend/js/usecases/diagramRenderQueue.js": "d3bb9fd970cc9545acb1bc28906e97cfb88da2b3a0ecf0fb6e01ae930277cdf7"
+  },
+  "finalSourceSha256": {
+    "frontend/js/liveDiagramPlugin.js": "aa2fb084b5632b73e30f3d1fb825fa979d26f069ffbd629218082cb4a975bfbc",
+    "frontend/js/sourceFootprint.js": "38d25ba06b1c141aecfed3f0c7f61d2900eb0cd123bcb7a43a802d1df92c9c83",
+    "frontend/js/diagramRenderer.js": "f75ec3fdc908eff4e197ef9a3f85c85211d31fc4508353899a4d62f973aec74b",
+    "frontend/js/usecases/diagramRenderQueue.js": "d3bb9fd970cc9545acb1bc28906e97cfb88da2b3a0ecf0fb6e01ae930277cdf7",
+    "frontend/js/usecases/diagramQuietScheduler.js": "07373d4e71d99f458fe45ca1135898321c0498c8cc966a8fd10066fd6d38f857",
+    "frontend/js/core/previewCache.js": "f196687cd34d8cb3995e7863e38c326cebd6a537a2d136f24e3c6b1ca29d9867"
+  },
+  "binarySha256": {
+    "before": "1cd8e7c159084eb87b7fa728e7d750c5d66052ea88d36c3da83e31dea6294fb5",
+    "after": "6e0f5f447c33cc45aa9c59bf9ea456285b45b77d5e24124558e1a7214be5432c"
+  },
+  "measurements": {
+    "before": [
+      {
+        "kind": "code",
+        "label": "held_down_up_0",
+        "svgParses": 0,
+        "rulerReads": 15,
+        "sourceIntact": true,
+        "elapsedMs": 6006,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.0,
+          "p95": 7,
+          "max": 12
+        },
+        "frameGapMs": {
+          "samples": 196,
+          "median": 31.0,
+          "p95": 47,
+          "max": 77
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1057
+          },
+          "ArrowUp": {
+            "first": 1057,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_1",
+        "svgParses": 0,
+        "rulerReads": 13,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.0,
+          "p95": 7,
+          "max": 11
+        },
+        "frameGapMs": {
+          "samples": 208,
+          "median": 30.0,
+          "p95": 43,
+          "max": 64
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1057
+          },
+          "ArrowUp": {
+            "first": 1057,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_2",
+        "svgParses": 0,
+        "rulerReads": 13,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 1,
+          "p95": 5,
+          "max": 8
+        },
+        "frameGapMs": {
+          "samples": 224,
+          "median": 29.0,
+          "p95": 43,
+          "max": 58
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1058
+          },
+          "ArrowUp": {
+            "first": 1058,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "mermaid",
+        "label": "warm_source_preview_switch",
+        "svgParses": 8,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 2985,
+        "switches": [
+          {
+            "ms": 134,
+            "sameSVG": false
+          },
+          {
+            "ms": 145,
+            "sameSVG": false
+          },
+          {
+            "ms": 145,
+            "sameSVG": false
+          },
+          {
+            "ms": 148.0,
+            "sameSVG": false
+          },
+          {
+            "ms": 146,
+            "sameSVG": false
+          },
+          {
+            "ms": 145,
+            "sameSVG": false
+          },
+          {
+            "ms": 145,
+            "sameSVG": false
+          },
+          {
+            "ms": 150.0,
+            "sameSVG": false
+          }
+        ],
+        "switchMs": {
+          "samples": 8,
+          "median": 145.0,
+          "p95": 150.0,
+          "max": 150.0
+        }
+      },
+      {
+        "kind": "mermaid",
+        "label": "held_down_up_0",
+        "svgParses": 2,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 1,
+          "p95": 6.0,
+          "max": 16.0
+        },
+        "frameGapMs": {
+          "samples": 149,
+          "median": 38,
+          "p95": 52,
+          "max": 91
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 977
+          },
+          "ArrowUp": {
+            "first": 977,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "mermaid",
+        "label": "held_down_up_1",
+        "svgParses": 3,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 1.0,
+          "p95": 5.0,
+          "max": 17.0
+        },
+        "frameGapMs": {
+          "samples": 156,
+          "median": 38.0,
+          "p95": 50,
+          "max": 92
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 977
+          },
+          "ArrowUp": {
+            "first": 977,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "mermaid",
+        "label": "held_down_up_2",
+        "svgParses": 3,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6002,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 1.0,
+          "p95": 5,
+          "max": 17.0
+        },
+        "frameGapMs": {
+          "samples": 151,
+          "median": 38,
+          "p95": 51,
+          "max": 96
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 977
+          },
+          "ArrowUp": {
+            "first": 977,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "vega",
+        "label": "warm_source_preview_switch",
+        "svgParses": 8,
+        "rulerReads": 8,
+        "sourceIntact": true,
+        "elapsedMs": 2882,
+        "switches": [
+          {
+            "ms": 131.0,
+            "sameSVG": false
+          },
+          {
+            "ms": 141,
+            "sameSVG": false
+          },
+          {
+            "ms": 141,
+            "sameSVG": false
+          },
+          {
+            "ms": 145,
+            "sameSVG": false
+          },
+          {
+            "ms": 142,
+            "sameSVG": false
+          },
+          {
+            "ms": 144,
+            "sameSVG": false
+          },
+          {
+            "ms": 147,
+            "sameSVG": false
+          },
+          {
+            "ms": 143,
+            "sameSVG": false
+          }
+        ],
+        "switchMs": {
+          "samples": 8,
+          "median": 142.5,
+          "p95": 147,
+          "max": 147
+        }
+      },
+      {
+        "kind": "vega",
+        "label": "held_down_up_0",
+        "svgParses": 3,
+        "rulerReads": 13,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 2,
+          "p95": 5.0,
+          "max": 13
+        },
+        "frameGapMs": {
+          "samples": 137,
+          "median": 40,
+          "p95": 74,
+          "max": 117
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2592
+          },
+          "ArrowUp": {
+            "first": 2592,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "vega",
+        "label": "held_down_up_1",
+        "svgParses": 4,
+        "rulerReads": 13,
+        "sourceIntact": true,
+        "elapsedMs": 6002,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 2,
+          "p95": 5,
+          "max": 16
+        },
+        "frameGapMs": {
+          "samples": 143,
+          "median": 38,
+          "p95": 76,
+          "max": 88
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2592
+          },
+          "ArrowUp": {
+            "first": 2592,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "vega",
+        "label": "held_down_up_2",
+        "svgParses": 3,
+        "rulerReads": 13,
+        "sourceIntact": true,
+        "elapsedMs": 6002,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 2.0,
+          "p95": 5,
+          "max": 17
+        },
+        "frameGapMs": {
+          "samples": 147,
+          "median": 37,
+          "p95": 72,
+          "max": 117
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2504
+          },
+          "ArrowUp": {
+            "first": 2504,
+            "last": 1
+          }
+        }
+      }
+    ],
+    "after": [
+      {
+        "kind": "code",
+        "label": "held_down_up_0",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6005,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 1.0,
+          "p95": 6.0,
+          "max": 10.0
+        },
+        "frameGapMs": {
+          "samples": 212,
+          "median": 29.0,
+          "p95": 44,
+          "max": 67
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1057
+          },
+          "ArrowUp": {
+            "first": 1057,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_1",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 1,
+          "p95": 5.0,
+          "max": 9.0
+        },
+        "frameGapMs": {
+          "samples": 215,
+          "median": 29,
+          "p95": 43,
+          "max": 64
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1057
+          },
+          "ArrowUp": {
+            "first": 1057,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "code",
+        "label": "held_down_up_2",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6002,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 1.0,
+          "p95": 4,
+          "max": 8
+        },
+        "frameGapMs": {
+          "samples": 207,
+          "median": 30,
+          "p95": 46,
+          "max": 64
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 1057
+          },
+          "ArrowUp": {
+            "first": 1057,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "mermaid",
+        "label": "warm_source_preview_switch",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1961,
+        "switches": [
+          {
+            "ms": 19,
+            "sameSVG": true
+          },
+          {
+            "ms": 15,
+            "sameSVG": true
+          },
+          {
+            "ms": 16,
+            "sameSVG": true
+          },
+          {
+            "ms": 21,
+            "sameSVG": true
+          },
+          {
+            "ms": 17,
+            "sameSVG": true
+          },
+          {
+            "ms": 16,
+            "sameSVG": true
+          },
+          {
+            "ms": 17,
+            "sameSVG": true
+          },
+          {
+            "ms": 19,
+            "sameSVG": true
+          }
+        ],
+        "switchMs": {
+          "samples": 8,
+          "median": 17.0,
+          "p95": 21,
+          "max": 21
+        }
+      },
+      {
+        "kind": "mermaid",
+        "label": "held_down_up_0",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6005,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 1,
+          "p95": 6,
+          "max": 18.0
+        },
+        "frameGapMs": {
+          "samples": 158,
+          "median": 36.0,
+          "p95": 51,
+          "max": 91
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 977
+          },
+          "ArrowUp": {
+            "first": 977,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "mermaid",
+        "label": "held_down_up_1",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6004.0,
+        "keyEvents": 158,
+        "keyRepeats": 156,
+        "keyHandlerMs": {
+          "samples": 158,
+          "median": 1.0,
+          "p95": 5,
+          "max": 14.0
+        },
+        "frameGapMs": {
+          "samples": 154,
+          "median": 38.0,
+          "p95": 52,
+          "max": 91
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 977
+          },
+          "ArrowUp": {
+            "first": 977,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "mermaid",
+        "label": "held_down_up_2",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6002,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 1.0,
+          "p95": 5,
+          "max": 20.0
+        },
+        "frameGapMs": {
+          "samples": 154,
+          "median": 38.0,
+          "p95": 52,
+          "max": 92
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 977
+          },
+          "ArrowUp": {
+            "first": 977,
+            "last": 0
+          }
+        }
+      },
+      {
+        "kind": "vega",
+        "label": "warm_source_preview_switch",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 1835,
+        "switches": [
+          {
+            "ms": 10,
+            "sameSVG": true
+          },
+          {
+            "ms": 8,
+            "sameSVG": true
+          },
+          {
+            "ms": 8,
+            "sameSVG": true
+          },
+          {
+            "ms": 8.0,
+            "sameSVG": true
+          },
+          {
+            "ms": 19.0,
+            "sameSVG": true
+          },
+          {
+            "ms": 10,
+            "sameSVG": true
+          },
+          {
+            "ms": 10,
+            "sameSVG": true
+          },
+          {
+            "ms": 21,
+            "sameSVG": true
+          }
+        ],
+        "switchMs": {
+          "samples": 8,
+          "median": 10.0,
+          "p95": 21,
+          "max": 21
+        }
+      },
+      {
+        "kind": "vega",
+        "label": "held_down_up_0",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 160,
+        "keyRepeats": 158,
+        "keyHandlerMs": {
+          "samples": 160,
+          "median": 2.0,
+          "p95": 6,
+          "max": 10.0
+        },
+        "frameGapMs": {
+          "samples": 154,
+          "median": 38.0,
+          "p95": 51,
+          "max": 77
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2592
+          },
+          "ArrowUp": {
+            "first": 2592,
+            "last": 1
+          }
+        }
+      },
+      {
+        "kind": "vega",
+        "label": "held_down_up_1",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6002.0,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 2,
+          "p95": 6.0,
+          "max": 8
+        },
+        "frameGapMs": {
+          "samples": 160,
+          "median": 36.0,
+          "p95": 49,
+          "max": 74
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2592
+          },
+          "ArrowUp": {
+            "first": 2592,
+            "last": 27
+          }
+        }
+      },
+      {
+        "kind": "vega",
+        "label": "held_down_up_2",
+        "svgParses": 0,
+        "rulerReads": 0,
+        "sourceIntact": true,
+        "elapsedMs": 6003,
+        "keyEvents": 159,
+        "keyRepeats": 157,
+        "keyHandlerMs": {
+          "samples": 159,
+          "median": 2,
+          "p95": 6,
+          "max": 8
+        },
+        "frameGapMs": {
+          "samples": 158,
+          "median": 37.0,
+          "p95": 50,
+          "max": 71
+        },
+        "sourcePositions": {
+          "ArrowDown": {
+            "first": 0,
+            "last": 2592
+          },
+          "ArrowUp": {
+            "first": 2592,
+            "last": 27
+          }
+        }
+      }
+    ]
+  },
+  "fixtureSources": {
+    "code": "# Native diagram scrolling\n\n## Block 0\n\nBefore block 0.\n\n```js\nconst source = 0;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 0.\n\nPlain paragraph for navigation 0.\n\n## Block 1\n\nBefore block 1.\n\n```js\nconst source = 1;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 1.\n\nPlain paragraph for navigation 1.\n\n## Block 2\n\nBefore block 2.\n\n```js\nconst source = 2;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 2.\n\nPlain paragraph for navigation 2.\n\n## Block 3\n\nBefore block 3.\n\n```js\nconst source = 3;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 3.\n\nPlain paragraph for navigation 3.\n\n## Block 4\n\nBefore block 4.\n\n```js\nconst source = 4;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 4.\n\nPlain paragraph for navigation 4.\n\n## Block 5\n\nBefore block 5.\n\n```js\nconst source = 5;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 5.\n\nPlain paragraph for navigation 5.\n\n## Block 6\n\nBefore block 6.\n\n```js\nconst source = 6;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 6.\n\nPlain paragraph for navigation 6.\n\n## Block 7\n\nBefore block 7.\n\n```js\nconst source = 7;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 7.\n\nPlain paragraph for navigation 7.\n\n## Block 8\n\nBefore block 8.\n\n```js\nconst source = 8;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 8.\n\nPlain paragraph for navigation 8.\n\n## Block 9\n\nBefore block 9.\n\n```js\nconst source = 9;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 9.\n\nPlain paragraph for navigation 9.\n\n## Block 10\n\nBefore block 10.\n\n```js\nconst source = 10;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 10.\n\nPlain paragraph for navigation 10.\n\n## Block 11\n\nBefore block 11.\n\n```js\nconst source = 11;\nconst process = source + 1;\nconst result = process * 2;\nconst review = result - 1;\nconsole.log(review);\n```\n\nAfter block 11.\n\nPlain paragraph for navigation 11.\n\nEnd of the measured document.\n",
+    "mermaid": "# Native diagram scrolling\n\n## Block 0\n\nBefore block 0.\n\n```mermaid\nflowchart LR\n A0[Source 0] --> B0[Process]\n B0 --> C0[Result]\n C0 --> D0[Review]\n D0 --> E0[Publish]\n```\n\nAfter block 0.\n\nPlain paragraph for navigation 0.\n\n## Block 1\n\nBefore block 1.\n\n```mermaid\nflowchart LR\n A1[Source 1] --> B1[Process]\n B1 --> C1[Result]\n C1 --> D1[Review]\n D1 --> E1[Publish]\n```\n\nAfter block 1.\n\nPlain paragraph for navigation 1.\n\n## Block 2\n\nBefore block 2.\n\n```mermaid\nflowchart LR\n A2[Source 2] --> B2[Process]\n B2 --> C2[Result]\n C2 --> D2[Review]\n D2 --> E2[Publish]\n```\n\nAfter block 2.\n\nPlain paragraph for navigation 2.\n\n## Block 3\n\nBefore block 3.\n\n```mermaid\nflowchart LR\n A3[Source 3] --> B3[Process]\n B3 --> C3[Result]\n C3 --> D3[Review]\n D3 --> E3[Publish]\n```\n\nAfter block 3.\n\nPlain paragraph for navigation 3.\n\n## Block 4\n\nBefore block 4.\n\n```mermaid\nflowchart LR\n A4[Source 4] --> B4[Process]\n B4 --> C4[Result]\n C4 --> D4[Review]\n D4 --> E4[Publish]\n```\n\nAfter block 4.\n\nPlain paragraph for navigation 4.\n\n## Block 5\n\nBefore block 5.\n\n```mermaid\nflowchart LR\n A5[Source 5] --> B5[Process]\n B5 --> C5[Result]\n C5 --> D5[Review]\n D5 --> E5[Publish]\n```\n\nAfter block 5.\n\nPlain paragraph for navigation 5.\n\n## Block 6\n\nBefore block 6.\n\n```mermaid\nflowchart LR\n A6[Source 6] --> B6[Process]\n B6 --> C6[Result]\n C6 --> D6[Review]\n D6 --> E6[Publish]\n```\n\nAfter block 6.\n\nPlain paragraph for navigation 6.\n\n## Block 7\n\nBefore block 7.\n\n```mermaid\nflowchart LR\n A7[Source 7] --> B7[Process]\n B7 --> C7[Result]\n C7 --> D7[Review]\n D7 --> E7[Publish]\n```\n\nAfter block 7.\n\nPlain paragraph for navigation 7.\n\n## Block 8\n\nBefore block 8.\n\n```mermaid\nflowchart LR\n A8[Source 8] --> B8[Process]\n B8 --> C8[Result]\n C8 --> D8[Review]\n D8 --> E8[Publish]\n```\n\nAfter block 8.\n\nPlain paragraph for navigation 8.\n\n## Block 9\n\nBefore block 9.\n\n```mermaid\nflowchart LR\n A9[Source 9] --> B9[Process]\n B9 --> C9[Result]\n C9 --> D9[Review]\n D9 --> E9[Publish]\n```\n\nAfter block 9.\n\nPlain paragraph for navigation 9.\n\n## Block 10\n\nBefore block 10.\n\n```mermaid\nflowchart LR\n A10[Source 10] --> B10[Process]\n B10 --> C10[Result]\n C10 --> D10[Review]\n D10 --> E10[Publish]\n```\n\nAfter block 10.\n\nPlain paragraph for navigation 10.\n\n## Block 11\n\nBefore block 11.\n\n```mermaid\nflowchart LR\n A11[Source 11] --> B11[Process]\n B11 --> C11[Result]\n C11 --> D11[Review]\n D11 --> E11[Publish]\n```\n\nAfter block 11.\n\nPlain paragraph for navigation 11.\n\nEnd of the measured document.\n",
+    "vega": "# Native diagram scrolling\n\n## Block 0\n\nBefore block 0.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":1},{\"x\":1,\"y\":8},{\"x\":2,\"y\":15},{\"x\":3,\"y\":3},{\"x\":4,\"y\":10},{\"x\":5,\"y\":17},{\"x\":6,\"y\":5},{\"x\":7,\"y\":12},{\"x\":8,\"y\":19},{\"x\":9,\"y\":7},{\"x\":10,\"y\":14},{\"x\":11,\"y\":2},{\"x\":12,\"y\":9},{\"x\":13,\"y\":16},{\"x\":14,\"y\":4},{\"x\":15,\"y\":11},{\"x\":16,\"y\":18},{\"x\":17,\"y\":6},{\"x\":18,\"y\":13},{\"x\":19,\"y\":1},{\"x\":20,\"y\":8},{\"x\":21,\"y\":15},{\"x\":22,\"y\":3},{\"x\":23,\"y\":10}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 0.\n\nPlain paragraph for navigation 0.\n\n## Block 1\n\nBefore block 1.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":2},{\"x\":1,\"y\":9},{\"x\":2,\"y\":16},{\"x\":3,\"y\":4},{\"x\":4,\"y\":11},{\"x\":5,\"y\":18},{\"x\":6,\"y\":6},{\"x\":7,\"y\":13},{\"x\":8,\"y\":1},{\"x\":9,\"y\":8},{\"x\":10,\"y\":15},{\"x\":11,\"y\":3},{\"x\":12,\"y\":10},{\"x\":13,\"y\":17},{\"x\":14,\"y\":5},{\"x\":15,\"y\":12},{\"x\":16,\"y\":19},{\"x\":17,\"y\":7},{\"x\":18,\"y\":14},{\"x\":19,\"y\":2},{\"x\":20,\"y\":9},{\"x\":21,\"y\":16},{\"x\":22,\"y\":4},{\"x\":23,\"y\":11}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 1.\n\nPlain paragraph for navigation 1.\n\n## Block 2\n\nBefore block 2.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":3},{\"x\":1,\"y\":10},{\"x\":2,\"y\":17},{\"x\":3,\"y\":5},{\"x\":4,\"y\":12},{\"x\":5,\"y\":19},{\"x\":6,\"y\":7},{\"x\":7,\"y\":14},{\"x\":8,\"y\":2},{\"x\":9,\"y\":9},{\"x\":10,\"y\":16},{\"x\":11,\"y\":4},{\"x\":12,\"y\":11},{\"x\":13,\"y\":18},{\"x\":14,\"y\":6},{\"x\":15,\"y\":13},{\"x\":16,\"y\":1},{\"x\":17,\"y\":8},{\"x\":18,\"y\":15},{\"x\":19,\"y\":3},{\"x\":20,\"y\":10},{\"x\":21,\"y\":17},{\"x\":22,\"y\":5},{\"x\":23,\"y\":12}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 2.\n\nPlain paragraph for navigation 2.\n\n## Block 3\n\nBefore block 3.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":4},{\"x\":1,\"y\":11},{\"x\":2,\"y\":18},{\"x\":3,\"y\":6},{\"x\":4,\"y\":13},{\"x\":5,\"y\":1},{\"x\":6,\"y\":8},{\"x\":7,\"y\":15},{\"x\":8,\"y\":3},{\"x\":9,\"y\":10},{\"x\":10,\"y\":17},{\"x\":11,\"y\":5},{\"x\":12,\"y\":12},{\"x\":13,\"y\":19},{\"x\":14,\"y\":7},{\"x\":15,\"y\":14},{\"x\":16,\"y\":2},{\"x\":17,\"y\":9},{\"x\":18,\"y\":16},{\"x\":19,\"y\":4},{\"x\":20,\"y\":11},{\"x\":21,\"y\":18},{\"x\":22,\"y\":6},{\"x\":23,\"y\":13}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 3.\n\nPlain paragraph for navigation 3.\n\n## Block 4\n\nBefore block 4.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":5},{\"x\":1,\"y\":12},{\"x\":2,\"y\":19},{\"x\":3,\"y\":7},{\"x\":4,\"y\":14},{\"x\":5,\"y\":2},{\"x\":6,\"y\":9},{\"x\":7,\"y\":16},{\"x\":8,\"y\":4},{\"x\":9,\"y\":11},{\"x\":10,\"y\":18},{\"x\":11,\"y\":6},{\"x\":12,\"y\":13},{\"x\":13,\"y\":1},{\"x\":14,\"y\":8},{\"x\":15,\"y\":15},{\"x\":16,\"y\":3},{\"x\":17,\"y\":10},{\"x\":18,\"y\":17},{\"x\":19,\"y\":5},{\"x\":20,\"y\":12},{\"x\":21,\"y\":19},{\"x\":22,\"y\":7},{\"x\":23,\"y\":14}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 4.\n\nPlain paragraph for navigation 4.\n\n## Block 5\n\nBefore block 5.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":6},{\"x\":1,\"y\":13},{\"x\":2,\"y\":1},{\"x\":3,\"y\":8},{\"x\":4,\"y\":15},{\"x\":5,\"y\":3},{\"x\":6,\"y\":10},{\"x\":7,\"y\":17},{\"x\":8,\"y\":5},{\"x\":9,\"y\":12},{\"x\":10,\"y\":19},{\"x\":11,\"y\":7},{\"x\":12,\"y\":14},{\"x\":13,\"y\":2},{\"x\":14,\"y\":9},{\"x\":15,\"y\":16},{\"x\":16,\"y\":4},{\"x\":17,\"y\":11},{\"x\":18,\"y\":18},{\"x\":19,\"y\":6},{\"x\":20,\"y\":13},{\"x\":21,\"y\":1},{\"x\":22,\"y\":8},{\"x\":23,\"y\":15}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 5.\n\nPlain paragraph for navigation 5.\n\n## Block 6\n\nBefore block 6.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":7},{\"x\":1,\"y\":14},{\"x\":2,\"y\":2},{\"x\":3,\"y\":9},{\"x\":4,\"y\":16},{\"x\":5,\"y\":4},{\"x\":6,\"y\":11},{\"x\":7,\"y\":18},{\"x\":8,\"y\":6},{\"x\":9,\"y\":13},{\"x\":10,\"y\":1},{\"x\":11,\"y\":8},{\"x\":12,\"y\":15},{\"x\":13,\"y\":3},{\"x\":14,\"y\":10},{\"x\":15,\"y\":17},{\"x\":16,\"y\":5},{\"x\":17,\"y\":12},{\"x\":18,\"y\":19},{\"x\":19,\"y\":7},{\"x\":20,\"y\":14},{\"x\":21,\"y\":2},{\"x\":22,\"y\":9},{\"x\":23,\"y\":16}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 6.\n\nPlain paragraph for navigation 6.\n\n## Block 7\n\nBefore block 7.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":8},{\"x\":1,\"y\":15},{\"x\":2,\"y\":3},{\"x\":3,\"y\":10},{\"x\":4,\"y\":17},{\"x\":5,\"y\":5},{\"x\":6,\"y\":12},{\"x\":7,\"y\":19},{\"x\":8,\"y\":7},{\"x\":9,\"y\":14},{\"x\":10,\"y\":2},{\"x\":11,\"y\":9},{\"x\":12,\"y\":16},{\"x\":13,\"y\":4},{\"x\":14,\"y\":11},{\"x\":15,\"y\":18},{\"x\":16,\"y\":6},{\"x\":17,\"y\":13},{\"x\":18,\"y\":1},{\"x\":19,\"y\":8},{\"x\":20,\"y\":15},{\"x\":21,\"y\":3},{\"x\":22,\"y\":10},{\"x\":23,\"y\":17}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 7.\n\nPlain paragraph for navigation 7.\n\n## Block 8\n\nBefore block 8.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":9},{\"x\":1,\"y\":16},{\"x\":2,\"y\":4},{\"x\":3,\"y\":11},{\"x\":4,\"y\":18},{\"x\":5,\"y\":6},{\"x\":6,\"y\":13},{\"x\":7,\"y\":1},{\"x\":8,\"y\":8},{\"x\":9,\"y\":15},{\"x\":10,\"y\":3},{\"x\":11,\"y\":10},{\"x\":12,\"y\":17},{\"x\":13,\"y\":5},{\"x\":14,\"y\":12},{\"x\":15,\"y\":19},{\"x\":16,\"y\":7},{\"x\":17,\"y\":14},{\"x\":18,\"y\":2},{\"x\":19,\"y\":9},{\"x\":20,\"y\":16},{\"x\":21,\"y\":4},{\"x\":22,\"y\":11},{\"x\":23,\"y\":18}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 8.\n\nPlain paragraph for navigation 8.\n\n## Block 9\n\nBefore block 9.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":10},{\"x\":1,\"y\":17},{\"x\":2,\"y\":5},{\"x\":3,\"y\":12},{\"x\":4,\"y\":19},{\"x\":5,\"y\":7},{\"x\":6,\"y\":14},{\"x\":7,\"y\":2},{\"x\":8,\"y\":9},{\"x\":9,\"y\":16},{\"x\":10,\"y\":4},{\"x\":11,\"y\":11},{\"x\":12,\"y\":18},{\"x\":13,\"y\":6},{\"x\":14,\"y\":13},{\"x\":15,\"y\":1},{\"x\":16,\"y\":8},{\"x\":17,\"y\":15},{\"x\":18,\"y\":3},{\"x\":19,\"y\":10},{\"x\":20,\"y\":17},{\"x\":21,\"y\":5},{\"x\":22,\"y\":12},{\"x\":23,\"y\":19}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 9.\n\nPlain paragraph for navigation 9.\n\n## Block 10\n\nBefore block 10.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":11},{\"x\":1,\"y\":18},{\"x\":2,\"y\":6},{\"x\":3,\"y\":13},{\"x\":4,\"y\":1},{\"x\":5,\"y\":8},{\"x\":6,\"y\":15},{\"x\":7,\"y\":3},{\"x\":8,\"y\":10},{\"x\":9,\"y\":17},{\"x\":10,\"y\":5},{\"x\":11,\"y\":12},{\"x\":12,\"y\":19},{\"x\":13,\"y\":7},{\"x\":14,\"y\":14},{\"x\":15,\"y\":2},{\"x\":16,\"y\":9},{\"x\":17,\"y\":16},{\"x\":18,\"y\":4},{\"x\":19,\"y\":11},{\"x\":20,\"y\":18},{\"x\":21,\"y\":6},{\"x\":22,\"y\":13},{\"x\":23,\"y\":1}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 10.\n\nPlain paragraph for navigation 10.\n\n## Block 11\n\nBefore block 11.\n\n```vega-lite\n{\"width\":460,\"height\":160,\"data\":{\"values\":[{\"x\":0,\"y\":12},{\"x\":1,\"y\":19},{\"x\":2,\"y\":7},{\"x\":3,\"y\":14},{\"x\":4,\"y\":2},{\"x\":5,\"y\":9},{\"x\":6,\"y\":16},{\"x\":7,\"y\":4},{\"x\":8,\"y\":11},{\"x\":9,\"y\":18},{\"x\":10,\"y\":6},{\"x\":11,\"y\":13},{\"x\":12,\"y\":1},{\"x\":13,\"y\":8},{\"x\":14,\"y\":15},{\"x\":15,\"y\":3},{\"x\":16,\"y\":10},{\"x\":17,\"y\":17},{\"x\":18,\"y\":5},{\"x\":19,\"y\":12},{\"x\":20,\"y\":19},{\"x\":21,\"y\":7},{\"x\":22,\"y\":14},{\"x\":23,\"y\":2}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"x\",\"type\":\"ordinal\"},\"y\":{\"field\":\"y\",\"type\":\"quantitative\"}}}\n```\n\nAfter block 11.\n\nPlain paragraph for navigation 11.\n\nEnd of the measured document.\n"
+  },
+  "nativeChecks": [
+    {
+      "name": "native editor has focus",
+      "ok": true
+    },
+    {
+      "name": "code payload edit/backspace restores exact source",
+      "ok": true
+    },
+    {
+      "name": "code Down advances",
+      "ok": true,
+      "before": 68,
+      "after": 78
+    },
+    {
+      "name": "code Down advances",
+      "ok": true,
+      "before": 78,
+      "after": 79
+    },
+    {
+      "name": "code Down advances",
+      "ok": true,
+      "before": 79,
+      "after": 85
+    },
+    {
+      "name": "code Down advances",
+      "ok": true,
+      "before": 85,
+      "after": 102
+    },
+    {
+      "name": "code Down advances",
+      "ok": true,
+      "before": 102,
+      "after": 122
+    },
+    {
+      "name": "code Down advances",
+      "ok": true,
+      "before": 122,
+      "after": 126
+    },
+    {
+      "name": "code Down exits source",
+      "ok": true,
+      "positions": [
+        78,
+        79,
+        85,
+        102,
+        122,
+        126
+      ]
+    },
+    {
+      "name": "code Up reverses",
+      "ok": true,
+      "before": 126,
+      "after": 122
+    },
+    {
+      "name": "code Up reverses",
+      "ok": true,
+      "before": 122,
+      "after": 102
+    },
+    {
+      "name": "code Up reverses",
+      "ok": true,
+      "before": 102,
+      "after": 85
+    },
+    {
+      "name": "code Up reverses",
+      "ok": true,
+      "before": 85,
+      "after": 79
+    },
+    {
+      "name": "code Up reverses",
+      "ok": true,
+      "before": 79,
+      "after": 78
+    },
+    {
+      "name": "code Up exits source",
+      "ok": true,
+      "positions": [
+        122,
+        102,
+        85,
+        79,
+        78
+      ]
+    },
+    {
+      "name": "code mouse placement",
+      "ok": true
+    },
+    {
+      "name": "code forward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 65,
+        "to": 132,
+        "head": 132
+      }
+    },
+    {
+      "name": "code backward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 68,
+        "to": 131,
+        "head": 68
+      },
+      "first": {
+        "x": 484.5,
+        "y": 214.1875
+      },
+      "last": {
+        "x": 491.5,
+        "y": 410.1875
+      }
+    },
+    {
+      "name": "code navigation leaves source intact",
+      "ok": true
+    },
+    {
+      "name": "table payload edit/backspace restores exact source",
+      "ok": true
+    },
+    {
+      "name": "table Down advances",
+      "ok": true,
+      "before": 143,
+      "after": 154
+    },
+    {
+      "name": "table Down advances",
+      "ok": true,
+      "before": 154,
+      "after": 155
+    },
+    {
+      "name": "table Down advances",
+      "ok": true,
+      "before": 155,
+      "after": 172
+    },
+    {
+      "name": "table Down advances",
+      "ok": true,
+      "before": 172,
+      "after": 186
+    },
+    {
+      "name": "table Down advances",
+      "ok": true,
+      "before": 186,
+      "after": 202
+    },
+    {
+      "name": "table Down advances",
+      "ok": true,
+      "before": 202,
+      "after": 217
+    },
+    {
+      "name": "table Down exits source",
+      "ok": true,
+      "positions": [
+        154,
+        155,
+        172,
+        186,
+        202,
+        217
+      ]
+    },
+    {
+      "name": "table Up reverses",
+      "ok": true,
+      "before": 217,
+      "after": 202
+    },
+    {
+      "name": "table Up reverses",
+      "ok": true,
+      "before": 202,
+      "after": 186
+    },
+    {
+      "name": "table Up reverses",
+      "ok": true,
+      "before": 186,
+      "after": 172
+    },
+    {
+      "name": "table Up reverses",
+      "ok": true,
+      "before": 172,
+      "after": 155
+    },
+    {
+      "name": "table Up reverses",
+      "ok": true,
+      "before": 155,
+      "after": 154
+    },
+    {
+      "name": "table Up exits source",
+      "ok": true,
+      "positions": [
+        202,
+        186,
+        172,
+        155,
+        154
+      ]
+    },
+    {
+      "name": "table mouse placement",
+      "ok": true
+    },
+    {
+      "name": "table forward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 140,
+        "to": 223,
+        "head": 223
+      }
+    },
+    {
+      "name": "table backward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 143,
+        "to": 222,
+        "head": 143
+      },
+      "first": {
+        "x": 484.5,
+        "y": 229.1875
+      },
+      "last": {
+        "x": 491.5,
+        "y": 425.1875
+      }
+    },
+    {
+      "name": "table navigation leaves source intact",
+      "ok": true
+    },
+    {
+      "name": "diagram payload edit/backspace restores exact source",
+      "ok": true
+    },
+    {
+      "name": "diagram Down advances",
+      "ok": true,
+      "before": 235,
+      "after": 248
+    },
+    {
+      "name": "diagram Down advances",
+      "ok": true,
+      "before": 248,
+      "after": 249
+    },
+    {
+      "name": "diagram Down advances",
+      "ok": true,
+      "before": 249,
+      "after": 260
+    },
+    {
+      "name": "diagram Down advances",
+      "ok": true,
+      "before": 260,
+      "after": 276
+    },
+    {
+      "name": "diagram Down advances",
+      "ok": true,
+      "before": 276,
+      "after": 280
+    },
+    {
+      "name": "diagram Down exits source",
+      "ok": true,
+      "positions": [
+        248,
+        249,
+        260,
+        276,
+        280
+      ]
+    },
+    {
+      "name": "diagram Up reverses",
+      "ok": true,
+      "before": 280,
+      "after": 276
+    },
+    {
+      "name": "diagram Up reverses",
+      "ok": true,
+      "before": 276,
+      "after": 260
+    },
+    {
+      "name": "diagram Up reverses",
+      "ok": true,
+      "before": 260,
+      "after": 249
+    },
+    {
+      "name": "diagram Up reverses",
+      "ok": true,
+      "before": 249,
+      "after": 248
+    },
+    {
+      "name": "diagram Up exits source",
+      "ok": true,
+      "positions": [
+        276,
+        260,
+        249,
+        248
+      ]
+    },
+    {
+      "name": "diagram mouse placement",
+      "ok": true
+    },
+    {
+      "name": "diagram forward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 232,
+        "to": 296,
+        "head": 296
+      }
+    },
+    {
+      "name": "diagram backward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 231,
+        "to": 285,
+        "head": 231
+      },
+      "first": {
+        "x": 484.5,
+        "y": -2.8125
+      },
+      "last": {
+        "x": 491.5,
+        "y": 425.1875
+      }
+    },
+    {
+      "name": "diagram navigation leaves source intact",
+      "ok": true
+    },
+    {
+      "name": "chart payload edit/backspace restores exact source",
+      "ok": true
+    },
+    {
+      "name": "chart Down advances",
+      "ok": true,
+      "before": 300,
+      "after": 311
+    },
+    {
+      "name": "chart Down advances",
+      "ok": true,
+      "before": 311,
+      "after": 312
+    },
+    {
+      "name": "chart Down advances",
+      "ok": true,
+      "before": 312,
+      "after": 325
+    },
+    {
+      "name": "chart Down advances",
+      "ok": true,
+      "before": 325,
+      "after": 391
+    },
+    {
+      "name": "chart Down advances",
+      "ok": true,
+      "before": 391,
+      "after": 464
+    },
+    {
+      "name": "chart Down advances",
+      "ok": true,
+      "before": 464,
+      "after": 468
+    },
+    {
+      "name": "chart Down exits source",
+      "ok": true,
+      "positions": [
+        311,
+        312,
+        325,
+        391,
+        464,
+        468
+      ]
+    },
+    {
+      "name": "chart Up reverses",
+      "ok": true,
+      "before": 468,
+      "after": 464
+    },
+    {
+      "name": "chart Up reverses",
+      "ok": true,
+      "before": 464,
+      "after": 391
+    },
+    {
+      "name": "chart Up reverses",
+      "ok": true,
+      "before": 391,
+      "after": 325
+    },
+    {
+      "name": "chart Up reverses",
+      "ok": true,
+      "before": 325,
+      "after": 312
+    },
+    {
+      "name": "chart Up reverses",
+      "ok": true,
+      "before": 312,
+      "after": 311
+    },
+    {
+      "name": "chart Up exits source",
+      "ok": true,
+      "positions": [
+        464,
+        391,
+        325,
+        312,
+        311
+      ]
+    },
+    {
+      "name": "chart mouse placement",
+      "ok": true
+    },
+    {
+      "name": "chart forward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 297,
+        "to": 474,
+        "head": 474
+      }
+    },
+    {
+      "name": "chart backward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 300,
+        "to": 473,
+        "head": 300
+      },
+      "first": {
+        "x": 484.5,
+        "y": 262.1875
+      },
+      "last": {
+        "x": 491.5,
+        "y": 458.1875
+      }
+    },
+    {
+      "name": "chart navigation leaves source intact",
+      "ok": true
+    },
+    {
+      "name": "image payload edit/backspace restores exact source",
+      "ok": true
+    },
+    {
+      "name": "image Down advances",
+      "ok": true,
+      "before": 486,
+      "after": 497
+    },
+    {
+      "name": "image Down advances",
+      "ok": true,
+      "before": 497,
+      "after": 498
+    },
+    {
+      "name": "image Down advances",
+      "ok": true,
+      "before": 498,
+      "after": 504
+    },
+    {
+      "name": "image Down advances",
+      "ok": true,
+      "before": 504,
+      "after": 573
+    },
+    {
+      "name": "image Down advances",
+      "ok": true,
+      "before": 573,
+      "after": 641
+    },
+    {
+      "name": "image Down advances",
+      "ok": true,
+      "before": 641,
+      "after": 685
+    },
+    {
+      "name": "image Down exits source",
+      "ok": true,
+      "positions": [
+        497,
+        498,
+        504,
+        573,
+        641,
+        685
+      ]
+    },
+    {
+      "name": "image Up reverses",
+      "ok": true,
+      "before": 685,
+      "after": 498
+    },
+    {
+      "name": "image Up reverses",
+      "ok": true,
+      "before": 498,
+      "after": 497
+    },
+    {
+      "name": "image Up exits source",
+      "ok": true,
+      "positions": [
+        498,
+        497
+      ]
+    },
+    {
+      "name": "image mouse placement",
+      "ok": true
+    },
+    {
+      "name": "image forward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 483,
+        "to": 691,
+        "head": 691
+      }
+    },
+    {
+      "name": "image backward drag spans replacement",
+      "ok": true,
+      "selection": {
+        "from": 486,
+        "to": 690,
+        "head": 486
+      },
+      "first": {
+        "x": 484.5,
+        "y": 514.1875
+      },
+      "last": {
+        "x": 491.5,
+        "y": 638.1875
+      }
+    },
+    {
+      "name": "image navigation leaves source intact",
+      "ok": true
+    },
+    {
+      "name": "soft paragraph Enter inserts one line",
+      "ok": true
+    },
+    {
+      "name": "soft paragraph Backspace rejoins source",
+      "ok": true
+    },
+    {
+      "name": "code line Enter inserts one line",
+      "ok": true
+    },
+    {
+      "name": "code line Backspace rejoins source",
+      "ok": true
+    },
+    {
+      "name": "restored Mermaid SVG keeps its identity",
+      "ok": true
+    },
+    {
+      "name": "restored resize handle is inside viewport",
+      "ok": true,
+      "point": {
+        "x": 784.5,
+        "y": 620.1875
+      }
+    },
+    {
+      "name": "native drag updates the current mapped Mermaid source",
+      "ok": true,
+      "source": "Intro before retained preview.\n\n# Restored diagram controls\n\nBefore diagram.\n\n```mermaid\nflowchart LR\n A[Start] --> B[Process] --> C[Done]\n%% figaro:height 380\n```\n\nAfter diagram.\n"
+    },
+    {
+      "name": "native drag increases the preview footprint by 80 pixels",
+      "ok": true,
+      "before": {
+        "height": 344,
+        "declared": 300
+      },
+      "after": {
+        "height": 424,
+        "declared": 380
+      }
+    },
+    {
+      "name": "native Undo restores exact source before resize",
+      "ok": true
+    },
+    {
+      "name": "native Undo restores the original footprint",
+      "ok": true,
+      "before": {
+        "height": 344,
+        "declared": 300
+      },
+      "restored": {
+        "height": 344,
+        "declared": 300
+      }
+    }
+  ]
+}

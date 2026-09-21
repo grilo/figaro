@@ -526,7 +526,10 @@ selected-range remapping and pane restoration, debounce, coalescing, cancellatio
 worker deadlines/recovery, caret preservation, safe excerpts and accessible
 actions. `editorGutterAccessibility` covers labelled activity controls while
 line numbers remain decorative, including when block guides are off. Attribution
-policies are not repeated in browser tests. Pure date-label cases cover current
+policies are not repeated in browser tests. The gutter component also checks
+coalesced before-paint reservation after background enable/disable updates,
+cancellation on destruction, and retained visibility classes across focus changes.
+Pure date-label cases cover current
 and other years, day/month order, and leading zeroes in the two-digit year;
 the gutter component verifies compact visible labels and full accessible dates.
 Temporary-date regressions cover immediate typing, background refresh/error

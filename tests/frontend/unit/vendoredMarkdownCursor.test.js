@@ -1,3 +1,4 @@
+import { createDOMPreviewCache } from '../frontend/js/domPreviewCache.js';
 function reveals(value) { return value.blocks.map((_, index) => value.visibleIndices.has(index)); }
 import { Compartment, EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -5,7 +6,7 @@ import { history, undo, redo } from '@codemirror/commands';
 import { markdownLanguage } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree, syntaxTree, codeFolding, foldEffect, unfoldEffect } from '@codemirror/language';
 import { livePreviewPlugin, markdownStylePlugin, markdownWorkFacet, codeBlockField,
-    collapseOnSelectionFacet, mouseSelectingField, setMouseSelecting } from 'codemirror-live-markdown';
+    collapseOnSelectionFacet, mouseSelectingField, setMouseSelecting, registerLanguage } from 'codemirror-live-markdown';
 
 function stateFor(source, extensions = []) {
     let state = EditorState.create({ doc: source, extensions: [markdownLanguage,
@@ -223,4 +224,52 @@ test.each(['Ordinary **bold** prose here.', 'Ordinary author’s prose here.',
     expect(counts['source.slices.code'] || 0).toBe(0);
     expect(counts['decorations.code'] || 0).toBe(0);
     expect(state.field(field).decorations.iter().value).toBe(decoration);
+});
+
+
+test('prepared code retains highlighted nodes through source entry and mapped edits, invalidating changed source and highlighter registration', () => {
+    const source = 'Before\n\n```js\nconst value = 1;\n```\n\nAfter';
+    const work = {};
+    const fields = codeBlockField({ lineNumbers: true, previewReuse: createDOMPreviewCache() });
+    const view = new EditorView({ state: stateFor(source, [fields, markdownWorkFacet.of((name, count = 1) => { work[name] = (work[name] || 0) + count; })]), parent: document.body });
+    try {
+        const original = view.dom.querySelector('.cm-codeblock-widget pre');
+        const originalCopy = view.dom.querySelector('.cm-codeblock-copy');
+        for (let i = 0; i < 8; i++) {
+            view.dispatch({ selection: { anchor: source.indexOf('const') + 2 } });
+            expect(original.isConnected).toBe(false);
+            view.dispatch({ selection: { anchor: 0 } });
+            expect(view.dom.querySelector('.cm-codeblock-widget pre')).toBe(original);
+        }
+        expect(view.dom.querySelector('.cm-codeblock-copy')).not.toBe(originalCopy);
+        view.dispatch({ changes: { from: 0, insert: 'Mapped ' } });
+        view.dispatch({ selection: { anchor: source.indexOf('const') + 9 } });
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(view.dom.querySelector('.cm-codeblock-widget pre')).toBe(original);
+        expect(work['render.codePreview']).toBe(1);
+        view.dispatch({ selection: { anchor: source.indexOf('const') + 9 } });
+        registerLanguage('figaro-retention-test', () => ({ keywords: 'prepared' }));
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(view.dom.querySelector('.cm-codeblock-widget pre')).not.toBe(original);
+        expect(work['render.codePreview']).toBe(2);
+        const at = view.state.doc.toString().indexOf('value');
+        view.dispatch({ changes: { from: at, to: at + 5, insert: 'updated' }, selection: { anchor: at } });
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(view.dom.querySelector('.cm-codeblock-widget pre').textContent).toContain('updated');
+        expect(work['render.codePreview']).toBe(3);
+    } finally { view.destroy(); }
+});
+
+test('failed code highlighting stays retryable when prepared preview retention is enabled', () => {
+    registerLanguage('figaro-invalid-grammar', () => ({ contains: [{ begin: '(' }] }));
+    const source = 'Before\n\n```figaro-invalid-grammar\nvalue\n```\n\nAfter';
+    const view = new EditorView({ state: stateFor(source, [codeBlockField({ previewReuse: createDOMPreviewCache() })]), parent: document.body });
+    try {
+        const original = view.dom.querySelector('.cm-codeblock-widget pre');
+        expect(original.textContent).toContain('value');
+        view.dispatch({ selection: { anchor: source.indexOf('value') } });
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(view.dom.querySelector('.cm-codeblock-widget pre')).not.toBe(original);
+        expect(view.state.doc.toString()).toBe(source);
+    } finally { view.destroy(); }
 });

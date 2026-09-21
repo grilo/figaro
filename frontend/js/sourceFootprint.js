@@ -5,11 +5,21 @@ import {
     sourceFootprintMode,
 } from './core/sourceFootprintModel.js';
 import { ViewPlugin } from '@codemirror/view';
+import { createPreviewCache } from './core/previewCache.js';
 
 const observers = new WeakMap();
-const sourceHeightCache = new WeakMap();
+const sourceHeightCaches = new WeakMap();
 const footprintInputs = new WeakMap();
 const SOURCE_TEXT_PROPERTY = '__figaroSourceFootprintText';
+
+function sourceHeightCache(view) {
+    let cache = sourceHeightCaches.get(view);
+    if (!cache) {
+        cache = createPreviewCache({ maximumEntries: 256, maximumWeight: 1024 * 1024 });
+        sourceHeightCaches.set(view, cache);
+    }
+    return cache;
+}
 
 /** Mark the DOM boundary that CodeMirror measures for a block replacement. */
 export function markSourceFootprint(element, { kind, lineCount, lineHeight, sourceText }) {
@@ -87,14 +97,17 @@ function refreshWrappedSourceFootprints(view, geometryChanged = true) {
         const metrics = sourceMeasurementMetrics(view);
         const metricsKey = [metrics.width, metrics.font, metrics.lineHeight, metrics.letterSpacing,
             metrics.overflowWrap, metrics.tabSize, metrics.whiteSpace, metrics.wordBreak].join('\u0000');
+        const cache = sourceHeightCache(view);
+        const canRetain = view.dom.ownerDocument.fonts?.status !== 'loading';
         const pending = [];
         for (const element of wrapped) {
             const sourceText = element[SOURCE_TEXT_PROPERTY];
-            const cached = sourceHeightCache.get(element);
-            if (cached?.sourceText === sourceText && cached.metricsKey === metricsKey) {
-                heights.set(element, cached.height);
+            const key = JSON.stringify([metricsKey, sourceText]);
+            const cached = canRetain ? cache.get(key) : undefined;
+            if (cached !== undefined) {
+                heights.set(element, cached);
             } else if (metrics.width) {
-                pending.push({ element, sourceText, ruler: createSourceRuler(sourceText, metrics) });
+                pending.push({ element, key, ruler: createSourceRuler(sourceText, metrics) });
             }
         }
         if (pending.length) {
@@ -105,11 +118,11 @@ function refreshWrappedSourceFootprints(view, geometryChanged = true) {
             for (const { ruler } of pending) fragment.append(ruler);
             view.dom.append(fragment);
             try {
-                for (const { element, sourceText, ruler } of pending) {
+                for (const { element, key, ruler } of pending) {
                     countEditorWork('geometry.sourceRuler');
                     const height = ruler.getBoundingClientRect().height;
                     heights.set(element, height);
-                    sourceHeightCache.set(element, { sourceText, metricsKey, height });
+                    if (canRetain && height > 0 && Number.isFinite(height)) cache.set(key, height, key.length * 2 + 64);
                 }
             } finally {
                 for (const { ruler } of pending) ruler.remove();
@@ -177,6 +190,13 @@ export const sourceFootprintExtension = ViewPlugin.fromClass(class {
             })
             : null;
         this.mutationObserver?.observe(view.contentDOM, { childList: true, subtree: true });
+        this.fonts = view.dom.ownerDocument.fonts;
+        this.fontsChanged = () => {
+            sourceHeightCaches.get(view)?.clear();
+            this.schedule();
+        };
+        this.fonts?.addEventListener('loadingdone', this.fontsChanged);
+        this.fonts?.addEventListener('loadingerror', this.fontsChanged);
         this.schedule();
     }
 
@@ -200,6 +220,10 @@ export const sourceFootprintExtension = ViewPlugin.fromClass(class {
         if (this.resizeFrame !== null) this.view.dom.ownerDocument.defaultView.cancelAnimationFrame(this.resizeFrame);
         this.resizeObserver?.disconnect();
         this.mutationObserver?.disconnect();
+        this.fonts?.removeEventListener('loadingdone', this.fontsChanged);
+        this.fonts?.removeEventListener('loadingerror', this.fontsChanged);
+        sourceHeightCaches.get(this.view)?.clear();
+        sourceHeightCaches.delete(this.view);
     }
 });
 
@@ -283,6 +307,7 @@ export function requestSourceFootprintMeasure(view) {
     view.requestMeasure({
         read: () => view.defaultLineHeight,
         write: lineHeight => {
+            sourceHeightCaches.get(view)?.clear();
             view.dom.querySelectorAll('.cm-source-footprint[data-source-lines]').forEach(element => {
                 const lines = normalizeSourceLineCount(element.dataset.sourceLines);
                 const diagramHeight = Number(element.dataset.figaroDiagramHeight || element.dataset.figaroChartHeight);
@@ -292,7 +317,6 @@ export function requestSourceFootprintMeasure(view) {
                 if (element.style.getPropertyValue('--cm-source-footprint-height') !== `${height}px`) {
                     element.style.setProperty('--cm-source-footprint-height', `${height}px`);
                 }
-                sourceHeightCache.delete(element);
             });
             queueMicrotask(() => {
                 if (!view.isDestroyed && view.contentDOM) refreshWrappedSourceFootprints(view);

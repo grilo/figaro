@@ -112,3 +112,53 @@ test('footprint rulers batch their reads, reuse unchanged heights, and skip pros
         expect(rulerReads).toBe(5);
     } finally { view.isDestroyed = true; plugin.destroy(); read.mockRestore(); dom.remove(); }
 });
+
+test('source heights survive replacement mounts and invalidate for width, source and completed fonts', async () => {
+    const { markSourceFootprint, sourceFootprintExtension } = await import('../frontend/js/sourceFootprint.js');
+    const fonts = new EventTarget(); fonts.status = 'loaded';
+    const previousFonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+    Object.defineProperty(document, 'fonts', { configurable: true, value: fonts });
+    const dom = document.createElement('div'), contentDOM = document.createElement('div');
+    contentDOM.innerHTML = '<div class="cm-line">Prose</div>';
+    dom.append(contentDOM); document.body.append(dom);
+    const view = { dom, contentDOM, defaultLineHeight: 20, requestMeasure() {}, isDestroyed: false };
+    let width = 300, height = 60, rulerReads = 0;
+    const bounds = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+        if (this.classList.contains('cm-source-footprint-sizer')) rulerReads++;
+        return { width, height };
+    });
+    const plugin = sourceFootprintExtension.create(view);
+    const mount = async (source = 'Retained source') => {
+        contentDOM.querySelector('.cm-source-footprint')?.remove();
+        const block = document.createElement('div');
+        markSourceFootprint(block, { kind: 'code', lineCount: 2, sourceText: source });
+        contentDOM.append(block); plugin.schedule(); await Promise.resolve();
+        return block;
+    };
+    try {
+        expect((await mount()).style.getPropertyValue('--cm-source-footprint-height')).toBe('60px');
+        for (let i = 0; i < 10; i++) {
+            expect((await mount()).style.getPropertyValue('--cm-source-footprint-height')).toBe('60px');
+        }
+        expect(rulerReads).toBe(1);
+        width = 150; height = 120;
+        expect((await mount()).style.getPropertyValue('--cm-source-footprint-height')).toBe('120px');
+        expect(rulerReads).toBe(2);
+        await mount('Edited source'); expect(rulerReads).toBe(3);
+        height = 140;
+        fonts.dispatchEvent(new Event('loadingdone')); await Promise.resolve();
+        expect(contentDOM.lastChild.style.getPropertyValue('--cm-source-footprint-height')).toBe('140px');
+        await mount('Edited source'); expect(rulerReads).toBe(4);
+        fonts.status = 'loading';
+        await mount('Edited source'); await mount('Edited source');
+        expect(rulerReads).toBe(6);
+        fonts.status = 'loaded'; fonts.dispatchEvent(new Event('loadingerror')); await Promise.resolve();
+        await mount('Edited source'); expect(rulerReads).toBe(7);
+        view.isDestroyed = true; plugin.destroy();
+        fonts.dispatchEvent(new Event('loadingdone')); await Promise.resolve();
+        expect(rulerReads).toBe(7);
+    } finally {
+        view.isDestroyed = true; plugin.destroy(); bounds.mockRestore(); dom.remove();
+        if (previousFonts) Object.defineProperty(document, 'fonts', previousFonts); else delete document.fonts;
+    }
+});

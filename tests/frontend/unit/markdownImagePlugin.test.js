@@ -71,6 +71,96 @@ describe('actionable Draw.io Markdown images', () => {
         document.body.innerHTML = '';
     });
 
+    test('prepared images retain their loaded element through remounts and mapped edits with fresh resize controls', async () => {
+        const documentSource = 'Before\n![Portrait|190x121](portrait.png)\nAfter';
+        const { view, loadImage } = createView({ documentSource,
+            imageResult: { loaded: true, src: 'portrait.png', width: 240, height: 153 } });
+        try {
+            await settle();
+            const image = view.dom.querySelector('img');
+            const handle = view.dom.querySelector('.cm-image-resize-handle');
+            for (let i = 0; i < 8; i++) {
+                view.dispatch({ selection: { anchor: documentSource.indexOf('Portrait') } });
+                expect(image.isConnected).toBe(false);
+                view.dispatch({ selection: { anchor: 0 } });
+                await settle();
+                expect(view.dom.querySelector('img')).toBe(image);
+                expect(view.dom.querySelector('.cm-image-loading')).toBeNull();
+            }
+            view.dispatch({ changes: { from: 0, insert: 'Mapped ' } });
+            const inside = view.state.doc.toString().indexOf('Portrait');
+            view.dispatch({ selection: { anchor: inside } });
+            view.dispatch({ selection: { anchor: 0 } });
+            view.dispatch({ selection: { anchor: inside } });
+            await settle();
+            expect(image.isConnected).toBe(false);
+            view.dispatch({ selection: { anchor: 0 } }); await settle();
+            expect(view.dom.querySelector('img')).toBe(image);
+            expect(view.dom.querySelector('.cm-image-resize-handle')).not.toBe(handle);
+            expect(loadImage).toHaveBeenCalledTimes(1);
+            const widget = view.dom.querySelector('.cm-image-widget');
+            const frame = widget.querySelector('.cm-image-resize-frame');
+            widget.getBoundingClientRect = () => ({ left: 0, right: 400, width: 400 });
+            frame.getBoundingClientRect = () => ({ left: 0, right: 190, top: 0, bottom: 121, width: 190, height: 121 });
+            const currentHandle = widget.querySelector('[data-resize-mode="width"]');
+            currentHandle.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 190, clientY: 60 }));
+            currentHandle.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 290, clientY: 60 }));
+            currentHandle.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }));
+            expect(view.state.doc.toString()).toBe('Mapped Before\n![Portrait|290x121](portrait.png)\nAfter');
+            expect(undo(view)).toBe(true);
+            expect(view.state.doc.toString()).toBe('Mapped ' + documentSource);
+        } finally { view.destroy(); }
+    });
+
+    test('image retention bypasses oversized images and discards late loads from removed mounts', async () => {
+        const documentSource = 'Before\n![Large](large.png)\nAfter';
+        const { view, loadImage } = createView({ documentSource,
+            imageResult: { loaded: true, src: 'large.png', width: 10000, height: 10000 } });
+        try {
+            await settle(); const original = view.dom.querySelector('img');
+            view.dispatch({ selection: { anchor: documentSource.indexOf('Large') } });
+            view.dispatch({ selection: { anchor: 0 } }); await settle();
+            expect(view.dom.querySelector('img')).not.toBe(original);
+            expect(loadImage).toHaveBeenCalledTimes(2);
+        } finally { view.destroy(); }
+        let resolve;
+        const pending = new Promise(done => { resolve = done; });
+        const delayed = new EditorView({ state: EditorState.create({ doc: documentSource,
+            extensions: [markdown(), collapseOnSelectionFacet.of(true), mouseSelectingField,
+                createMarkdownImageField({ loadImage: () => pending })] }), parent: document.body });
+        const removed = delayed.dom.querySelector('.cm-image-widget');
+        delayed.dispatch({ selection: { anchor: documentSource.indexOf('Large') } });
+        resolve({ loaded: true, src: 'large.png', width: 100, height: 100 });
+        await settle();
+        expect(removed.querySelector('img')).toBeNull();
+        expect(delayed.state.doc.toString()).toBe(documentSource);
+        delayed.destroy();
+    });
+
+    test('prepared images refresh for changed URLs and successful Draw.io previews are discarded on file activation', async () => {
+        const compartment = new Compartment();
+        const load = jest.fn(async src => ({ loaded: true, src, width: 240, height: 153 }));
+        const field = () => createMarkdownImageField({ loadImage: load,
+            drawioTarget: src => src.endsWith('.drawio.svg') ? { path: 'Notes/flow.drawio.svg' } : null });
+        const view = new EditorView({ state: EditorState.create({ doc: source,
+            extensions: [markdown(), collapseOnSelectionFacet.of(true), mouseSelectingField, compartment.of(field())] }), parent: document.body });
+        try {
+            await settle(); const original = view.dom.querySelector('img'), firstURL = original.src;
+            view.dispatch({ selection: { anchor: source.indexOf('Flow') } });
+            view.dispatch({ selection: { anchor: 0 } }); await settle();
+            expect(view.dom.querySelector('img')).toBe(original);
+            view.dispatch({ effects: compartment.reconfigure(field()) }); await settle();
+            expect(view.dom.querySelector('img')).not.toBe(original);
+            expect(view.dom.querySelector('img').src).not.toBe(firstURL);
+            expect(load).toHaveBeenCalledTimes(2);
+            const at = view.state.doc.toString().indexOf('flow.drawio.svg');
+            view.dispatch({ changes: { from: at, to: at + 'flow.drawio.svg'.length, insert: 'other.png' }, selection: { anchor: at } });
+            view.dispatch({ selection: { anchor: 0 } }); await settle();
+            expect(load).toHaveBeenCalledTimes(3);
+            expect(view.state.doc.toString()).toContain('other.png');
+        } finally { view.destroy(); }
+    });
+
     test('parses supported image source, alternative, and title text', () => {
         expect(parseMarkdownImageSyntax('![Flow](flow.drawio.svg "System")')).toEqual({
             alt: 'Flow',

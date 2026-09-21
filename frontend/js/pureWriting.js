@@ -1,4 +1,4 @@
-import { Decoration, ViewPlugin } from '@codemirror/view';
+import { Decoration, EditorView, ViewPlugin } from '@codemirror/view';
 import { StateEffect, Transaction } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import {
@@ -132,8 +132,6 @@ function syncBlockWidgetFocus(view, range) {
 function updateViewPresentation(view, options, previousTier = 'regular') {
     const pureActive = options.isPureActive() && options.isMarkdown();
     const typewriter = pureActive && options.typewriterEnabled();
-    view.dom.classList.toggle('cm-pure-writing', pureActive);
-    view.dom.classList.toggle('cm-pure-typewriter', typewriter);
 
     const scrollerHeight = Math.max(0, view.scrollDOM.clientHeight || 0);
     const lineHeight = Math.max(1, view.defaultLineHeight || 1);
@@ -177,13 +175,12 @@ function presentationSettings(options) {
         options.adaptiveTypographyEnabled()].map(Boolean).join(':');
 }
 
-function syncCaretAtStart(view, options) {
+function pureWritingAttributes(view, options) {
+    if (!options.isPureActive() || !options.isMarkdown()) return { class: '' };
     const selection = view.state.selection.main;
-    const atStart = options.isPureActive() && options.isMarkdown()
-        && selection.empty && view.state.doc.lineAt(selection.head).number === 1;
-    if (view.dom.classList.contains('cm-pure-caret-at-start') !== atStart) {
-        view.dom.classList.toggle('cm-pure-caret-at-start', atStart);
-    }
+    const atStart = selection.empty && view.state.doc.lineAt(selection.head).number === 1;
+    return { class: ['cm-pure-writing', options.typewriterEnabled() && 'cm-pure-typewriter',
+        atStart && 'cm-pure-caret-at-start'].filter(Boolean).join(' ') };
 }
 
 function sameFocusRange(left, right) {
@@ -226,7 +223,6 @@ export function createPureWritingExtension(options = {}) {
             this.widgetFocusScheduled = false;
             this.presentationSettings = presentationSettings(resolved);
             this.typographyTier = updateViewPresentation(view, resolved);
-            syncCaretAtStart(view, resolved);
             this.focusRange = activeFocusRange(view, resolved, this.focusCache);
             this.decorations = focusDecorations(view, this.focusRange);
             this.resizeObserver = typeof ResizeObserver === 'function'
@@ -250,7 +246,6 @@ export function createPureWritingExtension(options = {}) {
             }
             if (update.docChanged || update.selectionSet || update.viewportChanged
                 || update.geometryChanged || refreshed || settingsChanged) {
-                syncCaretAtStart(update.view, resolved);
                 const range = activeFocusRange(update.view, resolved, this.focusCache);
                 const focusChanged = !sameFocusRange(range, this.focusRange);
                 this.focusRange = range;
@@ -350,7 +345,12 @@ export function createPureWritingExtension(options = {}) {
             this.view.contentDOM.removeEventListener('pointerdown', this.cancelFromUserGesture);
             syncBlockWidgetFocus(this.view, null);
         }
-    }, { decorations: value => value.decorations });
+    }, {
+        decorations: value => value.decorations,
+        // CodeMirror owns the root class attribute and rewrites it on focus.
+        // Register layout classes here so that rewrite cannot discard them.
+        provide: () => EditorView.editorAttributes.of(view => pureWritingAttributes(view, resolved)),
+    });
 }
 
 export function refreshPureWriting(view) {

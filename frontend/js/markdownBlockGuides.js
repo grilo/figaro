@@ -590,12 +590,12 @@ export function createMarkdownBlockGuidesExtension({
     const markerPlugin = ViewPlugin.fromClass(class {
         constructor(view) {
             this.view = view;
-            synchronizeEditorBlockActionLayout(view);
             this.rebuild(view);
+            this.scheduleLayout();
         }
 
         update(update) {
-            if (update.geometryChanged) synchronizeEditorBlockActionLayout(update.view);
+            if (update.geometryChanged) this.scheduleLayout();
             if (update.docChanged) {
                 clearFoldAnchorReserve(update.view);
                 if (!update.transactions.some(transaction => transaction.reconfigured)) mapMarkdownBlockGuides(update);
@@ -609,10 +609,24 @@ export function createMarkdownBlockGuidesExtension({
                 )))
                 || syntaxTree(update.startState) !== syntaxTree(update.state)) {
                 this.rebuild(update.view);
+                this.scheduleLayout();
             }
         }
 
+        scheduleLayout() {
+            if (this.layoutPending) return;
+            this.layoutPending = true;
+            // View plugins run before CodeMirror redraws its gutters. Read the
+            // installed spacer after that update, but before the browser paints;
+            // a later animation-frame measurement can expose stale flex space.
+            queueMicrotask(() => {
+                this.layoutPending = false;
+                if (!this.destroyed) synchronizeEditorBlockActionLayout(this.view);
+            });
+        }
+
         destroy() {
+            this.destroyed = true;
             clearEditorBlockActionLayout(this.view);
         }
 

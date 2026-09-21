@@ -27,6 +27,11 @@ retained payloads remain correct when scrolled out of view and remounted. Struct
 folding, drag and reveal-policy changes retain explicit invalidation; unrelated
 settings keep block descriptors and decorations.
 The existing code widget and click handler own DOM and input.
+Figaro composition supplies an optional `previewReuse` port to `codeBlockField`.
+It retains the highlighted `pre` subtree across source/viewport returns, with
+fresh copy/pointer controls and current mapped positions. Source, language and
+highlighter registration generation validate reuse. This port keeps DOM cache
+ownership outside the vendor module without adding an application import.
 
 Ordinary links separately retain visible descriptors and a selection interval
 index. Cursor movement patches only changed source reveal; document/parser/

@@ -27,8 +27,18 @@ selection geometry. See [the consolidated report](benchmarks/editor-interaction-
 
 The editor interaction regressions also cover rich-prose mapping, retained
 preview clicks, indexed helper-rail and Pure phrase lookup, and single-record
-buffer publication. See [the editor contract](testing/editor.md#editor-update-contract-regressions)
+buffer publication. Gutter geometry is sampled throughout focus and background
+updates; Activity dates and Pure layout classes must survive CodeMirror root-
+attribute changes. See [the editor contract](testing/editor.md#editor-update-contract-regressions)
 and [tab continuity](testing/workspace.md#file-revision-continuity).
+
+Prepared code/math/table/image regressions cover retained content, current
+controls, invalidation and disposal; existing geometry scenarios inspect their
+first restored paint. Prepared diagram regressions distinguish cold generation from restoration of a
+retained SVG subtree. Component checks cover ownership, invalidation and bounded
+retention; the existing browser footprint scenario checks first-paint fit, and
+native profiling compares held-arrow navigation with immediate reversals. See
+[block widget regressions](testing/editor.md#block-widget-and-cursor-regressions).
 
 ## Strategy: prove behavior at the lowest capable layer
 

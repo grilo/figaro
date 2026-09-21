@@ -1,9 +1,11 @@
 /** Wait for a quiet input/scroll interval, then yield to the browser's idle queue.
  * All time, activity observation, and composition state come from injected ports.
  */
+export const DIAGRAM_QUIET_MS = 120;
+
 export function scheduleDiagramAfterQuiet(callback, {
     now, setTimer, clearTimer, requestIdle, cancelIdle, observeActivity,
-    isBusy = () => false, quietMs = 120,
+    isBusy = () => false, quietMs = DIAGRAM_QUIET_MS,
 }) {
     let timer = null;
     let idle = null;

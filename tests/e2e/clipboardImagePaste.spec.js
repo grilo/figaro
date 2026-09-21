@@ -146,6 +146,26 @@ test('resizes a rendered image in place and preserves its source-reveal geometry
     await expect(frame).toHaveCSS('width', '190px');
     await expect(frame).toHaveCSS('height', '121px');
 
+    // Browser-only boundary: a reused image must recover its authored size on
+    // the first paint, with live resize controls on the new wrapper.
+    for (let i = 0; i < 3; i++) {
+        await page.evaluate(() => {
+            const view = window.__sizedImageView;
+            view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf('Portrait') } });
+        });
+        await expect(widget).toHaveCount(0);
+        const restored = await page.evaluate(() => new Promise(resolve => {
+            const view = window.__sizedImageView;
+            view.dispatch({ selection: { anchor: 0 } });
+            requestAnimationFrame(() => {
+                const bounds = document.querySelector('.cm-image-resize-frame')?.getBoundingClientRect();
+                resolve(bounds ? { width: bounds.width, height: bounds.height } : null);
+            });
+        }));
+        expect(restored?.width).toBeCloseTo(190, 0);
+        expect(restored?.height).toBeCloseTo(121, 0);
+    }
+
     await widget.hover();
     await page.getByRole('button', { name: 'Collapse image' }).click();
     await expect(widget).toHaveCount(0);

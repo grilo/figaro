@@ -70,6 +70,33 @@ describe('source-preserving GFM table preview', () => {
         delete window.markdownit;
     });
 
+    test('prepared tables keep merged cell nodes through source returns and mapped edits, then refresh changed cells', () => {
+        const dragging = StateField.define({ create: () => false, update: value => value });
+        const fields = createMarkdownTableField(StateField, EditorView, Decoration, WidgetType,
+            (state, from, to) => state.selection.main.from <= to && state.selection.main.to >= from,
+            dragging, EditorSelection);
+        view = new EditorView({ state: EditorState.create({ doc: rangeMergeSource, extensions: [markdownLanguage, dragging, fields] }), parent: document.body });
+        const table = view.dom.querySelector('.cm-live-table table');
+        const cell = table.querySelector('td');
+        expect(cell.colSpan).toBe(3);
+        for (let i = 0; i < 8; i++) {
+            view.dispatch({ selection: { anchor: rangeMergeSource.indexOf('North') } });
+            expect(table.isConnected).toBe(false);
+            view.dispatch({ selection: { anchor: 0 } });
+            expect(view.dom.querySelector('.cm-live-table table')).toBe(table);
+            expect(table.querySelector('td')).toBe(cell);
+        }
+        view.dispatch({ changes: { from: 0, insert: 'Mapped ' } });
+        view.dispatch({ selection: { anchor: rangeMergeSource.indexOf('North') + 7 } });
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(view.dom.querySelector('.cm-live-table table')).toBe(table);
+        const at = view.state.doc.toString().indexOf('North');
+        view.dispatch({ changes: { from: at, to: at + 5, insert: 'West' }, selection: { anchor: at } });
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(view.dom.querySelector('.cm-live-table table')).not.toBe(table);
+        expect(view.dom.querySelector('.cm-live-table td').textContent).toContain('West');
+    });
+
     test('table source movement reuses parsing and decorations while edits and folding still refresh', () => {
         const dragging = StateField.define({ create: () => false, update: value => value });
         const [field] = createMarkdownTableField(StateField, EditorView, Decoration, WidgetType,

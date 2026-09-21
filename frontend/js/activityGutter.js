@@ -1,5 +1,5 @@
 import { Annotation, EditorState, Transaction, RangeSet, RangeSetBuilder, RangeValue, StateEffect, StateField } from '@codemirror/state';
-import { Decoration, GutterMarker, ViewPlugin, gutter } from '@codemirror/view';
+import { Decoration, EditorView, GutterMarker, ViewPlugin, gutter } from '@codemirror/view';
 import { foldedRanges } from '@codemirror/language';
 import { applyProvisionalActivityDate, formatActivityMarginDate, groupActivityPassages } from './core/activityModel.js';
 import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
@@ -141,12 +141,18 @@ const markerPlugin = ViewPlugin.fromClass(class {
         if (toggled || (after.enabled && update.geometryChanged && !update.docChanged && !update.viewportChanged && !update.heightChanged)) this.measureLayout(update.view);
     }
     measureLayout(view) {
-        view.requestMeasure({ key: this, read: () => view.dom.getBoundingClientRect().width, write: width => synchronizeEditorBlockActionLayout(view, width) });
+        if (this.layoutPending) return;
+        this.layoutPending = true;
+        // Enabling dates can follow a background document update. Synchronize
+        // the installed gutter before paint, not in the next measured frame.
+        queueMicrotask(() => {
+            this.layoutPending = false;
+            if (!this.destroyed) synchronizeEditorBlockActionLayout(view);
+        });
     }
-    destroy() { this.resize.disconnect(); }
+    destroy() { this.destroyed = true; this.resize.disconnect(); }
     rebuild(view) {
         const data = view.state.field(activityState);
-        view.dom.classList.toggle('activity-dates-enabled', data.enabled);
         const builder = new RangeSetBuilder(); let previous = -1;
         for (const entry of markerEntries(view)) if (entry.from !== previous) { builder.add(entry.from, entry.from, new ActivityMarker(entry.group)); previous = entry.from; }
         this.markers = builder.finish();
@@ -163,7 +169,12 @@ const markerPlugin = ViewPlugin.fromClass(class {
         }
         this.decorations = Decoration.set(highlights);
     }
-}, { decorations: value => value.decorations });
+}, {
+    decorations: value => value.decorations,
+    provide: () => EditorView.editorAttributes.from(activityState, data => ({
+        class: data.enabled ? 'activity-dates-enabled' : '',
+    })),
+});
 
 export const activityGutterExtension = [activityState, markerPlugin, gutter({
     class: 'cm-activityGutter',

@@ -10,6 +10,7 @@ import { countEditorWork } from './editorDiagnostics.js';
  */
 import { foldedRanges, syntaxTree } from '@codemirror/language';
 import { renderMarkdownTable } from './markdownTableRenderer.js';
+import { createDOMPreviewCache } from './domPreviewCache.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { markSourceFootprint } from './sourceFootprint.js';
 import { tablePreviewOwnsInteraction } from './core/tablePreviewInteractionModel.js';
@@ -133,14 +134,15 @@ export function scanMarkdownTables(state, regions = null) {
     return tables;
 }
 
-function createMarkdownTableWidget(WidgetType) {
+function createMarkdownTableWidget(WidgetType, previews) {
     return class MarkdownTableWidget extends WidgetType {
-        constructor(source, sourceLines, from, to) {
+        constructor(source, sourceLines, from, to, sourceIdentity) {
             super();
             this.source = source;
             this.sourceLines = sourceLines;
             this.from = from;
             this.to = to;
+            this.sourceIdentity = sourceIdentity;
         }
 
         eq(other) {
@@ -153,6 +155,7 @@ function createMarkdownTableWidget(WidgetType) {
 
         updateDOM(wrapper) {
             if (wrapper._figaroTableSource !== this.source) return false;
+            if (wrapper._figaroTablePreview) wrapper._figaroTablePreview.key = this.sourceIdentity;
             return true;
         }
 
@@ -173,9 +176,18 @@ function createMarkdownTableWidget(WidgetType) {
             });
 
             try {
-                const table = renderMarkdownTable(this.source, ownerDocument);
+                const session = previews.forView(view);
+                const renderer = globalThis.katex?.renderToString || null;
+                const prepared = session?.take(this.sourceIdentity, this.source, renderer);
+                const table = prepared?.node || renderMarkdownTable(this.source, ownerDocument);
                 if (table) {
                     surface.append(table);
+                    countEditorWork(prepared ? 'dom.tablePreviewRestored' : 'render.tablePreview');
+                    // Embedded resource loads and renderer failures must stay retryable.
+                    if (!table.querySelector('img, .katex-error')) wrapper._figaroTablePreview = {
+                        session, key: this.sourceIdentity,
+                        entry: prepared || previews.prepare(table, this.source, renderer),
+                    };
                 } else {
                     surface.textContent = this.source;
                     wrapper.dataset.sourceFootprintState = 'underflow';
@@ -186,6 +198,11 @@ function createMarkdownTableWidget(WidgetType) {
                 wrapper.dataset.sourceFootprintState = 'underflow';
             }
             return wrapper;
+        }
+
+        destroy(wrapper) {
+            const preview = wrapper?._figaroTablePreview;
+            preview?.session?.retain(preview.key, preview.entry);
         }
 
         // Cell content remains an edit affordance, while the scroll surface
@@ -217,12 +234,13 @@ export function createMarkdownTableField(
     mouseSelectingField,
     EditorSelection,
 ) {
-    const MarkdownTableWidget = createMarkdownTableWidget(WidgetType);
+    const previews = createDOMPreviewCache();
+    const MarkdownTableWidget = createMarkdownTableWidget(WidgetType, previews);
 
     const projectBlock = (state, block, visible) => {
         if (state.field(mouseSelectingField, false) || visible || sourceRangeIsFolded(state, block)) return [];
         return [Decoration.replace({
-            widget: new MarkdownTableWidget(block.source, block.sourceLines, block.from, block.to),
+            widget: new MarkdownTableWidget(block.source, block.sourceLines, block.from, block.to, block.sourceIdentity || block),
             block: true, sourceBlock: block.sourceIdentity || block,
         }).range(block.from, block.to)];
     };
@@ -268,7 +286,7 @@ export function createMarkdownTableField(
                 ? updateSourceReveal(value, transaction, shouldShowSource, projectBlock)
                 : value;
         },
-        provide: field => EditorView.decorations.from(field, value => value.decorations),
+        provide: field => [previews.extension, EditorView.decorations.from(field, value => value.decorations)],
     });
     const cellSelection = EditorView.mouseSelectionStyle.of((view, event) => (
         renderedTableCellMouseSelection(view, event, EditorSelection)

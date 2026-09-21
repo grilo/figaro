@@ -18,6 +18,44 @@ describe('math preview state', () => {
         delete window.katex;
     });
 
+    test.each([false, true])('prepared math retains its rendered nodes across source entry and mapped edits (display=%s)', display => {
+        window.katex = { render: jest.fn((_source, target) => { target.innerHTML = '<span class="katex">formula</span>'; }) };
+        const formula = display ? '$$\nx+y\n$$' : '$x+y$';
+        const source = 'Before\n\n' + formula + '\n\nAfter';
+        view = new EditorView({ state: EditorState.create({ doc: source, extensions: [mathField] }), parent: document.body });
+        const original = view.dom.querySelector('.katex');
+        for (let i = 0; i < 8; i++) {
+            view.dispatch({ selection: { anchor: source.indexOf('x+y') } });
+            expect(original.isConnected).toBe(false);
+            view.dispatch({ selection: { anchor: 0 } });
+            expect(view.dom.querySelector('.katex')).toBe(original);
+        }
+        view.dispatch({ changes: { from: 0, insert: 'Mapped ' } });
+        view.dispatch({ selection: { anchor: source.indexOf('x+y') + 7 } });
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(view.dom.querySelector('.katex')).toBe(original);
+        expect(window.katex.render).toHaveBeenCalledTimes(1);
+        view.dispatch({ selection: { anchor: source.indexOf('x+y') + 7 } });
+        window.katex = { render: jest.fn((_source, target) => { target.innerHTML = '<span class="katex">new engine</span>'; }) };
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(view.dom.querySelector('.katex')).not.toBe(original);
+        expect(window.katex.render).toHaveBeenCalledTimes(1);
+        const at = view.state.doc.toString().indexOf('x+y');
+        view.dispatch({ selection: { anchor: at }, changes: { from: at, to: at + 3, insert: 'z+y' } });
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(window.katex.render.mock.calls.at(-1)[0]).toBe('z+y');
+    });
+
+    test('failed or unavailable math rendering stays retryable after source return', () => {
+        const source = 'Before\n\n$x+y$\n\nAfter';
+        window.katex = { render: jest.fn((_source, target) => { target.innerHTML = '<span class="katex-error">invalid</span>'; }) };
+        view = new EditorView({ state: EditorState.create({ doc: source, extensions: [mathField] }), parent: document.body });
+        view.dispatch({ selection: { anchor: source.indexOf('x+y') } });
+        view.dispatch({ selection: { anchor: 0 } });
+        expect(window.katex.render).toHaveBeenCalledTimes(2);
+        expect(view.state.doc.toString()).toBe(source);
+    });
+
     test('parses the existing inline and display vocabulary without rendering dependencies', () => {
         expect(mathPreviewBlocks('Text $x$\n$$\ny+z\n$$')).toEqual([
             { from: 9, to: 18, text: 'y+z', source: '$$\ny+z\n$$', displayMode: true },

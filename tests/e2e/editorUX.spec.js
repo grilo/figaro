@@ -1215,7 +1215,8 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
     expect(headingGuideAlignment.justifyItems).toBe('end');
     expect(headingGuideAlignment.textAlign).toBe('right');
     expect(headingGuideAlignment.inwardGap).toBeLessThanOrEqual(7);
-    expect(headingGuideAlignment.writingGap).toBeGreaterThanOrEqual(6);
+    // A computed transform can round the nominal 6px gap just below six.
+    expect(headingGuideAlignment.writingGap).toBeGreaterThanOrEqual(5.99);
     expect(headingGuideAlignment.writingGap).toBeLessThanOrEqual(10);
     expect(headingGuideAlignment.editorInset).toBeGreaterThan(40);
     await collapseControls.nth(1).focus();
@@ -1325,13 +1326,50 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
         '```',
         'After the diagram',
     ].join('\n');
-    await page.evaluate(markdown => {
+    // Real per-frame geometry: reserve the sampler before changing the spacer,
+    // so it can catch an old negative margin before CodeMirror's next measure.
+    // Keep line counts equal and enough writing margin for both label widths.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.evaluate(async markdown => {
         const view = window.__headingFoldView;
-        view.dispatch({
-            changes: { from: 0, to: view.state.doc.length, insert: markdown },
+        const plain = '# Welcome\nIntroduction\nOne\nTwo\nThree\nFour\nAfter the diagram';
+        const replace = source => view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: source },
             selection: { anchor: 0 },
         });
+        const frames = async count => {
+            for (let i = 0; i < count; i++) await new Promise(requestAnimationFrame);
+        };
+        replace(plain);
+        await frames(4);
+        const samples = window.__railShiftFrames = [];
+        window.__recordRailShift = true;
+        const sample = () => {
+            samples.push({
+                classes: view.dom.className,
+                activityDisplay: getComputedStyle(view.scrollDOM.querySelector('.cm-activityGutter')).display,
+                editorWidth: view.dom.getBoundingClientRect().width,
+                activityWidth: view.scrollDOM.querySelector('.cm-activityGutter').getBoundingClientRect().width,
+                activityReservedWidth: parseFloat(view.dom.style.getPropertyValue('--editor-activity-rail-width')),
+                contentLeft: view.contentDOM.getBoundingClientRect().left,
+                lineLeft: view.contentDOM.querySelector('.cm-line').getBoundingClientRect().left,
+                railWidth: view.scrollDOM.querySelector('.cm-markdownBlockGutter').getBoundingClientRect().width,
+                reservedWidth: parseFloat(view.dom.style.getPropertyValue('--editor-block-before-rail-width')),
+            });
+            if (window.__recordRailShift) requestAnimationFrame(sample);
+        };
+        sample();
+        document.querySelector('#topbar-settings').focus();
+        replace(markdown);
+        await frames(12);
         view.focus();
+        await frames(4);
+        document.querySelector('#topbar-settings').focus();
+        replace(plain);
+        await frames(12);
+        replace(markdown);
+        view.focus();
+        await frames(4);
     }, stableRailSource);
     await expect(page.getByRole('button', { name: 'Collapse mermaid code block' })).toBeVisible();
     const stableRailGeometry = () => page.evaluate(() => {
@@ -1346,14 +1384,6 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
             railWidth: railRect.width,
         };
     });
-    // Replacing ten lines with seven also changes the number-gutter width.
-    // Finish CodeMirror's measurement before recording the fold baseline.
-    await page.evaluate(() => new Promise(resolve => {
-        window.__headingFoldView.requestMeasure({
-            read: () => null,
-            write: () => resolve(),
-        });
-    }));
     const expandedRailGeometry = await stableRailGeometry();
     await page.getByRole('button', { name: 'Collapse h1 Welcome section' }).click();
     await expect(page.getByRole('button', { name: 'Collapse mermaid code block' })).toHaveCount(0);
@@ -1367,6 +1397,23 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
     const restoredRailGeometry = await stableRailGeometry();
     expect(Math.abs(restoredRailGeometry.contentLeft - expandedRailGeometry.contentLeft)).toBeLessThan(0.5);
     expect(Math.abs(restoredRailGeometry.lineLeft - expandedRailGeometry.lineLeft)).toBeLessThan(0.5);
+
+    const railShiftFrames = await page.evaluate(() => {
+        window.__recordRailShift = false;
+        return window.__railShiftFrames;
+    });
+    await test.info().attach('gutter-frame-geometry', {
+        body: JSON.stringify(railShiftFrames, null, 2), contentType: 'application/json',
+    });
+    expect(railShiftFrames.length).toBeGreaterThan(30);
+    for (const key of ['contentLeft', 'lineLeft']) {
+        const positions = railShiftFrames.map(frame => frame[key]);
+        expect(Math.max(...positions) - Math.min(...positions), key).toBeLessThan(0.5);
+    }
+    expect(Math.max(...railShiftFrames.map(frame => Math.abs(frame.railWidth - frame.reservedWidth))))
+        .toBeLessThan(0.5);
+    expect(Math.max(...railShiftFrames.map(frame => Math.abs(frame.activityWidth - frame.activityReservedWidth))))
+        .toBeLessThan(0.5);
 
     // Browser-only boundary: third-party block widgets and their computed
     // layout must visibly yield to CodeMirror's native fold decoration.
@@ -2393,6 +2440,7 @@ test('keeps math and diagram previews cursor-safe during keyboard and mouse sele
 
 test('keeps rendered block source footprints stable and chains code wheel input at scroll limits', async ({ page }) => {
     await openWelcomeEditor(page);
+    await page.evaluate(() => document.fonts.ready);
     const fence = '`'.repeat(3);
     const longCodeLine = `const answer = "${'wrapped source '.repeat(10)}";`;
     const source = [
@@ -2483,11 +2531,17 @@ test('keeps rendered block source footprints stable and chains code wheel input 
         return view.coordsAtPos(view.state.doc.line(22).from).top;
     });
     const renderedAfterTop = await afterTop();
+    await expect(page.locator('.cm-live-diagram-view svg')).toBeVisible();
     for (const item of [
-        { line: 4, selector: '.cm-codeblock-widget' },
-        { line: 8, selector: '.cm-math-block' },
-        { line: 12, selector: '.cm-live-diagram' },
+        { line: 4, selector: '.cm-codeblock-widget', content: '.cm-codeblock-widget pre' },
+        { line: 8, selector: '.cm-math-block', content: '.cm-math-block .cm-source-footprint-graphic' },
+        { line: 12, selector: '.cm-live-diagram', content: '.cm-live-diagram-view svg' },
+        { line: 18, selector: '.cm-live-table', content: '.cm-live-table table' },
     ]) {
+        const size = await page.locator(item.content).evaluate(element => {
+            const { width, height } = element.getBoundingClientRect();
+            return { width, height };
+        });
         await page.evaluate(line => {
             const view = window.__sourceFootprintView;
             view.dispatch({ selection: { anchor: view.state.doc.line(line).from } });
@@ -2497,11 +2551,20 @@ test('keeps rendered block source footprints stable and chains code wheel input 
         const revealedAfterTop = await afterTop();
         expect(Math.abs(revealedAfterTop - renderedAfterTop), item.selector).toBeLessThan(2);
 
-        await page.evaluate(() => {
+        // Browser-only boundary: restored content must fit on the first paint,
+        // before a later observer or another editor transaction can repair it.
+        const restored = await page.evaluate(selector => new Promise(resolve => {
             const view = window.__sourceFootprintView;
             view.dispatch({ selection: { anchor: view.state.doc.line(22).to } });
             view.focus();
-        });
+            requestAnimationFrame(() => {
+                const bounds = document.querySelector(selector)?.getBoundingClientRect();
+                resolve(bounds ? { width: bounds.width, height: bounds.height } : null);
+            });
+        }), item.content);
+        expect(restored).not.toBeNull();
+        expect(Math.abs(restored.width - size.width)).toBeLessThan(1);
+        expect(Math.abs(restored.height - size.height)).toBeLessThan(1);
         await expect(page.locator(item.selector)).toHaveCount(1);
         expect(Math.abs((await afterTop()) - renderedAfterTop)).toBeLessThan(2);
     }
@@ -3509,7 +3572,7 @@ test('optional wheel smoothing eases real input and yields immediately to select
     const source = Array.from({ length: 180 }, (_, index) => `Line ${index + 1} with ordinary text.`).join('\n');
     await page.evaluate(async text => {
         const editor = await import('/js/editor.js');
-        editor.setEditorContent(text, 'Welcome.md');
+        await editor.setEditorContent(text, 'Welcome.md');
         const view = editor.getEditorView(); window.__smoothWheelView = view;
         await new Promise(requestAnimationFrame);
         view.dispatch({ selection: { anchor: view.state.doc.line(25).from } });

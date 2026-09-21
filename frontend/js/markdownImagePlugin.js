@@ -10,6 +10,7 @@ import {
     shouldShowSource,
 } from 'codemirror-live-markdown';
 import { drawioImageVaultURL } from './core/drawioImageCreationModel.js';
+import { createDOMPreviewCache } from './domPreviewCache.js';
 import {
     clearMarkdownImageSize,
     markdownImageDisplaySize,
@@ -35,7 +36,8 @@ class MarkdownImageWidget extends WidgetType {
             && other.data.alt === this.data.alt
             && other.data.title === this.data.title
             && other.options.basePath === this.options.basePath
-            && other.options.renderToken === this.options.renderToken;
+            && other.options.renderToken === this.options.renderToken
+            && (other.data.sourceIdentity || other.data) === (this.data.sourceIdentity || this.data);
     }
 
     get estimatedHeight() {
@@ -53,6 +55,7 @@ class MarkdownImageWidget extends WidgetType {
         controller.view = view;
         controller.data = this.data;
         controller.options = this.options;
+        controller.key = this.data.sourceIdentity || this.data;
         const image = container.querySelector('.cm-image-resize-frame img');
         if (image) {
             image.alt = this.data.alt;
@@ -64,6 +67,13 @@ class MarkdownImageWidget extends WidgetType {
         return true;
     }
 
+    destroy(container) {
+        const controller = container?._figaroImageController;
+        if (!controller) return;
+        controller.active = false;
+        controller.session?.retain(controller.key, controller.preview);
+    }
+
     toDOM(view) {
         const container = document.createElement('div');
         container.className = 'cm-image-widget';
@@ -73,7 +83,23 @@ class MarkdownImageWidget extends WidgetType {
             options: this.options,
             originalWidth: 0,
             originalHeight: 0,
+            active: true,
+            key: this.data.sourceIdentity || this.data,
+            session: this.options.previews.forView(view),
         };
+        const controller = container._figaroImageController;
+        controller.signature = JSON.stringify([this.data.src, this.options.basePath, this.options.renderToken]);
+        const prepared = controller.session?.take(controller.key, controller.signature, this.options.loadImage);
+        if (prepared) {
+            // Keep the transfer owned even if this mount is cancelled before its microtask.
+            controller.preview = prepared;
+            queueMicrotask(() => {
+                if (!controller.active) return;
+                this.renderImage(container, prepared.node.src, prepared, prepared);
+                countEditorWork('dom.imagePreviewRestored');
+            });
+            return container;
+        }
         const loading = document.createElement('div');
         loading.className = 'cm-image-loading';
         loading.innerHTML = '<span class="cm-image-spinner"></span><span>Loading…</span>';
@@ -85,6 +111,7 @@ class MarkdownImageWidget extends WidgetType {
         const loadOptions = { basePath: drawioURL ? '' : this.options.basePath };
         Promise.resolve(this.options.loadImage(loadSource, loadOptions))
             .then(result => {
+                if (!controller.active) return;
                 loading.remove();
                 if (result?.loaded) {
                     this.renderImage(container, result.src, result);
@@ -93,6 +120,7 @@ class MarkdownImageWidget extends WidgetType {
                 this.renderFailedLoad(container, drawioTarget);
             })
             .catch(() => {
+                if (!controller.active) return;
                 loading.remove();
                 this.renderFailedLoad(container, drawioTarget);
             });
@@ -277,6 +305,7 @@ class MarkdownImageWidget extends WidgetType {
     }
 
     async renderFailedLoad(container, target) {
+        if (!container._figaroImageController?.active) return;
         if (!target) {
             this.renderError(container);
             return;
@@ -291,6 +320,7 @@ class MarkdownImageWidget extends WidgetType {
         } catch {
             state = { kind: 'error' };
         }
+        if (!container._figaroImageController?.active) return;
         checking.remove();
         if (state?.kind === 'preview' && state.source) {
             this.renderImage(container, state.source);
@@ -301,13 +331,16 @@ class MarkdownImageWidget extends WidgetType {
         }
     }
 
-    renderImage(container, source, result = {}) {
+    renderImage(container, source, result = {}, prepared = null) {
         const controller = container._figaroImageController;
-        if (!controller) return;
+        if (!controller?.active) return;
         const frame = document.createElement('div');
         frame.className = 'cm-image-resize-frame';
-        const image = document.createElement('img');
-        image.src = source;
+        const image = prepared?.node || document.createElement('img');
+        if (!prepared) {
+            image.src = source;
+            countEditorWork('render.imagePreview');
+        }
         image.alt = controller.data.alt;
         image.title = controller.data.title || '';
         image.draggable = false;
@@ -325,10 +358,17 @@ class MarkdownImageWidget extends WidgetType {
 
         const setOriginalGeometry = () => {
             const current = container._figaroImageController;
-            if (!current) return;
+            if (!current?.active) return;
             current.originalWidth = Math.max(1, Math.round(result.width || image.naturalWidth || 1));
             current.originalHeight = Math.max(1, Math.round(result.height || image.naturalHeight || 1));
             this.applyRequestedGeometry(container);
+            if (!prepared && (result.width || image.naturalWidth) > 0 && (result.height || image.naturalHeight) > 0) {
+                current.preview = {
+                    ...current.options.previews.prepare(image, current.signature, current.options.loadImage,
+                        current.originalWidth * current.originalHeight * 4),
+                    width: current.originalWidth, height: current.originalHeight,
+                };
+            }
         };
         if (result.width && result.height) setOriginalGeometry();
         else image.addEventListener('load', setOriginalGeometry, { once: true });
@@ -465,6 +505,7 @@ export function createMarkdownImageField({
         onOpenDrawio,
         loadImage,
         geometryCache: new Map(),
+        previews: createDOMPreviewCache({ maximumEntries: 16, maximumWeight: 32 * 1024 * 1024 }),
         // A fresh field configuration represents a deliberate file activation.
         // Keep ordinary selection updates reusable, but remount image widgets
         // when returning from an editor that may have changed their files.
@@ -500,7 +541,7 @@ export function createMarkdownImageField({
                     (state, block, visible) => imageBlockDecorations(state, options, block, visible))
                 : value;
         },
-        provide: field => EditorView.decorations.from(field, value => value.decorations),
+        provide: field => [options.previews.extension, EditorView.decorations.from(field, value => value.decorations)],
     });
 }
 

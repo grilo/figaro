@@ -53050,6 +53050,7 @@ function tableEditorPlugin() {
 
 // src/utils/codeHighlight.ts
 var lowlightInstance = null;
+var codeHighlightGeneration = 0;
 var lowlightAvailable = null;
 function escapeHtml(text) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -53175,7 +53176,8 @@ function highlightCode(code, lang) {
     return {
       html: escapeHtml(code),
       language: lang || "text",
-      detected: false
+      detected: false,
+      cacheable: false
     };
   }
 }
@@ -53186,6 +53188,7 @@ function registerLanguage(name, syntax) {
   }
   try {
     lowlightInstance.register({ [name]: syntax });
+    codeHighlightGeneration++;
   } catch (error) {
     console.warn(`[codeHighlight] Failed to register language "${name}":`, error);
   }
@@ -53215,6 +53218,7 @@ var CodeBlockWidget = class extends WidgetType {
         || previous.sourceText !== this.data.sourceText
         || previous.showLineNumbers !== this.data.showLineNumbers || previous.showCopyButton !== this.data.showCopyButton) return false;
     container.__figaroCodeBlockData = this.data;
+    if (container.__figaroCodePreview) container.__figaroCodePreview.key = this.data.sourceIdentity;
     return true;
   }
   /**
@@ -53331,10 +53335,22 @@ var CodeBlockWidget = class extends WidgetType {
       });
       container.appendChild(copyBtn);
     }
+    const previews = this.data.previewReuse;
+    const session = previews?.forView(view);
+    const available = initLowlightSync();
+    const signature = JSON.stringify([code, language, codeHighlightGeneration]);
+    const prepared = session?.take(this.data.sourceIdentity, signature, lowlightInstance);
+    if (prepared) {
+      container.appendChild(prepared.node);
+      container.__figaroCodePreview = { session, key: this.data.sourceIdentity, entry: prepared };
+      countMarkdownWork(view.state, "dom.codePreviewRestored");
+      return container;
+    }
     const pre = document.createElement("pre");
     const codeEl = document.createElement("code");
     const openFence = `\`\`\`${language || ""}`;
     const originalLines = code.split("\n");
+    countMarkdownWork(view.state, "render.codePreview");
     const result = highlightCode(code, language || void 0);
     const highlightedHtml = result.html;
     let highlightedLines = highlightedHtml.split("\n");
@@ -53360,7 +53376,13 @@ var CodeBlockWidget = class extends WidgetType {
     codeEl.innerHTML = allLines.join("");
     pre.appendChild(codeEl);
     container.appendChild(pre);
+    if (available && result.cacheable !== false && session) container.__figaroCodePreview = { session, key: this.data.sourceIdentity,
+      entry: previews.prepare(pre, signature, lowlightInstance) };
     return container;
+  }
+  destroy(container) {
+    const preview = container?.__figaroCodePreview;
+    preview?.session?.retain(preview.key, preview.entry);
   }
   /**
    * HTML escape
@@ -53499,7 +53521,7 @@ function parseCodeBlockDescriptors(state, options, regions = null) {
 function codeBlockDecorations(state, options, block, visible) {
   const sourceBlock = block.sourceIdentity || block;
   if (!visible && !state.field(mouseSelectingField, false) && !sourceRangeIsFolded(state, block.from, block.to)) {
-    const widget = createCodeBlockWidget({ ...block,
+    const widget = createCodeBlockWidget({ ...block, sourceIdentity: sourceBlock, previewReuse: options.previewReuse,
       showLineNumbers: options.lineNumbers, showCopyButton: options.copyButton });
     return [Decoration.replace({ widget, block: true, sourceBlock }).range(block.from, block.to)];
   }
@@ -53602,7 +53624,7 @@ function createCodeBlockField(options) {
       }
       return { ...value, visibleIndices: plan.visibleIndices, decorations };
     },
-    provide: field => EditorView.decorations.from(field, value => value.decorations)
+    provide: field => [options.previewReuse?.extension || [], EditorView.decorations.from(field, value => value.decorations)]
   });
 }
 function codeBlockField(options) {

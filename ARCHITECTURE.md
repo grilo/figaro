@@ -1933,8 +1933,41 @@ the cache; custom state-dependent queries re-enumerate on state changes.
 Wrapped-source rulers mount together, read together, and are removed before
 footprint writes. Overflow reads follow all height writes. Empty editors and
 authored chart heights skip wrapping metrics; unchanged source/metrics reuse
-cached heights, and explicit typography refresh invalidates them. Measurements
+cached heights across replacement mounts. Each editor retains at most 256
+source/metrics entries and 1 MiB estimated key/value data through the pure
+`core/previewCache.js` policy. Width and typography participate in the key;
+explicit typography refresh and font completion clear the cache, and loading
+fonts bypass retention. Disposal clears the editor's entries. Measurements
 remain before paint to preserve source/replacement height equivalence.
+
+Prepared code, math, table and image content uses `domPreviewCache.js`, a
+CodeMirror/DOM adapter around the same pure bounded-retention policy. Each
+editor and feature configuration owns its session; removing the extension
+clears it and prevents later widget destruction from publishing stale entries.
+Code, math and tables each retain at most 32 detached subtrees and 4 MiB of
+estimated source/markup/node data. Images retain at most 16 elements and 32 MiB,
+including a width × height × 4 decoded-pixel estimate. These are retention
+estimates, not browser heap limits; mounted content is outside these caches.
+
+Source identities transfer each subtree to one mount. Source/render signatures
+reject changed content; code also checks highlighter registration generation,
+math checks its KaTeX render function, and tables check their math renderer.
+Highlighter exceptions remain retryable. Table subtrees containing images or failed math remain on the fresh rendering
+path. CSS continues to apply current fonts/themes; source footprints and math
+fitting recompute for the connected wrapper. Code retains only its highlighted
+`pre`, tables their semantic `table`, math its rendered content, and images the
+loaded `img`. Controls, position mapping and fitting observers belong to the new
+wrapper. The vendored code adapter receives the narrow preview-reuse port from
+editor composition, retaining its pure-only first-party imports.
+
+Image signatures include source URL, base path and the field's activation
+generation. Draw.io keeps its fresh URL on file activation; source changes and
+deletion-triggered reconfiguration cannot return an old node. Cached images
+attach in a microtask after the wrapper connects so width clamping is current.
+Cancelled mounts return transferred content to the cache, while late loading
+or inspection results stop before changing detached DOM. Failed and oversized
+images remain retryable through the existing loader. These content caches do
+not change the diagram quiet scheduler or preload the entire document.
 
 Cursor-only invalidation follows each consumer's actual dependencies.
 `core/fileTreeModel.js` compares dirty path sets before the presentation subscriber
@@ -2125,7 +2158,14 @@ before remeasuring the centered writing edge and calculating final positions.
 Unchanged widths need only the ordinary measurement. Line-number and block-guide
 setters remeasure after their gutter DOM changes; plugin constructors run before
 new gutters are installed, and reconfiguration need not emit a CodeMirror
-`geometryChanged` event.
+`geometryChanged` event. The block-guide plugin coalesces layout work in a
+microtask after CodeMirror installs the gutter DOM, including document/parser
+updates and mount. Reading inside `ViewPlugin.update` sees the previous spacer;
+waiting for the next animation-frame measurement can paint its stale negative
+margin. Removing the plugin cancels its pending layout publication. Activity-date toggles use the same before-paint
+timing. Activity and Pure layout classes are registered with CodeMirror
+`editorAttributes`, so focus-driven root-attribute updates cannot hide the date
+rail or drop Pure/typewriter styling until a background plugin update repairs it.
 CSS reserves missing space as left content padding, including compact PDF splits;
 removing block guides clears their reservation while retaining space for enabled
 activity dates. The left rail's hidden spacer uses the longest
@@ -2658,7 +2698,8 @@ alias even though they retain one shared render engine.
 
 Diagram render identity and reusable-input policy live in pure
 `core/diagramRenderCacheModel.js`. Mermaid retains its 64-entry SVG LRU and
-in-flight coalescing. Vega/Vega-Lite use `usecases/diagramOutputReuse.js`, with an
+in-flight coalescing, keyed by effective source, engine generation and font
+identity. Vega/Vega-Lite use `usecases/diagramOutputReuse.js`, with an
 injected renderer, a 64-entry LRU and a budget of 4,194,304 UTF-16 code units for retained
 keys and SVGs (about 8 MiB of UTF-16 payload). Pending-key retention is also bounded.
 Vega keys include effective source/configuration, normalized container dimensions,
@@ -2676,7 +2717,22 @@ revokes an already queued idle slot; composition also blocks timeout execution.
 Timer, idle, activity-observation and composition ports are injected. A running
 DOM renderer is still main-thread work and cannot be preempted. Source changes,
 widget disposal, container resizing and appearance/font changes reject stale
-results immediately; replacements use the same quiet queue. Graphic fitting coalesces resize
+results immediately; new or invalidated output uses the same quiet queue.
+Completed live SVG subtrees are detached into an editor-owned cache when their
+widgets leave the viewport or reveal source. `core/previewCache.js` bounds this
+cache to 32 entries and 4 MiB estimated SVG/key/node data; this is an estimate,
+not a browser heap measurement. Reuse transfers a subtree to exactly one mount
+and preserves its unique IDs. Wrappers, controls and observers belong to each
+mount and are recreated. `diagramRenderIdentity` uses the renderer's own
+source/appearance/font/engine/width and volatile-input policy to validate a
+retained subtree after its new wrapper connects. Valid previews return in a
+microtask before paint, bypassing generation and SVG reparsing. Source changes,
+failed/missing output, font loading and external/ambient Vega data cannot return
+a stale preview. A capture-phase key listener detects active repeat bursts;
+prepared Mermaid restoration waits through those bursts, while Vega restores
+immediately. Active composition routes both through the quiet slot. This keeps
+Mermaid attachment/layout out of continuous keyboard input. Removing the
+extension clears retained nodes and its listener. Graphic fitting coalesces resize
 notifications into the next animation frame, outside observer delivery, and
 cancels measurements on disposal. Source-height rulers defer resize-originated requests outside observer delivery;
 source/mount changes still measure before paint to preserve replacement height.

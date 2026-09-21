@@ -72,6 +72,43 @@ describe('Markdown block guide model', () => {
         }
     });
 
+    test('helper layout reads the latest installed gutter after batched updates and cancels on removal', async () => {
+        const parent = document.body.appendChild(document.createElement('div'));
+        const extension = createMarkdownBlockGuidesExtension();
+        const view = new EditorView({ parent, state: EditorState.create({
+            doc: '# Heading', extensions: [markdownLanguage, extension],
+        }) });
+        const labels = [];
+        view.dom.getBoundingClientRect = () => ({ left: 0, width: 1000 });
+        const measure = jest.spyOn(view.contentDOM, 'getBoundingClientRect').mockImplementation(() => {
+            labels.push(parent.querySelector('.cm-markdownBlockGuideSpacer')?.textContent);
+            return { left: 0, width: 1000 };
+        });
+        try {
+            // Mount and multiple updates in one task must measure only the
+            // final DOM, never the previous spacer from inside plugin.update.
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '# Heading\n```mermaid\ngraph LR\n```' } });
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '# Heading\n```javascript\nlet a\n```' } });
+            expect(labels).toEqual([]);
+            await new Promise(queueMicrotask);
+            expect(labels).toEqual(['x'.repeat(10)]);
+            labels.length = 0;
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '# Heading' } });
+            await new Promise(queueMicrotask);
+            expect(labels).toEqual(['x'.repeat(6)]);
+            labels.length = 0;
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '# Changed' } });
+            view.dispatch({ effects: StateEffect.reconfigure.of([markdownLanguage]) });
+            await new Promise(queueMicrotask);
+            expect(labels).toEqual([]);
+            expect(view.dom.style.getPropertyValue('--editor-block-before-rail-width')).toBe('');
+        } finally {
+            measure.mockRestore();
+            view.destroy();
+            parent.remove();
+        }
+    });
+
     test('classifies headings, fenced code, tables, and standalone images', () => {
         expect(markdownBlockGuideKind({ name: 'ATXHeading3' })).toBe('h3');
         expect(markdownBlockGuideKind({ name: 'Paragraph', source: 'plain prose' })).toBeNull();
