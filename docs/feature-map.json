@@ -1301,7 +1301,8 @@
       "tests/frontend/unit/vegaLiteChartEditor.test.js"
     ],
     "extraChecks": [
-      "Changes to graphic measurements or printable output need the existing chart and preview/export browser boundaries; use diagrams for shared scheduling."
+      "Changes to graphic measurements or printable output need the existing chart and preview/export browser boundaries; use diagrams for shared scheduling.",
+      "Run tests/e2e/vegaLiteChartEditor.spec.js for chart SVG replacement, connected-container sizing, controls, resize and source-selection geometry."
     ],
     "symbols": {
       "frontend/js/vegaLiteChartEditor.js": [

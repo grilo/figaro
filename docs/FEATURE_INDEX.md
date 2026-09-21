@@ -274,7 +274,7 @@ Vega and Vega-Lite chart editing
 - Source: [frontend/js/vegaLiteChartEditor.js](../frontend/js/vegaLiteChartEditor.js) (`openVegaLiteChartEditor`), [frontend/js/core/vegaLiteChartEditorModel.js](../frontend/js/core/vegaLiteChartEditorModel.js)
 - Documentation: [docs/DIAGRAMS_AND_EXPORT.md#charts-and-drawio](DIAGRAMS_AND_EXPORT.md#charts-and-drawio), [docs/PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite](PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite), [docs/testing/workspace.md#chart-heavy-editing-performance-verification](testing/workspace.md#chart-heavy-editing-performance-verification)
 - Frontend tests: [tests/frontend/unit/vegaLiteChartEditorModel.test.js](../tests/frontend/unit/vegaLiteChartEditorModel.test.js), [tests/frontend/unit/vegaLiteChartEditor.test.js](../tests/frontend/unit/vegaLiteChartEditor.test.js)
-- Additional boundary checks: Changes to graphic measurements or printable output need the existing chart and preview/export browser boundaries; use diagrams for shared scheduling.
+- Additional boundary checks: Changes to graphic measurements or printable output need the existing chart and preview/export browser boundaries; use diagrams for shared scheduling. Run tests/e2e/vegaLiteChartEditor.spec.js for chart SVG replacement, connected-container sizing, controls, resize and source-selection geometry.
 
 ## design
 

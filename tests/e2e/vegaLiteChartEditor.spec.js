@@ -426,8 +426,13 @@ test('converts a simple table into a themed, complete chart and resizes it as on
     await page.setViewportSize({ width: originalViewport.width - 220, height: originalViewport.height });
     await expect.poll(() => chart.locator('.cm-live-diagram-view').evaluate(element => element.clientWidth))
         .toBeLessThan(beforeWidth);
-    await expect.poll(() => chart.locator('svg').evaluate(svg => {
-        const viewport = svg.parentElement.getBoundingClientRect();
+    await expect.poll(() => chart.evaluate(root => {
+        // Resizing may replace the SVG after Playwright resolves a child locator.
+        // Query and measure the current connected graphic in one browser task.
+        const svg = root.querySelector('svg');
+        const parent = svg?.parentElement;
+        if (!root.isConnected || !parent) return false;
+        const viewport = parent.getBoundingClientRect();
         const bounds = svg.getBoundingClientRect();
         return bounds.width > 0 && bounds.height > 0 && bounds.width <= viewport.width + 1;
     })).toBe(true);

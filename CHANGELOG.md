@@ -12,6 +12,8 @@ remain as originally published.
 
 - Editor verification no longer fails intermittently when parsing or cursor
   persistence runs at different speeds on CI.
+- Chart resize verification tolerates an in-progress preview replacement while
+  still requiring the rendered chart to fit its container.
 
 ## [1.41.1] - 2026-09-21
 

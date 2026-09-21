@@ -776,6 +776,10 @@ Primary and Opposite preserves every axis title in both chart orientations.
 Both combobox and
 palette listboxes stay within viewport bounds. It then compares one explicit
 data paint plus the themed backing surface before and after Apply,
+checks viewport-resize fit by querying and measuring the current connected SVG
+inside one browser callback, and retries while the graphic is being replaced.
+Resolving an SVG locator before that callback can retain a detached child and
+turn a valid asynchronous replacement into a measurement exception. It then
 drags the actual lower-canvas-edge handle while source remains unchanged until release,
 undoes that single resize, compares rendered/source document coordinates,
 checks Arrow Up/Down plus mouse placement and bidirectional drag selection, and
