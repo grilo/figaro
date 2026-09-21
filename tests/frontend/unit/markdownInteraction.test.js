@@ -1,3 +1,6 @@
+import { ensureSyntaxTree, forceParsing, syntaxTree } from '@codemirror/language';
+import { createEditorView, initEditor } from '../../../frontend/js/editor.js';
+
 describe('markdown editor interactions', () => {
     let view, canvas;
 
@@ -13,17 +16,34 @@ describe('markdown editor interactions', () => {
 
     afterEach(() => {
         view?.destroy();
+        jest.clearAllTimers();
+        jest.useRealTimers();
         canvas.mockRestore();
         document.body.innerHTML = '';
     });
 
-    test.each([100, 10000])('ordinary clicks avoid whole-document reads with %i prose lines', async count => {
-        const { createEditorView, initEditor } = await import('../frontend/js/editor.js');
+    test.each([100, 10000])('ordinary clicks avoid whole-document reads after pending parsing with %i prose lines', async count => {
         await initEditor();
+        jest.useFakeTimers({ doNotFake: ['performance', 'queueMicrotask'] });
         view = createEditorView();
         const source = 'Ordinary prose.\n\n' + 'Another plain line.\n\n'.repeat(count);
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
-        await new Promise(resolve => setTimeout(resolve, 0));
+
+        // Recreate a slow runner that exhausts the initial parser time slice.
+        let parseTime = Date.now();
+        const parseClock = jest.spyOn(Date, 'now').mockImplementation(() => parseTime += 100);
+        try {
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+        } finally { parseClock.mockRestore(); }
+        const initialTree = syntaxTree(view.state);
+        const completedTree = ensureSyntaxTree(view.state, view.state.doc.length, 10000);
+        expect(completedTree).not.toBeNull();
+        expect(completedTree).not.toBe(initialTree);
+
+        // Completing the parser alone does not publish its tree to view plugins.
+        // Publish it before counting clicks, so guide rebuilding is setup work.
+        expect(forceParsing(view, view.state.doc.length, 10000)).toBe(true);
+        expect(syntaxTree(view.state)).toBe(completedTree);
+        await jest.advanceTimersByTimeAsync(20);
         view.posAtCoords = jest.fn(() => 3);
         const read = jest.spyOn(view.state.doc, 'toString');
         const target = view.contentDOM.querySelector('.cm-line');
@@ -31,6 +51,8 @@ describe('markdown editor interactions', () => {
             for (let index = 0; index < 20; index++) {
                 target.dispatchEvent(new MouseEvent('mousedown', { button: 0, buttons: 1, detail: 1, bubbles: true, cancelable: true }));
                 document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true, cancelable: true }));
+                // Include the real mouse-release frame in every measured click.
+                await jest.advanceTimersByTimeAsync(20);
             }
             expect(read).not.toHaveBeenCalled();
             expect(view.posAtCoords).toHaveBeenCalled();

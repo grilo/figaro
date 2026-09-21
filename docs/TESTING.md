@@ -25,6 +25,12 @@ bounded Mermaid success/failure reuse and stale-lint cancellation. Operation
 counts establish avoided work; browser/native key and pointer checks establish
 selection geometry. See [the consolidated report](benchmarks/editor-interaction-findings-2026-09-20.md).
 
+The ordinary-click component fixture completes and publishes its initial syntax
+tree before counting reads, then advances mouse-release frames with controlled
+time. The assembled authoring-macro fixture explicitly runs session persistence
+and checks its saved cursor. These checks must not depend on CI runner speed;
+see the [editor contract](testing/editor.md#editor-update-contract-regressions).
+
 The editor interaction regressions also cover rich-prose mapping, retained
 preview clicks, indexed helper-rail and Pure phrase lookup, and single-record
 buffer publication. Gutter geometry is sampled throughout focus and background

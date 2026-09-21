@@ -8,7 +8,10 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- Editor verification no longer fails intermittently when parsing or cursor
+  persistence runs at different speeds on CI.
 
 ## [1.41.1] - 2026-09-21
 

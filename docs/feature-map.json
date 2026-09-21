@@ -161,6 +161,7 @@
       "tests/frontend/unit/indentationMarkerModel.test.js",
       "tests/frontend/unit/editorRemainingWork.test.js",
       "tests/frontend/unit/markdownInteraction.test.js",
+      "tests/frontend/unit/authoringMacroEditor.test.js",
       "tests/frontend/unit/wheelScroll.test.js",
       "tests/frontend/unit/state.test.js",
       "tests/frontend/unit/activityGutter.test.js",
@@ -379,7 +380,8 @@
       "tests/frontend/unit/searchMatchStatus.test.js",
       "tests/frontend/unit/editorTypingContract.test.js",
       "tests/frontend/unit/editorTypingInventory.test.js",
-      "tests/frontend/unit/editorRemainingWork.test.js"
+      "tests/frontend/unit/editorRemainingWork.test.js",
+      "tests/frontend/unit/markdownInteraction.test.js"
     ],
     "extraChecks": [
       "Run tabs/editor-layout and affected observer suites. Reuse editorUX/outline/vimVisualRows browser tests and isolated packaged native input checks."

@@ -101,7 +101,12 @@ completion appends read inserted characters rather than the full prefix. The
 same matrix preserves writing point queries, diagram allocations, mapped inline
 projections and Properties reuse. `markdownInteraction.test.js` checks ordinary
 clicks without full-text conversion and preserves the footnote create/return/Undo
-journey. Pure completion and indentation tests compare against the existing
+journey. Its click fixture deliberately exhausts the initial parser time slice,
+finishes parsing, and publishes the completed tree before measuring interactions.
+Finishing the parser alone leaves the new tree unpublished until a later
+transaction; counting that first publication as click work produces a spurious
+block-guide full-text read. Controlled time includes each mouse-release frame
+in the zero-read assertion. Pure completion and indentation tests compare against the existing
 source matchers/scope oracle. Cache eviction, failed-result relocation and
 obsolete-lint cancellation remain below the browser layer. Run existing heading
 completion, hashtag, footnote, code tab-size, editor cursor and Vim workflows in
@@ -1333,6 +1338,14 @@ the name/create effect and exact unchanged-token replacement. The Draw.io use
 case test additionally owns create → reference insertion → open → background
 refresh ordering and the stale-token result that preserves the created asset
 without opening it.
+
+`authoringMacroEditor.test.js` exercises the assembled completion, date picker,
+table and Mermaid editors, and Draw.io name prompt. It awaits document mounting,
+advances completion and persistence timers with controlled time, and explicitly
+configures `SaveSession`. After the final cursor move it runs the session-save
+debounce and checks the persisted cursor; teardown destroys the view and clears
+remaining timers. CPU load must not determine whether this expected native
+effect runs during the test.
 
 Run the focused contract with:
 
