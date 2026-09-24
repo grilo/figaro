@@ -8,7 +8,15 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- In narrow windows with a details pane open, long helper labels and Activity
+  dates become compact so the note keeps a readable column of text; full labels
+  and dates remain in their tooltips. The Activity date margin is also slightly
+  narrower everywhere.
+- Release verification no longer fails on Windows because of a Unix-only
+  file-permission check, and the editor checks wait for a note to finish
+  opening before inspecting it.
 
 ## [1.42.0] - 2026-09-25
 

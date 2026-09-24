@@ -32,3 +32,19 @@ export function editorBlockActionLayout(width, geometry = {}) {
         beforeRailWidth,
     };
 }
+
+// Readable prose beside a docked details pane at enlarged text (see the
+// narrow-window scenario in docs/testing/editor.md).
+export const EDITOR_MINIMUM_PROSE_WIDTH = 230;
+
+/**
+ * Compact the helper rail when its full width would leave less than the
+ * minimum prose width. `fullWritingInset` is the inset the full-width rail
+ * needs; the decision uses it even while compact so it cannot oscillate.
+ */
+export function editorHelperRailCompact({ proseRight, writingLeft, fullWritingInset }) {
+    if (![proseRight, writingLeft, fullWritingInset].every(Number.isFinite)) return false;
+    // Hidden or unmeasured editors keep their current presentation.
+    if (proseRight <= writingLeft) return false;
+    return proseRight - writingLeft - fullWritingInset < EDITOR_MINIMUM_PROSE_WIDTH;
+}

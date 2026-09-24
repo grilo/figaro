@@ -66,13 +66,22 @@ export function activityDateKey(timestamp, timeZone) {
 
 const activityMonthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** Format an already-local date key consistently, without consulting today's date. */
-export function formatActivityMarginDate(key) {
+/**
+ * Split a local date key into the margin label's day-month and two-digit
+ * year, so a narrow editor can hide the year without reformatting.
+ */
+export function activityMarginDateParts(key) {
     const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key || '');
-    if (!parts) return '';
+    if (!parts) return null;
     const [, year, month, day] = parts;
     const label = activityMonthLabels[Number(month) - 1];
-    return label ? `${Number(day)} ${label} ${year.slice(-2)}` : '';
+    return label ? { dayMonth: `${Number(day)} ${label}`, year: year.slice(-2) } : null;
+}
+
+/** Format an already-local date key consistently, without consulting today's date. */
+export function formatActivityMarginDate(key) {
+    const parts = activityMarginDateParts(key);
+    return parts ? `${parts.dayMonth} ${parts.year}` : '';
 }
 
 /** Observed edits supply a temporary display date until Git confirms attribution. */

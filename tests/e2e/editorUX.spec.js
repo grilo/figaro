@@ -1650,16 +1650,23 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
     }, narrowSource);
     await page.locator('#outline-toggle').click();
     await expect(page.locator('#right-sidebar')).not.toHaveClass(/right-sidebar--responsive-overlay/);
+    // Measure the settled layout: while the pane animates open the editor is
+    // briefly wider, which previously let this check pass by timing alone.
+    await expect.poll(() => page.evaluate(() => document.getElementById('right-sidebar').getAnimations().length)).toBe(0);
     for (const scale of [100, 150]) {
         await page.evaluate(async scale => {
             const { applyEditorTextScale } = await import('/js/editorTextScale.js');
             applyEditorTextScale(scale, { view: window.__headingFoldView });
         }, scale);
-        await expect.poll(() => page.evaluate(() => {
+        const proseWidth = () => page.evaluate(() => {
             const content = document.querySelector('#editor-container .cm-content');
             const style = getComputedStyle(content);
             return content.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-        })).toBeGreaterThan(230);
+        });
+        await expect.poll(proseWidth).toBeGreaterThan(230);
+        // Stable: the compact rail does not flip back and forth.
+        await page.waitForTimeout(200);
+        expect(await proseWidth()).toBeGreaterThan(230);
         const rail = await page.evaluate(() => {
             const view = window.__headingFoldView;
             const content = view.contentDOM.getBoundingClientRect();

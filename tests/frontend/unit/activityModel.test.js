@@ -1,4 +1,4 @@
-import { applyProvisionalActivityDate, formatActivityMarginDate, remapActivityScope, activityDateKey, activityEventsForPassages, groupActivityPassages, matchActivityLines, projectActivity } from '../../../frontend/js/core/activityModel.js';
+import { activityMarginDateParts, applyProvisionalActivityDate, formatActivityMarginDate, remapActivityScope, activityDateKey, activityEventsForPassages, groupActivityPassages, matchActivityLines, projectActivity } from '../../../frontend/js/core/activityModel.js';
 
 const oldDate = Date.parse('2026-09-03T12:00:00Z') / 1000;
 const newDate = Date.parse('2026-09-07T12:00:00Z') / 1000;
@@ -112,4 +112,9 @@ test('recorded and freshly edited passages on the same day share one marker with
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ key: '2026-09-07', provisional: true, from: 0, to: 20 });
     expect(groups[0].passages).toHaveLength(3);
+});
+
+test('margin dates split into day-month and year so narrow editors can hide the year', () => {
+    expect(activityMarginDateParts('2026-09-03')).toEqual({ dayMonth: '3 Sep', year: '26' });
+    expect(activityMarginDateParts('not a date')).toBeNull();
 });

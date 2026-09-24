@@ -82,3 +82,34 @@ test('hidden buffers retain measured rail reservations until visible geometry is
     expect(dom.style.cssText).toBe(before);
     expect(contentDOM.getBoundingClientRect).not.toHaveBeenCalled();
 });
+
+test('a narrow editor switches the helper rail to compact labels once, and back when room returns', () => {
+    const dom = document.createElement('div');
+    const contentDOM = document.createElement('div');
+    const scrollDOM = document.createElement('div');
+    const helper = document.createElement('div');
+    helper.className = 'cm-editorHelperRail-before';
+    scrollDOM.append(helper, contentDOM);
+    dom.append(scrollDOM);
+    document.body.append(dom);
+    contentDOM.style.paddingLeft = '24px';
+    contentDOM.style.paddingRight = '24px';
+    // 360px editor: the full rail would leave about 193px of prose.
+    let editorWidth = 360;
+    dom.getBoundingClientRect = () => ({ left: 0, width: editorWidth });
+    // The full rail needs 137px; compact labels need 60px.
+    helper.getBoundingClientRect = () => ({ right: 40, width: dom.hasAttribute('data-helper-rail-compact') ? 60 : 137 });
+    contentDOM.getBoundingClientRect = () => ({ left: 58, right: editorWidth });
+    try {
+        synchronizeEditorBlockActionLayout({ dom, contentDOM, scrollDOM });
+        expect(dom.hasAttribute('data-helper-rail-compact')).toBe(true);
+        expect(dom.style.getPropertyValue('--editor-block-before-rail-width')).toBe('60px');
+        synchronizeEditorBlockActionLayout({ dom, contentDOM, scrollDOM });
+        expect(dom.hasAttribute('data-helper-rail-compact')).toBe(true);
+        editorWidth = 900;
+        synchronizeEditorBlockActionLayout({ dom, contentDOM, scrollDOM });
+        expect(dom.hasAttribute('data-helper-rail-compact')).toBe(false);
+    } finally {
+        dom.remove();
+    }
+});

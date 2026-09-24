@@ -785,6 +785,32 @@
     transform: translateX(var(--editor-block-before-rail-offset, 0px));
 }
 
+/* Compact helper rail (editorBlockActionLayout.js): when the full rail would
+   leave too little prose, cap labels at the six characters every action needs
+   and drop the Activity date's year. Longer labels (fence names, "original
+   size") and full dates stay in each control's accessible name and tooltip. */
+.cm-editor[data-helper-rail-compact] .cm-markdownBlockGuideSpacer {
+    max-width: 6ch;
+    overflow: hidden;
+}
+
+.cm-editor[data-helper-rail-compact] .activity-date-year {
+    display: none;
+}
+
+.cm-editor[data-helper-rail-compact] .activity-date-marker,
+.cm-editor[data-helper-rail-compact] .activity-date-spacer {
+    padding-inline: 3px;
+}
+
+.cm-editor[data-helper-rail-compact] .cm-editorHelperRail-before .ui-editor-block-guide {
+    display: inline-block;
+    max-width: calc(6ch + 10px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .cm-markdownBlockGuideSpacer {
     box-sizing: content-box;
     visibility: hidden;

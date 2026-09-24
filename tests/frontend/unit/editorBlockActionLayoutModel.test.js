@@ -1,5 +1,7 @@
 import {
     editorBlockActionLayout,
+    editorHelperRailCompact,
+    EDITOR_MINIMUM_PROSE_WIDTH,
 } from '../../../frontend/js/core/editorBlockActionLayoutModel.js';
 
 describe('editor block action layout model', () => {
@@ -88,4 +90,19 @@ test('activity reserves an outer lane independently of block guides at narrow wi
  expect(405+both.activityRailOffset).toBeLessThan(330+both.beforeRailOffset-120);
  const only=editorBlockActionLayout(500,{viewportLeft:300,writingLeft:333,beforeRailWidth:0,activityRailWidth:75,activityRailBaseRight:375});
  expect(only.writingInset).toBe(48); expect(375+only.activityRailOffset).toBe(375);
+});
+
+test('the helper rail compacts only when its full width would leave too little prose', () => {
+    const wide = { proseRight: 1000, writingLeft: 400, fullWritingInset: 0 };
+    expect(editorHelperRailCompact(wide)).toBe(false);
+    // A 400px editor beside a details pane: 207px of prose with the full rail.
+    const narrow = { proseRight: 600, writingLeft: 263, fullWritingInset: 130 };
+    expect(600 - 263 - 130).toBeLessThan(EDITOR_MINIMUM_PROSE_WIDTH);
+    expect(editorHelperRailCompact(narrow)).toBe(true);
+    // Decided from the remembered full-rail inset, so the wider prose the
+    // compact rail produces cannot switch it straight back.
+    expect(editorHelperRailCompact({ ...narrow, fullWritingInset: 130 })).toBe(true);
+    // Hidden, unmeasured or incomplete geometry never changes the mode.
+    expect(editorHelperRailCompact({ proseRight: 0, writingLeft: 0, fullWritingInset: 0 })).toBe(false);
+    expect(editorHelperRailCompact({ proseRight: 600, writingLeft: 263 })).toBe(false);
 });

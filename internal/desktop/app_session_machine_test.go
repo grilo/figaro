@@ -3,6 +3,7 @@ package desktop
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -62,7 +63,8 @@ func TestMachineLocalSessionLeavesVaultUntouchedAndMigratesLegacyRecord(t *testi
 	if err != nil {
 		t.Fatalf("machine-local session record missing: %v", err)
 	}
-	if info.Mode().Perm() != 0600 {
+	// Windows has no Unix permission bits; os.Chmod only toggles read-only.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Fatalf("session record permissions = %v", info.Mode().Perm())
 	}
 	leftovers, _ := filepath.Glob(filepath.Join(filepath.Dir(record), ".session-*.tmp"))

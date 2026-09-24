@@ -1414,6 +1414,8 @@ Apply. Cancel still returns to the invoking helper.
 `rightSidebarLayout.test.js` proves the shared 400px canvas floor and existing
 overlay fallback. The existing activity/block-guide `editorUX.spec.js` scenario
 checks a 900 × 700 window at 100% and 150% text with Outline, a sixteen-character
-fence label, and table helpers: useful prose width, a contained helper rail, and
+fence label, and table helpers, measured after the details pane finishes
+opening (an earlier version passed by measuring mid-animation): more than
+230px of stable prose through the compact helper rail, a contained helper rail, and
 no overlap with source. Its existing Arrow Up/Down, pointer, and drag checks
 remain required. Repeat these boundaries in the packaged native webview.

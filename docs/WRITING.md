@@ -25,7 +25,9 @@ is not a spelling or style suggestion.
 
 Bold, italic, and strikethrough leave selected leading and trailing whitespace
 outside the markers. After applying Table Editor changes, focus returns to the document so
-Ctrl/Cmd+Z immediately undoes the whole table edit. Helper labels stay compact
+Ctrl/Cmd+Z immediately undoes the whole table edit. In a narrow window beside a
+details pane, long helper labels and Activity dates shorten so the note keeps a
+readable width; hover them for the full text. Helper labels stay compact
 when you enlarge document text, preserving more room beside the details pane.
 
 Pasting rich text preserves supported formatting as Markdown. A URL pasted

@@ -1,4 +1,8 @@
-import { editorBlockActionLayout } from './core/editorBlockActionLayoutModel.js';
+import { editorBlockActionLayout, editorHelperRailCompact } from './core/editorBlockActionLayoutModel.js';
+
+const compactAttribute = 'data-helper-rail-compact';
+// The full rail's inset per editor element, remembered while compact.
+const fullRailInsets = new WeakMap();
 
 function numericPixels(value) {
     const parsed = Number.parseFloat(value);
@@ -38,6 +42,7 @@ function measureWritingEdges(view) {
     const activity = railMeasurement(view.scrollDOM.querySelector('.cm-activityGutter'), ownerWindow);
     return {
         viewportLeft: viewportRect.left,
+        proseRight: contentRect.right - numericPixels(contentStyle.paddingRight),
         // Recover the ordinary writing edge so reserving the lane does not
         // disable itself on the next CodeMirror measurement.
         writingLeft: contentRect.left + numericPixels(contentStyle.paddingLeft) - appliedInset,
@@ -58,17 +63,35 @@ export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getB
         const pixels = `${value}px`;
         if (view.dom.style.getPropertyValue(property) !== pixels) view.dom.style.setProperty(property, pixels);
     };
-    let layout = editorBlockActionLayout(width, measureWritingEdges(view));
+    const publishWidths = layout => {
+        const widths = [
+            ['--editor-activity-rail-width', layout.activityRailWidth ?? 0],
+            ['--editor-block-before-rail-width', layout.beforeRailWidth],
+        ];
+        if (!widths.some(([property, value]) => numericPixels(view.dom.style.getPropertyValue(property)) !== value)) return false;
+        for (const [property, value] of widths) setPixels(property, value);
+        return true;
+    };
+    let edges = measureWritingEdges(view);
+    let layout = editorBlockActionLayout(width, edges);
     // A newly installed gutter initially occupies flex space. Publish its
     // negative-margin reservation before measuring the centered writing edge;
     // otherwise applying the width would invalidate the position just read.
-    const widths = [
-        ['--editor-activity-rail-width', layout.activityRailWidth ?? 0],
-        ['--editor-block-before-rail-width', layout.beforeRailWidth],
-    ];
-    if (widths.some(([property, value]) => numericPixels(view.dom.style.getPropertyValue(property)) !== value)) {
-        for (const [property, value] of widths) setPixels(property, value);
+    if (publishWidths(layout)) {
+        edges = measureWritingEdges(view);
+        layout = editorBlockActionLayout(width, edges);
+    }
+    // Narrow editors cap long helper labels so prose keeps a readable width.
+    // The decision reuses these edges; only a change of mode measures again.
+    const compact = view.dom.hasAttribute(compactAttribute);
+    if (!compact) fullRailInsets.set(view.dom, layout.writingInset);
+    const shouldCompact = editorHelperRailCompact({
+        proseRight: edges.proseRight, writingLeft: edges.writingLeft, fullWritingInset: fullRailInsets.get(view.dom),
+    });
+    if (shouldCompact !== compact) {
+        view.dom.toggleAttribute(compactAttribute, shouldCompact);
         layout = editorBlockActionLayout(width, measureWritingEdges(view));
+        if (publishWidths(layout)) layout = editorBlockActionLayout(width, measureWritingEdges(view));
     }
     setPixels('--editor-activity-rail-offset', layout.activityRailOffset ?? 0);
     setPixels('--editor-activity-rail-width', layout.activityRailWidth ?? 0);
@@ -78,6 +101,8 @@ export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getB
 }
 
 export function clearEditorBlockActionLayout(view) {
+    view.dom.removeAttribute(compactAttribute);
+    fullRailInsets.delete(view.dom);
     for (const property of ['--editor-block-before-rail-offset', '--editor-block-before-rail-width', '--editor-block-writing-inset']) {
         view.dom.style.removeProperty(property);
     }

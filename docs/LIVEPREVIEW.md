@@ -430,7 +430,12 @@ Every rendered table extends its left block guide into a four-button stack.
 to the root editor, and remains undoable through shared CodeMirror history.
 The destructive action is visually quiet at rest and adopts the theme's danger
 color on hover or keyboard focus. All controls remain outside the writing
-surface. If the margin cannot hold the stable helper rail, the writing column
+surface. When the full helper rail would leave less than 230px of prose (a
+narrow window beside a details pane), `editorBlockActionLayout` marks the
+editor `data-helper-rail-compact`: helper labels cap at six characters with an
+ellipsis and Activity dates drop their year, while accessible names and
+tooltips keep the full text. The decision uses the full rail's remembered
+inset, so the compact rail cannot switch itself back. If the margin cannot hold the stable helper rail, the writing column
 reserves the missing left padding rather than moving actions above the grid.
 Controls never enter the sidebar or cover cells; the table fills the resulting
 writing width. Right-clicking a table uses the same ordinary

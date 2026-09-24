@@ -1,7 +1,7 @@
 import { Annotation, EditorState, Transaction, RangeSet, RangeSetBuilder, RangeValue, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, EditorView, GutterMarker, ViewPlugin, gutter } from '@codemirror/view';
 import { foldedRanges } from '@codemirror/language';
-import { applyProvisionalActivityDate, formatActivityMarginDate, groupActivityPassages } from './core/activityModel.js';
+import { activityMarginDateParts, applyProvisionalActivityDate, groupActivityPassages } from './core/activityModel.js';
 import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
 
 export const setActivityData = StateEffect.define();
@@ -90,8 +90,9 @@ class ActivityMarker extends GutterMarker {
         const button = document.createElement('button');
         button.type = 'button'; button.className = 'ui-button ui-button--quiet activity-date-marker';
         const { date, status } = this.group;
-        const label = date ? formatActivityMarginDate(date) : status === 'error' ? '!' : status === 'loading' ? '…' : '—';
-        button.textContent = label;
+        const parts = date ? activityMarginDateParts(date) : null;
+        if (parts) appendMarginDate(button, parts);
+        else button.textContent = date ? '' : status === 'error' ? '!' : status === 'loading' ? '…' : '—';
         button.dataset.activityFrom = String(this.group.from ?? 0);
         button.setAttribute('aria-pressed', String(Boolean(this.group.selected)));
         const description = this.group.provisional ? `Edited: ${date}. Includes changes not yet recorded in Git history. Show this group’s activity.`
@@ -104,8 +105,17 @@ class ActivityMarker extends GutterMarker {
         return button;
     }
 }
+// The year is its own element so the compact helper rail can hide it; the
+// full date stays in the button's accessible name and tooltip.
+function appendMarginDate(element, { dayMonth, year }) {
+    const yearElement = document.createElement('span');
+    yearElement.className = 'activity-date-year';
+    yearElement.textContent = ` ${year}`;
+    element.append(dayMonth, yearElement);
+}
 class ActivitySpacer extends GutterMarker {
-    toDOM() { const spacer = document.createElement('span'); spacer.className = 'activity-date-spacer'; spacer.textContent = '28 Sep 2026'; return spacer; }
+    // Size the rail for the widest label ("28 Sep 26"), not a four-digit year.
+    toDOM() { const spacer = document.createElement('span'); spacer.className = 'activity-date-spacer'; appendMarginDate(spacer, { dayMonth: '28 Sep', year: '26' }); return spacer; }
 }
 function markerEntries(view) {
     const data = view.state.field(activityState);

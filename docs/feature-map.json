@@ -104,7 +104,8 @@
       "frontend/js/core/markdownInlineFormatting.js",
       "frontend/js/core/rightSidebarLayout.js",
       "frontend/styles/editor.css",
-      "frontend/styles/features/right-sidebar.css"
+      "frontend/styles/features/right-sidebar.css",
+      "frontend/js/core/editorBlockActionLayoutModel.js"
     ],
     "docs": [
       "docs/LIVEPREVIEW.md#4-block-widget-geometry-contract",
@@ -177,7 +178,8 @@
       "tests/frontend/unit/markdownInlineFormatting.test.js",
       "tests/frontend/unit/markdownFormattingEditor.test.js",
       "tests/frontend/unit/markdownTableEditor.test.js",
-      "tests/frontend/unit/rightSidebarLayout.test.js"
+      "tests/frontend/unit/rightSidebarLayout.test.js",
+      "tests/frontend/unit/editorBlockActionLayoutModel.test.js"
     ],
     "extraChecks": [
       "Run the affected existing editorUX or vimVisualRows Playwright scenario for geometry changes and repeat in the packaged native webview."
@@ -325,6 +327,10 @@
         "rightSidebarPresentation",
         "rightSidebarBounds",
         "rightSidebarWidth"
+      ],
+      "frontend/js/core/editorBlockActionLayoutModel.js": [
+        "editorBlockActionLayout",
+        "editorHelperRailCompact"
       ]
     }
   },
