@@ -109,6 +109,22 @@ function sourceMapPlugin(md) {
     });
 }
 
+/**
+ * KaTeX renders display math without token attributes; carry its source map
+ * onto the rendered block so the preview can align it with the editor.
+ */
+function mathSourceMapPlugin(md) {
+    const renderMath = md.renderer.rules.math_block;
+    if (typeof renderMath !== 'function') return;
+    md.renderer.rules.math_block = (tokens, index, ...rest) => {
+        const html = renderMath(tokens, index, ...rest);
+        const start = tokens[index].attrGet('data-figaro-source-start');
+        const end = tokens[index].attrGet('data-figaro-source-end');
+        if (!start || !end) return html;
+        return html.replace(/^(\s*<[a-z][\w-]*)/iu, `$1 data-figaro-source-start="${start}" data-figaro-source-end="${end}"`);
+    };
+}
+
 /** Convert Figaro's source-only alt suffix into standard sized image attributes. */
 function imageSizePlugin(md) {
     const renderImage = md.renderer.rules.image;
@@ -143,6 +159,7 @@ export function createPrintMarkdownRenderer() {
         .use(imageSizePlugin)
         .use(footnote)
         .use(katex, { delimiters: 'dollars' })
+        .use(mathSourceMapPlugin)
         .use(mark)
         .use(sub)
         .use(sup)

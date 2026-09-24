@@ -366,56 +366,65 @@ describe('Kanban Gantt view adapter', () => {
     });
 });
 
-test('Board/Gantt share the application status bar, refuse dirty scheduling, and restore buffer status on leaving', async () => {
-    testUtils.createMockDOM();
-    document.querySelector('.status-right').innerHTML += '<div id="gantt-status-content"></div>';
-    const panel = document.createElement('div'); document.body.appendChild(panel);
-    const openTab = jest.fn(); configureKanbanWorkspace({ openTab, openFile: jest.fn() });
-    const app = window.go.desktop.App;
-    app.GetKanbanBoard.mockResolvedValue({ todo: [card] }); app.GetTaskSchedules.mockResolvedValue(schedules);
-    setState('openTabs', []);
-    const session = mountKanbanWorkspace(panel); await flush();
-    panel.querySelector('[data-kanban-view="gantt"]').click();
-    expect(document.querySelector('.status-right').dataset.mode).toBe('gantt');
-    expect(document.getElementById('gantt-status-content').textContent).toContain('1 scheduled');
-    panel.querySelector('.kanban-gantt-bar').click(); panel.querySelector('[data-edit="open"]').click();
-    expect(openTab).toHaveBeenCalledWith('tasks.md', 'tasks.md', 'file', { path: 'tasks.md', line: 1 });
-    setState('openTabs', [{ type: 'file', path: 'tasks.md', dirty: true, _content: 'Edited #todo' }]);
-    await chooseDate(panel, 'end', '2026-09-05'); await flush();
-    expect(app.SetTaskSchedule).not.toHaveBeenCalled();
-    expect(panel.querySelector('.kanban-gantt-notice').textContent).toContain('Save changes');
-    panel.querySelector('[data-kanban-view="board"]').click();
-    expect(document.querySelector('.status-right').dataset.mode).toBe('buffer');
-    panel.querySelector('[data-kanban-view="gantt"]').click();
-    document.dispatchEvent(new CustomEvent('active-tab-changed', { detail: { type: 'file' } }));
-    expect(document.querySelector('.status-right').dataset.mode).toBe('buffer');
-    session.dispose();
-});
+// Workspace-mounted Gantts use the real clock; pin only Date so the fixture
+// schedule stays inside the visible window regardless of when tests run.
+describe('mounted Gantt workspace', () => {
+    beforeEach(() => jest.useFakeTimers({ now: new Date(2026, 7, 31, 12), doNotFake: ['nextTick', 'setImmediate', 'clearImmediate',
+        'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame',
+        'requestIdleCallback', 'cancelIdleCallback', 'performance', 'hrtime'] }));
+    afterEach(() => jest.useRealTimers());
 
-test('saving Gantt dates invalidates Calendar deadlines even if the subsequent board refresh fails', async () => {
-    testUtils.createMockDOM();
-    const panel = document.createElement('div'); document.body.appendChild(panel);
-    configureKanbanWorkspace({ openTab: jest.fn(), openFile: jest.fn() });
-    const app = window.go.desktop.App;
-    app.GetKanbanBoard.mockResolvedValue({ todo: [card] });
-    app.GetTaskSchedules.mockResolvedValue(schedules);
-    app.SetTaskSchedule.mockResolvedValue(undefined);
-    setState('openTabs', []);
-    const changed = jest.fn();
-    document.addEventListener('calendar-data-changed', changed);
-    const session = mountKanbanWorkspace(panel); await flush();
-    try {
+    test('Board/Gantt share the application status bar, refuse dirty scheduling, and restore buffer status on leaving', async () => {
+        testUtils.createMockDOM();
+        document.querySelector('.status-right').innerHTML += '<div id="gantt-status-content"></div>';
+        const panel = document.createElement('div'); document.body.appendChild(panel);
+        const openTab = jest.fn(); configureKanbanWorkspace({ openTab, openFile: jest.fn() });
+        const app = window.go.desktop.App;
+        app.GetKanbanBoard.mockResolvedValue({ todo: [card] }); app.GetTaskSchedules.mockResolvedValue(schedules);
+        setState('openTabs', []);
+        const session = mountKanbanWorkspace(panel); await flush();
         panel.querySelector('[data-kanban-view="gantt"]').click();
-        panel.querySelector('.kanban-gantt-bar').click();
-        app.GetTaskSchedules.mockRejectedValueOnce(new Error('Refresh unavailable'));
+        expect(document.querySelector('.status-right').dataset.mode).toBe('gantt');
+        expect(document.getElementById('gantt-status-content').textContent).toContain('1 scheduled');
+        panel.querySelector('.kanban-gantt-bar').click(); panel.querySelector('[data-edit="open"]').click();
+        expect(openTab).toHaveBeenCalledWith('tasks.md', 'tasks.md', 'file', { path: 'tasks.md', line: 1 });
+        setState('openTabs', [{ type: 'file', path: 'tasks.md', dirty: true, _content: 'Edited #todo' }]);
         await chooseDate(panel, 'end', '2026-09-05'); await flush();
-        expect(changed).toHaveBeenCalledTimes(1);
-        expect(panel.querySelector('.kanban-gantt-notice').textContent).toContain('Dates saved');
-        await chooseDate(panel, 'end', '2026-09-05'); await flush();
-        expect(changed).toHaveBeenCalledTimes(2);
-        expect(panel.querySelector('.kanban-gantt-notice').hidden).toBe(true);
-    } finally {
-        document.removeEventListener('calendar-data-changed', changed);
+        expect(app.SetTaskSchedule).not.toHaveBeenCalled();
+        expect(panel.querySelector('.kanban-gantt-notice').textContent).toContain('Save changes');
+        panel.querySelector('[data-kanban-view="board"]').click();
+        expect(document.querySelector('.status-right').dataset.mode).toBe('buffer');
+        panel.querySelector('[data-kanban-view="gantt"]').click();
+        document.dispatchEvent(new CustomEvent('active-tab-changed', { detail: { type: 'file' } }));
+        expect(document.querySelector('.status-right').dataset.mode).toBe('buffer');
         session.dispose();
-    }
+    });
+
+    test('saving Gantt dates invalidates Calendar deadlines even if the subsequent board refresh fails', async () => {
+        testUtils.createMockDOM();
+        const panel = document.createElement('div'); document.body.appendChild(panel);
+        configureKanbanWorkspace({ openTab: jest.fn(), openFile: jest.fn() });
+        const app = window.go.desktop.App;
+        app.GetKanbanBoard.mockResolvedValue({ todo: [card] });
+        app.GetTaskSchedules.mockResolvedValue(schedules);
+        app.SetTaskSchedule.mockResolvedValue(undefined);
+        setState('openTabs', []);
+        const changed = jest.fn();
+        document.addEventListener('calendar-data-changed', changed);
+        const session = mountKanbanWorkspace(panel); await flush();
+        try {
+            panel.querySelector('[data-kanban-view="gantt"]').click();
+            panel.querySelector('.kanban-gantt-bar').click();
+            app.GetTaskSchedules.mockRejectedValueOnce(new Error('Refresh unavailable'));
+            await chooseDate(panel, 'end', '2026-09-05'); await flush();
+            expect(changed).toHaveBeenCalledTimes(1);
+            expect(panel.querySelector('.kanban-gantt-notice').textContent).toContain('Dates saved');
+            await chooseDate(panel, 'end', '2026-09-05'); await flush();
+            expect(changed).toHaveBeenCalledTimes(2);
+            expect(panel.querySelector('.kanban-gantt-notice').hidden).toBe(true);
+        } finally {
+            document.removeEventListener('calendar-data-changed', changed);
+            session.dispose();
+        }
+    });
 });

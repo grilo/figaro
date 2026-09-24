@@ -214,10 +214,25 @@ test('aligns the preview marker by Markdown source across tall code blocks', asy
     await page.waitForTimeout(160);
     const reports = await page.evaluate(() => window.previewBridgeMessages
         .filter(message => message?.type === 'scroll'));
-    expect(reports).toContainEqual(expect.objectContaining({
-        sourceLine: 43,
-        programmatic: true,
-    }));
+    // The host's own command echoes back as programmatic, without a source lookup.
+    expect(reports.length).toBeGreaterThan(0);
+    expect(reports.every(message => message.programmatic && message.sourceLine === undefined)).toBe(true);
+
+    // A reader scroll reports the continuous source position under the marker.
+    await page.evaluate(() => { window.previewBridgeMessages = []; });
+    await frame.evaluate(() => {
+        window.dispatchEvent(new WheelEvent('wheel', { deltaY: 300 }));
+        document.scrollingElement.scrollTop += 300;
+    });
+    await page.waitForTimeout(160);
+    const expected = await frame.evaluate(() => {
+        const markerY = document.scrollingElement.clientHeight * 0.3;
+        const block = document.getElementById('code-two').getBoundingClientRect();
+        return 28 + 30 * ((markerY - block.top) / block.height);
+    });
+    const reader = await page.evaluate(() => window.previewBridgeMessages
+        .filter(message => message?.type === 'scroll' && !message.programmatic).at(-1));
+    expect(reader.sourceLine + reader.lineProgress).toBeCloseTo(expected, 1);
 });
 
 test('caps and centers preview content at the configured PDF page width', async ({ page }) => {

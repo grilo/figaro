@@ -15,12 +15,14 @@ export function installEditorSaveProtection({ listen, registerClose, loadInterva
         closing = true;
         try {
             const dirty = tabs().filter(tab => tab.dirty && tab.type === 'file');
-            if (!dirty.length) { close(); return; }
+            // Note content is settled first; the workspace session follows.
+            const finish = async () => { await saveSession(); close(); };
+            if (!dirty.length) { await finish(); return; }
             const choice = await confirmClose(dirty);
-            if (choice === 'extra') { close(); return; }
+            if (choice === 'extra') { await finish(); return; }
             if (choice !== 'confirm') return;
             const saved = await saveDirtyDocumentsBeforeExit({ tabs: dirty, activeId: activeId(), activeContent, save, currentTabs: tabs });
-            if (saved) close();
+            if (saved) await finish();
         } finally { closing = false; }
     });
     listen('beforeunload', async () => {

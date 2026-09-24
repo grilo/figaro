@@ -23,8 +23,21 @@ source maps, and starter-version hooks in frontend renderer tests. The desktop
 use-case test injects render/resolve/inject/write ports and must prove ordinary
 exports stay one-pass, numbered contents use exactly two passes in the same
 supplied session, and destination drift blocks publication. Root-scoped tests
-prove **Upgrade copy** preserves its source and occupied targets. The pdfcpu
+prove **Upgrade copy** preserves its source and occupied targets.
+`print_stylesheet_status_test.go` reads the starter marker only from the
+leading comment, keeps unmarked and older files upgradable, and refuses to
+append a current starter to itself; `frontmatter.test.js` disables the button
+only for an up-to-date status. The pdfcpu
 adapter owns actual internal-link destination resolution.
+
+Preview scroll synchronization: `pdfPreview.test.js` sweeps a multi-line widget
+monotonically with content padding and requires the inverse to land on the
+same position, and keeps CodeMirror's own correction scrolls from echoing
+while a wheel gesture takes over. `pdfPreviewFrame.test.js` covers gap
+interpolation, programmatic echoes without lookups, the host lease against
+layout scrolls, footnote exclusion, and source-position restore on re-render.
+The `pdfPreviewFrame.spec.js` browser check confirms the same mapping with
+real block geometry.
 
 The opt-in real Chromium test is the one browser-only boundary: it verifies
 CSS page-margin output, an unnumbered cover that still counts as physical page

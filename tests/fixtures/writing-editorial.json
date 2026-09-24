@@ -275,7 +275,8 @@
     "name": "proselint hedging and emphasis",
     "source": "I would argue that this works!!",
     "lenses": [
-      "direct"
+      "direct",
+      "formulaic"
     ],
     "expected": [
       "style.hedging",

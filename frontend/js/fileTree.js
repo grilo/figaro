@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { mergeVaultChangeScopes } from './core/vaultChangeScopeModel.js';
 /**
  * File Tree Explorer - Handles file tree rendering, interactions, drag-drop, context menu
  */
@@ -58,6 +59,10 @@ let contextMenu = null;
 let workspacePorts = null;
 
 let scheduledTreeRefresh = null;
+// Change scopes waiting for the scheduled refresh and for the next publish.
+// `undefined` means none; `null` means unknown (refresh every dependant).
+let scheduledTreeScope;
+let publishTreeScope;
 let nativeFileDropInitialized = false;
 let fileTreeRequestEventsInitialized = false;
 let externalCopyInProgress = false;
@@ -127,8 +132,10 @@ function createFileTreeRefreshService() {
             setState('selectedTreePaths', reconcileSelectedTreePaths(getState('selectedTreePaths'), tree));
             reconcileInternalClipboard(tree);
             renderFileTree();
+            const changedPaths = publishTreeScope === undefined ? null : publishTreeScope;
+            publishTreeScope = undefined;
             document.dispatchEvent(new CustomEvent('vault-file-tree-refreshed', {
-                detail: { tree },
+                detail: { tree, changedPaths },
             }));
         },
         onLoading: () => statusBar.set('Loading file tree...'),
@@ -601,8 +608,10 @@ export async function createInboxNote() {
 /**
  * Refresh file tree from backend
  */
-export async function refreshFileTree() {
+/** `scope` lists the external paths behind this refresh; null means unknown. */
+export async function refreshFileTree(scope = null) {
     if (!fileTreeRefresh) throw new Error('File-tree workspace ports were not configured');
+    publishTreeScope = mergeVaultChangeScopes(publishTreeScope, scope);
     return fileTreeRefresh.refresh();
 }
 
@@ -709,11 +718,14 @@ function configureFileTreeContainer(container) {
 // Native vault events may arrive in quick batches for an editor's atomic save
 // or a directory move. Coalesce them into one full tree request instead of
 // keeping a permanent polling loop alive.
-export function scheduleFileTreeRefresh(delay = 180) {
+export function scheduleFileTreeRefresh(delay = 180, scope = null) {
     if (scheduledTreeRefresh) clearTimeout(scheduledTreeRefresh);
+    scheduledTreeScope = mergeVaultChangeScopes(scheduledTreeScope, scope);
     scheduledTreeRefresh = setTimeout(() => {
         scheduledTreeRefresh = null;
-        refreshFileTree().catch(() => {});
+        const pending = scheduledTreeScope;
+        scheduledTreeScope = undefined;
+        refreshFileTree(pending).catch(() => {});
     }, Math.max(0, Number(delay) || 0));
 }
 

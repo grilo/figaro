@@ -32,7 +32,7 @@ body.right-sidebar-resizing .status-bar { transition: none; }
 /* Calendar keeps the shared footer footprint so workspace switches cannot
    resize the main row. Its buffer telemetry is meaningless in this planning
    surface, so hide only the main-pane region; application status stays live. */
-#app:has(#calendar-workspace-panel.tab-panel.active) > .status-bar .status-right {
+#app[data-workspace-view="calendar"] > .status-bar .status-right {
     visibility: hidden;
     pointer-events: none;
 }

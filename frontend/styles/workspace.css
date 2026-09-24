@@ -12,7 +12,9 @@
 
 /* A leading active tab owns this corner and must meet the editor squarely.
    Otherwise expose the same rounded junction used by the tab family. */
-#app:has(#tab-strip > .ui-document-tab--active:first-child) .main-content {
+/* State attributes come from workspaceChromeState.js; `#app:has()` forced
+   app-wide restyling on every DOM change. */
+#app[data-first-tab-active] .main-content {
     border-top-left-radius: 0;
 }
 

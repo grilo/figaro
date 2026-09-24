@@ -83,7 +83,7 @@ collapsed rail, disabled Typewriter, Paragraph focus, and
 adaptive type alongside a portable active-file session. Record every first
 shell/editor frame and require a constant 44px sidebar plus the remembered
 active file, Pure/focus/adaptive presentation, and absence of Typewriter in
-every visible editor frame. The final session write must retain that active
+every visible editor frame. The session saved on quit must retain that active
 file. The width sample intentionally includes frames before application module
 startup so it catches an expanded-to-collapsed first-paint transition rather
 than accepting only the settled result. This complements the pure model and session-persistence units without
@@ -273,6 +273,35 @@ npm run test:unit -- --runTestsByPath \
 npx playwright test tests/e2e/workspaceOverview.spec.js
 go test ./internal/desktop -run 'Test(CreateDirectory|CreateInboxNote|LoadSessionPrunesMissingTabsAndWorkspaceReferences)'
 ```
+
+## Slow-disk workspace I/O regressions
+
+Cursor movement must not write the session: editor and interaction-contract
+tests require no `io.sessionWrite` or `session` work during navigation, and the
+next explicit save carries the latest cursor. `session.test.js` covers the blur
+and hidden-window flush and the 1.5 s quit budget; `editorSaveProtection.test.js`
+requires notes to save before the session and the window to close after it.
+`sessionPersistence.test.js` skips identical snapshots and retries failed
+writes. `app_session_machine_test.go` keeps the record machine-local, never
+writes the vault, migrates the legacy record and repairs a truncated one.
+`vaultChangeScopeModel.test.js`, the file-tree scope test, the image-preview
+editor test and `gitStatus.test.js` require unrelated external changes to leave
+previews mounted and skip Git reads, while an unknown scope still refreshes.
+
+`workspaceChromeState.test.js` covers the leading-tab, hover and Calendar
+attributes that replace `#app:has()` rules, requires unchanged attributes to
+stay untouched, and scans every stylesheet to reject `:has()` on `html`, `body`
+or `#app`. The existing `workspaceOverview` and `sidebarNavigation` browser
+scenarios verify the resulting seam, hover and footer geometry.
+
+## Kanban emptied columns and colors
+
+`kanban.test.js` reproduces an emptied column: it stays, colored, through
+refreshes while the board is open and is gone after leaving and returning; a
+column emptied while the board is closed does not reappear.
+`kanbanColumnRetentionModel.test.js` covers placement and renaming.
+`kanban_colors_test.go` keeps a color through an emptied column, another color
+change and a restart, and allows coloring, renaming and deleting an empty column.
 
 ## Kanban paint-continuity regressions
 

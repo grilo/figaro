@@ -114,6 +114,26 @@ describe('quiet local-history action', () => {
         expect(control.classList).toContain('is-uncommitted');
     });
 
+    test('an external vault change re-reads Git status only when it touched the open note', async () => {
+        initHistoryPanel();
+        window.go.desktop.App.FileHasUncommittedChanges.mockResolvedValue(false);
+        await updateGitStatus('note.md');
+        const calls = () => window.go.desktop.App.FileHasUncommittedChanges.mock.calls.length;
+        const before = calls();
+        document.dispatchEvent(new CustomEvent('vault-filesystem-changed', { detail: { paths: ['Other/other.md', 'img/a.png'] } }));
+        document.dispatchEvent(new CustomEvent('vault-filesystem-changed', { detail: { paths: [] } }));
+        await Promise.resolve();
+        expect(calls()).toBe(before);
+        document.dispatchEvent(new CustomEvent('vault-filesystem-changed', { detail: { paths: ['note.md'] } }));
+        await Promise.resolve();
+        expect(calls()).toBeGreaterThan(before);
+        const scoped = calls();
+        // An unknown scope (older backend or oversized batch) stays conservative.
+        document.dispatchEvent(new CustomEvent('vault-filesystem-changed'));
+        await Promise.resolve();
+        expect(calls()).toBeGreaterThan(scoped);
+    });
+
     test('keeps note editing available while surfacing a Git status failure', async () => {
         window.go.desktop.App.FileHasUncommittedChanges.mockRejectedValueOnce(new Error('object database is corrupt'));
 

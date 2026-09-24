@@ -541,6 +541,29 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(view.state.doc.line(1).text).toBe('- [ ] Ship release #urgent');
         });
 
+        test('external changes that touch no image keep rendered previews mounted', async () => {
+            await configureTaskWorkspace();
+            const { initEditor, createEditorView, setEditorContent } = await import('../frontend/js/editor.js');
+            const { setState } = await import('../frontend/js/state.js');
+            const note = { id: 'note.md', path: 'note.md', type: 'file' };
+            setState('openTabs', [note]); setState('activeTabId', note.id);
+            await initEditor();
+            const view = createEditorView();
+            await setEditorContent('Intro\n\n![One](one.png)\n\nOutro', note.id);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            view.dispatch({ selection: { anchor: 0 } });
+            const image = () => view.dom.querySelector('.cm-image-widget');
+            const original = image();
+            expect(original).not.toBeNull();
+            const refreshed = changedPaths => document.dispatchEvent(new CustomEvent('vault-file-tree-refreshed', { detail: { tree: [], changedPaths } }));
+            refreshed(['Other/notes.md', 'Other/~$lock.docx']);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(image()).toBe(original);
+            refreshed(['one.png']);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(image()).not.toBe(original);
+        });
+
         test('task Calendar handoff refuses a different active note even with identical source', async () => {
             await configureTaskWorkspace();
             const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
@@ -686,10 +709,11 @@ describe('Editor Module - CodeMirror Initialization', () => {
                 view.dispatch({ changes: { from: view.state.doc.length, insert: ' edit' } });
                 expect(undoDepth(view.state)).toBe(1);
 
-                // Slow runners must exercise the same configured save effect as fast ones.
+                // Cursor movement stays in memory: no delayed session write.
+                const writes = window.go.desktop.App.SaveSession.mock.calls.length;
                 view.dispatch({ selection: { anchor: view.state.doc.length } });
                 await jest.advanceTimersByTimeAsync(350);
-                expect(window.go.desktop.App.SaveSession).toHaveBeenCalled();
+                expect(window.go.desktop.App.SaveSession).toHaveBeenCalledTimes(writes);
 
                 await mount('second.md', 'Second buffer');
                 expect(undo(view)).toBe(false);

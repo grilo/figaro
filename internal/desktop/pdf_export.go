@@ -32,6 +32,76 @@ type PDFExportResult struct {
 
 const starterPrintStylesheetAsset = "frontend/pdf/starter-pdf.css"
 
+// starterVersionRe reads the starter marker. Only the file's leading comment
+// counts: an upgraded copy also carries the old marker in its migrated section.
+var starterVersionRe = regexp.MustCompile(`figaro-pdf-starter-version:\s*(\d+)`)
+
+// parseStarterVersion returns the starter version declared in a stylesheet's
+// leading comment, or 0 when the file is not a Figaro starter copy.
+func parseStarterVersion(css string) int {
+	text := strings.TrimLeft(strings.TrimPrefix(css, "\ufeff"), " \t\r\n")
+	if !strings.HasPrefix(text, "/*") {
+		return 0
+	}
+	end := strings.Index(text, "*/")
+	if end < 0 {
+		return 0
+	}
+	match := starterVersionRe.FindStringSubmatch(text[:end])
+	if match == nil {
+		return 0
+	}
+	version, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0
+	}
+	return version
+}
+
+// PrintStylesheetStatus tells the Properties panel whether upgrading the
+// selected stylesheet would change anything.
+type PrintStylesheetStatus struct {
+	Exists         bool `json:"exists"`
+	Version        int  `json:"version"`
+	CurrentVersion int  `json:"currentVersion"`
+	UpToDate       bool `json:"upToDate"`
+}
+
+// GetPrintStylesheetStatus compares a note's selected stylesheet with the
+// bundled starter. It only reads; a file without a marker is never up to date.
+func (a *App) GetPrintStylesheetStatus(sourcePath string, stylesheetRef string) (*PrintStylesheetStatus, error) {
+	starterCSS, err := loadStarterPrintStylesheet(a.assets)
+	if err != nil {
+		return nil, err
+	}
+	status := &PrintStylesheetStatus{CurrentVersion: parseStarterVersion(string(starterCSS))}
+	sourceRel, err := vaultRelativePath(sourcePath)
+	if err != nil {
+		return status, nil
+	}
+	a.vaultMu.RLock()
+	defer a.vaultMu.RUnlock()
+	cssRel, err := a.resolvePrintStylesheet(filepath.Dir(sourceRel), stylesheetRef)
+	if err != nil {
+		return status, nil
+	}
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	css, err := readPrintCSS(root, cssRel, "print stylesheet", false)
+	if err != nil {
+		return status, nil
+	}
+	if _, statErr := root.Stat(cssRel); statErr == nil {
+		status.Exists = true
+	}
+	status.Version = parseStarterVersion(css)
+	status.UpToDate = status.Exists && status.Version > 0 && status.Version >= status.CurrentVersion
+	return status, nil
+}
+
 // StarterPrintStylesheetResult describes the deliberate, one-time copy of
 // Figaro's editable print stylesheet into a vault. Created is false when the
 // selected CSS file already existed and can be used without being overwritten.
@@ -163,6 +233,10 @@ func (a *App) CreateUpgradedPrintStylesheet(sourcePath string, currentRef string
 	starterCSS, err := loadStarterPrintStylesheet(a.assets)
 	if err != nil {
 		return nil, err
+	}
+	// Appending a current starter to itself would only duplicate its rules.
+	if current := parseStarterVersion(string(starterCSS)); current > 0 && parseStarterVersion(currentCSS) >= current {
+		return &StarterPrintStylesheetResult{Success: false, Error: fmt.Sprintf("%s already uses the current starter (version %d)", strings.TrimSpace(currentRef), current)}, nil
 	}
 	safeRef := strings.ReplaceAll(strings.TrimSpace(currentRef), "*/", "* /")
 	upgraded := string(starterCSS) + fmt.Sprintf("\n\n/* Migrated overrides from %s.\n * These original rules intentionally remain last in the cascade.\n */\n", safeRef) + currentCSS

@@ -122,3 +122,18 @@ test.each([false, true])('slow session writes coalesce to the latest snapshot an
     expect(writeSession).toHaveBeenCalledTimes(3);
     expect(writeSession.mock.calls[2][0].cursorStates['note.md'].head).toBe(200);
 });
+
+test('skips an identical workspace but retries one whose write failed', async () => {
+    let workspace = { openTabs: [{ id: 'note.md', type: 'file', title: 'Note', path: 'note.md' }], activeTabId: 'note.md' };
+    const writeSession = jest.fn().mockRejectedValueOnce(new Error('busy')).mockResolvedValue({ success: true });
+    const persistence = createSessionPersistence({ readSession: jest.fn(), writeSession, readWorkspace: () => workspace,
+        applySession: jest.fn(), resetWorkspace: jest.fn() });
+    await persistence.save();
+    await persistence.save();
+    expect(writeSession).toHaveBeenCalledTimes(2);
+    await persistence.save();
+    expect(writeSession).toHaveBeenCalledTimes(2);
+    workspace = { ...workspace, tabCursorStates: { 'note.md': { anchor: 4, head: 4 } } };
+    await persistence.save();
+    expect(writeSession).toHaveBeenCalledTimes(3);
+});

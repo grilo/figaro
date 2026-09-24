@@ -119,8 +119,14 @@ describe('Pure writing CodeMirror presentation', () => {
         try {
             for (let index = 0; index < 10; index++) view.dispatch({ changes: { from: 43, insert: 'x' }, userEvent: 'input.type' });
             expect(write).not.toHaveBeenCalled();
+            // A refresh recomputes presentation but writes only what changed:
+            // unchanged inherited properties would restyle the whole editor.
             refreshPureWriting(view);
-            expect(write).toHaveBeenCalled();
+            expect(write).not.toHaveBeenCalled();
+            view.dom.style.removeProperty('--pure-adaptive-scale');
+            refreshPureWriting(view);
+            expect(write).toHaveBeenCalledWith('--pure-adaptive-scale', expect.any(String));
+            expect(write).toHaveBeenCalledTimes(1);
         } finally { write.mockRestore(); }
     });
 

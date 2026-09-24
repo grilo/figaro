@@ -1,8 +1,8 @@
 import { deferEditorWork, countEditorWork } from './editorDiagnostics.js';
 import { backend } from './backend.js';
 /**
- * Session Persistence - saves/loads UI state through the Wails backend API
- * Stores to vault/.config/session.json
+ * Session Persistence - saves/loads UI state through the Wails backend API.
+ * The backend keeps it in machine-local application data, outside the vault.
  */
 
 import { log } from './log.js';
@@ -12,6 +12,7 @@ import { isDiskFullError } from './core/saveModel.js';
 import { recordRuntimeFileIssue, resolveRuntimeFileIssue } from './fileIssues.js';
 
 let scheduledSessionSave = null;
+const sessionIssuePath = 'Workspace session';
 
 function resetPortableWorkspaceState() {
     // localStorage is only a webview-local recovery cache. The vault session
@@ -57,7 +58,7 @@ const persistence = createSessionPersistence({
     writeSession: async data => {
         countEditorWork('io.sessionWrite');
         const result = await backend().SaveSession(data);
-        resolveRuntimeFileIssue('.config/session.json', ['disk_full']);
+        resolveRuntimeFileIssue(sessionIssuePath, ['disk_full']);
         return result;
     },
     readWorkspace,
@@ -67,7 +68,7 @@ const persistence = createSessionPersistence({
         log.warn(`Failed to ${operation} session:`, error);
         if (operation === 'save' && isDiskFullError(error)) {
             recordRuntimeFileIssue({
-                path: '.config/session.json',
+                path: sessionIssuePath,
                 code: 'disk_full',
                 severity: 'danger',
                 title: 'Disk full — workspace state cannot be saved',
@@ -94,8 +95,32 @@ export function saveSession() {
 }
 
 /**
- * Cursor movement is frequent, but its current position must still survive a
- * restart. Coalesce nearby movements into one portable session write.
+ * Save the session, but never let a slow disk hold up quitting for longer
+ * than `budgetMs`. Session state is recoverable; note saves are not affected.
+ */
+export function flushSessionWithin(budgetMs = 1500) {
+    let timer;
+    const expired = new Promise(resolve => { timer = setTimeout(resolve, budgetMs); });
+    return Promise.race([saveSession(), expired]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Cursor positions live in memory while navigating. Persist them when the
+ * window loses focus or is hidden; tab changes and quitting save separately.
+ */
+export function installSessionFlush(target = window, doc = document) {
+    const flush = () => { void saveSession(); };
+    const onVisibility = () => { if (doc.visibilityState === 'hidden') flush(); };
+    target.addEventListener('blur', flush);
+    doc.addEventListener('visibilitychange', onVisibility);
+    return () => {
+        target.removeEventListener('blur', flush);
+        doc.removeEventListener('visibilitychange', onVisibility);
+    };
+}
+
+/**
+ * File-tree navigation changes are infrequent; coalesce them into one write.
  */
 export function scheduleSessionSave(delay = 350) {
     if (scheduledSessionSave !== null) clearTimeout(scheduledSessionSave);

@@ -1,4 +1,5 @@
 import { subscribeEditorUpdates } from './editorUpdates.js';
+import { vaultChangeTouchesPath } from './core/vaultChangeScopeModel.js';
 import { backend } from './backend.js';
 import { getState } from './state.js';
 import { getEditorDocumentTabId, getEditorView } from './editor.js';
@@ -125,7 +126,9 @@ export function initActivity() {
         if (detail.docChanged && selectedKey) { remapScope(detail.writingChanges); controller.changed(); }
     });
     for (const type of ['vault-history-changed', 'vault-file-saved', 'vault-filesystem-changed']) document.addEventListener(type, event => {
-        if (!event.detail?.path || event.detail.path === ownedNote()?.path) { selectOwnedNote(); if (selectedKey) controller.refresh(); }
+        const path = ownedNote()?.path;
+        if (event.detail?.path ? event.detail.path !== path : !vaultChangeTouchesPath(event.detail?.paths, path)) return;
+        selectOwnedNote(); if (selectedKey) controller.refresh();
     });
     document.addEventListener('figaro:pure-editing-chrome-changed', () => getEditorView()?.requestMeasure());
     window.addEventListener('beforeunload', () => { controller.destroy(); worker.destroy(); });

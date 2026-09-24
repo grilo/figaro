@@ -1,4 +1,5 @@
 import { readTabContent } from './usecases/tabContent.js';
+import { droppedKanbanColumns, kanbanColumnsWithRetained, renameKanbanColumnInOrder } from './core/kanbanColumnRetentionModel.js';
 import { countEditorWork, deferEditorWork } from './editorDiagnostics.js';
 import { backend } from './backend.js';
 import { createKanbanBufferProjection, overlayKanbanCards } from './core/kanbanBufferModel.js';
@@ -44,6 +45,10 @@ let savedKanbanColumns = ['todo', 'wip', 'done'];
 let savedKanbanBoardData = {};
 let kanbanColors = {};
 const persistedColumns = new Set();
+// Emptied columns kept on screen while the board stays open (see
+// core/kanbanColumnRetentionModel.js); cleared when the board is left.
+const sessionRetainedColumns = new Set();
+let kanbanBoardVisible = false;
 let kanbanBoardRequestId = 0;
 let kanbanMutationId = 0;
 let liveRefreshFrame = null;
@@ -145,6 +150,7 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
         },
         activate(nextFocusCol = null) {
             activeKanbanWorkspace = session;
+            kanbanBoardVisible = true;
             refreshKanbanFromDirtyBuffers();
             applyKanbanPresentationToViews();
             selectMode();
@@ -157,11 +163,13 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
             }
         },
         deactivate() {
+            forgetRetainedKanbanColumns();
             closeKanbanCardMenu();
             gantt.setActive(false);
             releaseStatus();
         },
         dispose() {
+            forgetRetainedKanbanColumns();
             document.removeEventListener('active-tab-changed', switched);
             closeKanbanCardMenu();
             gantt.dispose(); releaseStatus();
@@ -169,6 +177,7 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
         },
     };
     activeKanbanWorkspace = session;
+    kanbanBoardVisible = true;
     document.addEventListener('active-tab-changed', switched);
     wrapper.querySelectorAll('[data-kanban-view]').forEach(button => button.addEventListener('click', () => {
         kanbanViewMode = toggledWorkspacePresentation(kanbanViewMode, button.dataset.kanbanView,
@@ -438,8 +447,7 @@ export function applySavedKanbanSnapshot(filePath, content) {
     const overlay = overlayDirtyKanbanBuffers(savedKanbanBoardData);
     lastRenderedOverlay = overlay;
     const boardData = applyRememberedKanbanOrder(overlay);
-    persistedColumns.clear();
-    for (const column of savedKanbanColumns) persistedColumns.add(column);
+    rebuildPersistedColumns();
     setState('kanbanColumns', kanbanColumns);
     setState('kanbanCompletionColumns', [...savedKanbanColumns]);
     setState('kanbanBoardData', boardData);
@@ -460,6 +468,30 @@ export function applySavedKanbanSnapshot(filePath, content) {
         });
     }
     return true;
+}
+
+function rebuildPersistedColumns() {
+    const previous = [...persistedColumns];
+    // A retained column that has cards again is live, not retained.
+    for (const column of sessionRetainedColumns) {
+        if (savedKanbanColumns.includes(column)) sessionRetainedColumns.delete(column);
+    }
+    if (kanbanBoardVisible) {
+        for (const column of droppedKanbanColumns(previous, savedKanbanColumns)) sessionRetainedColumns.add(column);
+    }
+    const order = kanbanColumnsWithRetained(previous, savedKanbanColumns, sessionRetainedColumns);
+    persistedColumns.clear();
+    for (const column of order) persistedColumns.add(column);
+}
+
+/** Leaving the board ends its session; the next opening shows live columns only. */
+function forgetRetainedKanbanColumns() {
+    kanbanBoardVisible = false;
+    if (!sessionRetainedColumns.size) return;
+    for (const column of sessionRetainedColumns) persistedColumns.delete(column);
+    sessionRetainedColumns.clear();
+    // Force the next activation to redraw instead of reusing the old overlay.
+    lastRenderedOverlay = null;
 }
 
 function appendDirtyColumns(columns) {
@@ -517,8 +549,7 @@ export async function refreshKanbanData({ focusCol = null, container = getBoardC
         lastRenderedOverlay = overlay;
         const boardData = applyRememberedKanbanOrder(overlay);
         setState('kanbanBoardData', boardData);
-        persistedColumns.clear();
-        for (const column of savedKanbanColumns) persistedColumns.add(column);
+        rebuildPersistedColumns();
         renderKanbanSnapshot(boardData, focusCol, container);
         return true;
     } catch (err) {
@@ -1603,6 +1634,10 @@ async function renameColumn(oldName) {
         const result = await backend().RenameKanbanColumn(oldName, sanitized);
         if (mutationId !== kanbanMutationId) return;
         if (result.success) {
+            const order = renameKanbanColumnInOrder([...persistedColumns], oldName, sanitized);
+            persistedColumns.clear();
+            for (const column of order) persistedColumns.add(column);
+            if (sessionRetainedColumns.delete(oldName)) sessionRetainedColumns.add(sanitized);
             kanbanColumns = result.columns;
             kanbanColors = result.colors || {};
             setState('kanbanColumns', kanbanColumns);
@@ -1639,6 +1674,9 @@ async function deleteColumn(name) {
         const result = await backend().DeleteKanbanColumn(name);
         if (mutationId !== kanbanMutationId) return;
         if (result.success) {
+            // An explicit delete must not be kept on screen as an emptied column.
+            persistedColumns.delete(name);
+            sessionRetainedColumns.delete(name);
             kanbanColumns = result.columns;
             kanbanColors = result.colors || {};
             setState('kanbanColumns', kanbanColumns);

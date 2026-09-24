@@ -13,6 +13,9 @@ export function createSessionPersistence({
 }) {
     let running = false;
     let pending = null;
+    // The serialized snapshot last confirmed by a successful write. An
+    // identical workspace needs no new write; a failed write is retried.
+    let lastWritten = null;
 
     async function load() {
         try {
@@ -33,8 +36,12 @@ export function createSessionPersistence({
         while (pending) {
             const job = pending;
             pending = null;
+            const serialized = JSON.stringify(job.snapshot);
             try {
-                await writeSession(job.snapshot);
+                if (serialized !== lastWritten) {
+                    await writeSession(job.snapshot);
+                    lastWritten = serialized;
+                }
             } catch (error) {
                 reportFailure('save', error);
             } finally {

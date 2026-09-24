@@ -86,6 +86,7 @@ const scrollSync = {
     editor: null,
     editorListener: null,
     pendingDocumentProgress: 0,
+    pendingSourcePosition: null,
     documentProgress: 0,
     lastProgress: 0,
     resetOnNextRender: true,
@@ -95,9 +96,17 @@ const scrollSync = {
     pendingEditorPosition: null,
     lastEditorSyncAt: Number.NEGATIVE_INFINITY,
     expectedEditorScroll: null,
+    // Single-driver lease: after the preview moves the editor, scroll events
+    // the editor emits on its own (CodeMirror height corrections) are not a
+    // user gesture and must not be sent back to the preview.
+    editorHostScrollAt: Number.NEGATIVE_INFINITY,
+    editorUserInputAt: Number.NEGATIVE_INFINITY,
+    editorInputListener: null,
     resizing: false,
     resizeResumeTimer: null,
 };
+const followerLeaseMs = 300;
+const editorUserInputEvents = ['wheel', 'keydown', 'pointerdown', 'touchstart'];
 
 const previewBridge = {
     frame: null,
@@ -374,49 +383,77 @@ export function scrollTopForContentProgress(progress, scrollHeight, clientHeight
     return start + (maximum - start) * clampProgress(progress);
 }
 
-/** Locate the Markdown source position currently crossing the editor marker. */
+/**
+ * Distance from the scroller's scroll origin to CodeMirror's document top
+ * (content padding). Block geometry is document-relative, so omitting it biases
+ * every mapping by the padding height.
+ */
+function editorDocumentOffset(view, scroller, rect) {
+    const documentTop = Number(view?.documentTop);
+    return Number.isFinite(documentTop)
+        ? documentTop - finiteMetric(rect.top) + finiteMetric(scroller.scrollTop)
+        : 0;
+}
+
+/**
+ * Zero-based source lines covered by a CodeMirror line block, end exclusive.
+ * A rendered table, diagram or math widget is one block spanning many lines,
+ * so positions inside it are spread across its whole range by pixel fraction.
+ */
+function editorBlockLines(doc, block, fallbackPosition) {
+    const from = Number.isInteger(block?.from) ? block.from : fallbackPosition;
+    const to = Number.isInteger(block?.to) ? block.to : from;
+    const first = doc.lineAt(Math.max(0, Math.min(from, doc.length))).number - 1;
+    const last = doc.lineAt(Math.max(0, Math.min(to, doc.length))).number;
+    return { first, last: Math.max(first + 1, last) };
+}
+
+/** Locate the continuous Markdown source position crossing the editor marker. */
 export function editorSourcePositionAtMarker(view, bodyLineOffset = 0, markerRatio = sourceScrollMarkerRatio) {
     const scroller = view?.scrollDOM;
     const doc = view?.state?.doc;
     if (!scroller || !doc) return null;
     const ratio = clampProgress(markerRatio);
     const rect = scroller.getBoundingClientRect?.() || { left: 0, top: 0 };
-    const contentRect = view.contentDOM?.getBoundingClientRect?.() || rect;
-    const markerY = finiteMetric(rect.top) + finiteMetric(scroller.clientHeight) * ratio;
-    let position = typeof view.posAtCoords === 'function'
-        ? view.posAtCoords({ x: finiteMetric(contentRect.left) + 12, y: markerY })
-        : null;
-    if (!Number.isInteger(position) && typeof view.lineBlockAtHeight === 'function') {
-        position = view.lineBlockAtHeight(
-            finiteMetric(scroller.scrollTop) + finiteMetric(scroller.clientHeight) * ratio,
-        )?.from;
+    const markerDocumentY = finiteMetric(scroller.scrollTop) + finiteMetric(scroller.clientHeight) * ratio
+        - editorDocumentOffset(view, scroller, rect);
+    let block = typeof view.lineBlockAtHeight === 'function' ? view.lineBlockAtHeight(markerDocumentY) : null;
+    let position = Number.isInteger(block?.from) ? block.from : null;
+    if (!Number.isInteger(position) && typeof view.posAtCoords === 'function') {
+        const contentRect = view.contentDOM?.getBoundingClientRect?.() || rect;
+        position = view.posAtCoords({
+            x: finiteMetric(contentRect.left) + 12,
+            y: finiteMetric(rect.top) + finiteMetric(scroller.clientHeight) * ratio,
+        });
+        if (Number.isInteger(position) && typeof view.lineBlockAt === 'function') block = view.lineBlockAt(position);
     }
     if (!Number.isInteger(position)) return null;
-    const line = doc.lineAt(Math.max(0, Math.min(position, doc.length)));
-    const sourceLine = Math.max(0, line.number - 1 - Math.max(0, Number(bodyLineOffset) || 0));
-    const block = typeof view.lineBlockAt === 'function' ? view.lineBlockAt(position) : null;
-    const markerDocumentY = finiteMetric(scroller.scrollTop) + finiteMetric(scroller.clientHeight) * ratio;
-    const lineProgress = block && finiteMetric(block.height) > 0
+    const lines = editorBlockLines(doc, block, position);
+    const fraction = block && finiteMetric(block.height) > 0
         ? clampProgress((markerDocumentY - finiteMetric(block.top)) / finiteMetric(block.height))
-        : (line.length > 0 ? clampProgress((position - line.from) / line.length) : 0);
-    return { sourceLine, lineProgress };
+        : 0;
+    const value = Math.max(0, lines.first + (lines.last - lines.first) * fraction - Math.max(0, Number(bodyLineOffset) || 0));
+    const sourceLine = Math.floor(value);
+    return { sourceLine, lineProgress: clampProgress(value - sourceLine) };
 }
 
-/** Map a printable source anchor back onto CodeMirror without moving its cursor. */
+/** Map a continuous printable source position back onto CodeMirror without moving its cursor. */
 export function editorScrollTopForSourcePosition(view, sourceLine, lineProgress = 0, bodyLineOffset = 0, markerRatio = sourceScrollMarkerRatio) {
     const scroller = view?.scrollDOM;
     const doc = view?.state?.doc;
     if (!scroller || !doc || typeof view.lineBlockAt !== 'function') return null;
-    const lineNumber = Math.max(
-        1,
-        Math.min(doc.lines, Math.floor(finiteMetric(sourceLine)) + Math.max(0, Number(bodyLineOffset) || 0) + 1),
-    );
+    const value = finiteMetric(sourceLine) + clampProgress(lineProgress) + Math.max(0, Number(bodyLineOffset) || 0);
+    const lineNumber = Math.max(1, Math.min(doc.lines, Math.floor(value) + 1));
     const line = doc.line(lineNumber);
     const block = view.lineBlockAt(line.from);
     if (!block) return null;
+    const lines = editorBlockLines(doc, block, line.from);
+    const fraction = clampProgress((value - lines.first) / (lines.last - lines.first));
+    const rect = scroller.getBoundingClientRect?.() || { top: 0 };
     const maximum = Math.max(0, finiteMetric(scroller.scrollHeight) - finiteMetric(scroller.clientHeight));
-    const target = finiteMetric(block.top) + finiteMetric(block.height) * clampProgress(lineProgress) -
-        finiteMetric(scroller.clientHeight) * clampProgress(markerRatio);
+    const target = finiteMetric(block.top) + finiteMetric(block.height) * fraction
+        + editorDocumentOffset(view, scroller, rect)
+        - finiteMetric(scroller.clientHeight) * clampProgress(markerRatio);
     return Math.max(0, Math.min(maximum, target));
 }
 
@@ -649,6 +686,7 @@ function setElementScrollTop(element, nextTop, suppressKey) {
         // the synchronous assignment below. Retaining the expected position
         // prevents that event from being mistaken for a second user gesture.
         scrollSync.expectedEditorScroll = { element, top: nextTop };
+        scrollSync.editorHostScrollAt = monotonicNow();
     }
     deferSuppression(suppressKey);
     element.scrollTop = nextTop;
@@ -704,7 +742,7 @@ function flushPreviewBridgeRender() {
     return postPreviewBridgeMessage(previewBridge.render);
 }
 
-function queuePreviewBridgeRender(frame, html, documentProgress) {
+function queuePreviewBridgeRender(frame, html, documentProgress, sourcePosition = null) {
     previewBridge.frame = frame;
     previewBridge.token = createPreviewBridgeToken();
     previewBridge.render = {
@@ -712,6 +750,11 @@ function queuePreviewBridgeRender(frame, html, documentProgress) {
         token: previewBridge.token,
         html,
         documentProgress: clampProgress(documentProgress),
+        // A re-render restores the same source position; a percentage drifts
+        // whenever the edit changed the document's height.
+        ...(Number.isFinite(sourcePosition?.sourceLine)
+            ? { sourceLine: sourcePosition.sourceLine, lineProgress: clampProgress(sourcePosition.lineProgress) }
+            : {}),
     };
     return flushPreviewBridgeRender();
 }
@@ -838,10 +881,22 @@ function handlePreviewBridgeMessage(event) {
     }
 }
 
+/** The editor follows the preview until the user touches the editor again. */
+function editorFollowsPreview() {
+    return monotonicNow() - scrollSync.editorHostScrollAt < followerLeaseMs
+        && scrollSync.editorUserInputAt < scrollSync.editorHostScrollAt;
+}
+
 function clearEditorScrollSync() {
     if (scrollSync.editor && scrollSync.editorListener) {
         scrollSync.editor.removeEventListener('scroll', scrollSync.editorListener);
     }
+    if (scrollSync.editor && scrollSync.editorInputListener) {
+        for (const type of editorUserInputEvents) scrollSync.editor.removeEventListener(type, scrollSync.editorInputListener, true);
+    }
+    scrollSync.editorInputListener = null;
+    scrollSync.editorHostScrollAt = Number.NEGATIVE_INFINITY;
+    scrollSync.editorUserInputAt = Number.NEGATIVE_INFINITY;
     if (scrollSync.editorSyncTimer !== null) clearTimeout(scrollSync.editorSyncTimer);
     scrollSync.editor = null;
     scrollSync.editorListener = null;
@@ -917,8 +972,11 @@ function ensureEditorScrollSync() {
     if (!editor) return null;
 
     scrollSync.editor = editor;
+    scrollSync.editorInputListener = () => { scrollSync.editorUserInputAt = monotonicNow(); };
+    for (const type of editorUserInputEvents) editor.addEventListener(type, scrollSync.editorInputListener, { capture: true, passive: true });
     scrollSync.editorListener = () => {
         if (scrollSync.resizing || scrollSync.suppressEditor || consumesExpectedEditorScroll(editor) || scrollSync.editorFrame !== null) return;
+        if (editorFollowsPreview()) return;
         scrollSync.editorFrame = scheduleAnimationFrame(() => {
             scrollSync.editorFrame = null;
             syncEditorScrollToPreview();
@@ -967,6 +1025,7 @@ function resetScrollSync() {
     cancelScheduledAnimationFrame(scrollSync.editorFrame);
     scrollSync.editorFrame = null;
     scrollSync.pendingDocumentProgress = 0;
+    scrollSync.pendingSourcePosition = null;
     scrollSync.documentProgress = 0;
     scrollSync.lastProgress = 0;
     scrollSync.resetOnNextRender = true;
@@ -1225,13 +1284,17 @@ function renderPreview() {
             // The fixed sandboxed frame receives a document snapshot through
             // its message bridge. It keeps arbitrary print CSS out of the app
             // chrome without requiring the parent to access a frame DOM.
+            // The first render of a document starts at its top; later renders
+            // keep the editor's current source position.
+            scrollSync.pendingSourcePosition = scrollSync.resetOnNextRender ? null
+                : editorSourcePositionAtMarker(activeEditorView(), printableBodyLineOffset(preview.content));
             scrollSync.pendingDocumentProgress = capturePreviewScrollProgress();
             preview.documentHTML = buildPDFPreviewDocument(printable, {
                 notePath: preview.path,
                 stylesheetPath: preview.stylesheetPath,
                 stylesheetContent: preview.stylesheetContent,
             });
-            queuePreviewBridgeRender(frame, preview.documentHTML, scrollSync.pendingDocumentProgress);
+            queuePreviewBridgeRender(frame, preview.documentHTML, scrollSync.pendingDocumentProgress, scrollSync.pendingSourcePosition);
             awaitingBridgeRender = true;
             updatePreviewMeta();
             setPreviewStatus(preview.stylesheetError ? 'Live preview updated — using the built-in style.' : 'Live preview up to date.');

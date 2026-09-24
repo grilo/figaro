@@ -12,6 +12,7 @@ import { initOutlinePanel, openOutlinePanel, closeOutlinePanel } from '../../../
 import { editorDiagnostics } from '../../../frontend/js/editorDiagnostics.js';
 import { buildSessionSnapshot } from '../../../frontend/js/core/sessionModel.js';
 import { subscribeEditorUpdates } from '../../../frontend/js/editorUpdates.js';
+import { saveSession } from '../../../frontend/js/session.js';
 
 // Assemble the real editor, tab owner, notification hub and shell adapters.
 // Only external effects and unrelated launcher actions are substituted.
@@ -76,6 +77,9 @@ test('assembled cursor and typing paths obey the notification and work contract'
             }
             expect(Object.keys(record.counters).filter(key => key.startsWith('parse.'))).toEqual([]);
             expect(record.work.some(work => /previews|writing|activity|state:tabPresentation/u.test(work.consumer))).toBe(false);
+            // Held-key navigation never schedules a session write.
+            expect(record.work.some(work => work.consumer === 'session')).toBe(false);
+            expect(record.counters['io.sessionWrite'] || 0).toBe(0);
         }
         fullRead.mockRestore();
         // The first edit must publish dirty state; following edits only update buffers.
@@ -89,8 +93,12 @@ test('assembled cursor and typing paths obey the notification and work contract'
         tabs.updateTabTitle('note', 'Renamed.md');
         expect(presentation).toHaveBeenCalledTimes(2);
         expect(document.title).toContain('Renamed.md');
-        // Cursor persistence still consumes the latest selection after the debounce.
+        // Cursor positions stay in memory; no write follows a pause in movement,
+        // and the next session save (tab switch, blur or quit) carries the latest one.
+        const writes = window.go.desktop.App.SaveSession.mock.calls.length;
         await new Promise(resolve => setTimeout(resolve, 380));
+        expect(window.go.desktop.App.SaveSession.mock.calls.length).toBe(writes);
+        await saveSession();
         const session = window.go.desktop.App.SaveSession.mock.calls.at(-1)[0];
         expect(session.cursorStates.note).toEqual({ anchor: 21, head: 21 });
         const edited = view.state.doc.toString();

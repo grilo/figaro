@@ -46,12 +46,14 @@ describe('status bar', () => {
 
     test('keeps the footer row mounted for Calendar while hiding only buffer telemetry', () => {
         const styles = fs.readFileSync(path.resolve('frontend/styles/status-tools.css'), 'utf8');
-        const calendarRule = /#app:has\(#calendar-workspace-panel\.tab-panel\.active\) > \.status-bar \.status-right\s*\{([^}]*)\}/s.exec(styles)?.[1] || '';
+        const calendarRule = /#app\[data-workspace-view="calendar"\] > \.status-bar \.status-right\s*\{([^}]*)\}/s.exec(styles)?.[1] || '';
 
         expect(calendarRule).toMatch(/visibility:\s*hidden/);
         expect(calendarRule).toMatch(/pointer-events:\s*none/);
         expect(calendarRule).not.toMatch(/display:\s*none/);
-        expect(styles).not.toMatch(/#app:has\(#calendar-workspace-panel\.tab-panel\.active\) > \.status-bar\s*\{[^}]*display:\s*none/s);
+        expect(styles).not.toMatch(/#app\[data-workspace-view="calendar"\] > \.status-bar\s*\{[^}]*display:\s*none/s);
+        // An #app-subject :has() makes every DOM change restyle the application.
+        expect(styles).not.toMatch(/#app:has\(/);
     });
 
     test('keeps regular-mode status contents visible while Pure retains its minimal footer', () => {

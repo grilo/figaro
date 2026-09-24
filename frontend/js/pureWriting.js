@@ -129,6 +129,16 @@ function syncBlockWidgetFocus(view, range) {
     }
 }
 
+// The editor root's custom properties are inherited by every line; rewriting
+// one, even with the same value, restyles the whole editor. Write changes only.
+function setRootProperty(view, name, value) {
+    if (view.dom.style.getPropertyValue(name) !== value) view.dom.style.setProperty(name, value);
+}
+
+function removeRootProperty(view, name) {
+    if (view.dom.style.getPropertyValue(name) !== '') view.dom.style.removeProperty(name);
+}
+
 function updateViewPresentation(view, options, previousTier = 'regular') {
     const pureActive = options.isPureActive() && options.isMarkdown();
     const typewriter = pureActive && options.typewriterEnabled();
@@ -137,8 +147,8 @@ function updateViewPresentation(view, options, previousTier = 'regular') {
     const lineHeight = Math.max(1, view.defaultLineHeight || 1);
     const topSpace = typewriter ? Math.max(0, scrollerHeight * 0.42 - lineHeight / 2) : 0;
     const bottomSpace = typewriter ? Math.max(40, scrollerHeight * 0.58 - lineHeight / 2) : 40;
-    view.dom.style.setProperty('--pure-typewriter-top-space', `${topSpace}px`);
-    view.dom.style.setProperty('--pure-typewriter-bottom-space', `${bottomSpace}px`);
+    setRootProperty(view, '--pure-typewriter-top-space', `${topSpace}px`);
+    setRootProperty(view, '--pure-typewriter-bottom-space', `${bottomSpace}px`);
 
     const typography = adaptiveTypographyPlan({
         pureActive,
@@ -146,26 +156,22 @@ function updateViewPresentation(view, options, previousTier = 'regular') {
         viewportWidth: view.scrollDOM.clientWidth,
         previousTier,
     });
-    view.dom.dataset.pureTypographyTier = typography.tier;
-    view.dom.style.setProperty('--pure-adaptive-scale', String(typography.scale));
+    if (view.dom.dataset.pureTypographyTier !== typography.tier) view.dom.dataset.pureTypographyTier = typography.tier;
+    setRootProperty(view, '--pure-adaptive-scale', String(typography.scale));
     if (pureActive && options.adaptiveTypographyEnabled()) {
         const rootStyle = view.dom.ownerDocument?.defaultView
             ?.getComputedStyle?.(view.dom.ownerDocument.documentElement);
         const baseFontSize = Number.parseFloat(rootStyle?.getPropertyValue('--font-size-editor'));
         const baseWidth = Number.parseFloat(rootStyle?.getPropertyValue('--editor-width'));
         if (Number.isFinite(baseFontSize)) {
-            view.dom.style.setProperty(
-                '--editor-active-font-size', `${baseFontSize * typography.scale}px`,
-            );
+            setRootProperty(view, '--editor-active-font-size', `${baseFontSize * typography.scale}px`);
         }
         if (Number.isFinite(baseWidth)) {
-            view.dom.style.setProperty(
-                '--editor-active-width', `${baseWidth * typography.scale}px`,
-            );
+            setRootProperty(view, '--editor-active-width', `${baseWidth * typography.scale}px`);
         }
     } else {
-        view.dom.style.removeProperty('--editor-active-font-size');
-        view.dom.style.removeProperty('--editor-active-width');
+        removeRootProperty(view, '--editor-active-font-size');
+        removeRootProperty(view, '--editor-active-width');
     }
     return typography.tier;
 }

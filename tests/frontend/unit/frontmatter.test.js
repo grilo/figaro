@@ -403,6 +403,52 @@ describe('frontmatter Properties card', () => {
         expect(onStylesheetReady).toHaveBeenCalledWith('notes/styles/report-v2.css');
     });
 
+    test.each([
+        [{ exists: true, version: 3, currentVersion: 3, upToDate: true }, true],
+        [{ exists: true, version: 2, currentVersion: 3, upToDate: false }, false],
+        [{ exists: true, version: 0, currentVersion: 3, upToDate: false }, false],
+        [null, false],
+    ])('Upgrade copy is unavailable only for a stylesheet already at the current starter: %j', async (status, disabled) => {
+        const promptForStylesheet = jest.fn().mockResolvedValue(null);
+        const getStylesheetStatus = jest.fn().mockResolvedValue(status);
+        const field = createFrontmatterField(StateField, StateEffect, EditorView, Decoration, WidgetType, null,
+            () => ['styles/report.css'], () => '',
+            { getActiveFilePath: () => 'notes/report.md', promptForStylesheet, getStylesheetStatus });
+        view = new EditorView({
+            state: EditorState.create({ doc: '---\nprint-stylesheet: styles/report.css\n---\n# Body', extensions: [field] }),
+            parent: document.body,
+        });
+        view.dom.querySelector('.cm-frontmatter').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const upgrade = view.dom.querySelector('.cm-frontmatter-create-stylesheet');
+        expect(getStylesheetStatus).toHaveBeenCalledWith('notes/report.md', 'styles/report.css');
+        expect(upgrade.textContent).toBe('Upgrade copy');
+        expect(upgrade.disabled).toBe(disabled);
+        const hint = view.dom.textContent;
+        if (disabled) {
+            expect(upgrade.title).toBe('Already uses the current starter (version 3)');
+            expect(upgrade.getAttribute('aria-label')).toContain('unavailable');
+            expect(hint).toContain('Already uses the current starter');
+            upgrade.click();
+            expect(promptForStylesheet).not.toHaveBeenCalled();
+        } else {
+            upgrade.click();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(promptForStylesheet).toHaveBeenCalledWith('styles/report-v2.css', { upgrade: true });
+        }
+    });
+
+    test('Create starter never asks for a stylesheet status', async () => {
+        const getStylesheetStatus = jest.fn();
+        const field = createFrontmatterField(StateField, StateEffect, EditorView, Decoration, WidgetType, null,
+            () => [], () => '', { getActiveFilePath: () => 'notes/report.md', getStylesheetStatus });
+        view = new EditorView({ state: EditorState.create({ doc: '---\ntitle: A\n---\n# Body', extensions: [field] }), parent: document.body });
+        view.dom.querySelector('.cm-frontmatter').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(view.dom.querySelector('.cm-frontmatter-create-stylesheet').disabled).toBe(false);
+        expect(getStylesheetStatus).not.toHaveBeenCalled();
+    });
+
     test('asks before selecting an existing stylesheet', async () => {
         const confirmUseExistingStylesheet = jest.fn().mockResolvedValue(false);
         const createStarterStylesheet = jest.fn().mockResolvedValue({

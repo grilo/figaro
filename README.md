@@ -184,8 +184,10 @@ rules in memory, without extracting or launching a separate executable. Your res
 writing lenses and vault indexing get ready, with Auto-Save and close protection
 already active. Saves write your text to disk first; Git history and index
 updates follow. A slow Git write allows newer edits to save while it records the
-captured revision. Cursor movement avoids redundant browser-storage writes, and
-slow workspace-session writes retain only the newest waiting snapshot. Keyboard
+captured revision. Cursor movement stays in memory: the workspace session
+(open tabs and cursor positions) is saved on tab switch, when the window loses
+focus, and on quit, in local app data rather than in your vault, so a slow or
+cloud-synced disk never interrupts keyboard scrolling. Keyboard
 navigation also reuses unchanged Outline, focus, and diagram information and
 avoids refreshing file-tree markers that have not changed. You can ignore a suggestion, add a word
 to your dictionary, or return to a saved review decision later. Manage accepted

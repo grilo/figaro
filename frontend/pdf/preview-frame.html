@@ -9,6 +9,11 @@
   application only through postMessage; see ARCHITECTURE.md for the rationale.
 -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; script-src 'nonce-figaro-pdf-preview-bridge'; style-src 'unsafe-inline' 'self' wails: http://wails.localhost; img-src data: 'self' wails: http://wails.localhost; font-src data: 'self' wails: http://wails.localhost; connect-src 'none'; form-action 'none'">
+<style>
+    /* Synchronized scrolling assigns positions directly; smooth scrolling or
+     * scroll anchoring from print CSS would make the preview lag or jump. */
+    html, body { scroll-behavior: auto !important; overflow-anchor: none !important; }
+</style>
 <script nonce="figaro-pdf-preview-bridge">
 (() => {
     'use strict';
@@ -34,6 +39,12 @@
     let expectedProgrammaticScrollTop = null;
     let scrollSyncPaused = false;
     let lastScrollReportAt = Number.NEGATIVE_INFINITY;
+    // Single-driver lease: after the host moves this preview, layout-driven
+    // scrolls (late images, scroll clamping) are not the reader's gesture and
+    // must not move the editor back. Any reader input ends the lease.
+    const hostLeaseMs = 300;
+    let hostScrollAt = Number.NEGATIVE_INFINITY;
+    let userInputAt = Number.NEGATIVE_INFINITY;
 
     function finiteMetric(value) {
         const number = Number(value);
@@ -121,67 +132,88 @@
         return available > 0 ? clampProgress((metrics.scrollTop - start) / available) : 0;
     }
 
-    function sourceAnchors() {
-        return Array.from(document.querySelectorAll(
+    // Piecewise-linear map between continuous source positions and document
+    // pixels, built from leaf source anchors once per layout. Scrolling only
+    // binary-searches it; layout changes (render, resize, image or font
+    // loads) invalidate it. Blocks placed out of source order, such as
+    // footnotes collected at the end, are left out so the map stays monotonic.
+    let anchorIndex = null;
+
+    function invalidateAnchorIndex() {
+        anchorIndex = null;
+    }
+
+    function buildAnchorIndex(metrics) {
+        const leaves = [];
+        for (const element of document.querySelectorAll(
             'main.figaro-print-document [data-figaro-source-start][data-figaro-source-end]'
-        )).map(element => {
+        )) {
+            if (element.querySelector('[data-figaro-source-start]')) continue;
             const start = Number(element.dataset.figaroSourceStart);
             const end = Number(element.dataset.figaroSourceEnd);
             const rect = element.getBoundingClientRect?.();
-            const height = finiteMetric(rect?.height) || Math.max(0, finiteMetric(rect?.bottom) - finiteMetric(rect?.top));
-            if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || height <= 0) return null;
-            return { element, start, end, rect, height };
-        }).filter(Boolean);
+            if (!rect || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+            const top = metrics.scrollTop + finiteMetric(rect.top);
+            const height = finiteMetric(rect.height) || Math.max(0, finiteMetric(rect.bottom) - finiteMetric(rect.top));
+            if (height <= 0) continue;
+            leaves.push({ start, end, top, bottom: top + height });
+        }
+        leaves.sort((left, right) => left.top - right.top || left.start - right.start);
+        const points = [];
+        let lastValue = Number.NEGATIVE_INFINITY;
+        let lastY = Number.NEGATIVE_INFINITY;
+        for (const leaf of leaves) {
+            if (leaf.start < lastValue || leaf.top < lastY) continue;
+            points.push({ value: leaf.start, y: leaf.top }, { value: leaf.end, y: leaf.bottom });
+            lastValue = leaf.end;
+            lastY = leaf.bottom;
+        }
+        return points;
+    }
+
+    function anchorPoints(metrics) {
+        if (!anchorIndex) anchorIndex = buildAnchorIndex(metrics);
+        return anchorIndex;
+    }
+
+    function interpolate(points, from, to, input) {
+        if (input <= points[0][from]) return points[0][to];
+        const last = points[points.length - 1];
+        if (input >= last[from]) return last[to];
+        let low = 0;
+        let high = points.length - 1;
+        while (high - low > 1) {
+            const middle = (low + high) >> 1;
+            if (points[middle][from] <= input) low = middle;
+            else high = middle;
+        }
+        const left = points[low];
+        const right = points[high];
+        const span = right[from] - left[from];
+        return span > 0 ? left[to] + (right[to] - left[to]) * ((input - left[from]) / span) : left[to];
     }
 
     function sourcePositionAtMarker(metrics) {
         if (!metrics) return null;
-        // Element rectangles are viewport-relative. The scrolling element's
-        // own rect can move to -scrollTop in Chromium, so it is not a viewport
-        // origin and must not be added here.
-        const markerY = metrics.clientHeight * sourceScrollMarkerRatio;
-        const anchors = sourceAnchors();
-        if (!anchors.length) return null;
-        anchors.sort((left, right) => {
-            const leftContains = markerY >= finiteMetric(left.rect.top) && markerY <= finiteMetric(left.rect.bottom);
-            const rightContains = markerY >= finiteMetric(right.rect.top) && markerY <= finiteMetric(right.rect.bottom);
-            if (leftContains !== rightContains) return leftContains ? -1 : 1;
-            if (leftContains) return (left.end - left.start) - (right.end - right.start);
-            const leftDistance = Math.min(Math.abs(markerY - finiteMetric(left.rect.top)), Math.abs(markerY - finiteMetric(left.rect.bottom)));
-            const rightDistance = Math.min(Math.abs(markerY - finiteMetric(right.rect.top)), Math.abs(markerY - finiteMetric(right.rect.bottom)));
-            return leftDistance - rightDistance;
-        });
-        const anchor = anchors[0];
-        const fraction = clampProgress((markerY - finiteMetric(anchor.rect.top)) / anchor.height);
-        const value = Math.min(anchor.end - 1e-6, anchor.start + (anchor.end - anchor.start) * fraction);
-        const sourceLine = Math.max(anchor.start, Math.floor(value));
+        const points = anchorPoints(metrics);
+        if (!points.length) return null;
+        const value = Math.max(0, interpolate(points, 'y', 'value', metrics.scrollTop + metrics.clientHeight * sourceScrollMarkerRatio));
+        const sourceLine = Math.floor(value);
         return { sourceLine, lineProgress: clampProgress(value - sourceLine) };
     }
 
     function setSourcePosition(sourceLine, lineProgress, fallbackProgress) {
         const metrics = currentMetrics();
-        const value = finiteMetric(sourceLine) + clampProgress(lineProgress);
-        const anchors = sourceAnchors();
-        if (!metrics || !Number.isFinite(Number(sourceLine)) || !anchors.length) {
+        const points = metrics ? anchorPoints(metrics) : [];
+        if (!metrics || !Number.isFinite(Number(sourceLine)) || !points.length) {
             setContentProgress(fallbackProgress);
             return false;
         }
-        anchors.sort((left, right) => {
-            const leftContains = value >= left.start && value < left.end;
-            const rightContains = value >= right.start && value < right.end;
-            if (leftContains !== rightContains) return leftContains ? -1 : 1;
-            if (leftContains) return (left.end - left.start) - (right.end - right.start);
-            const leftDistance = Math.min(Math.abs(value - left.start), Math.abs(value - left.end));
-            const rightDistance = Math.min(Math.abs(value - right.start), Math.abs(value - right.end));
-            return leftDistance - rightDistance;
-        });
-        const anchor = anchors[0];
-        const fraction = clampProgress((value - anchor.start) / (anchor.end - anchor.start));
-        const anchorDocumentTop = metrics.scrollTop + finiteMetric(anchor.rect.top);
+        const value = finiteMetric(sourceLine) + clampProgress(lineProgress);
         const maximum = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
         const nextTop = Math.max(0, Math.min(
             maximum,
-            anchorDocumentTop + anchor.height * fraction - metrics.clientHeight * sourceScrollMarkerRatio,
+            interpolate(points, 'value', 'y', value) - metrics.clientHeight * sourceScrollMarkerRatio,
         ));
         setScrollTop(nextTop);
         return true;
@@ -192,14 +224,16 @@
         const metrics = currentMetrics();
         if (!metrics) return;
         lastScrollReportAt = monotonicNow();
-        const sourcePosition = sourcePositionAtMarker(metrics);
         const matchesExpectedProgrammatic = Number.isFinite(expectedProgrammaticScrollTop) &&
             Math.abs(metrics.scrollTop - expectedProgrammaticScrollTop) < 0.75;
         if (Number.isFinite(expectedProgrammaticScrollTop)) expectedProgrammaticScrollTop = null;
+        const followsHost = programmatic || matchesExpectedProgrammatic || previewFollowsHost();
+        // The host ignores positions from programmatic reports, so skip the lookup.
+        const sourcePosition = followsHost ? null : sourcePositionAtMarker(metrics);
         send('scroll', {
             documentProgress: documentProgress(metrics),
             contentProgress: contentProgress(metrics),
-            programmatic: Boolean(programmatic || matchesExpectedProgrammatic),
+            programmatic: Boolean(followsHost),
             ...(sourcePosition || {}),
         });
     }
@@ -246,10 +280,15 @@
         }, Math.max(0, scrollReportIntervalMs - elapsed));
     }
 
+    function previewFollowsHost() {
+        return monotonicNow() - hostScrollAt < hostLeaseMs && userInputAt < hostScrollAt;
+    }
+
     function setScrollTop(nextTop, reportAsProgrammatic = true) {
         const metrics = currentMetrics();
         if (!metrics) return;
         if (Math.abs(metrics.scrollTop - nextTop) < 0.5) return;
+        if (reportAsProgrammatic) hostScrollAt = monotonicNow();
 
         // A host command supersedes any report queued for the old position.
         // Otherwise that stale callback can consume the programmatic marker
@@ -323,6 +362,7 @@
         sanitizeBody(parsed.body);
         document.body.className = parsed.body.className;
         document.body.innerHTML = parsed.body.innerHTML;
+        invalidateAnchorIndex();
     }
 
     function linkFromEvent(event) {
@@ -378,6 +418,18 @@
     document.addEventListener('auxclick', event => {
         if (event.button === 1) handleLink(event);
     }, true);
+    for (const type of ['wheel', 'touchstart', 'touchmove', 'keydown', 'pointerdown', 'mousedown']) {
+        window.addEventListener(type, () => { userInputAt = monotonicNow(); }, { capture: true, passive: true });
+    }
+    // Anchor geometry changes whenever layout does, not while scrolling.
+    window.addEventListener('resize', invalidateAnchorIndex);
+    document.addEventListener('load', invalidateAnchorIndex, true);
+    // Observe <body> too: it persists across renders and grows with content
+    // even when print CSS fixes the <html> height.
+    const layoutObserver = typeof window.ResizeObserver === 'function'
+        ? new window.ResizeObserver(invalidateAnchorIndex) : null;
+    layoutObserver?.observe(document.documentElement);
+    document.fonts?.ready?.then(invalidateAnchorIndex).catch?.(() => {});
     window.addEventListener('scroll', () => scheduleScrollReport(false), { passive: true });
     document.addEventListener('scroll', () => scheduleScrollReport(false), true);
 
@@ -403,7 +455,13 @@
                     // settle. Only the latest snapshot may restore scroll or
                     // tell the parent that its render is complete.
                     if (sessionToken !== renderToken) return;
-                    setDocumentProgress(message.documentProgress);
+                    invalidateAnchorIndex();
+                    // Restore the same source position; a percentage drifts
+                    // whenever the edit changed the document's height.
+                    if (!Number.isFinite(Number(message.sourceLine)) ||
+                        !setSourcePosition(message.sourceLine, message.lineProgress, message.documentProgress)) {
+                        setDocumentProgress(message.documentProgress);
+                    }
                     send('rendered');
                 }));
             } catch (error) {
@@ -427,7 +485,10 @@
         if (message.type === 'scroll-fragment') scrollToFragment(message.fragment);
     });
 
-    window.addEventListener('DOMContentLoaded', () => send('ready'), { once: true });
+    window.addEventListener('DOMContentLoaded', () => {
+        if (document.body) layoutObserver?.observe(document.body);
+        send('ready');
+    }, { once: true });
 })();
 </script>
 </head>

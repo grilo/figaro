@@ -124,10 +124,14 @@ describe('structured authoring macros in the Markdown editor', () => {
             await jest.advanceTimersByTimeAsync(100);
             expect(currentCompletions(view.state)).toEqual([]);
 
-            // Cursor persistence is an expected effect of the assembled editor.
-            // Exercise its debounce explicitly instead of depending on CI speed.
+            // The assembled editor records the cursor in memory; the next
+            // session save (tab switch, blur or quit) persists it.
+            const sessionWrites = window.go.desktop.App.SaveSession.mock.calls.length;
             await jest.advanceTimersByTimeAsync(350);
-            expect(window.go.desktop.App.SaveSession).toHaveBeenCalledWith(expect.objectContaining({
+            expect(window.go.desktop.App.SaveSession).toHaveBeenCalledTimes(sessionWrites);
+            const { saveSession } = await import('../../../frontend/js/session.js');
+            await saveSession();
+            expect(window.go.desktop.App.SaveSession).toHaveBeenLastCalledWith(expect.objectContaining({
                 activeTabId: tab.id,
                 cursorStates: { [tab.id]: { anchor: view.state.selection.main.anchor, head: view.state.selection.main.head } },
             }));

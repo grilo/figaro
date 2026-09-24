@@ -274,8 +274,8 @@ The packaged Linux input trace reproduced WebKit's microtask checkpoints between
 native event listeners. Closing at the bubbling boundary, with a task fallback
 for stopped propagation, keeps actual CodeMirror work attached to the input.
 Eleven native navigation keys produced eleven input records, eleven cursor
-publications, ten cursor-geometry checks for five vertical keys, and one delayed
-session write. They produced no preview parsing, full-document materialization,
+publications, ten cursor-geometry checks for five vertical keys, and (at the
+time) one delayed session write; cursor movement now performs no session write. They produced no preview parsing, full-document materialization,
 presentation notification, title call or synchronous storage write. Typing
 reached the document observers and restored the exact source after Backspace.
 These counters cover the instrumented boundaries, not all browser internals;
@@ -339,7 +339,8 @@ bidirectional drag and exact source preservation. Its captured window was
 visually inspected. Eleven traced navigation keys performed 66 interval-tree
 node visits, no candidate visibility checks in that prose region, no parsing,
 no full-document reads, no shell notifications, and no immediate title/storage
-writes. The current cursor still reached one delayed session write.
+writes. At the time the current cursor still reached one delayed session write;
+cursor positions now stay in memory until a tab switch, window blur or quit.
 
 Full logs, native reports and the image screenshot are under
 `/tmp/figaro-cursor-bounded`. The initial new table stress fixture used the
@@ -693,3 +694,16 @@ Held-arrow frame timings varied substantially in baseline reruns and same-build
 controls, so they do not establish a responsiveness gain. Controls, current
 source mapping, image refresh and first-paint geometry retain their existing
 contracts; failures and oversized content remain on the fresh rendering path.
+
+## Held-key style invalidation
+
+A Chromium profile of held ArrowDown at 4× CPU throttling found style
+recalculation, not layout, dominating: about the whole application was
+restyled per key because six `:has()` rules used `#app` as their subject and
+every DOM change inside `#app` re-checked them. `workspaceChromeState.js` now
+mirrors the leading-tab and Calendar state onto `#app` attributes, and
+Pure-writing writes only changed root properties. Style work fell from
+3,830 ms to about 400 ms per 150 keys, the p95 frame gap from 66.6 ms to
+16.8 ms, and handler p50 from 18 ms to about 5 ms. A unit test rejects `:has()`
+on `html`, `body` or `#app`. Details and limits are in
+[the benchmark record](benchmarks/held-key-style-invalidation-2026-09-25.md).

@@ -38,3 +38,25 @@ test('an early interval choice supersedes a delayed startup read', async () => {
     await Promise.resolve(); h.release(300); await h.ready;
     expect(h.ports.configureInterval.mock.calls).toEqual([[30]]);
 });
+
+test('quitting saves notes first, then waits for the workspace session before closing', async () => {
+    const order = [];
+    let finishSession;
+    const h = harness({
+        save: jest.fn(async tab => { order.push('note'); tab.dirty = false; return { success: true }; }),
+        saveSession: jest.fn(() => { order.push('session'); return new Promise(resolve => { finishSession = resolve; }); }),
+        close: jest.fn(() => order.push('close')),
+    });
+    const closing = h.close();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(order).toEqual(['note', 'session']);
+    finishSession(); await closing;
+    expect(order).toEqual(['note', 'session', 'close']);
+});
+
+test('quitting a clean workspace still persists in-memory cursors', async () => {
+    const h = harness({ tabs: () => [] });
+    await h.close();
+    expect(h.ports.saveSession).toHaveBeenCalledTimes(1);
+    expect(h.ports.close).toHaveBeenCalledTimes(1);
+});

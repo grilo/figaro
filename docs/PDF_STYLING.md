@@ -37,10 +37,13 @@ the stylesheet's `@page size`, even if a general `body` rule requests an
 unbounded width. Widening the preview pane therefore adds room around the
 paper rather than stretching its contents. Named paper sizes, orientation,
 and explicit CSS lengths are reflected in the preview, with A4 as the
-fallback. The preview preserves its position after a refresh and synchronizes
-source-line anchors with the active Markdown note. Tall code blocks, tables,
-and diagrams therefore do not accumulate the drift caused by comparing only
-whole-document percentages. Its own scrolling
+fallback. The preview keeps its source position after a refresh and
+synchronizes source-line anchors with the active Markdown note. Tall code
+blocks, tables, diagrams and math move proportionally through their whole
+height in both panes, positions between blocks interpolate instead of
+snapping, and only the pane you are scrolling drives the other, so the panes
+do not jump or fight. The lookup is precomputed once per layout, keeping
+scrolling cost negligible. Its own scrolling
 stays native and smooth; the companion editor receives coalesced position
 updates rather than a cross-frame update for every display frame, and a new
 reader scroll always overrides a settling programmatic editor update. Table-of-contents,
@@ -140,10 +143,13 @@ If the target already exists, Figaro asks whether to use it and never replaces
 its contents. Startup and PDF export do not create or modify stylesheets.
 
 When a note already selects a stylesheet, the same action becomes **Upgrade
-copy** and proposes a `-v2.css` sibling. Figaro writes the current version-2
+copy** and proposes a `-v2.css` sibling. Figaro writes the current version-3
 starter there, then appends every rule from the selected stylesheet as the
 last override section. The source stylesheet and any existing target remain
-byte-for-byte untouched. Review the copy, then keep the automatically updated
+byte-for-byte untouched. The starter's first comment carries
+`figaro-pdf-starter-version: 3`; if the selected stylesheet already declares
+the current version there, **Upgrade copy** is disabled and explains why, even
+if you have edited the file. Stylesheets without the marker stay upgradable. Review the copy, then keep the automatically updated
 `print-stylesheet` value or switch back to the old file.
 
 You can select an existing stylesheet from the same field to share a style

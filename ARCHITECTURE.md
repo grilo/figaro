@@ -448,8 +448,16 @@ drag feedback remains authoritative during direct separator interaction.
 The central workspace host owns one narrow relational layout rule for the
 title-bar rail: its top-left corner uses the shared tab radius unless the active
 title-bar tab is the first displayed child. A selected leading tab instead
-keeps that corner square so the tab and editor remain one continuous surface;
-no duplicate tab-order state is introduced in JavaScript. The editor host,
+keeps that corner square so the tab and editor remain one continuous surface.
+`workspaceChromeState.js` mirrors that state onto `#app` as
+`data-first-tab-active` (plus `data-first-tab-hover` for an inactive leading
+tab under the pointer, and `data-workspace-view="calendar"` for the Calendar
+footer), observing only the small tab strip and the active tab. CSS must not
+use `:has()` on `html`, `body` or `#app`: with the application root as the
+subject, every DOM change anywhere (each cursor move updates the editor and the
+Ln/Col status) re-checks the rule and restyles most of the page. A unit test
+rejects such selectors; see
+[the held-key benchmark](docs/benchmarks/held-key-style-invalidation-2026-09-25.md). The editor host,
 CodeMirror surface, tab-panel host, and active panel inherit that computed
 corner so a square inner paint layer cannot bleed through the outer clip. When
 theme divider tokens are visible, the title-bar center masks the radius-wide
@@ -997,7 +1005,15 @@ calling the backend itself. The overlay still owns shortcut/footer controls and 
 day operable for due-date selection; its grid typography, locale order, theme state classes, labels,
 and rich activity details stay identical to the sidebar presentation.
 
-The `vault:changed` event includes `tree_changed` and `kanban_changed`.
+The `vault:changed` event includes `tree_changed`, `kanban_changed` and, when
+the batch is scoped and at most 256 entries, `paths`: the external
+vault-relative changes (empty for pure acknowledgements of Figaro's own
+writes). `core/vaultChangeScopeModel.js` treats a missing list as an unknown
+scope. Coalesced tree refreshes merge scopes; rendered image and diagram
+previews remount only when a changed path is an image or diagram, and Activity
+dates and Git status re-read history only when the open note changed. On a
+cloud-synced vault this keeps unrelated sync activity from re-reading every
+preview or running Git status. An unknown scope refreshes everything, as before.
 Content-only external Markdown changes refresh dependent data without
 requesting a new file tree; directory or entry changes schedule the normal
 coalesced tree refresh. An acknowledgement of a Figaro-originated save has
@@ -2452,8 +2468,10 @@ has its own subscriber. `createSessionPersistence` allows one running write and
 one replaceable pending snapshot, sharing the pending completion promise across
 coalesced callers and continuing after a reported write failure. This coalesces
 workspace metadata only; it does not coalesce note-content saves.
-Cursor updates are coalesced into portable session writes and installed before
-the restored active file is mounted. Keeping them separate makes startup recovery
+Cursor updates stay in memory and are installed before the restored active file
+is mounted; the session is written on tab switch, window blur or hiding, and quit
+(bounded to 1.5 s), and the use case skips a snapshot identical to the last
+successful write. Keeping them separate makes startup recovery
 predictable: malformed, missing, or old session data can be discarded without
 damaging user preferences. Compatibility cleanup removes legacy tab keys from
 `settings.json` rather than trying to merge two competing sources of truth.
@@ -2461,8 +2479,15 @@ damaging user preferences. Compatibility cleanup removes legacy tab keys from
 ## Machine-local application state
 
 Machine-local records contain facts about one computer, never portable vault
-preferences. Figaro currently keeps window geometry in `window-state.json` and
-the selected PDF-browser executable in `machine-settings.json`. Both use the
+preferences. Figaro currently keeps window geometry in `window-state.json`, the
+selected PDF-browser executable in `machine-settings.json`, and each vault's
+workspace session in `sessions/<first 16 bytes of SHA-256 of the vault path, hex>.json`.
+Sessions describe this computer's open tabs and cursors, so they stay out of a
+vault that may be cloud-synchronized; writing them there made every cursor
+pause an fsync, rename and upload. Session records are replaced by temporary
+file and rename without fsync because a lost or truncated record only resets
+the workspace. When no record exists, the legacy `.config/session.json` in the
+vault is read once and left untouched. Both use the
 same cross-platform application-data root, but separate schemas allow a broken
 optional browser preference to be repaired without discarding safe window
 restore bounds.
@@ -2890,11 +2915,26 @@ The frame captures anchor activation itself, before browser navigation:
 Scroll synchronization is deliberately lower-frequency than native scrolling.
 Markdown-It block maps become `data-figaro-source-start`/`-end` attributes, and
 diagram replacement transfers the fence range to its generated figure. The
-frame and CodeMirror report the source position crossing the same 30% viewport
-marker; nested printable blocks prefer the narrowest matching range. This
-avoids cumulative percentage drift when code, tables, or diagrams have very
-different heights across the two panes. Generated cover/contents gaps and any
-unmapped region retain the document/content-percentage fallback.
+frame and CodeMirror exchange a continuous source position (line plus fraction)
+crossing the same 30% viewport marker. CodeMirror measures from its document
+top, excluding content padding, and a rendered multi-line block widget spans
+its whole line range by pixel fraction, so neither direction jumps at a
+widget's midpoint or sawtooths through it. The frame keeps a breakpoint list of
+leaf anchors (`start`→top, `end`→bottom), built once per layout and invalidated
+on render, resize, image `load` and font readiness; blocks rendered out of
+source order (footnotes) are dropped to keep it monotonic. Each lookup is a
+binary search with linear interpolation inside and between blocks. KaTeX
+display math receives its block's anchor, and table-merge metadata lines render
+as blank lines so later anchors keep the editor's numbering. Generated
+cover/contents gaps and any unmapped region retain the percentage fallback.
+A re-render restores the editor's source position rather than a percentage.
+
+A single-driver lease prevents feedback: for 300 ms after one pane moves the
+other, the follower's own scroll events (CodeMirror measurement corrections,
+late image loads, scroll clamping) are treated as programmatic unless the
+reader used wheel, touch, pointer or keyboard input in that pane. The frame
+skips the source lookup for programmatic reports because the parent ignores
+them.
 
 Both panes still scroll locally at the display's normal cadence; only the
 latest source position crosses the bridge, at most about 30 times per second.
@@ -2975,10 +3015,14 @@ destinations again and publishes only when they match. The pass coordinator is
 tested through narrow render/resolve/inject/write ports; CDP owns browser I/O,
 and the root-scoped desktop adapter owns stylesheet migration and publication.
 
-The version-2 starter migration is also additive: a root-scoped adapter creates
+The starter migration is also additive: a root-scoped adapter creates
 a distinct target, writes the current starter first, and appends the selected
 stylesheet as later overrides. It never rewrites either source or an occupied
-target.
+target. The bundled starter's leading comment declares
+`figaro-pdf-starter-version: N` (currently 3); `GetPrintStylesheetStatus`
+parses only the selected file's leading comment, so the Properties panel can
+disable **Upgrade copy** for a current copy, and the adapter refuses to append a
+current starter to itself.
 
 Before **Generate PDF**, Figaro saves the exact in-memory Markdown and selected
 stylesheet snapshots used by the preview. This avoids a race where an edit is

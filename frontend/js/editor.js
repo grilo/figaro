@@ -1,4 +1,5 @@
 import { createEditorWheelScroll } from './editorWheelScroll.js';
+import { vaultChangeTouchesRenderedAssets } from './core/vaultChangeScopeModel.js';
 import { createMarkdownLineDecorations } from './markdownLineDecorations.js';
 import { referenceLinkPlugin } from './referenceLinks.js';
 import { publishEditorUpdate } from './editorUpdates.js';
@@ -16,7 +17,6 @@ import { saveTaskDueMetadata } from './taskDueMetadata.js';
 
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
-import { scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { recordVaultFileIssue, showFileIssues } from './fileIssues.js';
 import { mathField } from './mathPlugin.js';
@@ -1099,7 +1099,10 @@ const blockControlVisibilityExtension = createBlockControlVisibilityExtension(Vi
 const imageVaultRefreshExtension = ViewPlugin.fromClass(class {
     constructor(view) {
         this.view = view;
-        this.onVaultRefresh = () => {
+        this.onVaultRefresh = event => {
+            // Remounting every preview re-reads its file; an external change
+            // that touched no image or diagram cannot alter any preview.
+            if (!vaultChangeTouchesRenderedAssets(event?.detail?.changedPaths)) return;
             const tab = getActiveTab();
             if (tab?.type !== 'file'
                 || activeFileLanguage.kind !== 'markdown'
@@ -2924,12 +2927,13 @@ function normalizedCursorState(cursorState, documentLength) {
     return { anchor: clamp(cursorState.anchor), head: clamp(cursorState.head) };
 }
 
+// Cursor positions stay in memory while navigating; the session is written on
+// tab switch, window blur or quit, so held-key motion never waits on disk.
 function rememberActiveFileCursor(update) {
     const tabId = getEditorDocumentTabId();
     if (!tabId || getState('activeTabId') !== tabId) return;
     const selection = update.state.selection.main;
-    if (!recordTabCursor(tabId, { anchor: selection.anchor, head: selection.head })) return;
-    scheduleSessionSave();
+    recordTabCursor(tabId, { anchor: selection.anchor, head: selection.head });
 }
 
 function updateStats(text) {

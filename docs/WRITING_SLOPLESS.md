@@ -21,7 +21,8 @@ this rule. Quotation and apostrophe style also belongs to Formulaic writing, but
 comes from the reviewed `retext-quotes` check rather than Slopless: it follows
 the note’s prevailing straight or curly convention in both directions and can
 apply a mark-only fix. Emphatic punctuation (“!!”) from proselint is also
-Formulaic advice. Blockquotes, code, frontmatter, math, reference definitions,
+Formulaic advice; `exclamation-density` stays quiet when a paragraph’s only
+exclamation marks form that single run, so one “!!” gets one finding. Blockquotes, code, frontmatter, math, reference definitions,
 URLs and wiki targets stay excluded. These checks do not establish AI
 authorship or produce an AI probability score.
 

@@ -137,6 +137,10 @@ describe('Markdown table editor draft model', () => {
             markdown.indexOf('\n\nAfter'),
         );
         expect(stripMarkdownTableMergeMetadata(markdown)).not.toContain('figaro:table-merge');
+        // Metadata lines become empty lines, keeping preview source anchors aligned.
+        expect(stripMarkdownTableMergeMetadata(markdown).split('\n')).toHaveLength(markdown.split('\n').length);
+        expect(stripMarkdownTableMergeMetadata('| A |\r\n| - |\r\n<!-- figaro:table-merge A1:A1 -->\r\nAfter'))
+            .toBe('| A |\r\n| - |\r\n\r\nAfter');
         expect(markdownTableMergePlans(markdown)[0]).toMatchObject([
             { fromRow: 1, fromCol: 0, toRow: 2, toCol: 1 },
         ]);

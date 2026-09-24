@@ -74,6 +74,12 @@ another column, or use its keyboard controls:
 
 The start and due pills open the date picker. The card menu can clear dates or
 remove the card from the board. Removing a column tag leaves the task text.
+
+When you move or complete the last card in a column, the empty column stays on
+the board so you can move cards back; it disappears the next time you open
+Kanban. Column colors belong to the hashtag: if `#urgent` is red and later
+empties, reusing `#urgent` brings back its red. Delete a column to forget its
+color.
 Task changes appear from the unsaved note when you open or return to Kanban.
 While the board is hidden, typing does not rescan the note for tasks. Editing unrelated prose keeps the
 existing cards in place; inserting lines before a task still updates its source

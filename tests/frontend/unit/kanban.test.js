@@ -88,6 +88,71 @@ describe('live Kanban buffers and compact cards', () => {
         session.dispose();
     });
 
+    test('an emptied column stays on the open board, keeps its color, and is gone on the next opening', async () => {
+        const urgent = { file: 'tasks.md', line: 1, tag: 'urgent', text: 'Call the bank' };
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['urgent', 'todo', 'wip', 'done'], colors: { urgent: '#ef4444' } });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ urgent: [urgent], todo: [], wip: [], done: [] });
+        const panel = document.querySelector('.tab-panel');
+        const session = mountKanbanWorkspace(panel);
+        await refreshKanbanData({ container: panel.querySelector('.kanban-board') });
+        const columns = () => [...panel.querySelectorAll('.kanban-column')].map(column => column.dataset.column);
+        expect(columns()).toEqual(['urgent', 'todo', 'wip', 'done']);
+
+        // Moving the last #urgent task: the backend no longer lists the column.
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: { urgent: '#ef4444' } });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [{ ...urgent, tag: 'done' }] });
+        await refreshKanbanData({ container: panel.querySelector('.kanban-board') });
+        expect(columns()).toEqual(['urgent', 'todo', 'wip', 'done']);
+        const emptied = panel.querySelector('.kanban-column[data-column="urgent"]');
+        expect(emptied.querySelectorAll('.kanban-card')).toHaveLength(0);
+        expect(emptied.querySelector('.color-col').dataset.selectedColor).toBe('#ef4444');
+        // Further refreshes while the board stays open keep it in place.
+        await refreshKanbanData({ container: panel.querySelector('.kanban-board') });
+        expect(columns()).toEqual(['urgent', 'todo', 'wip', 'done']);
+
+        // Leaving the board ends the session; reopening shows live columns only.
+        panel.classList.remove('active'); session.deactivate();
+        panel.classList.add('active'); session.activate();
+        expect(columns()).toEqual(['todo', 'wip', 'done']);
+        session.dispose();
+    });
+
+    test('a retained column that regains cards keeps its position after leaving the board', async () => {
+        const card = { file: 'tasks.md', line: 1, tag: 'alpha', text: 'A' };
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['alpha', 'zeta', 'todo', 'wip', 'done'], colors: {} });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ alpha: [card], zeta: [{ ...card, tag: 'zeta' }], todo: [], wip: [], done: [] });
+        const panel = document.querySelector('.tab-panel');
+        const session = mountKanbanWorkspace(panel);
+        const board = () => panel.querySelector('.kanban-board');
+        await refreshKanbanData({ container: board() });
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['zeta', 'todo', 'wip', 'done'], colors: {} });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ zeta: [{ ...card, tag: 'zeta' }], todo: [card], wip: [], done: [] });
+        await refreshKanbanData({ container: board() });
+        // The card moves back: #alpha is live again.
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['alpha', 'zeta', 'todo', 'wip', 'done'], colors: {} });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ alpha: [card], zeta: [{ ...card, tag: 'zeta' }], todo: [], wip: [], done: [] });
+        await refreshKanbanData({ container: board() });
+        panel.classList.remove('active'); session.deactivate();
+        panel.classList.add('active'); session.activate();
+        expect([...panel.querySelectorAll('.kanban-column')].map(column => column.dataset.column)).toEqual(['alpha', 'zeta', 'todo', 'wip', 'done']);
+        session.dispose();
+    });
+
+    test('a column emptied while the board is closed does not reappear', async () => {
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['urgent', 'todo', 'wip', 'done'], colors: {} });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ urgent: [{ file: 'a.md', line: 1, tag: 'urgent', text: 'A' }], todo: [], wip: [], done: [] });
+        const panel = document.querySelector('.tab-panel');
+        const session = mountKanbanWorkspace(panel);
+        await refreshKanbanData({ container: panel.querySelector('.kanban-board') });
+        panel.classList.remove('active'); session.deactivate();
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
+        await refreshKanbanData({ container: panel.querySelector('.kanban-board') });
+        panel.classList.add('active'); session.activate();
+        expect([...panel.querySelectorAll('.kanban-column')].map(column => column.dataset.column)).toEqual(['todo', 'wip', 'done']);
+        session.dispose();
+    });
+
     test('caps visible card text at 120 characters including a Unicode ellipsis', () => {
         const original = '🙂' + 'a'.repeat(150);
         const compact = truncateKanbanCardText(original);

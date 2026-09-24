@@ -2,7 +2,7 @@
 
 import { testUtils } from './test_setup.js';
 import { state, setState } from '../frontend/js/state.js';
-import { loadSession, saveSession } from '../frontend/js/session.js';
+import { loadSession, saveSession, installSessionFlush, flushSessionWithin } from '../frontend/js/session.js';
 import { restoredTabOpenArgs } from '../frontend/js/sessionTabs.js';
 
 function deferred() {
@@ -88,7 +88,7 @@ describe('session persistence', () => {
 
         expect(state.fileIssues).toEqual([
             expect.objectContaining({
-                path: '.config/session.json',
+                path: 'Workspace session',
                 code: 'disk_full',
                 severity: 'danger',
             }),
@@ -201,5 +201,40 @@ describe('session persistence', () => {
         expect(state._restoredCursorStates).toBeNull();
         expect(localStorage.getItem('openTabs')).toBe('[]');
         expect(localStorage.getItem('activeTabId')).toBeNull();
+    });
+
+    test('window blur and hiding persist in-memory cursors without a timer per movement', async () => {
+        const target = new EventTarget(), doc = new EventTarget();
+        doc.visibilityState = 'visible';
+        const uninstall = installSessionFlush(target, doc);
+        setState('openTabs', [{ id: 'blur.md', type: 'file', title: 'Blur', path: 'blur.md' }]);
+        setState('activeTabId', 'blur.md');
+        target.dispatchEvent(new Event('blur'));
+        await Promise.resolve();
+        expect(window.go.desktop.App.SaveSession).toHaveBeenCalledTimes(1);
+        setState('activeTabId', null);
+        doc.visibilityState = 'hidden';
+        doc.dispatchEvent(new Event('visibilitychange'));
+        await Promise.resolve();
+        expect(window.go.desktop.App.SaveSession).toHaveBeenCalledTimes(2);
+        uninstall();
+        target.dispatchEvent(new Event('blur'));
+        expect(window.go.desktop.App.SaveSession).toHaveBeenCalledTimes(2);
+    });
+
+    test('a slow session write cannot hold quitting beyond its budget', async () => {
+        jest.useFakeTimers();
+        try {
+            window.go.desktop.App.SaveSession.mockImplementationOnce(() => new Promise(() => {}));
+            setState('openTabs', [{ id: 'slow.md', type: 'file', title: 'Slow', path: 'slow.md' }]);
+            setState('activeTabId', 'slow.md');
+            let settled = false;
+            const flushing = flushSessionWithin(1500).then(() => { settled = true; });
+            await jest.advanceTimersByTimeAsync(1499);
+            expect(settled).toBe(false);
+            await jest.advanceTimersByTimeAsync(1);
+            await flushing;
+            expect(settled).toBe(true);
+        } finally { jest.useRealTimers(); }
     });
 });

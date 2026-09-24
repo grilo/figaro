@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -180,21 +179,16 @@ func (a *App) GetTasksDueOnDate(dateStr string) ([]KanbanCard, error) {
 	return dueCardsByDateWithSchedules(index.cardsByTag, scheduled)[dateStr], nil
 }
 
-// SetColumnColor sets a color for a kanban column.
+// SetColumnColor sets a color for a kanban hashtag. The column may currently
+// be empty: the board keeps emptied columns visible, and the color persists
+// until the hashtag is used again.
 func (a *App) SetColumnColor(name string, color string) (map[string]interface{}, error) {
 	name = strings.TrimSpace(strings.ToLower(name))
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	found := false
-	for _, c := range a.kanbanColumns {
-		if c == name {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return map[string]interface{}{"success": false, "error": "Column not found"}, nil
+	if !kanbanColumnNameRe.MatchString(name) {
+		return map[string]interface{}{"success": false, "error": "Invalid column name"}, nil
 	}
 	if color == "" {
 		delete(a.kanbanColors, name)
@@ -219,7 +213,7 @@ func (a *App) RenameKanbanColumn(oldName string, newName string) (map[string]int
 	oldName = strings.TrimSpace(strings.ToLower(oldName))
 	newName = strings.TrimSpace(strings.ToLower(newName))
 
-	if !regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`).MatchString(newName) {
+	if !kanbanColumnNameRe.MatchString(newName) || !kanbanColumnNameRe.MatchString(oldName) {
 		return map[string]interface{}{"success": false, "error": "Invalid column name"}, nil
 	}
 
@@ -234,10 +228,8 @@ func (a *App) RenameKanbanColumn(oldName string, newName string) (map[string]int
 			break
 		}
 	}
-	if oldIdx < 0 {
-		a.mu.Unlock()
-		return map[string]interface{}{"success": false, "error": "Column not found"}, nil
-	}
+	// An emptied column no task uses has nothing to rewrite in notes; renaming
+	// it still moves its color and saved card order.
 	for _, sc := range SystemColumns {
 		if oldName == sc {
 			a.mu.Unlock()
@@ -250,7 +242,9 @@ func (a *App) RenameKanbanColumn(oldName string, newName string) (map[string]int
 			return map[string]interface{}{"success": false, "error": "Column already exists"}, nil
 		}
 	}
-	a.kanbanColumns[oldIdx] = newName
+	if oldIdx >= 0 {
+		a.kanbanColumns[oldIdx] = newName
+	}
 	if col, ok := a.kanbanColors[oldName]; ok {
 		a.kanbanColors[newName] = col
 		delete(a.kanbanColors, oldName)
@@ -293,17 +287,16 @@ func (a *App) DeleteKanbanColumn(name string) (map[string]interface{}, error) {
 			return map[string]interface{}{"success": false, "error": "Cannot delete system column"}, nil
 		}
 	}
-	found := false
+	if !kanbanColumnNameRe.MatchString(name) {
+		a.mu.Unlock()
+		return map[string]interface{}{"success": false, "error": "Invalid column name"}, nil
+	}
+	// Deleting an emptied column is how its remembered color is forgotten.
 	for i, c := range a.kanbanColumns {
 		if c == name {
 			a.kanbanColumns = append(a.kanbanColumns[:i], a.kanbanColumns[i+1:]...)
-			found = true
 			break
 		}
-	}
-	if !found {
-		a.mu.Unlock()
-		return map[string]interface{}{"success": false, "error": "Column not found"}, nil
 	}
 	delete(a.kanbanColors, name)
 	a.saveColors()

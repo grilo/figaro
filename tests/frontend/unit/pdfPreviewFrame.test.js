@@ -179,14 +179,110 @@ describe('PDF preview frame bridge', () => {
             });
             expect(root.scrollTop).toBe(730);
 
+            // The host's own command echoes back as programmatic, without a lookup.
+            frame.window.dispatchEvent(new frame.window.Event('scroll'));
+            await waitForFrame();
+            const echo = bridgeMessages(frame.sendToParent).filter(message => message.type === 'scroll').at(-1);
+            expect(echo).toMatchObject({ programmatic: true });
+            expect(echo.sourceLine).toBeUndefined();
+
+            // A reader scroll maps back through the same continuous source position.
+            frame.window.dispatchEvent(new frame.window.Event('wheel'));
+            frame.sendToParent.mockClear();
             frame.window.dispatchEvent(new frame.window.Event('scroll'));
             await waitForFrame();
             expect(bridgeMessages(frame.sendToParent)).toContainEqual(expect.objectContaining({
-                type: 'scroll',
-                sourceLine: 22,
-                lineProgress: 0.5,
-                programmatic: true,
+                type: 'scroll', sourceLine: 22, lineProgress: 0.5, programmatic: false,
             }));
+
+            // Between blocks the position interpolates instead of snapping.
+            root.scrollTop = 380; // marker at 500: halfway between line 10 (y 200) and line 20 (y 800)
+            frame.sendToParent.mockClear();
+            frame.window.dispatchEvent(new frame.window.Event('scroll'));
+            await waitForFrame();
+            expect(bridgeMessages(frame.sendToParent)).toContainEqual(expect.objectContaining({
+                type: 'scroll', sourceLine: 15, lineProgress: 0, programmatic: false,
+            }));
+        } finally {
+            frame.iframe.remove();
+            frame.sendToParent.mockRestore();
+        }
+    });
+
+    test('a layout scroll right after a host command is not sent back to the editor', async () => {
+        const frame = createFrame();
+        try {
+            render(frame, `<!doctype html><html><body><main class="figaro-print-document">
+                <p id="only" data-figaro-source-start="0" data-figaro-source-end="40">Text</p>
+            </main></body></html>`);
+            await waitForFrame();
+            const root = frame.window.document.scrollingElement || frame.window.document.documentElement;
+            Object.defineProperties(root, {
+                clientHeight: { configurable: true, value: 400 },
+                scrollHeight: { configurable: true, value: 4000 },
+                scrollTop: { configurable: true, writable: true, value: 0 },
+            });
+            frame.window.document.getElementById('only').getBoundingClientRect = () => ({ top: -root.scrollTop, bottom: 4000 - root.scrollTop, height: 4000 });
+            sendBridgeCommand(frame, 'set-source-position', { sourceLine: 10, lineProgress: 0, progress: 0.25 });
+            await waitForFrame();
+            // An image load then clamps or shifts the page without reader input.
+            root.scrollTop += 37;
+            frame.sendToParent.mockClear();
+            frame.window.dispatchEvent(new frame.window.Event('scroll'));
+            await waitForFrame();
+            expect(bridgeMessages(frame.sendToParent).filter(message => message.type === 'scroll').every(message => message.programmatic)).toBe(true);
+        } finally {
+            frame.iframe.remove();
+            frame.sendToParent.mockRestore();
+        }
+    });
+
+    test('blocks rendered out of source order, such as footnotes, do not break the mapping', async () => {
+        const frame = createFrame();
+        try {
+            render(frame, `<!doctype html><html><body><main class="figaro-print-document">
+                <p id="a" data-figaro-source-start="0" data-figaro-source-end="2">A</p>
+                <p id="b" data-figaro-source-start="10" data-figaro-source-end="12">B</p>
+                <p id="note" data-figaro-source-start="4" data-figaro-source-end="5">Footnote</p>
+            </main></body></html>`);
+            await waitForFrame();
+            const root = frame.window.document.scrollingElement || frame.window.document.documentElement;
+            Object.defineProperties(root, {
+                clientHeight: { configurable: true, value: 100 },
+                scrollHeight: { configurable: true, value: 3000 },
+                scrollTop: { configurable: true, writable: true, value: 0 },
+            });
+            const place = (id, top, height) => { frame.window.document.getElementById(id).getBoundingClientRect = () => ({ top: top - root.scrollTop, bottom: top + height - root.scrollTop, height }); };
+            place('a', 0, 100); place('b', 1000, 100); place('note', 2800, 100);
+            // Line 4 lies between A and B in the source; it must not jump to the footnote.
+            sendBridgeCommand(frame, 'set-source-position', { sourceLine: 6, lineProgress: 0, progress: 0.5 });
+            expect(root.scrollTop).toBeGreaterThan(100);
+            expect(root.scrollTop).toBeLessThan(1000);
+        } finally {
+            frame.iframe.remove();
+            frame.sendToParent.mockRestore();
+        }
+    });
+
+    test('a re-render restores the source position instead of a document percentage', async () => {
+        const frame = createFrame();
+        try {
+            const root = frame.window.document.scrollingElement || frame.window.document.documentElement;
+            Object.defineProperties(root, {
+                clientHeight: { configurable: true, value: 100 },
+                scrollHeight: { configurable: true, value: 5000 },
+                scrollTop: { configurable: true, writable: true, value: 0 },
+            });
+            frame.window.dispatchEvent(new frame.window.MessageEvent('message', {
+                source: window,
+                data: { channel: bridgeChannel, type: 'render', token: 'preview-token', documentProgress: 0.9, sourceLine: 30, lineProgress: 0,
+                    html: '<main class="figaro-print-document"><p id="p" data-figaro-source-start="0" data-figaro-source-end="100">Long</p></main>' },
+            }));
+            frame.window.document.getElementById('p').getBoundingClientRect = () => ({ top: -root.scrollTop, bottom: 1000 - root.scrollTop, height: 1000 });
+            await waitForFrame();
+            await waitForFrame();
+            // Line 30 of 100 sits at y 300; the marker is 30% down a 100px viewport.
+            expect(root.scrollTop).toBe(270);
         } finally {
             frame.iframe.remove();
             frame.sendToParent.mockRestore();

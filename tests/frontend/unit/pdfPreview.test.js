@@ -276,6 +276,72 @@ describe('live PDF preview', () => {
         expect(editorScrollTopForSourcePosition(view, 2, 0.5, 3)).toBe(402);
     });
 
+    test('a tall rendered widget maps smoothly across its source lines, including content padding', () => {
+        const state = EditorState.create({ doc: Array.from({ length: 20 }, (_, index) => `line ${index}`).join('\n') });
+        const scroller = document.createElement('div');
+        setScrollMetrics(scroller, { scrollTop: 0, scrollHeight: 3000, clientHeight: 100 });
+        scroller.getBoundingClientRect = () => ({ left: 0, top: 0 });
+        // Lines 1-2 are text (40px each); lines 3-10 are one 400px table widget.
+        const blocks = [
+            { from: state.doc.line(1).from, to: state.doc.line(1).to, top: 0, height: 40 },
+            { from: state.doc.line(2).from, to: state.doc.line(2).to, top: 40, height: 40 },
+            { from: state.doc.line(3).from, to: state.doc.line(10).to, top: 80, height: 400 },
+            ...Array.from({ length: 10 }, (_, index) => ({ from: state.doc.line(11 + index).from, to: state.doc.line(11 + index).to, top: 480 + index * 40, height: 40 })),
+        ];
+        const view = {
+            state, scrollDOM: scroller,
+            // 16px of content padding sits above CodeMirror's document top.
+            get documentTop() { return 16 - scroller.scrollTop; },
+            lineBlockAtHeight: height => blocks.find(block => height >= block.top && height < block.top + block.height) || blocks.at(-1),
+            lineBlockAt: position => blocks.find(block => position >= block.from && position <= block.to),
+        };
+        const values = [];
+        for (let scrollTop = 66; scrollTop <= 466; scrollTop += 20) { // marker from the widget top to its bottom
+            scroller.scrollTop = scrollTop;
+            const position = editorSourcePositionAtMarker(view, 0);
+            values.push(position.sourceLine + position.lineProgress);
+        }
+        // Inside the widget, positions advance steadily: no half-block jump.
+        for (let index = 1; index < values.length; index++) expect(values[index]).toBeGreaterThan(values[index - 1]);
+        expect(values[0]).toBeCloseTo(2, 5);
+        expect(values.at(-1)).toBeCloseTo(10, 5);
+        // The inverse lands on the same pixel, so preview-driven scrolls do not sawtooth.
+        scroller.scrollTop = 0;
+        for (const value of [2, 4.5, 7.25, 9.9]) {
+            const top = editorScrollTopForSourcePosition(view, Math.floor(value), value - Math.floor(value), 0);
+            scroller.scrollTop = top;
+            const back = editorSourcePositionAtMarker(view, 0);
+            expect(back.sourceLine + back.lineProgress).toBeCloseTo(value, 5);
+        }
+    });
+
+    test('the editor follows a preview-driven scroll without echoing its own corrections', async () => {
+        mockState.openTabs = [{ id: 'notes/report.md', type: 'file', path: 'notes/report.md' }];
+        mockState.activeTabId = 'notes/report.md';
+        const editorScroller = document.createElement('div');
+        editorScroller.className = 'cm-scroller';
+        setScrollMetrics(editorScroller, { scrollTop: 300, scrollHeight: 1000, clientHeight: 400 });
+        document.getElementById('editor-container').appendChild(editorScroller);
+        const { frame, postMessage, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        const token = render().token;
+        dispatchBridgeMessage(frame, { type: 'scroll', token, documentProgress: 0.4, contentProgress: 0.2, programmatic: false });
+        await waitForPreview();
+        expect(editorScroller.scrollTop).toBe(120);
+        const sent = () => postedBridgeMessages(postMessage).filter(message => /^set-(source-position|content-progress)$/u.test(message.type)).length;
+        const before = sent();
+        // CodeMirror re-measures and nudges its own scroll position.
+        editorScroller.scrollTop = 131;
+        editorScroller.dispatchEvent(new Event('scroll'));
+        await waitForPreview();
+        expect(sent()).toBe(before);
+        // A real gesture on the editor takes over immediately.
+        editorScroller.dispatchEvent(new Event('wheel'));
+        editorScroller.scrollTop = 200;
+        editorScroller.dispatchEvent(new Event('scroll'));
+        await waitForPreview();
+        expect(sent()).toBeGreaterThan(before);
+    });
+
     test('synchronizes the active Markdown scroller through the bridge without accessing iframe DOM', async () => {
         mockState.openTabs = [{ id: 'notes/report.md', type: 'file', path: 'notes/report.md' }];
         mockState.activeTabId = 'notes/report.md';

@@ -395,9 +395,13 @@ export function markdownTableMetadataEnd(documentSource, tableTo) {
     return cursor;
 }
 
-/** Remove private merge metadata before Markdown-It renders user-visible HTML. */
+/**
+ * Remove private merge metadata before Markdown-It renders user-visible HTML.
+ * Each metadata line becomes an empty line, so later source-line anchors
+ * still match the editor's line numbers.
+ */
 export function stripMarkdownTableMergeMetadata(markdown) {
-    return String(markdown ?? '').replace(mergeLineGlobalPattern, '');
+    return String(markdown ?? '').replace(mergeLineGlobalPattern, line => (line.endsWith('\r\n') ? '\r\n' : line.endsWith('\n') ? '\n' : ''));
 }
 
 /** Find merge plans in table order for the shared live/PDF renderer. */

@@ -247,6 +247,31 @@ func TestInternalVaultWatcherAcknowledgementSkipsRedundantKanbanRefresh(t *testi
 	if !external.kanbanChanged || external.treeChanged {
 		t.Fatalf("external Markdown write = %#v, want Kanban refresh without tree refresh", external)
 	}
+	if len(internal.paths) != 0 {
+		t.Fatalf("internal acknowledgement reported paths %v", internal.paths)
+	}
+	if len(external.paths) != 1 || external.paths[0] != "tasks.md" {
+		t.Fatalf("external change paths = %v, want [tasks.md]", external.paths)
+	}
+}
+
+func TestVaultChangeScopeIsUnknownForUnscopedOrOversizedBatches(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "Images/photo.png", "png")
+	if result := app.applyVaultFilesystemChanges(nil); result.paths != nil {
+		t.Fatalf("unscoped notification paths = %v, want unknown", result.paths)
+	}
+	image := app.applyVaultFilesystemChanges([]vaultWatchChange{{Path: filepath.Join(vaultPath, "Images", "photo.png"), Op: fsnotify.Write}})
+	if len(image.paths) != 1 || image.paths[0] != "Images/photo.png" {
+		t.Fatalf("image change paths = %v", image.paths)
+	}
+	many := make([]vaultWatchChange, maximumReportedVaultChanges+1)
+	for index := range many {
+		many[index] = vaultWatchChange{Path: filepath.Join(vaultPath, "Images", "photo.png"), Op: fsnotify.Write}
+	}
+	if result := app.applyVaultFilesystemChanges(many); result.paths != nil {
+		t.Fatalf("oversized batch paths should be unknown, got %d", len(result.paths))
+	}
 }
 
 func TestCopyPathAcknowledgesCreatedWatcherEvents(t *testing.T) {

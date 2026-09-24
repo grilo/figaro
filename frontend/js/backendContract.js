@@ -37,6 +37,7 @@ export const BACKEND_METHODS = Object.freeze([
     'GetLaunchExternalFiles',
     'GetLinkedNotesForDate',
     'GetOSUsername',
+    'GetPrintStylesheetStatus',
     'GetRecentlyDeleted',
     'GetTaskSchedules',
     'GetTasksDueOnDate',

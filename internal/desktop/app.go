@@ -76,6 +76,7 @@ type App struct {
 	windowStatePath     string
 	windowState         windowState
 	machineSettingsPath string
+	sessionStateRoot    string
 	applicationVersion  string
 	vaultLoad           *vaultLoadTracker
 	windowRuntime       windowRuntime
@@ -564,7 +565,14 @@ func (a *App) stopVaultWatcher() {
 type vaultFilesystemChangeResult struct {
 	treeChanged   bool
 	kanbanChanged bool
+	// paths lists the external vault-relative changes in this batch. It is
+	// nil when the scope is unknown, which consumers treat as "anything".
+	paths []string
 }
+
+// maximumReportedVaultChanges bounds the event payload; a larger batch is
+// reported as an unknown scope so consumers fall back to a full refresh.
+const maximumReportedVaultChanges = 256
 
 // handleVaultFilesystemChanges applies the debounced native event batch to
 // the shared index and publishes only the UI work which is actually needed.
@@ -572,10 +580,14 @@ type vaultFilesystemChangeResult struct {
 // notifications remain a safe fallback that rebuilds once.
 func (a *App) handleVaultFilesystemChanges(changes []vaultWatchChange) {
 	result := a.applyVaultFilesystemChanges(changes)
-	a.emitRuntimeEventData("vault:changed", map[string]bool{
+	payload := map[string]any{
 		"tree_changed":   result.treeChanged,
 		"kanban_changed": result.kanbanChanged,
-	})
+	}
+	if result.paths != nil {
+		payload["paths"] = result.paths
+	}
+	a.emitRuntimeEventData("vault:changed", payload)
 }
 
 // applyVaultFilesystemChanges updates the shared index and returns the
@@ -585,6 +597,10 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 	result := vaultFilesystemChangeResult{
 		treeChanged:   len(changes) == 0,
 		kanbanChanged: len(changes) == 0,
+	}
+	scoped := len(changes) > 0 && len(changes) <= maximumReportedVaultChanges
+	if scoped {
+		result.paths = []string{}
 	}
 	a.vaultMu.Lock()
 	a.resetFileVersionsLocked()
@@ -596,6 +612,7 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 		root, err := a.openVaultRoot()
 		if err != nil {
 			log.Printf("[watcher] open vault after filesystem change: %v", err)
+			scoped = false
 			a.invalidateVaultIndexLocked()
 			result.treeChanged = true
 			result.kanbanChanged = true
@@ -603,6 +620,7 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 			for _, change := range changes {
 				rel, err := filepath.Rel(a.vaultPath, change.Path)
 				if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+					scoped = false
 					a.invalidateVaultIndexLocked()
 					result.treeChanged = true
 					result.kanbanChanged = true
@@ -614,6 +632,9 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 				}
 				if a.consumeInternalVaultWriteLocked(cleanRel) {
 					continue
+				}
+				if scoped {
+					result.paths = append(result.paths, filepath.ToSlash(cleanRel))
 				}
 
 				if !strings.EqualFold(filepath.Ext(cleanRel), ".md") {
@@ -688,6 +709,9 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 		a.invalidateFileTreeCacheLocked()
 	}
 	a.vaultMu.Unlock()
+	if !scoped {
+		result.paths = nil
+	}
 	return result
 }
 

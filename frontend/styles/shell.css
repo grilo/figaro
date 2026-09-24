@@ -70,8 +70,7 @@
 
 /* When the workspace has a rounded leading corner, erase the matching piece
    of the title-bar divider so a square rule cannot remain behind the curve. */
-#app:not(.pure-editing-chrome):not(:has(#tab-strip > .ui-document-tab--active:first-child))
-    .top-bar-center::after {
+#app:not(.pure-editing-chrome):not([data-first-tab-active]) .top-bar-center::after {
     position: absolute;
     z-index: 2;
     bottom: 0;
@@ -83,9 +82,7 @@
     pointer-events: none;
 }
 
-#app:has(
-    #tab-strip > .ui-document-tab:first-child:hover:not(.ui-document-tab--active)
-) #tab-strip > .ui-document-tab:first-child {
+#app[data-first-tab-hover] #tab-strip > .ui-document-tab:first-child {
     z-index: 3;
 }
 
@@ -897,9 +894,7 @@
     transition: background var(--motion-content-duration) ease;
 }
 
-#app:has(
-    #tab-strip > .ui-document-tab:first-child:hover:not(.ui-document-tab--active)
-) .main-container::before {
+#app[data-first-tab-hover] .main-container::before {
     background: var(--tab-hover-surface);
 }
 
@@ -957,7 +952,7 @@ html[data-startup-sidebar-collapsed="true"] #sidebar {
 
 /* Continue the same rounded workspace corner through themes whose sidebar rail
    is visible instead of leaving its first radius-sized segment square. */
-#app:not(:has(#tab-strip > .ui-document-tab--active:first-child)) .sidebar::after {
+#app:not([data-first-tab-active]) .sidebar::after {
     top: var(--ui-menu-radius);
 }
 

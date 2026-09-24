@@ -37,8 +37,9 @@ third argument, for example `subscribe('tabPresentation', render, 'breadcrumb')`
 than mutate old ones; move/rename planning preserves the old snapshot and the
 editor adapter transfers any parked undo history to the replacement record. A cursor
 update never invokes presentation subscribers, serializes tab metadata, or
-calls the native title bridge. Portable cursor persistence remains debounced by
-350 ms and coalesces slow writes; note saves still read the current editor.
+calls the native title bridge. Cursor positions stay in memory; the session is
+written on tab switch, window blur or quit, and an unchanged snapshot is never
+rewritten. Note saves still read the current editor.
 
 Each authored edit captures the immutable document in its tab's `_content`
 handle alongside the dirty flag and generation, requiring one buffer publication.

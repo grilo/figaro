@@ -748,6 +748,26 @@ describe('File Tree', () => {
         }
     });
 
+    test('coalesced watcher refreshes publish the merged change scope; direct refreshes stay unscoped', async () => {
+        const published = [];
+        const listener = event => published.push(event.detail.changedPaths);
+        document.addEventListener('vault-file-tree-refreshed', listener);
+        jest.useFakeTimers();
+        try {
+            scheduleFileTreeRefresh(180, ['notes/a.md']);
+            scheduleFileTreeRefresh(180, ['notes/a.md', 'img/b.png']);
+            await jest.advanceTimersByTimeAsync(180);
+            scheduleFileTreeRefresh(180, ['notes/c.md']);
+            scheduleFileTreeRefresh(180, null);
+            await jest.advanceTimersByTimeAsync(180);
+        } finally {
+            jest.useRealTimers();
+        }
+        await refreshFileTree();
+        document.removeEventListener('vault-file-tree-refreshed', listener);
+        expect(published).toEqual([['notes/a.md', 'img/b.png'], null, null]);
+    });
+
     test('maps native file-manager drops to the containing vault folder', () => {
         state.fileTreeData = [{
             name: 'Projects', path: 'Projects', type: 'directory', children: [

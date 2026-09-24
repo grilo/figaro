@@ -370,6 +370,11 @@ export function createFrontmatterField(
             }
             return app.CreateUpgradedPrintStylesheet(notePath, currentStylesheetPath, stylesheetPath);
         },
+        getStylesheetStatus = async (notePath, stylesheetPath) => {
+            const app = backend();
+            if (typeof app.GetPrintStylesheetStatus !== 'function') return null;
+            return app.GetPrintStylesheetStatus(notePath, stylesheetPath);
+        },
         onStylesheetReady = async () => {},
         reportStylesheetError = message => errorDialog('Couldn’t create PDF stylesheet', message, 'The PDF stylesheet could not be created.'),
     } = options || {};
@@ -609,6 +614,9 @@ export function createFrontmatterField(
             const upgradingStylesheet = Boolean(selectedStylesheet);
             const upgradedPath = value => String(value || 'pdf.css').replace(/\.css$/i, '-v2.css');
             let creatingStylesheet = false;
+            // Set when the selected stylesheet already carries the current
+            // starter version; an upgrade would only duplicate its rules.
+            let upToDateStylesheet = false;
             const createStarter = makeButton(
                 'ui-button cm-frontmatter-panel-action cm-frontmatter-create-stylesheet',
                 upgradingStylesheet ? 'Upgrade copy' : 'Create starter',
@@ -616,7 +624,7 @@ export function createFrontmatterField(
                     ? 'Create a current starter copy without changing the selected stylesheet'
                     : 'Create an editable starter PDF stylesheet',
                 async () => {
-                    if (creatingStylesheet || view.isDestroyed) return;
+                    if (creatingStylesheet || upToDateStylesheet || view.isDestroyed) return;
 
                     const currentStylesheet = getFrontmatterValue(view.state.doc.toString(), 'print-stylesheet');
                     const upgrade = Boolean(currentStylesheet);
@@ -650,7 +658,7 @@ export function createFrontmatterField(
                         reportStylesheetError(error?.message || 'Could not create the starter PDF stylesheet.');
                     } finally {
                         creatingStylesheet = false;
-                        createStarter.disabled = false;
+                        createStarter.disabled = upToDateStylesheet;
                         createStarter.removeAttribute('aria-busy');
                     }
                 }
@@ -663,6 +671,18 @@ export function createFrontmatterField(
                 ? 'Upgrade copy creates the current starter separately, then preserves every rule from the selected stylesheet as later overrides.'
                 : 'Leave blank for the built-in style or an existing sibling _print.css. Create starter copies an editable example into your vault.';
             pdfSection.appendChild(stylesheetHint);
+            if (upgradingStylesheet) {
+                const notePath = String(getActiveFilePath() || '').trim();
+                Promise.resolve(notePath ? getStylesheetStatus(notePath, selectedStylesheet) : null).then(status => {
+                    if (!status?.upToDate || view.isDestroyed || !createStarter.isConnected) return;
+                    upToDateStylesheet = true;
+                    createStarter.disabled = true;
+                    const label = `Already uses the current starter (version ${status.currentVersion})`;
+                    createStarter.title = label;
+                    createStarter.setAttribute('aria-label', `Upgrade copy unavailable: ${label.toLowerCase()}`);
+                    stylesheetHint.textContent = `${label}. Edit it directly; Upgrade copy becomes available when Figaro ships a newer starter.`;
+                }).catch(() => {});
+            }
             const pageNumberHint = document.createElement('p');
             pageNumberHint.className = 'cm-frontmatter-panel-hint';
             pageNumberHint.textContent = 'Page and contents numbers are finalized during Chromium PDF export; the continuous preview reserves their contents column.';

@@ -106,6 +106,11 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 		log.Printf("[window] Using default window state: %v", windowStateErr)
 	}
 	app.configureWindowState(windowStatePath, windowState)
+	if stateRoot, stateErr := machineLocalConfigRoot(); stateErr != nil {
+		log.Printf("[session] Keeping workspace state in the vault: %v", stateErr)
+	} else {
+		app.configureSessionStateRoot(stateRoot)
+	}
 	machineSettingsPath, machineSettingsErr := currentMachineSettingsPath()
 	if machineSettingsErr != nil {
 		log.Printf("[settings] Machine-local settings are unavailable: %v", machineSettingsErr)

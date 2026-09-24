@@ -1,4 +1,6 @@
 import { editorDiagnostics } from './editorDiagnostics.js';
+import { initWorkspaceChromeState } from './workspaceChromeState.js';
+import { vaultChangeScope } from './core/vaultChangeScopeModel.js';
 import { startupTimings } from './startupDiagnostics.js';
 import { backend, waitForBackend } from './backend.js';
 /**
@@ -46,7 +48,7 @@ import { initStatusBarPresentation, statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog } from './dialogs.js';
 import { configureSearchWorkspace, initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
 import { configureBacklinksWorkspace, initBacklinks } from './backlinks.js';
-import { loadSession, saveSession } from './session.js';
+import { loadSession, saveSession, flushSessionWithin, installSessionFlush } from './session.js';
 import { restoredWorkspacePlan } from './sessionTabs.js';
 import { openExternalLaunchFiles, openLaunchExternalFiles } from './externalFiles.js';
 import { initTheme, initThemeAppearance } from './theme.js';
@@ -237,7 +239,9 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
     const registered = registerVaultChangeEvents(runtime, {
         onVaultChanged: (payload = {}) => {
             invalidateCalendarCache();
-            if (payload.tree_changed !== false) scheduleFileTreeRefresh();
+            // Older backends omit `paths`; an unknown scope refreshes everything.
+            const changedPaths = vaultChangeScope(payload.paths);
+            if (payload.tree_changed !== false) scheduleFileTreeRefresh(undefined, changedPaths);
             refreshCalendarIfVisible();
             // Figaro already projected its own saved Markdown snapshot into
             // Kanban. A watcher acknowledgement for that write must not send
@@ -246,7 +250,7 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
             if (payload.kanban_changed !== false) {
                 refreshKanbanData().catch(() => {});
             }
-            document.dispatchEvent(new CustomEvent('vault-filesystem-changed'));
+            document.dispatchEvent(new CustomEvent('vault-filesystem-changed', { detail: { paths: changedPaths } }));
             refreshFileIssues().catch(() => {});
         },
         onKanbanIndexed: () => {
@@ -594,6 +598,7 @@ async function restoreOpenTabs() {
 }
 
 function installStartupSaveProtection() {
+    installSessionFlush();
     return installEditorSaveProtection({
         listen: (name, handler) => window.addEventListener(name, handler),
         registerClose: setWindowCloseRequestHandler,
@@ -604,7 +609,9 @@ function installStartupSaveProtection() {
         activeContent: getEditorContent,
         save: (tab, content, options) => saveFileSnapshot(tab, content, { ...options, durabilityOnly: true }),
         close: closeNativeWindow,
-        saveSession,
+        // Quitting persists in-memory cursors, but a slow disk cannot hold the
+        // window open: session state is recoverable, unlike note content.
+        saveSession: () => flushSessionWithin(1500),
         confirmClose: dirty => confirmDialog(
             'Unsaved changes',
             `These files have unsaved changes: ${dirty.map(tab => tab.title).join(', ')}\n\nSave them before exiting?`,
@@ -646,6 +653,7 @@ export async function initApp() {
     initPureEditingChrome();
     initKeyboardShortcuts();
     initWindowChrome();
+    initWorkspaceChromeState({ subscribe, getState });
     
     // Wait until Wails has published the bound Go App object.
     statusBar.set('Connecting to backend...');

@@ -177,6 +177,12 @@ function readerDirected(before, actual, after) {
     return instructionVerb.test(sentence.trimStart().replace(leadingAdverbs, ''));
 }
 
+/** One “!!” run is emphatic punctuation; density advice needs separate marks. */
+export function writingSingleExclamationRun(raw, projection) {
+    const { before, after } = contextAt(raw, projection, 400);
+    return (`${before}${raw.actual}${after}`.match(/!+/gu) || []).length === 1;
+}
+
 export function writingInclusiveContext(raw, projection) {
     const word = raw.actual.toLowerCase(), { before, after } = contextAt(raw, projection);
     const tone = ['easy', 'easily', 'simple', 'simply', 'just', 'obvious', 'obviously', 'clearly', 'basically', 'straightforward', 'straight-forward', 'straight forward', 'of course', 'everyone knows'];

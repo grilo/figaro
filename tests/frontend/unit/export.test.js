@@ -722,6 +722,10 @@ describe('Interactive PDF export', () => {
         });
         expect(diagrams.map(diagram => diagram.dataset.diagramLanguage)).toEqual(['mermaid', 'vega', 'vega-lite']);
         expect(diagrams.every(diagram => diagram.hasAttribute('data-figaro-source-start'))).toBe(true);
+        // Display math is anchored too, so the preview aligns it with the editor.
+        const math = parseHTML(await renderPrintableMarkdownWithDiagrams('Intro\n\n$$\nx+y\n$$\n\nAfter', 'Math')).querySelector('.katex-block');
+        expect(math?.dataset.figaroSourceStart).toBe('2');
+        expect(math?.dataset.figaroSourceEnd).toBe('5');
         expect(printable.querySelectorAll('.figaro-print-diagram svg')).toHaveLength(3);
         expect(printable.querySelectorAll('pre > code.language-mermaid')).toHaveLength(0);
         expect(printable.querySelectorAll('pre > code.language-vega')).toHaveLength(0);

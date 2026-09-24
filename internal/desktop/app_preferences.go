@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	settingsmodel "figaro/internal/settings"
 )
@@ -23,39 +24,23 @@ func (a *App) loadColors() {
 		}
 		return
 	}
-	if err := json.Unmarshal(data, &a.kanbanColors); err != nil {
+	colors := map[string]string{}
+	if err := json.Unmarshal(data, &colors); err != nil {
 		log.Printf("[kanban] parse colors: %v", err)
 		return
 	}
-	// Prune colors for columns that no longer exist
-	for k := range a.kanbanColors {
-		found := false
-		for _, c := range a.kanbanColumns {
-			if c == k {
-				found = true
-				break
-			}
-		}
-		if !found {
-			delete(a.kanbanColors, k)
+	// A color belongs to its hashtag, not to whether any task currently uses
+	// it: an emptied column that is reused later keeps its color. Only an
+	// explicit clear, rename or column delete removes one.
+	for name, color := range colors {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if kanbanColumnNameRe.MatchString(name) && color != "" {
+			a.kanbanColors[name] = color
 		}
 	}
 }
 
 func (a *App) saveColors() {
-	// Prune dead colors
-	for k := range a.kanbanColors {
-		found := false
-		for _, c := range a.kanbanColumns {
-			if c == k {
-				found = true
-				break
-			}
-		}
-		if !found {
-			delete(a.kanbanColors, k)
-		}
-	}
 	data, err := json.MarshalIndent(a.kanbanColors, "", "  ")
 	if err != nil {
 		log.Printf("[kanban] serialize colors: %v", err)

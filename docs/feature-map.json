@@ -339,7 +339,8 @@
       "frontend/js/rightSidebarState.js",
       "frontend/js/app.js",
       "frontend/js/home.js",
-      "frontend/js/usecases/openTodayNote.js"
+      "frontend/js/usecases/openTodayNote.js",
+      "frontend/js/workspaceChromeState.js"
     ],
     "docs": [
       "docs/testing/workspace.md#frameless-window-chrome-regressions",
@@ -347,7 +348,9 @@
       "ARCHITECTURE.md#editor-decoration-updates",
       "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
       "ARCHITECTURE.md#note-opening-and-recovery-ownership",
-      "docs/NOTES_AND_PLANNING.md#capture-and-connect"
+      "docs/NOTES_AND_PLANNING.md#capture-and-connect",
+      "docs/EDITOR_PERFORMANCE.md#held-key-style-invalidation",
+      "docs/benchmarks/held-key-style-invalidation-2026-09-25.md#findings"
     ],
     "tests": [
       "tests/frontend/unit/windowChrome.test.js",
@@ -357,7 +360,8 @@
       "tests/frontend/unit/rightSidebarState.test.js",
       "tests/frontend/unit/home.test.js",
       "tests/frontend/unit/openTodayNote.test.js",
-      "tests/frontend/unit/topBar.test.js"
+      "tests/frontend/unit/topBar.test.js",
+      "tests/frontend/unit/workspaceChromeState.test.js"
     ],
     "extraChecks": [
       "Reuse existing outline and windowChrome browser boundaries for focus, accessibility, or geometry changes; verify native window behavior in the packaged webview."
@@ -372,6 +376,9 @@
       ],
       "frontend/js/usecases/openTodayNote.js": [
         "createOpenTodayNote"
+      ],
+      "frontend/js/workspaceChromeState.js": [
+        "initWorkspaceChromeState"
       ]
     }
   },
@@ -952,7 +959,9 @@
       "internal/desktop/app_vault_mutations.go",
       "frontend/js/core/fileTreeModel.js",
       "frontend/js/recentlyDeleted.js",
-      "frontend/js/statusBar.js"
+      "frontend/js/statusBar.js",
+      "frontend/js/core/vaultChangeScopeModel.js",
+      "internal/desktop/vault_watcher.go"
     ],
     "docs": [
       "docs/PROMPT.md#3-file-operations",
@@ -960,7 +969,8 @@
       "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
       "ARCHITECTURE.md#note-opening-and-recovery-ownership",
       "docs/GETTING_STARTED.md#save-history-and-recovery",
-      "docs/NOTES_AND_PLANNING.md#organize-the-file-tree"
+      "docs/NOTES_AND_PLANNING.md#organize-the-file-tree",
+      "docs/testing/workspace.md#slow-disk-workspace-io-regressions"
     ],
     "tests": [
       "tests/frontend/unit/fileTree.test.js",
@@ -968,7 +978,9 @@
       "tests/frontend/unit/fileTreeRefresh.test.js",
       "tests/frontend/unit/fileTreeModel.test.js",
       "tests/frontend/unit/recentlyDeleted.test.js",
-      "tests/frontend/unit/statusBar.test.js"
+      "tests/frontend/unit/statusBar.test.js",
+      "tests/frontend/unit/vaultChangeScopeModel.test.js",
+      "tests/frontend/unit/gitStatus.test.js"
     ],
     "extraChecks": [
       "Run go test ./internal/desktop for backend changes, retaining real os.Root containment, collision, rollback, and CSS rename coverage. For Windows rename hangs, capture the packaged app's last progress stage and storage location; Linux checks do not establish native Windows completion. Include slow_history_test.go for save/path-lock ordering."
@@ -981,6 +993,12 @@
       "frontend/js/recentlyDeleted.js": [
         "restoreRecentlyDeletedItem",
         "initRecentlyDeletedSettings"
+      ],
+      "frontend/js/core/vaultChangeScopeModel.js": [
+        "vaultChangeScope",
+        "mergeVaultChangeScopes",
+        "vaultChangeTouchesRenderedAssets",
+        "vaultChangeTouchesPath"
       ]
     }
   },
@@ -999,7 +1017,9 @@
       "frontend/js/core/workspaceCursorModel.js",
       "frontend/js/session.js",
       "frontend/js/usecases/tabContent.js",
-      "frontend/js/core/tabNavigationModel.js"
+      "frontend/js/core/tabNavigationModel.js",
+      "internal/desktop/app_session.go",
+      "frontend/js/usecases/editorSaveProtection.js"
     ],
     "docs": [
       "docs/PROMPT.md#2-tab-system",
@@ -1011,7 +1031,9 @@
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
       "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements",
       "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
-      "ARCHITECTURE.md#note-opening-and-recovery-ownership"
+      "ARCHITECTURE.md#note-opening-and-recovery-ownership",
+      "docs/testing/workspace.md#slow-disk-workspace-io-regressions",
+      "ARCHITECTURE.md#machine-local-application-state"
     ],
     "tests": [
       "tests/frontend/unit/tabManager.test.js",
@@ -1022,10 +1044,12 @@
       "tests/frontend/unit/sessionPersistence.test.js",
       "tests/frontend/unit/workspaceTabChanges.test.js",
       "tests/frontend/unit/workspaceCursorModel.test.js",
-      "tests/frontend/unit/workspaceTabModel.test.js"
+      "tests/frontend/unit/workspaceTabModel.test.js",
+      "tests/frontend/unit/session.test.js",
+      "tests/frontend/unit/editorSaveProtection.test.js"
     ],
     "extraChecks": [
-      "Add the affected session/undo tests; focus or tab geometry changes need the existing tab/browser boundary."
+      "Add the affected session/undo tests; focus or tab geometry changes need the existing tab/browser boundary. Session record changes also need go test ./internal/desktop -run Session."
     ],
     "symbols": {
       "frontend/js/core/sessionModel.js": [
@@ -1055,6 +1079,10 @@
       "frontend/js/core/tabNavigationModel.js": [
         "fileTabNeedsActivationRead",
         "tabCloseNavigationPlan"
+      ],
+      "frontend/js/session.js": [
+        "flushSessionWithin",
+        "installSessionFlush"
       ]
     }
   },
@@ -1234,23 +1262,29 @@
       "frontend/js/calendar.js",
       "internal/taskschedule/model.go",
       "frontend/js/core/kanbanBufferModel.js",
-      "frontend/js/usecases/tabContent.js"
+      "frontend/js/usecases/tabContent.js",
+      "frontend/js/core/kanbanColumnRetentionModel.js",
+      "internal/desktop/app_kanban.go",
+      "internal/desktop/app_preferences.go"
     ],
     "docs": [
       "docs/PROMPT.md#6-kanban-board",
       "docs/NOTES_AND_PLANNING.md",
       "docs/testing/workspace.md#kanban-due-date-regressions",
-      "docs/testing/workspace.md#kanban-paint-continuity-regressions"
+      "docs/testing/workspace.md#kanban-paint-continuity-regressions",
+      "docs/testing/workspace.md#kanban-emptied-columns-and-colors",
+      "docs/NOTES_AND_PLANNING.md#put-tasks-on-a-board"
     ],
     "tests": [
       "tests/frontend/unit/kanban.test.js",
       "tests/frontend/unit/calendarModel.test.js",
       "tests/frontend/unit/calendarTimelineModel.test.js",
       "tests/frontend/unit/kanbanBufferModel.test.js",
-      "tests/frontend/unit/calendarCache.test.js"
+      "tests/frontend/unit/calendarCache.test.js",
+      "tests/frontend/unit/kanbanColumnRetentionModel.test.js"
     ],
     "extraChecks": [
-      "Run go test ./internal/taskschedule for task policy; use existing Kanban/calendar browser scenarios only for geometry and native events."
+      "Run go test ./internal/taskschedule for task policy; use existing Kanban/calendar browser scenarios only for geometry and native events. Column and color persistence need go test ./internal/desktop -run Kanban."
     ],
     "symbols": {
       "frontend/js/core/kanbanBufferModel.js": [
@@ -1263,6 +1297,10 @@
       ],
       "frontend/js/usecases/tabContent.js": [
         "readTabContent"
+      ],
+      "frontend/js/core/kanbanColumnRetentionModel.js": [
+        "droppedKanbanColumns",
+        "kanbanColumnsWithRetained"
       ]
     }
   },
@@ -1296,7 +1334,9 @@
     "sources": [
       "frontend/js/pdfPreview.js",
       "frontend/pdf/preview-frame.html",
-      "internal/desktop/pdf_export.go"
+      "internal/desktop/pdf_export.go",
+      "frontend/js/printMarkdownRenderer.js",
+      "frontend/js/frontmatterPlugin.js"
     ],
     "docs": [
       "docs/PDF_STYLING.md",
@@ -1308,10 +1348,11 @@
     "tests": [
       "tests/frontend/unit/pdfPreview.test.js",
       "tests/frontend/unit/pdfPreviewFrame.test.js",
-      "tests/frontend/unit/pdfPreviewImageModel.test.js"
+      "tests/frontend/unit/pdfPreviewImageModel.test.js",
+      "tests/frontend/unit/frontmatter.test.js"
     ],
     "extraChecks": [
-      "Run go test ./internal/pdfexport for export adapters; preserve consolidated preview/export browser coverage when rendering or frame wiring changes."
+      "Run go test ./internal/pdfexport for export adapters; preserve consolidated preview/export browser coverage when rendering or frame wiring changes. Stylesheet status needs go test ./internal/desktop -run \"StarterVersion|PrintStylesheet\"; printable renderer changes need npm run vendor:markdown before Jest."
     ]
   },
   {

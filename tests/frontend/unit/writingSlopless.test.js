@@ -171,3 +171,12 @@ test('Formulaic coalescing keeps stable identities when package observation orde
     const reversed = resolveWritingFindings({ source, ...data, observations: [...data.observations].reverse(), preferences: { lenses: ['formulaic'], language: 'en-US' } });
     expect(reversed.groups.flatMap(g => g.findings).map(f => [f.id, f.title, f.message])).toEqual(findings.map(f => [f.id, f.title, f.message]));
 });
+
+test('one emphatic run gets one Formulaic finding; separate exclamations keep density advice', async () => {
+    const single = (await review('I would argue that this works!!')).findings;
+    expect(single.filter(f => f.kind === 'formulaic.exclamation-density')).toEqual([]);
+    const spread = (await review('The draft is ready! We finished early!')).findings;
+    expect(spread.some(f => f.kind === 'formulaic.exclamation-density')).toBe(true);
+    const mixed = (await review('Wow!!! Great!')).findings;
+    expect(mixed.some(f => f.kind === 'formulaic.exclamation-density')).toBe(true);
+});

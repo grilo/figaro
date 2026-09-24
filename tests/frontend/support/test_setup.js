@@ -103,6 +103,7 @@ export function createNativeAppMock() {
         CreateDirectory: jest.fn().mockResolvedValue({ success: true }),
         DeletePath: jest.fn().mockResolvedValue({ success: true }),
         GetRecentlyDeleted: jest.fn().mockResolvedValue([]),
+        GetPrintStylesheetStatus: jest.fn().mockResolvedValue({ exists: true, version: 0, currentVersion: 3, upToDate: false }),
         RestoreRecentlyDeleted: jest.fn().mockResolvedValue({ success: true }),
         RenamePath: jest.fn().mockResolvedValue({ success: true }),
         PreviewRenamePath: jest.fn().mockResolvedValue({ success: true, updated_links: [] }),

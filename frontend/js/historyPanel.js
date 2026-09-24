@@ -1,4 +1,5 @@
 import { readTabContent } from './usecases/tabContent.js';
+import { vaultChangeTouchesPath } from './core/vaultChangeScopeModel.js';
 import { backend } from './backend.js';
 /**
  * History Panel — right sidebar showing git file history
@@ -98,7 +99,10 @@ export function initHistoryPanel() {
     document.addEventListener('vault-file-saved', (event) => {
         if (event.detail?.path === gitStatusPath) updateGitStatus(gitStatusPath);
     });
-    document.addEventListener('vault-filesystem-changed', () => updateGitStatus(gitStatusPath));
+    // Only a change to this note can change its uncommitted-changes status.
+    document.addEventListener('vault-filesystem-changed', event => {
+        if (vaultChangeTouchesPath(event.detail?.paths, gitStatusPath)) updateGitStatus(gitStatusPath);
+    });
     document.addEventListener('vault-history-changed', () => {
         updateGitStatus(gitStatusPath);
         if (currentFilePath) updateHistoryCount(currentFilePath);

@@ -7,7 +7,7 @@ import { readabilityOptions, writingEditorialPolicyVersion } from './writingPack
 import { writingTerminology, writingTextlintVersions, writingAcronymDefined, familiarWritingAcronyms } from './writingTextlintModel.js';
 import { writingSloplessVersion, writingSloplessRules, writingSloplessKinds, writingSloplessConcepts } from './writingSloplessModel.js';
 import { spellingVocabularyVersion } from './spellingVocabulary.js';
-import { writingAdvisoryContext } from './writingContextModel.js';
+import { writingAdvisoryContext, writingSingleExclamationRun } from './writingContextModel.js';
 
 export const writingMappingVersion = '25';
 export const writingEngineConfiguration = Object.freeze({ mapping: writingMappingVersion, grammar: writingGrammarVersion, spellingVocabulary: spellingVocabularyVersion, vale: '3.20.0',
@@ -196,7 +196,8 @@ function normalizeObservation(raw, source, projection, spelling) {
     if (kind === 'clarity.undefined-acronym' && !spelling.acronyms.has(actual)) spelling.acronyms.set(actual, writingAcronymDefined(actual, projection));
     const suppressed = kind === 'clarity.undefined-acronym' && (familiarWritingAcronyms.includes(actual) || projection.ordinaryCapitals?.includes(actual)) ? 'Familiar acronym or ordinary word'
         : kind === 'clarity.undefined-acronym' && spelling.acronyms.get(actual) ? 'Acronym defined in prose'
-            : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context' : '';
+            : kind === 'formulaic.exclamation-density' && writingSingleExclamationRun(raw, projection) ? 'Covered by emphatic punctuation advice'
+                : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context' : '';
     const phraseNeedsReview = ['style.wordiness', 'lexicon.complex-word'].includes(kind) && !reviewed.has(clean(actual));
     const fixes = referenceLabel || raw.package === 'slopless' || phraseNeedsReview ? [] : kind === 'style.quotation' ? quotationFix(raw, range, source, projection)
         : !suppressed && range.editable && !advisoryOnly.has(kind) && !kind.startsWith('formulaic.')

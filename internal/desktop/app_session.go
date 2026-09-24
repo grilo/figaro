@@ -2,6 +2,8 @@ package desktop
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,11 +12,78 @@ import (
 	"strings"
 )
 
+const legacySessionPath = ".config/session.json"
+
+// configureSessionStateRoot places session records in the machine-local
+// application-data root. Without one (tests, unavailable home directory),
+// sessions stay in the legacy vault record.
+func (a *App) configureSessionStateRoot(root string) {
+	a.sessionMu.Lock()
+	defer a.sessionMu.Unlock()
+	a.sessionStateRoot = root
+}
+
+// sessionRecordPath keys each vault's session by its resolved path. Open tabs,
+// cursors and tree state describe this computer's workspace, so they are not
+// written into a vault that may be synchronized to other machines.
+func sessionRecordPath(stateRoot, vaultPath string) string {
+	if stateRoot == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(filepath.Clean(vaultPath)))
+	return filepath.Join(stateRoot, "figaro", "sessions", hex.EncodeToString(sum[:16])+".json")
+}
+
+// readSessionRecord prefers the machine-local record and falls back once to
+// the legacy vault record, so upgrading keeps the previous workspace.
+func (a *App) readSessionRecord() ([]byte, error) {
+	path := sessionRecordPath(a.sessionStateRoot, a.vaultPath)
+	if path == "" {
+		return a.readVaultFile(legacySessionPath)
+	}
+	data, err := os.ReadFile(path) // #nosec G304 -- derived from the application-data root and a hash.
+	if os.IsNotExist(err) {
+		return a.readVaultFile(legacySessionPath)
+	}
+	return data, err
+}
+
+// writeMachineStateFile replaces a machine-local record through a temporary
+// file and rename. It deliberately skips fsync: a session is recoverable
+// workspace state, and a missing or truncated record falls back to defaults.
+func writeMachineStateFile(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("create session directory: %w", err)
+	}
+	temporary, err := os.CreateTemp(dir, ".session-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create session record: %w", err)
+	}
+	name := temporary.Name()
+	_, writeErr := temporary.Write(data)
+	closeErr := temporary.Close()
+	if writeErr == nil {
+		writeErr = closeErr
+	}
+	if writeErr == nil {
+		writeErr = os.Chmod(name, 0600)
+	}
+	if writeErr == nil {
+		writeErr = os.Rename(name, path)
+	}
+	if writeErr != nil {
+		_ = os.Remove(name)
+		return fmt.Errorf("write session record: %w", writeErr)
+	}
+	return nil
+}
+
 // ============================================================================
 // 6. Session Persistence
 // ============================================================================
 
-// SaveSession saves session state to vault/.config/session.json.
+// SaveSession saves session state to the machine-local session record.
 func (a *App) SaveSession(data map[string]interface{}) (*SaveFileResult, error) {
 	a.sessionMu.Lock()
 	defer a.sessionMu.Unlock()
@@ -30,17 +99,21 @@ func (a *App) writeSessionData(data map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	return a.writeVaultFileAtomic(".config/session.json", jsonData, 0600)
+	if path := sessionRecordPath(a.sessionStateRoot, a.vaultPath); path != "" {
+		return writeMachineStateFile(path, jsonData)
+	}
+	return a.writeVaultFileAtomic(legacySessionPath, jsonData, 0600)
 }
 
-// LoadSession loads session state from vault/.config/session.json. It repairs
+// LoadSession loads the machine-local session record, or the legacy vault
+// record when this machine has none yet. It repairs
 // malformed or stale records as it reads them so an old tab cannot leave the
 // client trying to restore a file that no longer exists.
 func (a *App) LoadSession() (map[string]interface{}, error) {
 	a.sessionMu.Lock()
 	defer a.sessionMu.Unlock()
 
-	data, err := a.readVaultFile(".config/session.json")
+	data, err := a.readSessionRecord()
 	if os.IsNotExist(err) {
 		defaults := map[string]interface{}{}
 		if err := a.writeSessionData(defaults); err != nil {

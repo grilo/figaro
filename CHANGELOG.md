@@ -22,6 +22,17 @@ remain as originally published.
 - Formulaic writing now covers quotation, apostrophe, em-dash, and emphatic
   punctuation style, with one suggestion per mark; quote fixes change only the
   marks. Earlier Ignore choices still apply.
+- Holding an arrow key scrolls smoothly on slower machines: each keypress no
+  longer restyles the whole window, cutting style work by about 90%.
+- Moving the cursor no longer writes to disk, so keyboard scrolling stays
+  smooth on slow or cloud-synced drives. Open tabs and cursor positions are
+  saved when you switch tabs, leave the window, or quit, in local app data
+  instead of the vault; your previous workspace is carried over.
+- Changes from sync tools that don't touch images no longer reload image
+  previews, and a note's history status is re-read only when that note changes.
+- The PDF preview and editor scroll together more precisely: tables, diagrams,
+  and math move through their full height, positions between blocks no longer
+  jump, and only the pane you scroll moves the other.
 
 ### Fixed
 
@@ -41,6 +52,13 @@ remain as originally published.
   product name like GraphQL no longer marks the new word as a spelling error.
 - Clarity no longer suggests simpler wording for the words that define an
   acronym, such as “service level objective (SLO).”
+- A Kanban column emptied by moving or completing its last card stays on the
+  board until you leave it, instead of disappearing immediately.
+- Kanban column colors are kept when a column empties or Figaro restarts, so
+  reusing a hashtag such as #urgent brings back its color.
+- **Upgrade copy** in Properties is disabled when the selected PDF stylesheet
+  already uses the current starter, instead of duplicating its rules.
+- The PDF preview keeps its place after an edit re-renders it.
 
 - Editor verification no longer fails intermittently when parsing or cursor
   persistence runs at different speeds on CI.
