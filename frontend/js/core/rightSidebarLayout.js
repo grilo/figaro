@@ -1,5 +1,5 @@
-export const RIGHT_SIDEBAR_MINIMUM = 240;
-export const PDF_EDITOR_MINIMUM = 320;
+export const RIGHT_SIDEBAR_MINIMUM = 220;
+export const RIGHT_SIDEBAR_EDITOR_MINIMUM = 400;
 export const PDF_COMPACT_EDITOR_THRESHOLD = 560;
 export const OVERLAY_EDITOR_VISIBLE_MINIMUM = 180;
 
@@ -11,7 +11,7 @@ export function rightSidebarPresentation({
     const minimum = RIGHT_SIDEBAR_MINIMUM;
     const fallback = 320;
     const preferred = Math.max(minimum, Number(preferredWidth) || fallback);
-    const canDock = available >= minimum + PDF_EDITOR_MINIMUM;
+    const canDock = available >= minimum + RIGHT_SIDEBAR_EDITOR_MINIMUM;
 
     if (!canDock) {
         const overlayMaximum = Math.max(minimum, available - OVERLAY_EDITOR_VISIBLE_MINIMUM);
@@ -22,7 +22,7 @@ export function rightSidebarPresentation({
         };
     }
 
-    const width = Math.min(preferred, available - PDF_EDITOR_MINIMUM);
+    const width = Math.min(preferred, available - RIGHT_SIDEBAR_EDITOR_MINIMUM);
     return {
         overlay: false,
         width,
@@ -38,7 +38,7 @@ export function rightSidebarBounds({ workspaceWidth, overlay = false } = {}) {
         minimum,
         maximum: overlay
             ? Math.min(available, Math.max(minimum, available - OVERLAY_EDITOR_VISIBLE_MINIMUM))
-            : Math.max(minimum, available - PDF_EDITOR_MINIMUM),
+            : Math.max(minimum, available - RIGHT_SIDEBAR_EDITOR_MINIMUM),
     };
 }
 

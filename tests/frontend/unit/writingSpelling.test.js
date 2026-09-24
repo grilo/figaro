@@ -5,6 +5,9 @@ import { resolveWritingFindings } from '../../../frontend/js/core/writingAnalysi
 import { createWritingResultsView } from '../../../frontend/js/views/writingResultsView.js';
 import { spellingPossessive } from '../../../frontend/js/core/spellingModel.js';
 import { acceptedSpelling } from '../../../frontend/js/core/spellingDictionaryModel.js';
+import { inclusiveAlternatives } from '../../../frontend/js/core/writingPackagePolicy.js';
+import { termGroups, capitalizationGroups } from '../../../frontend/js/core/writingAdditionalRules.js';
+import { writingTerminology } from '../../../frontend/js/core/writingTextlintModel.js';
 
 const dictionary = language => nspell({
     aff: fs.readFileSync(`frontend/vendored/spellcheck/${language}.aff`, 'utf8'),
@@ -160,4 +163,14 @@ test('warm spelling reuses word checks across edits, remaps occurrences and sepa
     expect(checker.correct).toHaveBeenCalledWith('teh');
     expect(await writingSpellingObservations('`teh`', 'en-US', getChecker, { suggestions })).toEqual([]);
     await expect(writingSpellingObservations('teh', 'en-US', getChecker, { suggestions, checkpoint: async () => { throw new Error('cancelled'); } })).rejects.toThrow('cancelled');
+});
+
+test.each(['en-US', 'en-GB'])('%s spelling accepts every replacement a writing lens offers', async language => {
+    const offered = [...[...inclusiveAlternatives.values()].flat(), ...termGroups.flat(), ...capitalizationGroups.flat(), ...writingTerminology];
+    const source = offered.map(word => `Use ${word} here.`).join('\n\n');
+    const observations = await writingSpellingObservations(source, language, async () => dictionary(language));
+    expect(observations.map(item => item.actual)).toEqual([]);
+    // Recognition is exact for product names: a miscased brand is still reviewed.
+    const miscased = await writingSpellingObservations('Graphql and allowlist', language, async () => dictionary(language));
+    expect(miscased.map(item => item.actual)).toEqual(['Graphql']);
 });

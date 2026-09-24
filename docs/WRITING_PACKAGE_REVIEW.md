@@ -9,6 +9,10 @@ separate. Check-family names in this dated review still identify the unchanged
 provider rules and their internal memberships. No provider rule was removed.
 The subsequent [corpus correction pass](WRITING_CORPUS_FIXES.md) adds contextual
 guards and stricter spelling replacement safety while retaining this inventory.
+A later lens-ownership pass gives each concern one lens: reader-assumption tone
+words move from Inclusive language to Directness, quotation/apostrophe style and
+emphatic punctuation move to Formulaic writing, and the duplicate Slopless
+`smart-quotes` rule is excluded because `retext-quotes` reports the same marks.
 
 ## Changes
 
@@ -38,7 +42,7 @@ Current mapping version **24**, editorial policy **8**, spelling vocabulary **4*
 | retext-indefinite-article 5.0.0 | Retain reviewed pronunciation corrections and the explicit uncertain-pronunciation guard. Dialect-sensitive “herb”, “historic”, and ambiguous initialisms need pronunciation information the engine lacks. |
 | retext-contractions 6.0.0 | Retain contraction checks. Curly-to-straight typography-only changes are routed to the typography lenses; preserve the author’s apostrophe convention for actual contraction repairs. |
 | retext-redundant-acronyms 5.0.0 | All native checks retained; proselint adds coverage within the same Plain-language lens. |
-| retext-quotes 6.0.2 | All supported native quotation/apostrophe checks retained; choose the prevailing convention, with first occurrence breaking a tie. This is a consistency policy, not a mandatory straight/curly style. |
+| retext-quotes 6.0.2 | All supported native quotation/apostrophe checks retained under Formulaic writing; choose the prevailing convention, with first occurrence breaking a tie. This is a consistency policy, not a mandatory straight/curly style. It replaces the duplicate Slopless smart-quotes rule. |
 | retext-equality 7.1.0 | Review the pinned 425-pattern inventory. Expand contextual occupational/expression/accessibility advice by 43 IDs. Retain explicit allowlists for Apply and advisory eligibility: unrelated personal titles, relationships, neutral identity labels, diagnoses, and uncertain regional/cultural substitutions need context the checker cannot establish. The lens does not infer pronouns or erase self-description. |
 | retext-sentence-spacing 6.0.0 | Same-line extra sentence spaces remain eligible. Preserve authored line breaks, masked quotations, and gaps across regions; these exclusions protect source structure. |
 | retext-diacritics 5.0.0 | All native matches retained. Accented names and borrowed words remain optional; source mappings and quotation protection gate edits. |

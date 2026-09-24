@@ -85,3 +85,18 @@ func TestMarkdownLinkTargetsMatchesMoveRewriteSyntax(t *testing.T) {
 		t.Fatalf("MarkdownLinkTargets = %#v, want %#v", got, want)
 	}
 }
+
+func TestMarkdownLinkOccurrencesPreserveAliasFragmentContext(t *testing.T) {
+	source := "Before\n[[notes/Target Note#Details|Label]]\n[Other label](<./Target Note.md#Details>)\n```md\n[[Ignored]]\n```\n[Web](https://example.com/Target.md)"
+	got := MarkdownLinkOccurrences(source, "notes/source.md")
+	want := []MarkdownLinkOccurrence{
+		{Target: "notes/Target Note.md", Line: 2, Source: "[[notes/Target Note#Details|Label]]"},
+		{Target: "notes/Target Note.md", Line: 3, Source: "[Other label](<./Target Note.md#Details>)"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("occurrences = %#v, want %#v", got, want)
+	}
+	if targets := MarkdownLinkTargets(source, "notes/source.md"); !reflect.DeepEqual(targets, []string{"notes/Target Note.md"}) {
+		t.Fatalf("deduplicated targets = %#v", targets)
+	}
+}

@@ -29,6 +29,26 @@ describe('conventional Markdown inline formatting', () => {
         expect([plan.anchor, plan.head]).toEqual([7, 11]);
     });
 
+    test.each([
+        ['bold', 'First **paragraph**: next'],
+        ['italic', 'First *paragraph*: next'],
+        ['strikethrough', 'First ~~paragraph~~: next'],
+    ])('keeps selected leading whitespace outside %s markers', (format, expected) => {
+        const plan = apply('First paragraph: next', 5, 15, format);
+        expect(plan.result).toBe(expected);
+        expect(plan.result.slice(plan.anchor, plan.head)).toBe('paragraph');
+    });
+
+    test('preserves both whitespace boundaries when applying and removing emphasis', () => {
+        const plan = apply('\t word \n', 0, 8, 'bold');
+        expect(plan.result).toBe('\t **word** \n');
+        expect(apply(plan.result, 0, plan.result.length, 'bold').result).toBe('\t word \n');
+    });
+
+    test('does not insert invalid emphasis around a whitespace-only selection', () => {
+        expect(markdownInlineFormatPlan({ source: ' \t\n', from: 0, to: 3, format: 'bold' })).toBeNull();
+    });
+
     test('uses enough backticks to preserve inline code containing a backtick', () => {
         expect(apply('a`b', 0, 3, 'code').result).toBe('``a`b``');
     });

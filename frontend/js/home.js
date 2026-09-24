@@ -13,6 +13,7 @@ import { dueDatePresentation, localISODate, sortTasksByDue } from './core/dueDat
 export const homeTaskLimit = 6;
 export const homeCollectionLimit = 5;
 let openWorkspaceTab = null;
+let openingToday = null;
 
 export function configureHomeWorkspace({ openTab } = {}) {
     if (typeof openTab !== 'function') throw new TypeError('Home openTab port is required');
@@ -306,15 +307,6 @@ async function openToday(panel, button) {
     notice?.classList.remove('error');
     if (notice) notice.textContent = '';
 
-    const openTodayNote = createOpenTodayNote({
-        getTodayPath: () => backend().GetTodayLink(),
-        getTree: () => getState('fileTreeData') || [],
-        ensureDirectory: path => backend().CreateDirectory(path),
-        createFile: (path, content) => backend().CreateFile(path, content),
-        afterCreate: path => document.dispatchEvent(new CustomEvent('vault-tree-refresh-requested', { detail: { path } })),
-        openFile: ({ path, mtime }) => openFile(path, path.split('/').pop(), undefined, mtime),
-    });
-
     try {
         await openTodayNote();
     } catch (error) {
@@ -330,6 +322,22 @@ async function openToday(panel, button) {
             button.focus();
         }
     }
+}
+
+/** Share daily-note creation and single-flight ownership across Home and shortcuts. */
+export function openTodayNote() {
+    if (openingToday) return openingToday;
+    const open = createOpenTodayNote({
+        getTodayPath: () => backend().GetTodayLink(),
+        getTree: () => getState('fileTreeData') || [],
+        ensureDirectory: path => backend().CreateDirectory(path),
+        createFile: (path, content) => backend().CreateFile(path, content),
+        afterCreate: path => document.dispatchEvent(new CustomEvent('vault-tree-refresh-requested', { detail: { path } })),
+        openFile: ({ path, mtime }) => openFile(path, path.split('/').pop(), undefined, mtime),
+    });
+
+    openingToday = open().finally(() => { openingToday = null; });
+    return openingToday;
 }
 
 function revealDirectory(path) {

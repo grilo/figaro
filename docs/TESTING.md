@@ -1009,3 +1009,10 @@ The native editorial profile (`node scripts/profile-writing.mjs`) is required by
 main CI, tag CI, and local release verification. It combines actual JavaScript
 and Go grammar observations, covering cross-engine duplicates that JavaScript-only
 fixtures cannot detect. See [writing regressions](testing/writing.md#writing-review-regression-coverage).
+
+
+The UX recovery regressions are described in
+[the workspace contract](testing/workspace.md#note-loading-search-and-recovery-regressions)
+and [the editor contract](testing/editor.md#ux-recovery-and-narrow-writing-regressions).
+They combine lower-layer failure sequencing with the existing keyboard-focus and
+computed-layout browser boundaries, plus packaged native verification.

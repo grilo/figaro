@@ -1349,8 +1349,9 @@ preserve quotes, possessives and numeric compounds. `core/spellingVocabulary.js`
 contains recognition-only English terms. The dictionary adapter marks reviewed
 corrections explicitly; the pure bulk planner requires this flag for spelling.
 `core/writingContextModel.js` bounds phrase context to nearby prose in the same
-block, guarding technical noun senses, familiar vocabulary, meaningful modifiers
-and reader-assumption advice. Technical passive guards use nearby subject and
+block, guarding technical noun senses, familiar vocabulary, meaningful modifiers,
+acronym-definition wording and Directness reader-assumption advice (instructions
+or reader-addressed sentences only). Technical passive guards use nearby subject and
 predicate evidence; descriptive guards use bounded time, location, physical
 state and possessive-gerund cues. Passive context reads at most 256 projected
 characters on each side and does not cross sentence/block boundaries. Explicit
@@ -1358,9 +1359,12 @@ actors remain reviewable, including after time/location phrases. Pure existentia
 guards preserve reviewed quantity/location and availability wording within a
 160-character context; they retain weak introductions and never read hidden text.
 These decisions suppress only their editorial concern, preserving overlapping
-grammar corrections. The resolver computes the existing pure typography convention once
-when curly observations occur; raw paragraph caches remain unchanged and every
-resolution uses the current whole-note convention. Acronym
+grammar corrections. Quote-style review uses the pure typography convention in the
+worker; raw paragraph caches remain unchanged and every resolution uses the
+current whole-note convention. The resolver maps each rule to a kind and lens;
+moved kinds keep a `legacyKind` so earlier Ignore decisions still match.
+`core/writingLensesModel.js` groups check IDs under distinct UI group IDs and
+counts visible findings per group for the pane badges. Acronym
 definitions are cached per acronym within one resolution, never in global state.
 Spelling scans forward/reverse acronym definitions once per visible block,
 reusing the pure initial-matching policy while enforcing spelling's own source
@@ -1387,7 +1391,7 @@ to meaningful adjacent words without crossing protected content or line breaks.
 The same pure policy restricts equality advice to reviewed generic expressions
 and handles reviewed/uncertain article pronunciations; exact source mapping is
 separate from editorial suitability.
-Mapping version 24 includes curated grammar policy 8, package pins, reviewed terms/acronym exceptions, editorial policy version 8, spelling vocabulary version 4, and formula options in snapshot
+Mapping version 25 includes curated grammar policy 8, package pins, reviewed terms/acronym exceptions, editorial policy version 9, spelling vocabulary version 5, and formula options in snapshot
 identity. The resolver keeps formula and length advice distinct, merging only equivalent
 concerns and retaining every contributing lens and native source. A pure comma-spacing
 comparison trims unchanged context from the two reviewed rules’ safe edits. Only
@@ -1455,12 +1459,11 @@ prose without opening marks or reviewed names skips punctuation/terminology exec
 the dependencies remain eager. Build adapters disable terminology's optional
 Node file loaders with explicit errors; browser `assert`/`process` dependencies
 support the real kernel. No runtime filesystem or dynamic import is introduced.
-`writingSloplessRuntime.js` statically imports 30 public Slopless 0.2.38 rule modules
+`writingSloplessRuntime.js` statically imports 29 public Slopless 0.2.38 rule modules
 into this worker. Its CLI is not bundled. `core/writingSloplessModel.js` owns
-selection, neutral messages/examples, native-range validation, curly-mark splitting
-and first-occurrence anchors for each verified repeated word. Smart-quotes uses the typography projection and the resolver retains only
-curly outliers against the authored straight convention;
-other rules use protected prose. Snapshot configuration includes the exact rule map.
+selection, neutral messages/examples, native-range validation
+and first-occurrence anchors for each verified repeated word. All selected rules
+use protected prose; quote style comes from `retext-quotes` instead. Snapshot configuration includes the exact rule map.
 The new Formulaic writing lens only filters the resulting advisory findings.
 See [the complete rule inventory](docs/WRITING_SLOPLESS.md).
 Six checksum-pinned Microsoft rules join seven write-good and fourteen proselint
@@ -2122,7 +2125,7 @@ folded source.
 blocks, maps a heading through its descendants until the next peer or ancestor,
 maps fenced code and tables to their own block, and dispatches standard fold
 effects. CodeMirror owns the folded decoration and announcements; saves, Raw
-Text Preview, and PDF rendering never observe fold state. The editor-sized
+Text Preview, and PDF rendering never observe fold state. The compact
 typed guide and source-code chevron are approved design-system primitives,
 while the gutter retains only CodeMirror layout and event ownership. Ordinary
 line markers cover revealed source, and CodeMirror's widget-marker hook keeps
@@ -2865,7 +2868,7 @@ and table actions share the helper stack; a constrained writing margin gains
 stable left padding instead of an overlapping or clipped action row.
 The left-side layout hook positions both entries in each control stack
 toward the writing surface without redefining the shared button primitive. It
-uses the primitive's editor-sized monospace typography, shares CodeMirror's
+uses the primitive's monospace typography capped at 12px, shares CodeMirror's
 row offsets without extra vertical padding, and translates the helper rail just
 outside the writing edge. Editor width stays unchanged; the writing column is measured
 with its reserved helper lane before pointer interaction.
@@ -2909,13 +2912,13 @@ parent waits 80 ms for resize events to settle, resumes the bridge, and sends
 one authoritative editor-to-preview position. Any queued frame scroll report
 is cancelled when the pause message arrives.
 
-Every docked right-pane mode shares a 240 px minimum width and no arbitrary maximum. While
-space is available, the splitter preserves a 320 px editor floor. If the
+Every docked right-pane mode shares a 220 px minimum width and no arbitrary maximum. While
+space is available, the splitter preserves a 400 px editor floor. If the
 workspace cannot fit both minima, the pure presentation plan moves that same
 pane into bounded trailing-overlay placement; CodeMirror retains its full
 layout width, a normal compact window exposes at least 180 px of it, and the
 launcher rail moves into that exposed strip so the pane remains reversible.
-When the remaining docked editor becomes narrower than 560 px, CodeMirror's
+When PDF Preview leaves the docked editor narrower than 560 px, CodeMirror's
 horizontal content padding contracts from 24 px to 12 px; it returns to the
 normal padding when space is restored. Pointer capture keeps the gesture alive
 outside the narrow splitter, and sidebar transitions are disabled only for the
@@ -3227,3 +3230,29 @@ regardless of stored preference. Browser wheel events do not reliably identify
 the device: the conservative gate accepts line/page steps or integral vertical
 pixel deltas of at least 50, and passes fine/fractional/horizontal input through.
 No global scroll style or document source is changed.
+
+
+## Note opening and recovery ownership
+
+Home and the global daily-note shortcut call the same single-flight
+`openTodayNote` action over the injected `createOpenTodayNote` ports. Ordinary
+clean tabs without prepared snapshots use `fileTabNeedsActivationRead` and the
+tab activation generation guard to validate reads before changing ownership.
+Missing/rejected reads preserve the previous document and save target. Linked
+navigation routes read errors through its injected error port.
+
+Global search tracks pending activation independently of rendered filter rows;
+changing the query invalidates old row actions before debounce. The use case
+clears current results on failure and the view offers the approved danger notice
+and Retry button. Dismissal invalidates outstanding work.
+
+Status actions own their visible lifetime and deletion record ID. Normal status
+messages cannot erase Undo; expiry checks action identity. Successful recovery
+emits `vault-recovery-changed`; mounted Settings subscribes to that and path
+deletion, with request-generation and disposal guards for list refreshes.
+
+`links.MarkdownLinkOccurrences` retains normalized destinations and source lines
+from the shared link parser. `indexedLinkProjection` derives sorted move-candidate
+targets and backlink records in one parse and reprojects path-dependent relative
+links when a file moves. Alias labels and heading fragments no longer limit
+backlink discovery. Existing vault-index publication owns save invalidation.

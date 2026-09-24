@@ -872,7 +872,7 @@ input.ui-stepper-value:invalid {
     outline: none;
     background: transparent;
     color: var(--text-dim);
-    font: 500 var(--font-size-editor)/1 var(--font-mono);
+    font: 500 min(var(--font-size-editor), 12px)/1 var(--font-mono);
     letter-spacing: .025em;
     text-transform: lowercase;
     opacity: 0;

@@ -4,6 +4,7 @@ jest.mock('../frontend/js/statusBar.js', () => ({
     statusBar: {
         set: jest.fn(),
         clearAfter: jest.fn(),
+        dismissAction: jest.fn(),
         beginDelayedActivity: jest.fn(() => jest.fn()),
     },
 }));
@@ -12,7 +13,7 @@ jest.mock('../frontend/js/dialogs.js', () => ({
     errorDialog: jest.fn().mockResolvedValue(undefined),
 }));
 
-import { initRecentlyDeletedSettings } from '../frontend/js/recentlyDeleted.js';
+import { initRecentlyDeletedSettings, restoreRecentlyDeletedItem } from '../frontend/js/recentlyDeleted.js';
 import { errorDialog } from '../frontend/js/dialogs.js';
 
 async function settle() {
@@ -81,5 +82,39 @@ describe('recently deleted settings', () => {
         );
         expect(button.disabled).toBe(false);
         expect(button.hasAttribute('aria-busy')).toBe(false);
+    });
+
+    test('refreshes an already-open list after deletion and a status-bar restoration', async () => {
+        const root = document.getElementById('recovery-settings-test');
+        const item = { id: 'delete-1', path: 'Draft.md', deleted_at: 100 };
+        window.go.desktop.App.GetRecentlyDeleted.mockResolvedValueOnce([]).mockResolvedValueOnce([item]).mockResolvedValueOnce([]);
+        window.go.desktop.App.RestoreRecentlyDeleted.mockResolvedValueOnce({ success: true, path: 'Draft.md' });
+        const dispose = await initRecentlyDeletedSettings(root);
+        document.dispatchEvent(new CustomEvent('vault-path-deleted', { detail: { path: 'Draft.md' } }));
+        await settle();
+        expect(root.querySelector('.recently-deleted-item').textContent).toContain('Draft.md');
+        await restoreRecentlyDeletedItem('delete-1', 'Draft.md');
+        await settle();
+        expect(root.querySelector('.recently-deleted-item')).toBeNull();
+        expect(root.querySelector('.recently-deleted-empty').textContent).toContain('No items');
+        dispose();
+        document.dispatchEvent(new CustomEvent('vault-path-deleted'));
+        expect(window.go.desktop.App.GetRecentlyDeleted).toHaveBeenCalledTimes(3);
+    });
+
+    test('a stale initial response cannot erase a deletion published during loading', async () => {
+        let resolveInitial;
+        const initial = new Promise(resolve => { resolveInitial = resolve; });
+        window.go.desktop.App.GetRecentlyDeleted.mockReturnValueOnce(initial).mockResolvedValueOnce([
+            { id: 'delete-2', path: 'Newly deleted.md', deleted_at: 200 },
+        ]);
+        const root = document.getElementById('recovery-settings-test');
+        const mounted = initRecentlyDeletedSettings(root);
+        document.dispatchEvent(new CustomEvent('vault-path-deleted'));
+        await settle();
+        resolveInitial([]);
+        const dispose = await mounted;
+        expect(root.querySelector('.recently-deleted-item').textContent).toContain('Newly deleted.md');
+        dispose();
     });
 });

@@ -102,7 +102,7 @@ a skill does not authorize running its product-changing workflow.
   startup check for post-ready module requests instead of adding an end-to-end
   startup case per feature.
 
-## Prepare the Git handoff, but never commit
+## Git handoff, commits, and pushes
 
 - Once requested work is complete and verified, write a concise, helpful
   proposed commit message to the path returned by
@@ -110,28 +110,25 @@ a skill does not authorize running its product-changing workflow.
   Git metadata directory. Keep the repository's
   `prepare-commit-msg` hook configured to copy that proposal into a new plain
   `git commit`; do not configure `commit.template`, because Git rejects an
-  otherwise valid commit when that template is saved without edits. The user
-  must be able to review the proposed message and finish with an unchanged
-  `:wq`.
+  otherwise valid commit when that template is saved without edits.
 - Before preparing every new change, review the existing proposal and rewrite
   it to match the complete pending work. Add newly completed features and
   remove or revise stale details from an earlier proposal, so the message is
   accurate even when several changes are prepared without an intervening
-  commit.
-- Never run `git commit` on the user's behalf except through the release skill
-  after the user approves the exact version and local commit/tag or publication
-  action. Natural-language release requests and `$prepare-figaro-release` have
-  the same authorization rules. Preparation verifies a provisional candidate
-  and recommends major/minor/patch versions for the user to choose; it does not
-  commit, tag, or publish. A version choice alone is not approval to finalize.
-  Finalization includes all current non-ignored repository changes. Publication
-  requires explicit approval for that version and action; reuse existing
-  approval while its scope remains unchanged.
+  commit. State only verification that was actually run for the pending work.
+- Commit or push only when the user asks. When asked to commit, refresh the
+  proposal, stage all current non-ignored changes, and create a normal commit
+  using the proposal as its message. When also asked to push, push the current
+  branch to its remote. Report the commit and the push result. Never force-push, amend or
+  rewrite pushed commits, skip hooks, or push a different branch or tag.
+- A release request follows the release skill below, which covers its own
+  commit, tag, push, and CI follow-through.
 
-## Release-preparation skill
+## Release skill
 
-- When asked to prepare or publish a Figaro release, read and follow
-  `.agents/skills/prepare-figaro-release/SKILL.md` in full. It owns the release
-  proposal, version recommendation, verification, and approval boundaries for
-  local commit/tag creation and publication. Complete the available preparation
-  before asking the user to choose a version and give the go-ahead.
+- When asked for a Figaro release, read and follow
+  `.agents/skills/prepare-figaro-release/SKILL.md` in full. Tell the user
+  whether the release is major, minor, or patch and why, then tag and publish
+  that version, watch the GitHub workflows until the release is finished, and
+  fix and retry any failure. A request only to prepare, check, or discuss a
+  release does not publish.

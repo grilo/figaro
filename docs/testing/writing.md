@@ -56,7 +56,7 @@ unknown-field preservation, and unchanged note text/private permissions. These a
 URLs, email, explicit paths, identifiers and common filenames. Real spelling
 cases cover all-caps errors, ordinary capitals, conservative name guesses, and
 composed/decomposed accents at exact source offsets. The runtime test proves the
-same technical policy reaches prose projection; mapping version 24 invalidates
+same technical policy reaches prose projection; mapping version 25 invalidates
 older evidence.
 Resolver tests reject protected or corrupt spelling ranges. They also protect
 implicit reference keys from other prose fixes. Test these eligibility and
@@ -163,11 +163,20 @@ rule matrix below the browser layer and reuse the assembled production startup
 check for eager dependencies. Harper's isolated evaluation and reproduction
 command are recorded in [WRITING_ENGINE.md](../WRITING_ENGINE.md#harper-evaluation).
 
-`writingSlopless.test.js` runs every one of the 30 selected real Slopless rules,
+`writingSlopless.test.js` runs every one of the 29 selected real Slopless rules,
 checks the complete 77-rule inclusion/exclusion inventory, protected Markdown,
-CRLF/Unicode/encoded offsets, individual curly outliers against the authored
-convention, stable merged evidence,
-examples, reversible serialized Ignore, and unchanged Consistency behavior.
+CRLF/Unicode/encoded offsets, one quote-style finding per mark under Formulaic
+writing with mark-only fixes, stable merged evidence,
+examples, reversible serialized Ignore, and no typography under Consistency.
+
+`writingQuality.test.js` runs every lens help example and every offered lens
+replacement through all lenses, with real US/UK dictionaries, and requires no
+new finding. It also covers acronym-definition wording and Ignore decisions
+saved under a check's former kind. `writingCorpusSafety.test.js` covers
+Directness reader-assumption scope: instructions and reader-addressed sentences
+are reviewed, descriptions and titles are not. `writingLensesModel.test.js` and
+`writingLensesView.test.js` cover distinct group IDs and per-lens counts whose
+number is described rather than added to the checkbox name.
 The analysis use-case checks independent Formulaic execution, debounce and stale
 results; component tests cover the independent Formulaic writing checkbox and existing styled actions.
 Rooted preference tests cover Formulaic choices across restart and Apply to all.
@@ -353,6 +362,11 @@ group persistence without startup writes. The pane/Pure integration confirms
 shared grouped choices and spelling activation while preserving document ownership.
 Existing browser selectors use Proofreading and Clarity; no new browser scenario
 or editor decoration/geometry change is introduced by consolidation. The subsequent approved disclosure is covered by the regressions below.
+Group IDs are distinct from check IDs, and legacy check-ID actions still toggle
+their group. Per-lens counts use the approved muted badge: the model counts each
+visible finding once, the view hides counts for unselected groups and when
+analysis is unavailable, and the pane integration verifies a real analysis
+count. The outline browser scenario selects groups by their stable names.
 
 ### Animated writing disclosure
 
@@ -387,6 +401,10 @@ round trips in a short viewport and asserts unchanged help bounds; this browser
 boundary catches the real scroll-metric feedback that jsdom cannot render.
 
 ### Writing corpus safety regressions
+
+`writingSpelling.test.js` requires every lens replacement (inclusive
+alternatives, consistent terms and capitalization, terminology) to pass the
+real US/UK dictionaries, and keeps miscased product names flagged.
 
 `writingCorpusSafety.test.js` covers technical vocabulary and acronym plurals,
 reviewed-only spelling bulk plans and controls, dictionary apostrophe safety,

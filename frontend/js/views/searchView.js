@@ -109,6 +109,41 @@ export function showSearchLoading() {
     return true;
 }
 
+/** Keep filter results mounted but non-actionable while their refresh is pending. */
+export function setSearchPending(pending) {
+    const { dropdown } = elements();
+    if (!dropdown) return;
+    dropdown.setAttribute('aria-busy', String(Boolean(pending)));
+    for (const row of dropdown.querySelectorAll('.search-result-row')) row.disabled = pending;
+    if (pending) setComboboxState({ expanded: isSearchVisible() });
+}
+
+export function showSearchFailure({ filters, onRetry, onFilter }) {
+    const { dropdown } = elements();
+    if (!dropdown) return;
+    searchRenderState = null;
+    dropdown.onscroll = null;
+    const shell = ensureResultShell(dropdown, filters);
+    shell.querySelector('.search-suggestion-slot').replaceChildren();
+    shell.querySelector('.search-result-summary').hidden = true;
+    shell.querySelector('.search-empty').hidden = true;
+    const list = shell.querySelector('#search-result-list');
+    list.hidden = true;
+    list.replaceChildren();
+    delete list.dataset.logicalCount;
+    shell.querySelector('.search-error')?.remove();
+    const notice = document.createElement('div');
+    notice.className = 'ui-notice ui-notice--danger search-error';
+    notice.innerHTML = '<p role="alert">Couldn’t search notes. Try again.</p><button type="button" class="ui-button" data-search-retry>Retry</button>';
+    shell.append(notice);
+    setComboboxState({ expanded: isSearchVisible() });
+    dropdown.onclick = event => {
+        if (event.target.closest('[data-search-retry]')) onRetry();
+        const filter = event.target.closest('[data-search-filter]');
+        if (filter) onFilter(filter.dataset.searchFilter);
+    };
+}
+
 function resultRow(file, index, state) {
     const firstMatch = file.matches[0];
     const excerpt = firstMatch?.text || (file.titleMatch ? 'Title match' : 'Matching note');
@@ -227,6 +262,7 @@ export function renderSearchResults({
         : '';
 
     const shell = ensureResultShell(dropdown, filters);
+    shell.querySelector('.search-error')?.remove();
     const suggestionSlot = shell.querySelector('.search-suggestion-slot');
     const summary = shell.querySelector('.search-result-summary');
     const empty = shell.querySelector('.search-empty');

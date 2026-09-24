@@ -1,4 +1,6 @@
 /** Bounded editorial context: no document state, dictionaries or I/O. */
+import { writingAcronymDefinitions } from './writingTextlintModel.js';
+
 function contextAt(raw, { text }, radius = 160) {
     return {
         before: text.slice(Math.max(0, raw.from - radius), raw.from).split(/\n[ \t]*\n/u).at(-1),
@@ -13,9 +15,30 @@ const ordinaryWording = new Set(['remain', 'remains', 'remained', 'contains', 'c
     'indicate', 'indicates', 'indicated', 'retain', 'retains', 'retained', 'reflect',
     'reflects', 'reflected', 'establish', 'establishes', 'established', 'equivalent', 'multiple', 'i.e.']);
 
+// Words that spell out an acronym are the term being defined, not wording to
+// simplify: “service level objective (SLO)” or “SLO (service level objective)”.
+const wordsPattern = '(?:[ \\t]+[\\p{L}][\\p{L}’\'-]*)';
+const forwardDefinition = new RegExp(`^(${wordsPattern}{0,4})[ \\t]+\\(([A-Z]{3,5})s?\\)`, 'u');
+const reverseOpening = /\b([A-Z]{3,5})s?[ \t]+\(((?:[\p{L}][\p{L}’'-]*[ \t]+){0,7})$/u;
+const reverseClosing = new RegExp(`^(${wordsPattern}{0,7})\\)`, 'u');
+function acronymExpansion(raw, projection) {
+    const { before, after } = contextAt(raw, projection, 96);
+    const forward = forwardDefinition.exec(after);
+    if (forward) {
+        const following = forward[1].trim().split(/\s+/u).filter(Boolean);
+        // The acronym's initials cover the final words, so this word must be among them.
+        if (following.length >= forward[2].length) return false;
+        const leading = before.match(/[\p{L}][\p{L}’'-]*/gu)?.slice(-7) || [];
+        return writingAcronymDefinitions(`${[...leading, raw.actual, ...following].join(' ')} (${forward[2]})`, forward[2]).length > 0;
+    }
+    const opening = reverseOpening.exec(before), closing = opening && reverseClosing.exec(after);
+    return Boolean(closing) && writingAcronymDefinitions(`${opening[1]} (${opening[2]}${raw.actual}${closing[1]})`, opening[1]).length > 0;
+}
+
 export function writingWordinessContext(raw, projection) {
     const word = raw.actual?.toLowerCase();
     if (ordinaryWording.has(word)) return true;
+    if (raw.actual && acronymExpansion(raw, projection)) return true;
     if (!['function', 'request', 'parameters', 'type', 'address', 'it is', 'forward', 'option', 'minimum', 'maximum', 'attempt', 'currently', 'immediately'].includes(word)) return false;
     const { before, after } = contextAt(raw, projection), context = before + ' ' + after;
     if (word === 'currently') return /^\s+(?:running|waiting|active|enabled|disabled|available|selected|open|closed)\b/iu.test(after);
@@ -140,8 +163,26 @@ export function writingAdvisoryContext(kind, raw, projection) {
         && /^\s*,?\s*(?:ask|clean|close|collect|empty|record|return|switch|turn|write)\b/iu.test(after);
 }
 
+// Difficulty words assume the reader's experience only when the sentence
+// addresses or instructs the reader; describing a thing as simple does not.
+// Knowledge words (obviously, of course, everyone knows) assume in any sentence.
+const difficultyWords = new Set(['easy', 'easily', 'simple', 'simply', 'just', 'basically', 'straightforward', 'straight-forward', 'straight forward']);
+const instructionVerb = /^(?:add|apply|call|change|check|choose|click|configure|consider|copy|create|delete|download|drag|edit|enable|enter|follow|go|import|install|move|open|paste|press|remove|rename|replace|restart|run|save|select|set|start|switch|tap|try|turn|type|update|use|write)\b/iu;
+const leadingAdverbs = /^(?:(?:then|now|first|next|finally|simply|just|basically|and)\s*,?\s+)+/iu;
+
+function readerDirected(before, actual, after) {
+    const start = before.split(/(?<=[.!?:;])\s+|\n/u).at(-1);
+    const sentence = `${start}${actual}${after.split(/(?<=[.!?])\s|\n/u)[0]}`;
+    if (/\b(?:you(?:r|rs|rself|rselves)?|let['’]s)\b/iu.test(sentence)) return true;
+    return instructionVerb.test(sentence.trimStart().replace(leadingAdverbs, ''));
+}
+
 export function writingInclusiveContext(raw, projection) {
     const word = raw.actual.toLowerCase(), { before, after } = contextAt(raw, projection);
+    const tone = ['easy', 'easily', 'simple', 'simply', 'just', 'obvious', 'obviously', 'clearly', 'basically', 'straightforward', 'straight-forward', 'straight forward', 'of course', 'everyone knows'];
+    // A capitalized tone word after the sentence start belongs to a title.
+    if (tone.includes(word) && /^\p{Lu}/u.test(raw.actual) && /[\p{L}\p{N},]\s+$/u.test(before)) return { skip: true };
+    if (difficultyWords.has(word) && !readerDirected(before, raw.actual, after)) return { skip: true };
     if (word === 'easy' && /^[ -]+read\b/iu.test(after)) return { skip: true };
     if (['easy', 'easily', 'simple', 'simply', 'obvious', 'obviously', 'straightforward'].includes(word)
         && /\b(?:not|never|hardly|cannot|can['’]t|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:\s+(?:be|so|very|always|necessarily|particularly|that)){0,3}\s+$/iu.test(before)) return { skip: true };
@@ -154,7 +195,5 @@ export function writingInclusiveContext(raw, projection) {
         || /^\s+(?:route|path|trail)\b/iu.test(after) && /\b(?:sign|map|guide|notice)\b/iu.test(before))) return { skip: true };
     if (word === 'simply' && /\bbeyond\s+$/iu.test(before)) return { skip: true };
     if (word === 'clearly' && /^\s+(?:annotated|labelled|labeled|documented|marked|defined|visible|stated|explained)\b/iu.test(after)) return { skip: true };
-    if (raw.actual === 'Simple' && /\bTen\s+$/u.test(before) && /^\s+Rules\b/u.test(after)) return { skip: true };
-    const tone = ['easy', 'easily', 'simple', 'simply', 'just', 'obvious', 'obviously', 'clearly', 'basically', 'straightforward', 'straight-forward', 'of course', 'everyone knows'];
     return tone.includes(word) ? { note: 'This wording can assume that readers find a task easy or already know the answer. Describe the steps or prerequisites when useful; keep factual descriptions of difficulty or clarity.', adviceType: 'reader-assumption' } : {};
 }

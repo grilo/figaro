@@ -127,15 +127,18 @@ import {
     refreshTabsForUpdatedLinks,
     closeTabsForDeletedPath,
     saveFileSnapshot,
+    saveActiveFile,
     renderTabBar 
 } from '../frontend/js/tabManager.js';
 
 function deferred() {
     let resolve;
-    const promise = new Promise((finish) => {
+    let reject;
+    const promise = new Promise((finish, fail) => {
         resolve = finish;
+        reject = fail;
     });
-    return { promise, resolve };
+    return { promise, resolve, reject };
 }
 
 // Mock native Wails App binding.
@@ -171,8 +174,47 @@ describe('Tab Manager', () => {
     });
 
     describe('openTab', () => {
-        test('should create new file tab', () => {
+        test.each(['missing', 'rejected'])('keeps the previous buffer and save target when a file load is %s', async outcome => {
+            mockState.openTabs = [{ id: 'source.md', path: 'source.md', title: 'Source', type: 'file', mtime: 1, _content: 'Original note' }];
+            mockState.activeTabId = 'source.md';
+            getEditorDocumentTabId.mockReturnValue('source.md');
+            getEditorContent.mockReturnValue('Original note');
+            const pending = deferred();
+            window.go.desktop.App.ReadFile.mockReturnValueOnce(pending.promise);
+            openTab('missing.md', 'Missing', 'file', { path: 'missing.md' });
+            expect(getState('activeTabId')).toBe('source.md');
+            if (outcome === 'missing') pending.resolve(null);
+            else pending.reject(new Error('Read denied'));
+            await testUtils.waitFor(0);
+            expect(getState('activeTabId')).toBe('source.md');
+            expect(setEditorContent).not.toHaveBeenCalled();
+            expect(errorDialog).toHaveBeenCalledWith('Couldn’t open note', expect.any(Error), expect.any(String));
+            window.go.desktop.App.SaveFileToDisk.mockResolvedValueOnce({ success: true, mtime: 2 });
+            await saveActiveFile();
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('source.md', 'Original note', 1);
+            window.go.desktop.App.ReadFile.mockResolvedValueOnce({ content: 'Recovered target', path: 'missing.md', mtime: 3 });
+            await switchTab('missing.md');
+            expect(getState('activeTabId')).toBe('missing.md');
+            expect(setEditorContent).toHaveBeenLastCalledWith('Recovered target', 'missing.md', null);
+        });
+
+        test('a superseded missing-file read cannot interrupt a newer activation', async () => {
+            const pending = deferred();
+            window.go.desktop.App.ReadFile.mockReturnValueOnce(pending.promise);
+            openTab('missing.md', 'Missing', 'file', { path: 'missing.md' });
+            openTab('ready.md', 'Ready', 'file', { path: 'ready.md', preparedFile: { content: 'Ready note', mtime: 2 } });
+            await testUtils.waitFor(0);
+            pending.resolve(null);
+            await testUtils.waitFor(0);
+            expect(getState('activeTabId')).toBe('ready.md');
+            expect(errorDialog).not.toHaveBeenCalled();
+            expect(setEditorContent).toHaveBeenLastCalledWith('Ready note', 'ready.md', null);
+        });
+
+        test('should create new file tab', async () => {
+            window.go.desktop.App.ReadFile.mockResolvedValueOnce({ content: '', mtime: 1000 });
             const tab = openTab('test.md', 'Test', 'file', { path: 'test.md', mtime: 1000 });
+            await testUtils.waitFor(0);
             
             expect(tab.id).toBe('test.md');
             expect(tab.title).toBe('Test');
@@ -782,7 +824,7 @@ describe('Tab Manager', () => {
             firstA.resolve({ content: 'Stale A content', mtime: 1, path: 'a.md' });
             await testUtils.waitFor(0);
 
-            expect(setEditorContent).toHaveBeenLastCalledWith('Latest A content', 'a', { anchor: 0, head: 0 });
+            expect(setEditorContent).toHaveBeenLastCalledWith('Latest A content', 'a', null);
         });
     });
 
@@ -897,30 +939,37 @@ describe('Tab Manager', () => {
             expect(settled).toBe(true);
         });
 
-        test('should switch to existing tab', () => {
+        test('should switch to existing tab', async () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            await testUtils.waitFor(0);
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            await testUtils.waitFor(0);
             
-            switchTab('tab1');
+            await switchTab('tab1');
             
             expect(getState('activeTabId')).toBe('tab1');
         });
 
-        test('should save cursor state when switching file tabs', () => {
+        test('should save cursor state when switching file tabs', async () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            await testUtils.waitFor(0);
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            await testUtils.waitFor(0);
             
-            switchTab('tab1');
+            await switchTab('tab1');
             
             expect(saveCursorState).toHaveBeenCalled();
         });
 
         test('should auto-save dirty file tab when switching away', async () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            await testUtils.waitFor(0);
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            await testUtils.waitFor(0);
             // tab2 is currently active, mark it dirty, then switch to tab1
             const tab2 = getState('openTabs').find(t => t.id === 'tab2');
             tab2.dirty = true;
+            getEditorDocumentTabId.mockReturnValue('tab2');
             
             await switchTab('tab1');
             
@@ -959,9 +1008,11 @@ describe('Tab Manager', () => {
             expect(getState('openTabs')[0].id).toBe('tab2');
         });
 
-        test('should switch to another tab when closing active tab', () => {
+        test('should switch to another tab when closing active tab', async () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            await testUtils.waitFor(0);
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            await testUtils.waitFor(0);
             
             closeTab('tab1');
             
@@ -970,11 +1021,15 @@ describe('Tab Manager', () => {
 
         test('returns to previously edited file after closing settings', async () => {
             openTab('note-1', 'Note 1', 'file', { path: 'note-1.md' });
+            await testUtils.waitFor(0);
             openTab('note-2', 'Note 2', 'file', { path: 'note-2.md' });
+            await testUtils.waitFor(0);
             await switchTab('note-1');
             openTab('settings', 'Settings', 'settings');
+            await testUtils.waitFor(0);
 
             await closeTab('settings');
+            await testUtils.waitFor(0);
 
             expect(getState('activeTabId')).toBe('note-1');
         });
@@ -1090,11 +1145,14 @@ describe('Tab Manager', () => {
 
     describe('safe link replacement', () => {
         test('saves a dirty source tab before reusing it for a link destination', async () => {
+            window.go.desktop.App.ReadFile.mockResolvedValueOnce({ content: '', mtime: 1 });
             openTab('source.md', 'Source', 'file', { path: 'source.md', mtime: 1 });
+            await testUtils.waitFor(0);
             markTabDirty('source.md');
             window.go.desktop.App.SaveFileToDisk.mockResolvedValueOnce({ success: true, mtime: 2 });
 
             await replaceActiveFileTab('target.md', 'Target', 'file', { path: 'target.md', mtime: 3 });
+            await testUtils.waitFor(0);
 
             expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('source.md', '', 1);
             expect(getState('openTabs')).toEqual([
@@ -1104,11 +1162,14 @@ describe('Tab Manager', () => {
         });
 
         test('preserves a dirty source tab when saving before navigation fails', async () => {
+            window.go.desktop.App.ReadFile.mockResolvedValueOnce({ content: '', mtime: 1 });
             openTab('source.md', 'Source', 'file', { path: 'source.md', mtime: 1 });
+            await testUtils.waitFor(0);
             markTabDirty('source.md');
             window.go.desktop.App.SaveFileToDisk.mockRejectedValueOnce(new Error('disk full'));
 
             await replaceActiveFileTab('target.md', 'Target', 'file', { path: 'target.md', mtime: 3 });
+            await testUtils.waitFor(0);
 
             expect(getState('openTabs')).toEqual(expect.arrayContaining([
                 expect.objectContaining({ id: 'source.md', path: 'source.md', dirty: true }),
@@ -1582,8 +1643,9 @@ describe('Tab Manager', () => {
     });
 
     describe('getActiveTab', () => {
-        test('should return active tab', () => {
+        test('should return active tab', async () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            await testUtils.waitFor(0);
             
             const active = getActiveTab();
             
@@ -1705,9 +1767,11 @@ describe('Tab Manager', () => {
             expect(selection.defaultPrevented).toBe(true);
         });
 
-        test('should mark active tab', () => {
+        test('should mark active tab', async () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            await testUtils.waitFor(0);
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            await testUtils.waitFor(0);
             
             renderTabBar();
             
@@ -1782,7 +1846,7 @@ describe('Tab Manager', () => {
             expect(unpinnedTab[0].dataset.tabId).toBe('tab2');
         });
 
-        test('keeps newly opened and selected active tabs visible and only exposes All tabs while crowded', () => {
+        test('keeps newly opened and selected active tabs visible and only exposes All tabs while crowded', async () => {
             let resize;
             const observer = jest.spyOn(window, 'ResizeObserver').mockImplementation(callback => {
                 resize = callback;
@@ -1790,7 +1854,9 @@ describe('Tab Manager', () => {
             });
             initTabManager();
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            await testUtils.waitFor(0);
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            await testUtils.waitFor(0);
 
             const tabStrip = document.getElementById('tab-strip');
             const tabBar = document.getElementById('tab-bar');
@@ -1819,7 +1885,7 @@ describe('Tab Manager', () => {
                 expect(tabBar.classList.contains('tabs-can-scroll-start')).toBe(true);
                 expect(tabBar.classList.contains('tabs-can-scroll-end')).toBe(false);
 
-                switchTab('tab1');
+                await switchTab('tab1');
                 expect(tabStrip.scrollLeft).toBe(0);
                 expect(tabBar.classList.contains('tabs-can-scroll-start')).toBe(false);
                 expect(tabBar.classList.contains('tabs-can-scroll-end')).toBe(true);
@@ -1878,10 +1944,13 @@ describe('Tab Manager', () => {
     });
 
     describe('tab reordering', () => {
-        test('moves a tab and keeps the active tab unchanged', () => {
+        test('moves a tab and keeps the active tab unchanged', async () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            await testUtils.waitFor(0);
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            await testUtils.waitFor(0);
             openTab('tab3', 'Tab 3', 'file', { path: 'tab3.md' });
+            await testUtils.waitFor(0);
 
             expect(reorderTab('tab3', 'tab1')).toBe(true);
             expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab3', 'tab1', 'tab2']);
@@ -2031,7 +2100,7 @@ describe('Tab Manager', () => {
     });
 
     describe('All tabs overflow menu', () => {
-        test('uses menu buttons and supports keyboard selection of a hidden tab', () => {
+        test('uses menu buttons and supports keyboard selection of a hidden tab', async () => {
             const tabStrip = document.getElementById('tab-strip');
             Object.defineProperties(tabStrip, {
                 clientWidth: { configurable: true, value: 120 },
@@ -2039,8 +2108,11 @@ describe('Tab Manager', () => {
             });
             initTabManager();
             openTab('tab1', 'Tab 1', 'file', { path: 'Clients/Acme/tab1.md' });
+            await testUtils.waitFor(0);
             openTab('kanban', 'Kanban', 'kanban');
+            await testUtils.waitFor(0);
             openTab('tab2', 'Tab 2', 'file', { path: 'Clients/Beacon/tab2.md' });
+            await testUtils.waitFor(0);
 
             const button = document.getElementById('all-tabs-btn');
             const dropdown = document.getElementById('all-tabs-dropdown');
@@ -2063,6 +2135,7 @@ describe('Tab Manager', () => {
             }));
             expect(document.activeElement.dataset.tabId).toBe('tab1');
             document.activeElement.click();
+            await testUtils.waitFor(0);
 
             expect(getState('activeTabId')).toBe('tab1');
             expect(dropdown.classList.contains('hidden')).toBe(true);
@@ -2166,10 +2239,11 @@ describe('Tab Manager', () => {
 
     describe('middle-click close', () => {
         test.each(['.tab', '.tab-title', '.tab-close'])(
-            'prevents middle-button autoscroll over %s and closes only on release', (selector) => {
+            'prevents middle-button autoscroll over %s and closes only on release', async (selector) => {
                 initTabManager();
                 openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
                 openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+                await testUtils.waitFor(0);
                 renderTabBar();
 
                 const tabEl = document.querySelector('[data-tab-id="tab1"]');

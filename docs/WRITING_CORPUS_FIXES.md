@@ -2,8 +2,8 @@
 
 This contract follows the eight-document pattern audit. It covers correctness
 and review safety; it does not establish general writing quality or complete
-grammar coverage. Mapping version 24 (including the later grammar-context and quality updates), editorial policy 8, local-rule version 3
-and spelling vocabulary version 4 invalidate older analysis snapshots. This corpus-safety work preserves provider versions, independent lens memberships,
+grammar coverage. Mapping version 25 (including the later grammar-context, quality and lens-ownership updates), editorial policy 9, local-rule version 3
+and spelling vocabulary version 5 invalidate older analysis snapshots. This corpus-safety work preserves provider versions, independent lens memberships,
 and saved review data. The later [curated grammar expansion](WRITING_HARPER.md)
 adds separately reviewed rules.
 
@@ -17,7 +17,7 @@ adds separately reviewed rules.
 | Short fragments called long sentences | Native anchors must identify an eligible mapped sentence containing more than 30 words. The local check uses the same threshold and retains coverage when native boundaries differ. | Native-output conversion, local threshold, soft wraps and block boundaries |
 | Balanced URL parentheses | URL content retains its balanced internal parentheses; surrounding punctuation stays visible to the paired-punctuation rule. | Pure URL ranges and actual bundled textlint |
 | Wrong word senses in Clarity | Bounded context guards suppress mismatched technical noun and postal-address advice. Useful verb/phrase cases remain enabled. | Positive/negative context pairs and resolver |
-| Misleading Inclusive tone advice | Easy-read terminology, negation, limiting constructions, “just as/like” comparisons and descriptive clarity have narrow guards. Surviving tone advice explains reader assumptions. | Actual package output and pure context policy |
+| Misleading reader-assumption tone advice | Tone words are Directness advice. Difficulty words are reviewed only in instructions or reader-addressed sentences; easy-read terminology, negation, limiting constructions, “just as/like” comparisons, titles and descriptions stay unmarked. Surviving advice explains reader assumptions. | Actual package output and pure context policy |
 | Narrow acronym definitions | Forward/reverse and plural definitions work across the document within each eligible prose block, including after headings. Initial matching includes hyphenation, eX forms and a limited noun-of-noun reorder; it does not infer meanings. | Pure recognition, hidden-region negatives and native/resolver evaluation |
 
 The single-word alternatives returned by a dictionary are still suggestions,
@@ -26,7 +26,7 @@ applied. A real word used in the wrong context, an unfamiliar name, or an
 unsupported inflection may still need author judgment. Vocabulary recognition
 and correction confidence are separate policies.
 
-Curly punctuation and unspaced em-dash checks remain in Formulaic writing.
+Quote/apostrophe style and unspaced em-dash checks belong to Formulaic writing.
 Contextual suppression does not remove an upstream rule or require another
 lens. Sentence-length advice now uses one above-30-word threshold; the earlier
 local-only 35-word threshold is retired to avoid losing valid native coverage
@@ -69,7 +69,7 @@ remaining unnecessary findings before changing policy. Reviewed familiar words
 no longer produce synonym-only tasks. Meaningful manner, frequency and degree
 retain bounded context guards. Technical passive descriptions require a
 reviewed predicate and nearby subject/context, while explicit actors remain
-reviewable. Curly punctuation must conflict with the current authored straight
+reviewable. Quote and apostrophe style must conflict with the current authored
 convention; it is not evidence of a formulaic passage by itself. Useful
 shortening, grammar corrections and all selected package rules remain available.
 

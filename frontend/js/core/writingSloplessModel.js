@@ -4,7 +4,7 @@ export const writingSloplessRules = Object.freeze({
     cliches: 'stock-phrase', 'corporate-speak': 'stock-phrase', wordiness: 'wordiness',
     simplicity: 'complex-density', redundancy: 'redundancy', 'exclamation-density': 'exclamation-density',
     'word-repetition': 'word-frequency', 'hedge-stacking': 'hedge-density', 'softening-language': 'softening',
-    'em-dashes': 'em-dash', 'smart-quotes': 'curly-punctuation',
+    'em-dashes': 'em-dash',
     'boilerplate-framing': 'framing', 'generic-signposting': 'framing',
     'negation-reframe': 'contrast', 'contrastive-aphorism': 'contrast', 'blame-reframe': 'contrast',
     'universalizing-claims': 'generalization', 'authority-padding': 'authority',
@@ -24,8 +24,7 @@ const guidance = {
     'word-frequency': ['Review frequent word use', 'A word appears more than five times in this paragraph. Consider reducing repetition when it distracts; keep a consistent technical term when synonyms would confuse.', 'The plan covers costs. The plan covers dates. The plan covers roles.', 'The plan covers costs, dates, and roles.'],
     'hedge-density': ['Review stacked qualifications', 'Several nearby words express uncertainty. Consider whether each qualification adds meaning; preserve the uncertainty supported by your evidence.', 'Maybe this might possibly help.', 'This might help.'],
     softening: ['Review layered qualifications', 'This sentence uses several forms of qualification. Consider making their scope more specific, while keeping the uncertainty and limitations your evidence requires.', 'Some people might generally benefit from this change.', 'In the trial, two participants reported a benefit; effects for other people remain uncertain.'],
-    'em-dash': ['Review em-dash style', 'This em dash has no surrounding spaces. Consider a spaced dash or punctuation that fits the sentence; keep it if this is your preferred style.', 'The draft is ready—we can send it.', 'The draft is ready; we can send it.'],
-    'curly-punctuation': ['Review curly punctuation', 'This curly mark differs from the prevailing straight punctuation in this note. Consider matching the surrounding style; curly punctuation is valid typography.', 'She said “ready”.', 'She said "ready".'],
+    'em-dash': ['Review em-dash style', 'This em dash has no surrounding spaces. Consider a spaced dash or punctuation that fits the sentence; keep it if this is your preferred style.', 'The draft is ready—we can send it.', 'The draft is ready — we can send it.'],
     framing: ['Review introductory framing', 'Consider starting with the specific point if this introduction adds no useful context.', 'Let me be honest: the deadline is unrealistic.', 'The deadline is unrealistic.'],
     contrast: ['Review formulaic contrast', 'Consider stating the concrete claim directly. Keep the contrast if the distinction helps your reader.', 'We do not sell software. We sell outcomes.', 'Our software helps teams track delivery dates.'],
     generalization: ['Review sweeping claim', 'Consider naming the people or circumstances this claim applies to. Keep broad wording when the evidence supports it.', 'Everyone knows that meetings waste time.', 'Our team found that the daily meeting repeated the written update.'],
@@ -47,8 +46,7 @@ export const writingSloplessConcepts = Object.freeze(Object.fromEntries(Object.e
 // Share concepts only when the advice is the same; density and phrase-level advice differ.
 const sharedKinds = { 'stock-phrase': 'style.stock-phrase', wordiness: 'style.wordiness' };
 export const writingSloplessKinds = Object.freeze(Object.fromEntries(Object.entries(writingSloplessRules).map(([rule, kind]) => [`slopless/${rule}`, sharedKinds[kind] || `formulaic.${kind}`])));
-export function writingSloplessExample(kind, actual) {
-    if (kind === 'formulaic.curly-punctuation' && ['‘', '’'].includes(actual)) return [{ label: 'Example', before: 'It’s ready.', after: 'It\'s ready.' }];
+export function writingSloplessExample(kind) {
     const entry = guidance[kind?.replace(/^formulaic\./u, '')];
     return entry ? [{ label: 'Example', before: entry[2], after: entry[3] }] : [];
 }
@@ -59,12 +57,8 @@ export function sloplessWritingObservations(messages, projection) {
         if (!Object.hasOwn(writingSloplessKinds, message.ruleId)) return [];
         const [from, to] = message.range || [];
         if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to <= from || to > projection.units.length) return [];
-        // The native smart-quotes report spans all curly marks in a sentence.
-        // Underline only the marks; never expose the protected quoted wording.
         let detail = '';
-        let ranges = message.ruleId === 'slopless/smart-quotes'
-            ? Array.from({ length: to - from }, (_, i) => from + i).filter(at => /[“”‘’]/u.test(projection.text[at])).map(at => [at, at + 1])
-            : [[from, to]];
+        let ranges = [[from, to]];
         if (message.ruleId === 'slopless/word-repetition') {
             const repeated = message.message?.match(/^Word repeated (\d+) times in one paragraph: "([\p{L}’'-]+)"\./u);
             if (!repeated || projection.units.slice(from, to).some(unit => unit.from < 0 || unit.hidden)) return [];

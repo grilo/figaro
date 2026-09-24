@@ -115,6 +115,9 @@ describe('design-system catalogue', () => {
             expect(styles).toContain(`.cm-gutterElement[data-block-control-relevant] ${primitive}`);
         }
         expect(source + styles).not.toContain('is-block-control-relevant');
+        expect(styles).toContain('font: 500 min(var(--font-size-editor), 12px)/1 var(--font-mono)');
+        const editorStyles = fs.readFileSync(path.resolve('frontend/styles/editor.css'), 'utf8');
+        expect(editorStyles).toContain('font: 500 min(var(--font-size-editor), 12px)/1 var(--font-mono)');
         expect(componentRegistry.families.find(family => family.id === 'editor-fold-control').description)
             .toContain('data-block-control-relevant');
     });

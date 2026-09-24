@@ -3,7 +3,7 @@ import { writingLensGroups, writingLensGroupState, writingLensDisabledReason, wr
 // Editorial illustrations, not replacement candidates for the current note.
 const help = {
     proofreading: {
-        coverage: 'Checks dictionary spelling, adjacent repeated words, reviewed term and quotation conventions, and selected agreement, verb, noun, homophone, phrase, word-boundary, number, capitalization, and punctuation patterns.',
+        coverage: 'Checks dictionary spelling, adjacent repeated words, reviewed term and capitalization conventions, and selected agreement, verb, noun, homophone, phrase, word-boundary, number, capitalization, and punctuation patterns.',
         limits: 'Grammar and homophone checks use selected context patterns. Complex subjects, ambiguous meanings, and dialect differences need your judgment. Spelling Apply to all is limited to reviewed corrections.',
         examples: [
             { label: 'Spelling', before: 'teh', after: 'the' },
@@ -22,32 +22,32 @@ const help = {
             { label: 'Split an idea', before: 'We finished the draft, but the figures still need checking, so we will review them tomorrow.', after: 'We finished the draft. The figures still need checking, so we will review them tomorrow.' },
         ],
     },
-    direct: {
-        coverage: 'Reviews possible passive constructions, indirect openings, modifiers, hedging, and emphatic punctuation.',
-        limits: 'Passive voice can be appropriate when the actor is unknown or unimportant. Qualifiers can express real uncertainty; removing them can overstate a claim. Examples require your judgment.',
+    directness: {
+        coverage: 'Reviews possible passive constructions, indirect openings, modifiers, hedging, and wording that assumes readers find a task easy or already know the answer.',
+        limits: 'Passive voice can be appropriate when the actor is unknown or unimportant. Qualifiers can express real uncertainty; removing them can overstate a claim. Words such as “simple” and “just” are reviewed only in instructions or sentences addressed to the reader; describing something as simple is not flagged. Examples require your judgment.',
         examples: [
             { label: 'Name the actor', before: 'The report was written by Maya.', after: 'Maya wrote the report.' },
             { label: 'Direct opening', before: 'There are three tests that still fail.', after: 'Three tests still fail.' },
             { label: 'Review hedging', before: 'I would argue that the instructions need an example.', after: 'The instructions need an example.' },
-            { label: 'Review emphasis', before: 'The draft is ready!!', after: 'The draft is ready!' },
+            { label: 'Reader assumption', before: 'Simply run the installer.', after: 'Run the installer.' },
         ],
     },
-    inclusive: {
-        coverage: 'Reviews generic role names, exclusionary expressions, and accessibility descriptions, with alternatives where appropriate.',
+    'inclusive-language': {
+        coverage: 'Reviews generic role names, exclusionary expressions, and accessibility descriptions, with alternatives where appropriate. Wording that assumes a task is easy belongs to Directness.',
         limits: 'Preserve intended meaning, historical context, and a person’s preferred terms. These checks do not infer anyone’s identity or pronouns. Broader matches are advice only.',
         examples: [
             { label: 'Generic role', before: 'The chairman spoke.', after: 'The chairperson spoke.' },
-            { label: 'Avoid assumptions', before: 'Obviously, you can change this setting.', after: 'You can change this setting.' },
+            { label: 'Exclusionary term', before: 'Add the domain to the whitelist.', after: 'Add the domain to the allowlist.' },
             { label: 'Accessibility description', before: 'She is wheelchair-bound.', after: 'She uses a wheelchair.' },
         ],
     },
-    formulaic: {
-        coverage: 'Reviews stock framing, rhetorical patterns, wordiness, repetition, stacked qualifications, unspaced em dashes, and curly punctuation that differs from the note’s prevailing straight style.',
-        limits: 'These are optional style and typography preferences, not evidence of AI authorship. They can be intentional. Formulaic advice requires manual editing; the examples do not rewrite your text.',
+    'formulaic-writing': {
+        coverage: 'Reviews stock framing, rhetorical patterns, wordiness, repetition, stacked qualifications, emphatic punctuation, unspaced em dashes, and quotation marks or apostrophes that differ from the note’s prevailing style.',
+        limits: 'These are optional style and typography preferences, not evidence of AI authorship. They can be intentional. Quotation and apostrophe style can be applied to match the note; other formulaic advice requires manual editing, and the examples do not rewrite your text.',
         examples: [
             { label: 'Stock framing', before: 'It is worth noting that the draft is ready.', after: 'The draft is ready.' },
-            { label: 'Wordiness', before: 'We left in order to catch the train.', after: 'We left to catch the train.' },
-            { label: 'Unspaced em dash', before: 'The draft is ready—we can send it.', after: 'The draft is ready; we can send it.' },
+            { label: 'Emphatic punctuation', before: 'The draft is ready!!', after: 'The draft is ready!' },
+            { label: 'Unspaced em dash', before: 'The draft is ready—we can send it.', after: 'The draft is ready — we can send it.' },
             { label: 'Curly apostrophe', before: 'We’re ready.', after: 'We\'re ready.' },
         ],
     },

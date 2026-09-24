@@ -96,9 +96,10 @@ Deleting a vault item bypasses the system Trash. Figaro first saves affected
 editors and records the item in local history. If that fails, deletion stops.
 Successful deletion closes the affected tabs. If the active note was deleted,
 Figaro selects the most recently used remaining tab, or Home when none remain.
-Use the status bar's **Undo** immediately after deletion, or open
+Use the status bar's **Undo** within ten seconds after deletion, or open
 **Settings → Vault care → Recently deleted** later. Restore refuses to overwrite
-an item that now occupies the original path.
+an item that now occupies the original path. The list refreshes after deleting or
+restoring an item, including when Settings stays open.
 
 If a save fails, keep Figaro open and use **Retry**, **Copy unsaved text**, or
 **Keep editing**. The unsaved buffer remains in memory. File warnings in the

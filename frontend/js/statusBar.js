@@ -75,6 +75,7 @@ function clearStatusAction() {
     action.disabled = false;
     action.textContent = '';
     action.removeAttribute('aria-label');
+    delete action.dataset.actionId;
     action.onclick = null;
     syncWritingRestPresentation();
 }
@@ -94,6 +95,10 @@ const statusBar = {
      * @param {string} text - Status message
      */
     set(text) {
+        // Recovery actions outlive routine loading/Ready/save messages. Only
+        // activation, expiry, explicit dismissal, or a newer action replaces them.
+        const action = document.getElementById('status-action');
+        if (action && !action.hidden && action.onclick) return;
         clearStatusAction();
         const el = document.getElementById('status-text');
         if (el) {
@@ -107,17 +112,29 @@ const statusBar = {
     },
 
     /** Set a status message with one adjacent keyboard-operable action. */
-    setWithAction(text, label, onActivate, { ariaLabel = '' } = {}) {
+    setWithAction(text, label, onActivate, { ariaLabel = '', actionId = '' } = {}) {
+        clearStatusAction();
         this.set(text);
         const action = document.getElementById('status-action');
         if (!action || typeof onActivate !== 'function') return;
         action.textContent = label;
         if (ariaLabel) action.setAttribute('aria-label', ariaLabel);
-        action.onclick = event => onActivate(event);
+        action.dataset.actionId = actionId;
+        action.onclick = event => {
+            clearStatusAction();
+            return onActivate(event);
+        };
         action.hidden = false;
         const region = document.querySelector('.status-left');
         if (region) region.dataset.hasAction = 'true';
         syncWritingRestPresentation();
+    },
+
+    dismissAction(actionId = null) {
+        const action = document.getElementById('status-action');
+        if (!action || (actionId !== null && action.dataset.actionId !== actionId)) return;
+        clearStatusAction();
+        this.clear();
     },
 
     /** Keep the quiet footer's one essential document metric current. */
@@ -148,9 +165,13 @@ const statusBar = {
     /** Clear one message later without overwriting newer activity. */
     clearAfter(delay, expectedText) {
         const currentText = expectedText ?? document.getElementById('status-text')?.textContent;
+        const currentAction = document.getElementById('status-action')?.onclick;
         setTimeout(() => {
             const el = document.getElementById('status-text');
-            if (el?.textContent === currentText) this.clear();
+            if (el?.textContent === currentText && document.getElementById('status-action')?.onclick === currentAction) {
+                clearStatusAction();
+                this.clear();
+            }
         }, delay);
     },
 

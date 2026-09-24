@@ -1,4 +1,4 @@
-import { changeWritingLenses, normalizeWritingLenses, writingLensesAvailability, writingLensesDocument, writingLensDisabledReason, writingLensGroups, writingLensGroupState, writingLensesExpansion } from '../../../frontend/js/core/writingLensesModel.js';
+import { changeWritingLenses, normalizeWritingLenses, writingLensesAvailability, writingLensesDocument, writingLensDisabledReason, writingLensGroups, writingLensGroupState, writingLensesExpansion, writingLensCounts, writingChecks } from '../../../frontend/js/core/writingLensesModel.js';
 
 test('lens expansion defaults follow the loaded document and preserve explicit choices through loading and saves', () => {
     const loading = { documentKey: 'Memo.md', status: 'loading', hasSelection: false };
@@ -93,4 +93,19 @@ test('unavailable lens explanations distinguish missing language, language suppo
     expect(writingLensDisabledReason('direct', { language: 'none', status: 'loading' })).toBe('Wait for this document’s writing preferences to finish loading.');
     expect(writingLensDisabledReason('direct', { language: 'en-US', status: 'load-error' })).toBe('Writing preferences couldn’t be loaded. Use Retry before changing lenses.');
     expect(writingLensDisabledReason('direct', { language: 'en-US', status: 'saved', applying: true })).toBe('Choices are being applied to all documents. Wait for this to finish.');
+});
+
+test('lens group ids never collide with check ids, and legacy check-id actions still toggle the group', () => {
+    const checks = new Set(writingChecks.map(check => check.id));
+    expect(writingLensGroups.filter(group => checks.has(group.id))).toEqual([]);
+    expect(writingLensGroups.flatMap(group => group.checks).sort()).toEqual([...checks].sort());
+    const value = { language: 'en-US', lenses: [] };
+    expect(changeWritingLenses(value, { type: 'lens', value: 'directness', enabled: true }).lenses).toEqual(['direct']);
+    expect(changeWritingLenses(value, { type: 'lens', value: 'direct', enabled: true }).lenses).toEqual(['direct']);
+});
+
+test('lens counts count each visible finding once under the group that displays it', () => {
+    const counts = writingLensCounts([{ lens: 'spelling' }, { lens: 'grammar' }, { lens: 'direct' }, { lens: 'formulaic' }, { lens: 'formulaic' }, { lens: 'unknown' }]);
+    expect(counts).toEqual({ proofreading: 2, clarity: 0, directness: 1, 'inclusive-language': 0, 'formulaic-writing': 2 });
+    expect(writingLensCounts()).toEqual({ proofreading: 0, clarity: 0, directness: 0, 'inclusive-language': 0, 'formulaic-writing': 0 });
 });

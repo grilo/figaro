@@ -566,7 +566,7 @@ bounded normalized language label; untyped fences use `code`; frontmatter and
 every omitted block stay quiet; and parent/child/peer heading plus fence/table
 ranges remain exact. `blockControlVisibilityModel.test.js` separately proves
 the rendered-block-to-rail activation rectangle, the narrower heading lane,
-and folded/focus/caret overrides. The real CodeMirror component must exercise editor-sized,
+and folded/focus/caret overrides. The real CodeMirror component must exercise compact,
 typed, accessible collapse/expand controls, disabling and re-enabling the
 gutter, and show that folding never edits source.
 `blockControlVisibility.test.js` uses real CodeMirror gutter updates to prove
@@ -883,8 +883,8 @@ scrollbar interaction leave the root selection intact, clicks a rendered cell,
 and exercises Arrow Down/Up around revealed source. It also opens the modal,
 proves an ordinary click retains native textarea caret placement without a
 cell-range announcement, uses a real Shift-drag for Merge/Split, checks the header
-tint and read-only source, applies one transaction, and undoes it once through
-root CodeMirror history. It also checks the computed preview surface has no
+tint and read-only source, applies one transaction, verifies editor focus, and undoes it with a real
+Ctrl+Z keystroke without another click. It also checks the computed preview surface has no
 outer border while its background, corner radius, and cell grid remain. The
 same computed-style pass requires the Table Editor modal, pane, pane-heading,
 and redundant toolbar-group borders to be absent while the ordinary action
@@ -1401,3 +1401,19 @@ interruption, arrows, pointer placement and drag selection. Native automation
 used DOM-dispatched input and CodeMirror transactions; it does not establish
 physical device feel on Windows or macOS. The full frontend run passed 318
 suites / 2,944 tests with all coverage floors met.
+
+
+## UX recovery and narrow writing regressions
+
+`markdownInlineFormatting.test.js` and `markdownFormattingEditor.test.js` own
+whitespace trimming, backward selection, whitespace-only no-op, and one-step
+Undo/Redo. `markdownTableEditor.test.js` owns Apply focus; the existing
+`markdownTables.spec.js` transaction scenario uses a real keyboard Undo after
+Apply. Cancel still returns to the invoking helper.
+
+`rightSidebarLayout.test.js` proves the shared 400px canvas floor and existing
+overlay fallback. The existing activity/block-guide `editorUX.spec.js` scenario
+checks a 900 × 700 window at 100% and 150% text with Outline, a sixteen-character
+fence label, and table helpers: useful prose width, a contained helper rail, and
+no overlap with source. Its existing Arrow Up/Down, pointer, and drag checks
+remain required. Repeat these boundaries in the packaged native webview.

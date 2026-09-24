@@ -144,7 +144,7 @@ COMMANDS
 cmp "$check_root/expected" "$check_root/commands"
 grep -q '### Changed' "$check_root/output"
 grep -q 'Release fixture change.' "$check_root/output"
-grep -q 'version selection and release approval are still required' "$check_root/output"
+grep -q 'nothing was committed, tagged, or pushed' "$check_root/output"
 # An interrupted verification must fail before finalization, preserving the proposal.
 : > "$check_root/commands"
 if FIGARO_TEST_COMMAND_LOG="$check_root/commands" \

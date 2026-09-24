@@ -30,7 +30,7 @@ describe('Writing lenses pane and Pure picker', () => {
         expect(panel.querySelector('[role="combobox"]').getAttribute('aria-label')).toBe('Analysis language');
         expect(panel.querySelector('.writing-lenses-document')).toBeNull();
         expect(panel.querySelector('input[value="proofreading"]').indeterminate).toBe(true);
-        expect(panel.querySelector('input[value="direct"]').disabled).toBe(false);
+        expect(panel.querySelector('input[value="directness"]').disabled).toBe(false);
         expect(panel.textContent).toContain('Writing review');
         claimRightPane('raw-text-preview', sidebar);
         expect(panel.hidden).toBe(true);
@@ -119,6 +119,8 @@ test('writing pane restores findings after immediate Undo to the same document o
     const controller = initWritingLenses({ getActiveTab: () => ({ id: 'memo', type: 'file', path: 'Memo.md' }), getEditorDocumentTabId: () => 'memo', getView: () => view, getSpellingPreferences: () => ({ enabled: false, language: 'es' }), focusEditor: () => view.focus(), loadPreferences: async () => ({ primary: 'plain', language: 'en-US' }), savePreferences: jest.fn(async () => {}), analysisPorts: ports });
     try {
         await controller.ready; controller.toggle(); await jest.advanceTimersByTimeAsync(500);
+        const clarityCount = document.querySelector('#writing-lenses-panel input[value="clarity"]').closest('label').querySelector('[data-count]');
+        expect(clarityCount.hidden).toBe(false); expect(document.getElementById('writing-lenses-pane-clarity-count').textContent).toBe('1 suggestion.');
         document.querySelector('[aria-label="Replace “utilize” with “use”"]').click();
         expect(view.state.doc.toString()).toBe('We use **ordinary words**.');
         expect(undo(view)).toBe(true); expect(view.state.doc.toString()).toBe(source);
@@ -152,14 +154,14 @@ test('document lens choices stay with their note through late loads, failed save
         tab = { ...tab, id: 'first', path: 'First.md' }; controller.refresh();
         expect(input('proofreading').indeterminate).toBe(true);
         expect(input('proofreading').getAttribute('aria-description')).toContain('Enabled checks: Spelling.');
-        input('direct').click();
+        input('directness').click();
         expect(save).toHaveBeenCalledWith('First.md', { lenses: ['spelling', 'direct'], language: 'en-US' });
         tab = { ...tab, id: 'second', path: 'Second.md' }; controller.refresh();
         failSave(new Error('read only')); for (let i = 0; i < 10; i++) await Promise.resolve();
-        expect(input('direct').checked).toBe(false);
+        expect(input('directness').checked).toBe(false);
         expect(document.querySelector('#writing-lenses-panel [data-retry]').hidden).toBe(true);
         tab = { ...tab, id: 'first', path: 'First.md' }; controller.refresh();
-        expect(input('direct').checked).toBe(true);
+        expect(input('directness').checked).toBe(true);
         expect(document.querySelector('#writing-lenses-panel [data-retry]').hidden).toBe(false);
         expect(load.mock.calls.map(call => call[0])).toEqual(['First.md', 'Second.md']);
     } finally { controller.destroy(); }
@@ -271,7 +273,7 @@ test('renaming an open note retains its mounted lens choices and reversible revi
         expect(load).toHaveBeenCalledTimes(1);
         const panel = document.getElementById('writing-lenses-panel');
         expect(panel.querySelector('input[value="proofreading"]').indeterminate).toBe(true);
-        panel.querySelector('input[value="direct"]').click();
+        panel.querySelector('input[value="directness"]').click();
         expect(save).toHaveBeenCalledWith('Archive/Note.md', { language: 'en-US', lenses: ['spelling', 'direct'] });
         panel.querySelector('[aria-controls="writing-saved-decisions-0"]').click();
         panel.querySelector('[data-decision="accepted"]').click();

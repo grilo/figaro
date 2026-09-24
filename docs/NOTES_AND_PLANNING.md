@@ -8,11 +8,15 @@ Use **Quick note** or **Ctrl/Cmd+N** to create a timestamped note in `Inbox`.
 The Today dashboard opens when no file tab is active. It offers a daily note,
 quick capture, due tasks, recent notes, and older material to revisit. Daily
 notes use `Inbox/YYYY-MM-DD.md`; existing daily notes at the vault root still open.
+**Ctrl/Cmd+Shift+N** uses the same rule as the Today button.
 
 Search by title or content. While writing a link, completion suggests existing
 notes or offers **Create note**. **Settings → Links** chooses Markdown links or
 wiki links. Backlinks show incoming references and unlinked mentions that you
-can turn into links. Graph explores the connections between notes.
+can turn into links. Incoming references include wiki aliases and heading links.
+Graph explores the connections between notes. **Ctrl/Cmd+Shift+F** reveals search
+from a collapsed sidebar; failed searches offer **Retry**, and pending queries
+do not open old results.
 
 A conventional Markdown link can target a note or a heading within one.
 Ctrl/Cmd-click an external HTTP or HTTPS link to open it in your default browser.
@@ -42,7 +46,8 @@ question.
 
 **Settings → Vault care** offers checks for similar notes and repeated
 filenames. Its **Recently deleted** list restores archived items without
-replacing new content at the same path. See [recovery](GETTING_STARTED.md#save-history-and-recovery).
+replacing new content at the same path and refreshes while Settings remains open.
+Deletion **Undo** remains available for ten seconds through tree refreshes. See [recovery](GETTING_STARTED.md#save-history-and-recovery).
 
 ## Put tasks on a board
 

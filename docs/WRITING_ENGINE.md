@@ -37,7 +37,7 @@ changes source, starts analysis, or saves preferences.
 All prose checks receive the full mapped English document after debounce;
 the existing punctuation/terminology checks skip execution when a pure prefilter
 finds no candidate opening marks or reviewed technical names. Slopless reviews
-eligible prose, with smart-quotes separately reading the typography projection.
+eligible prose; quote style reads the separate typography projection.
 All rule code and parsers initialize eagerly.
 English US and UK use the same initial prose rules; dictionary differences remain
 with the note’s selected analysis language. There is no automatic language detection.
@@ -60,7 +60,7 @@ with the note’s selected analysis language. There is no automatic language det
 | retext-readability 8.0.0 | [Source](https://github.com/retextjs/retext-readability), MIT | Conservative complex-sentence advice under Readability | Advisory only; length and complexity remain separate concerns |
 | @textlint-rule/textlint-rule-no-unmatched-pair 2.0.4 | [Source](https://github.com/textlint-rule/textlint-rule-no-unmatched-pair), MIT | Unmatched opening punctuation under Grammar & punctuation | Advisory example; no guessed closing position |
 | textlint-rule-terminology 5.2.16 | [Source](https://github.com/sapegin/textlint-rule-terminology), MIT | 29 reviewed technical names under Consistency; defaults/file configuration disabled | Exact canonical spelling, individual safe source edits |
-| Slopless 0.2.38 | [Source](https://github.com/berelevant-ai/slopless), MIT in bundled writing notices | 30 selected English rules under Formulaic writing; [all 47 exclusions](WRITING_SLOPLESS.md) | Advisory examples and reversible Ignore only, including em dashes and curly outliers against authored straight punctuation |
+| Slopless 0.2.38 | [Source](https://github.com/berelevant-ai/slopless), MIT in bundled writing notices | 29 selected English rules under Formulaic writing; [all 48 exclusions](WRITING_SLOPLESS.md) | Advisory examples and reversible Ignore only, including unspaced em dashes |
 | Microsoft `8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e` | [Pinned source](https://github.com/vale-cli/Microsoft/tree/8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e), MIT in `internal/writing/styles/Microsoft/LICENSE` | Acronyms, Adverbs, Jargon, Passive, SentenceLength, Wordiness; hashes in `SOURCE.json` | General example only; no guessed expansion |
 | proselint `8e24adbaa5dc6593b331f8bfab23c9af044af406` | [Pinned source](https://github.com/vale-cli/proselint/tree/8e24adbaa5dc6593b331f8bfab23c9af044af406), BSD-3-Clause in `internal/writing/styles/proselint/LICENSE` | Fourteen selected rules; full inventory in [package review](WRITING_PACKAGE_REVIEW.md), hashes in `SOURCE.json` | General examples only; no generated replacements |
 | Figaro writing rules 1 | `frontend/js/core/writingAdditionalRules.js`, repository license | Curated consistency, punctuation, and paragraph sentence length | Individual term/punctuation fixes; Readability is advisory |
@@ -202,9 +202,9 @@ Article context must reach the next prose word without crossing an excluded
 range. Sentence-initial “A” becomes “An”; acronym capitalization alternatives
 retain the chosen form. Contractions repair missing/misplaced apostrophes while
 preserving the existing style, or using the prevailing convention if absent.
-Correct straight/curly contraction typography belongs to Consistency or optional Formulaic style advice, rather than Grammar. Formulaic curly marks must differ from the note’s prevailing straight quote or apostrophe convention; consistent authored curly styles are preserved. Ellipses and expressive punctuation remain unchanged.
+Correct straight/curly contraction typography belongs to optional Formulaic style advice, rather than Grammar. Quote and apostrophe findings must differ from the note’s prevailing straight or curly convention; consistent authored styles are preserved. Ellipses and expressive punctuation remain unchanged.
 
-Editorial policy version 8 retains the correction to the upstream article treatment for reviewed
+Editorial policy version 9 retains the correction to the upstream article treatment for reviewed
 consonant-sounding vowels (“a unicorn,” “a European”) and silent consonants
 (“an hour,” “an honest answer”). Unknown `u`/`eu` families and dialect-dependent
 `herb`/`historic`, SQL, and URL pronunciations are withheld. Reviewed cases can
@@ -233,11 +233,11 @@ length findings from Figaro and Microsoft retain both native sources. Microsoft
 uses the same threshold; its native anchor expands only when the mapped sentence itself exceeds 30 words. The local check preserves eligible long-sentence coverage when native sentence boundaries disagree. The explanation distinguishes measured length from formula
 estimates and includes a general splitting/simplifying example; no automatic
 rewrite or reading-grade score is offered, and the estimates do not measure
-writing quality. Mapping/configuration version 24 includes package pins, editorial policy version 8, spelling vocabulary version 4,
+writing quality. Mapping/configuration version 25 includes package pins, editorial policy version 9, spelling vocabulary version 5,
 reviewed terms/acronym exceptions, and formula options so stale findings cannot survive a policy change. All prose
 lenses support English US/UK, save independently with the existing version 3
 preferences, and reuse dotted marks, grouped cards, Ignore, and guarded fixes.
-Vale runs when Plain language, Directness, Repetition, Consistency, Readability, or Grammar & punctuation needs it. Enabling one of these check families through its UI group
+Vale runs when Plain language, Directness, Repetition, Consistency, Readability, Grammar & punctuation, or Formulaic writing needs it. Enabling one of these check families through its UI group
 after another prose lens requests missing native evidence before reuse.
 
 Plain language adds redundant acronyms, clichés, and corporate jargon. Identical
@@ -274,8 +274,10 @@ style rules are bundled. Number/unit spacing is deliberately excluded: `8.1Mib`,
 
 Inclusive language is the eighth, independently selected lens. `retext-equality`
 provides observations, but Figaro offers only reviewed chair-title, mankind,
-manpower, man-made, blacklist, and whitelist alternatives. Obviously/simply/easy/
-easily/clearly remain contextual advice only. Personal pronouns, disability and
+manpower, man-made, blacklist, and whitelist alternatives. Reader-assumption
+tone words are Directness advice (`style.reader-assumption`), reviewed only in
+instructions or sentences addressed to the reader, except knowledge claims such
+as “obviously” and “everyone knows”. Personal pronouns, disability and
 identity descriptions, and unreviewed substitutions are withheld. Exact source
 mapping alone cannot establish editorial suitability. Remaining alternatives
 are individual guarded choices, never automatic or bulk edits. It uses the existing
@@ -340,6 +342,10 @@ are outside spelling tokens, and numeric compounds remain intact. The reviewed
 English vocabulary recognizes common technical terms; acronym plurals require a
 recognized acronym stem. All-caps words are checked instead of exempted by shape.
 The vocabulary includes async, dotfiles, etags, fallbacks and middleware.
+Every replacement a lens offers is recognized, so applying one never creates a
+spelling finding: inclusive alternatives such as allowlist and blocklist,
+consistent-term forms such as ebook, and terminology product names in their
+exact casing (a miscased GraphQL is still flagged).
 Forward/reverse definitions in visible spelling prose recognize three-to-five-letter
 acronyms for the current note only. Adding or removing a definition immediately
 changes eligibility without storing document context in the word-suggestion cache.
@@ -353,16 +359,18 @@ invented possessive apostrophes are withheld, while reviewed contraction shapes
 remain available. Generated English alternatives cannot merely remove a final
 plural `s` from an unknown word. Recognition of a term never
 authorizes a rewrite. Analysis parsing and resolution remain worker-only; no scans are added
-to input handlers. Mapping/configuration version 24 invalidates older evidence.
+to input handlers. Mapping/configuration version 25 invalidates older evidence.
 
 ## Corpus context guards
 
 The [corpus correction contract](WRITING_CORPUS_FIXES.md) covers the eight
 confirmed patterns. Shared pure context guards suppress mismatched technical
 function/request/parameter/type and postal-address advice without removing any
-provider rules. They also distinguish inclusive reader assumptions from
-negation, limiting phrases, established easy-read wording and descriptive
-clarity. Surviving tone advice explains the reader assumption specifically.
+provider rules. They also distinguish Directness reader assumptions from
+negation, limiting phrases, established easy-read wording, titles and
+descriptive statements. Surviving tone advice explains the reader assumption
+specifically. Words that spell out an acronym in its definition receive no
+wordiness advice.
 URL masking preserves surrounding punctuation and balanced internal parentheses.
 All checks remain in the asynchronous worker architecture.
 
@@ -382,8 +390,8 @@ literal, observed-scene and adjectival-state guards remove mismatched advice.
 The later [suggestion-relevance review](benchmarks/writing-relevance-2026-09-20.md)
 adds reviewed familiar-word, meaningful-modifier and technical-passive guards.
 It retains explicit actors, useful phrase shortening and general passive advice.
-Curly punctuation follows the same current-note convention as Consistency,
-computed once during resolution without changing raw paragraph caches.
+Quote and apostrophe style follows the current-note convention under
+Formulaic writing, computed once during resolution without changing raw paragraph caches.
 
 The [descriptive-context follow-up](benchmarks/writing-context-2026-09-20.md)
 extends bounded guards to timed maintenance, physical/location descriptions,
@@ -507,7 +515,7 @@ removes one occurrence decision; **Review acronym again** removes one acronym
 acceptance. Reversal is available even with disabled lenses or changed text.
 The controls show saving/errors and preserve accessible focus. Successful async
 inline actions restore focus only while the originating editor/source still
-owns it. The decisions participate in mapping/configuration version 24; adding
+owns it. The decisions participate in mapping/configuration version 25; adding
 or removing them reuses current analyzer evidence and invalidates stale actions.
 
 ## Bounded review and bulk changes

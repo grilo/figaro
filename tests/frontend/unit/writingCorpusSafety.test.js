@@ -168,16 +168,32 @@ test.each(['We request permission.', 'We should address the concern.', 'We utili
 test.each(['Use the easy read guide.', 'The setup is not easy.', 'This is not just a list.',
     'It is just as diverse.', 'Just like any other bug, this can be fixed.',
     'Read the Ten Simple Rules collection.', 'Use a clearly annotated notebook.', 'The task cannot be easily repeated.'])(
-    'Inclusive language respects accessibility terminology, limiting phrases and negation: %s', async source => {
-        expect(await review(source, ['inclusive'])).toEqual([]);
+    'Inclusive and Directness respect accessibility terminology, titles, limiting phrases and negation: %s', async source => {
+        expect(await review(source, ['inclusive', 'direct'])).toEqual([]);
     });
 
-test('Inclusive language retains role/reader-assumption advice with concern-specific explanations', async () => {
-    const found = await review('The chairman said everyone knows this is easy.', ['inclusive']);
-    expect(found.some(f => f.actual === 'chairman' && f.fixes.length === 2)).toBe(true);
-    const tone = found.find(f => f.actual === 'easy');
-    expect(tone.message).toContain('readers'); expect(tone.message).not.toContain('insensitive'); expect(tone.fixes).toEqual([]);
+test('role advice stays inclusive while reader assumptions are Directness advice', async () => {
+    const source = 'The chairman said everyone knows this. Simply run the installer.';
+    const inclusive = await review(source, ['inclusive']);
+    expect(inclusive.map(f => f.actual)).toEqual(['chairman']); expect(inclusive[0].fixes).toHaveLength(2);
+    const direct = (await review(source, ['direct'])).filter(f => f.kind === 'style.reader-assumption');
+    expect(direct.map(f => f.actual)).toEqual(['everyone knows', 'Simply']);
+    for (const tone of direct) {
+        expect(tone.message).toContain('readers'); expect(tone.message).not.toContain('insensitive'); expect(tone.fixes).toEqual([]);
+    }
 });
+
+test.each(['Simply run the installer.', 'You can easily change this setting.', 'Then just click Save.',
+    'Let’s keep the setup simple.', 'Obviously, the result holds.'])(
+    'Directness reviews reader-assumption wording in instructions or knowledge claims: %s', async source => {
+        expect((await review(source, ['direct'])).some(f => f.kind === 'style.reader-assumption')).toBe(true);
+    });
+
+test.each(['The algorithm is simple.', 'The patch was easy to review.', 'Installation is straightforward.',
+    'The script basically copies files.', 'It just works on Linux.'])(
+    'Directness leaves descriptions of difficulty alone: %s', async source => {
+        expect((await review(source, ['direct'])).filter(f => f.kind === 'style.reader-assumption')).toEqual([]);
+    });
 
 test.each([
     ['ASI', 'ASI (Automatic Semicolon Insertion) ends statements.'],

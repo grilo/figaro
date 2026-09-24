@@ -1,7 +1,9 @@
+import { writingTerminology } from './writingTextlintModel.js';
+
 /** Reviewed English technical vocabulary supplements the bundled small dictionary.
  * Recognition only: these entries do not authorize replacements or infer identity.
  */
-export const spellingVocabularyVersion = '4';
+export const spellingVocabularyVersion = '5';
 const technicalWords = new Set([
     'args', 'backoff', 'backoffs', 'ctrl', 'debounce', 'debounced', 'debounces', 'debouncing',
     'fn', 'lifecycle', 'lifecycles', 'sigint', 'unref', 'whatwg',
@@ -16,9 +18,13 @@ const technicalWords = new Set([
     'preprint', 'preprints', 'radix', 'repurposing', 'reproducibility', 'reraised',
     'runtimes', 'samtools', 'circos', 'subclass', 'subclasses', 'syntaxes',
     'traceback', 'tracebacks', 'unhandled', 'whitespace', 'xml', 'yaml', 'zenodo',
+    // Replacements offered by the inclusive-language and consistency lenses.
+    'allowlist', 'allowlists', 'blocklist', 'blocklists', 'ebook', 'ebooks', 'html', 'pdf', 'pdfs',
 ]);
+// Terminology fixes are exact product spellings; other casings stay flagged.
+const terminologyWords = new Set(writingTerminology);
 
 export function reviewedSpellingWord(word, languages) {
     if (!languages.some(language => ['en-US', 'en-GB'].includes(language))) return false;
-    return technicalWords.has(word.toLowerCase());
+    return technicalWords.has(word.toLowerCase()) || terminologyWords.has(word);
 }

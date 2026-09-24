@@ -319,7 +319,9 @@ export function applyMarkdownInlineFormat(view, format) {
         applied = true;
         return {
             changes: { from: plan.from, to: plan.to, insert: plan.insert },
-            range: EditorSelection.range(plan.anchor, plan.head),
+            range: range.anchor > range.head
+                ? EditorSelection.range(plan.head, plan.anchor)
+                : EditorSelection.range(plan.anchor, plan.head),
         };
     });
     if (!applied) return false;

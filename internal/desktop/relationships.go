@@ -10,6 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"figaro/internal/links"
 	searchmodel "figaro/internal/search"
 )
 
@@ -161,20 +162,13 @@ func (a *App) LinkUnlinkedMention(sourcePath string, lineNumber int, targetPath 
 	return &SaveFileResult{Success: true, Mtime: mtime, Path: sourcePath}, nil
 }
 
+var markdownBacklinkRE = regexp.MustCompile(`\[([^\]\r\n]*)\]\(([^)\s\r\n]+)\)`)
+
 var wikiRelationshipLinkRE = regexp.MustCompile(`\[\[([^\]\r\n]+)\]\]`)
 
 func lineLinksToVaultPath(line, sourcePath, targetPath string) bool {
-	for _, match := range markdownBacklinkRE.FindAllStringSubmatch(line, -1) {
-		if len(match) == 3 && vaultLinkTarget(sourcePath, match[2], false) == targetPath {
-			return true
-		}
-	}
-	for _, match := range wikiRelationshipLinkRE.FindAllStringSubmatch(line, -1) {
-		if len(match) != 2 {
-			continue
-		}
-		target, _, _ := strings.Cut(match[1], "|")
-		if vaultLinkTarget(sourcePath, target, true) == targetPath {
+	for _, target := range links.MarkdownLinkTargets(line, sourcePath) {
+		if target == targetPath {
 			return true
 		}
 	}

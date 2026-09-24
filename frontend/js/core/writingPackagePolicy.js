@@ -1,10 +1,10 @@
 /** Conservative policy for package advice over the existing prose projection. */
 import { writingInclusiveContext } from './writingContextModel.js';
 export const readabilityOptions = Object.freeze({ age: 16, minWords: 15, threshold: 5 / 7 });
-export const writingEditorialPolicyVersion = '8';
+export const writingEditorialPolicyVersion = '9';
 
 // Review a small set of generic roles/expressions, never infer a person's identity.
-const inclusiveAlternatives = new Map([
+export const inclusiveAlternatives = new Map([
     ['chairman', ['chair', 'chairperson']], ['chairwoman', ['chair', 'chairperson']],
     ['mankind', ['humankind', 'humanity']], ['manpower', ['workforce']],
     ['man-made', ['artificial', 'manufactured']], ['blacklist', ['blocklist']],

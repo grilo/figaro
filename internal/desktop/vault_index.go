@@ -15,8 +15,6 @@ import (
 
 const maxIndexedSearchTrigrams = 32768
 
-var markdownBacklinkRE = regexp.MustCompile(`\[([^\]\r\n]*)\]\(([^)\s\r\n]+)\)`)
-
 // vaultIndex is a vault-lock-protected, in-memory description of Markdown
 // content. App methods mutate it only while holding vaultMu for writing, so
 // readers can share it under vaultMu.RLock without copying the whole vault.
@@ -154,7 +152,7 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 	file.searchDocument.Fields[searchmodel.FieldPath] = searchmodel.Analyze(
 		strings.TrimSuffix(file.path, filepath.Ext(file.path)), false,
 	)
-	file.linkTargets = links.MarkdownLinkTargets(content, file.path)
+	file.linkTargets, file.backlinks = indexedLinkProjection(file)
 	if matches := dailyNoteFilenameRE.FindStringSubmatch(file.name); len(matches) == 2 && isCalendarDate(matches[1]) {
 		file.dailyNote = matches[1]
 	}
@@ -164,7 +162,7 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 	seenTags := make(map[string]struct{})
 	// One line walk feeds every document-derived projection. Indexing runs on
 	// initial vault discovery and on each Markdown save, so avoiding separate
-	// string splits for dates, backlinks, and cards substantially reduces
+	// string splits for dates and cards substantially reduces
 	// allocation without changing their parsing rules.
 	for lineNumber, lineStart := 1, 0; ; lineNumber++ {
 		lineEnd := strings.IndexByte(content[lineStart:], '\n')
@@ -207,23 +205,6 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 		for _, match := range emptyDateLinkRE.FindAllStringSubmatch(line, -1) {
 			if isCalendarDate(match[1]) {
 				seenLinkedDays[match[1]] = struct{}{}
-			}
-		}
-		for _, match := range markdownBacklinkRE.FindAllStringSubmatch(line, -1) {
-			label, target := match[1], match[2]
-			targetName := strings.TrimSuffix(filepath.Base(target), ".md")
-			if !strings.HasSuffix(strings.ToLower(target), ".md") || !strings.EqualFold(label, targetName) {
-				continue
-			}
-			key := strings.ToLower(target)
-			if _, seen := file.backlinks[key]; !seen {
-				file.backlinks[key] = BacklinkResult{
-					Path:    file.path,
-					Name:    file.name,
-					LineNum: lineNumber,
-					Snippet: strings.TrimSpace(line),
-					Mtime:   file.mtime,
-				}
 			}
 		}
 		lineTags := make([]string, 0)
@@ -981,7 +962,7 @@ func remapVaultIndexedFile(file vaultIndexedFile, futurePath string) vaultIndexe
 	file.searchDocument.Fields[searchmodel.FieldPath] = searchmodel.Analyze(
 		strings.TrimSuffix(file.path, filepath.Ext(file.path)), false,
 	)
-	file.linkTargets = links.MarkdownLinkTargets(file.content, file.path)
+	file.linkTargets, file.backlinks = indexedLinkProjection(file)
 	file.dailyNote = ""
 	if matches := dailyNoteFilenameRE.FindStringSubmatch(file.name); len(matches) == 2 && isCalendarDate(matches[1]) {
 		file.dailyNote = matches[1]
@@ -994,13 +975,6 @@ func remapVaultIndexedFile(file vaultIndexedFile, futurePath string) vaultIndexe
 	}
 	file.linked = remapLinkedNotes(file.linked, file.path, file.name)
 	file.noteLinks = remapLinkedNotes(file.noteLinks, file.path, file.name)
-	backlinks := file.backlinks
-	file.backlinks = make(map[string]BacklinkResult, len(backlinks))
-	for target, backlink := range backlinks {
-		backlink.Path = file.path
-		backlink.Name = file.name
-		file.backlinks[target] = backlink
-	}
 	return file
 }
 
@@ -1093,4 +1067,27 @@ func (a *App) invalidateVaultIndexLocked() {
 	a.vaultIndex = nil
 	a.invalidateVaultHealthCacheLocked()
 	a.invalidateCalendarIndexLocked()
+}
+
+// indexedLinkProjection retains line context and normalized targets in one parse.
+func indexedLinkProjection(file vaultIndexedFile) ([]string, map[string]BacklinkResult) {
+	targets := make(map[string]struct{})
+	backlinks := make(map[string]BacklinkResult)
+	for _, occurrence := range links.MarkdownLinkOccurrences(file.content, file.path) {
+		targets[occurrence.Target] = struct{}{}
+		if !strings.HasSuffix(strings.ToLower(occurrence.Target), ".md") {
+			continue
+		}
+		key := strings.ToLower(occurrence.Target)
+		if _, seen := backlinks[key]; !seen {
+			backlinks[key] = BacklinkResult{Path: file.path, Name: file.name, LineNum: occurrence.Line,
+				Snippet: occurrence.Source, Mtime: file.mtime}
+		}
+	}
+	ordered := make([]string, 0, len(targets))
+	for target := range targets {
+		ordered = append(ordered, target)
+	}
+	sort.Strings(ordered)
+	return ordered, backlinks
 }

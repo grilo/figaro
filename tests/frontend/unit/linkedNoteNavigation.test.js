@@ -80,12 +80,20 @@ describe('linked-note navigation use case', () => {
         expect(ports.openTab).not.toHaveBeenCalled();
     });
 
-    test('a read rejection is logged and never interpreted as a missing note', async () => {
+    test('a read rejection explains the failed target, preserves tabs and permits retry without creating a note', async () => {
         const failure = new Error('Read failed');
         const { ports, navigate } = setup({ read: jest.fn().mockRejectedValue(failure) });
         await navigate('note.md');
         expect(ports.log.error).toHaveBeenCalledWith('Failed to open link:', failure, 'path was:', 'note.md');
+        expect(ports.error).toHaveBeenCalledWith('Couldn’t open linked note', failure, 'Couldn’t open “note.md”. Try the link again.');
+        expect(ports.error).toHaveBeenCalledTimes(1);
+        expect(ports.confirm).not.toHaveBeenCalled();
+        expect(ports.openTab).not.toHaveBeenCalled();
+        expect(ports.replaceTab).not.toHaveBeenCalled();
         expect(ports.create).not.toHaveBeenCalled();
+        ports.read.mockResolvedValueOnce({ mtime: 7 });
+        await navigate('note.md');
+        expect(ports.openTab).toHaveBeenCalledWith('note.md', 'note.md', 'file', { path: 'note.md', mtime: 7 });
     });
 
     const similarTree = [{ name: 'InnerSource.md', path: 'notes/InnerSource.md', type: 'file' }];

@@ -76,15 +76,19 @@ test.each([
 });
 
 test('Formulaic punctuation honors authored quotation and apostrophe conventions independently', async () => {
-    for (const source of ['She said “ready”. It’s done.', 'Use ‘single quotes’.', 'It’s ready.', 'She said “ready”. He said "done".']) {
-        expect(visible(await review(source)).filter(finding => finding.kind === 'formulaic.curly-punctuation')).toEqual([]);
+    const typography = result => visible(result).filter(finding => ['style.quotation', 'style.apostrophe'].includes(finding.kind));
+    for (const source of ['She said “ready”. It’s done.', 'Use ‘single quotes’.', 'It’s ready.', 'She said "ready". It\'s done.']) {
+        expect(typography(await review(source))).toEqual([]);
     }
     const source = 'She said "ready". He said "done". They said “yes”. It\'s ready. It\'s done. It’s late.';
-    const curly = visible(await review(source)).filter(finding => finding.kind === 'formulaic.curly-punctuation');
-    expect(curly.map(finding => finding.actual)).toEqual(['“', '”', '’']);
-    expect(curly.every(finding => finding.fixes.length === 0 && source.slice(finding.from, finding.to) === finding.actual)).toBe(true);
+    const outliers = typography(await review(source));
+    expect(outliers.map(finding => [finding.kind, finding.actual, finding.lens])).toEqual([
+        ['style.quotation', '“yes”', 'formulaic'], ['style.apostrophe', '’', 'formulaic']]);
+    expect(outliers.every(finding => finding.fixes.length === 1 && source.slice(finding.from, finding.to) === finding.actual)).toBe(true);
+    // A tie follows the first occurrence, so the later straight quotation is the outlier.
+    expect(typography(await review('She said “ready”. He said "done".')).map(finding => finding.actual)).toEqual(['"done"']);
     const protectedSource = '```text\n"straight" "quotes"\n```\n\nShe said “ready”.';
-    expect(visible(await review(protectedSource)).filter(finding => finding.kind === 'formulaic.curly-punctuation')).toEqual([]);
+    expect(typography(await review(protectedSource))).toEqual([]);
 });
 
 test('relevance policy uses the current punctuation convention after incremental paragraph edits', async () => {
@@ -95,7 +99,7 @@ test('relevance policy uses the current punctuation convention after incremental
         const incremental = await analyzer.analyze(source), full = await analyzeWritingFull(source);
         expect(incremental).toEqual(full);
         const result = resolveWritingFindings({ source, ...incremental, preferences });
-        counts.push(visible(result).filter(finding => finding.kind === 'formulaic.curly-punctuation').length);
+        counts.push(visible(result).filter(finding => finding.kind === 'style.quotation').length);
     }
-    expect(counts).toEqual([0, 2, 0]);
+    expect(counts).toEqual([0, 1, 0]);
 });

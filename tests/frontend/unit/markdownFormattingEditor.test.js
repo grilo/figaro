@@ -1,4 +1,4 @@
-import { undo } from '@codemirror/commands';
+import { redo, undo } from '@codemirror/commands';
 
 import {
     createEditorView,
@@ -81,5 +81,19 @@ describe('Markdown formatting keymap', () => {
             view.state.selection.main.from,
             view.state.selection.main.to,
         )).toBe('middle');
+    });
+
+    test.each([false, true])('formats a word selection with whitespace and preserves its direction (backward=%s)', async backward => {
+        const source = 'First paragraph: next';
+        await setEditorContent(source);
+        view.dispatch({ selection: backward ? { anchor: 15, head: 5 } : { anchor: 5, head: 15 } });
+        press(view, 'b');
+        expect(getEditorContent()).toBe('First **paragraph**: next');
+        expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('paragraph');
+        expect(view.state.selection.main.anchor > view.state.selection.main.head).toBe(backward);
+        expect(undo(view)).toBe(true);
+        expect(getEditorContent()).toBe(source);
+        expect(redo(view)).toBe(true);
+        expect(getEditorContent()).toBe('First **paragraph**: next');
     });
 });

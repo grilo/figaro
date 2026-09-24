@@ -20,10 +20,12 @@ import {
 
 function deferred() {
     let resolve;
-    const promise = new Promise((finish) => {
+    let reject;
+    const promise = new Promise((finish, fail) => {
         resolve = finish;
+        reject = fail;
     });
-    return { promise, resolve };
+    return { promise, resolve, reject };
 }
 
 function rankedResponse(results, suggestion = '') {
@@ -342,6 +344,8 @@ describe('workspace search', () => {
         expect(input.getAttribute('aria-expanded')).toBe('true');
         expect(document.getElementById('search-result-list')).toBe(list);
         expect(list.querySelectorAll('.search-result-row')).toHaveLength(2);
+        expect(list.querySelector('.search-result-row').disabled).toBe(true);
+        expect(dropdown.getAttribute('aria-busy')).toBe('true');
 
         titleRefresh.resolve(rankedResponse([{
             name: 'Project Alpha.md',
@@ -353,6 +357,8 @@ describe('workspace search', () => {
 
         expect(document.getElementById('search-result-list')).toBe(list);
         expect(list.querySelectorAll('.search-result-row')).toHaveLength(1);
+        expect(list.querySelector('.search-result-row').disabled).toBe(false);
+        expect(dropdown.getAttribute('aria-busy')).toBe('false');
         expect(titleFilter.getAttribute('aria-pressed')).toBe('true');
         expect(document.activeElement).toBe(titleFilter);
 
@@ -411,5 +417,82 @@ describe('workspace search', () => {
         expect(window.go.desktop.App.SearchNotes).toHaveBeenLastCalledWith(
             'deployment', GLOBAL_SEARCH_REQUEST
         );
+    });
+
+    test('never opens the previous query from keyboard or pointer while new input is pending', async () => {
+        const input = document.getElementById('global-search-input');
+        input.value = 'project';
+        await performGlobalSearch(input.value);
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        const oldRow = document.querySelector('.search-result-row');
+        input.value = 'beta';
+        // The input changed before the debounced native request began.
+        oldRow.click();
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(openTab).not.toHaveBeenCalled();
+
+        const pending = deferred();
+        window.go.desktop.App.SearchNotes.mockReturnValueOnce(pending.promise);
+        const search = performGlobalSearch(input.value);
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(openTab).not.toHaveBeenCalled();
+        expect(state.searchResults).toEqual([]);
+        expect(input.hasAttribute('aria-activedescendant')).toBe(false);
+        pending.resolve(rankedResponse([{ path: 'Beta.md', name: 'Beta.md', matches: [] }]));
+        await search;
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(openTab).toHaveBeenCalledWith('Beta.md', 'Beta.md', 'file', expect.objectContaining({ path: 'Beta.md' }));
+    });
+
+    test('ends a failed search with an announced error and retry of the current query', async () => {
+        const input = document.getElementById('global-search-input');
+        const dropdown = document.getElementById('global-search-dropdown');
+        input.value = 'project';
+        input.focus();
+        await performGlobalSearch(input.value);
+        window.go.desktop.App.SearchNotes.mockRejectedValueOnce(new Error('Unavailable'));
+        await performGlobalSearch(input.value, { preserveResults: true });
+        expect(dropdown.querySelector('[role="alert"]').textContent).toContain('Couldn’t search notes');
+        expect(dropdown.textContent).not.toContain('Searching');
+        expect(dropdown.getAttribute('aria-busy')).toBe('false');
+        expect(dropdown.querySelectorAll('.search-result-row')).toHaveLength(0);
+        expect(state.searchResults).toEqual([]);
+        expect(document.activeElement).toBe(input);
+        const retry = dropdown.querySelector('[data-search-retry]');
+        retry.focus();
+        retry.click();
+        await settleSearchRender();
+        expect(window.go.desktop.App.SearchNotes).toHaveBeenLastCalledWith('project', GLOBAL_SEARCH_REQUEST);
+        expect(dropdown.querySelector('[role="alert"]')).toBeNull();
+        expect(dropdown.querySelectorAll('.search-result-row')).toHaveLength(2);
+        expect(document.activeElement).toBe(input);
+    });
+
+    test('ignores a late failure after a newer query succeeds', async () => {
+        const pending = deferred();
+        window.go.desktop.App.SearchNotes.mockReturnValueOnce(pending.promise);
+        const first = performGlobalSearch('first');
+        await performGlobalSearch('project');
+        pending.reject(new Error('Old failure'));
+        await first;
+        expect(document.querySelector('[role="alert"]')).toBeNull();
+        expect(document.querySelectorAll('.search-result-row')).toHaveLength(2);
+        expect(state.searchQuery).toBe('project');
+    });
+
+    test.each(['resolve', 'reject'])('does not republish or expand a dismissed pending search on %s', async completion => {
+        const pending = deferred();
+        window.go.desktop.App.SearchNotes.mockReturnValueOnce(pending.promise);
+        disposeSearch = initSearch();
+        const search = performGlobalSearch('project');
+        document.body.click();
+        if (completion === 'resolve') pending.resolve(rankedResponse([{ path: 'Late.md', matches: [] }]));
+        else pending.reject(new Error('Late failure'));
+        await search;
+        expect(document.getElementById('global-search-input').getAttribute('aria-expanded')).toBe('false');
+        expect(document.getElementById('global-search-dropdown').classList.contains('visible')).toBe(false);
+        expect(state.searchResults).toEqual([]);
     });
 });

@@ -72,9 +72,31 @@ func RewriteMarkdownLinksForCopy(content string, sourceRel string, copiedSourceR
 // without changing the transformation's result.
 func MarkdownLinkTargets(content string, sourceRel string) []string {
 	targets := make(map[string]struct{})
+	for _, occurrence := range MarkdownLinkOccurrences(content, sourceRel) {
+		targets[occurrence.Target] = struct{}{}
+	}
+	result := make([]string, 0, len(targets))
+	for target := range targets {
+		result = append(result, target)
+	}
+	sort.Strings(result)
+	return result
+}
+
+// MarkdownLinkOccurrence preserves a normalized destination and its source line.
+type MarkdownLinkOccurrence struct {
+	Target string
+	Line   int
+	Source string
+}
+
+// MarkdownLinkOccurrences shares the move rewriter's destination and fence rules
+// while retaining line context for relationship indexing.
+func MarkdownLinkOccurrences(content string, sourceRel string) []MarkdownLinkOccurrence {
+	occurrences := make([]MarkdownLinkOccurrence, 0)
 	lines := strings.SplitAfter(content, "\n")
 	inFence := false
-	for _, line := range lines {
+	for lineIndex, line := range lines {
 		trimmed := strings.TrimLeft(line, " \t")
 		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
 			inFence = !inFence
@@ -89,7 +111,7 @@ func MarkdownLinkTargets(content string, sourceRel string) []string {
 					continue
 				}
 				if target, ok := markdownDestinationTarget(match[2], sourceRel); ok {
-					targets[target] = struct{}{}
+					occurrences = append(occurrences, MarkdownLinkOccurrence{Target: target, Line: lineIndex + 1, Source: strings.TrimSpace(line)})
 				}
 			}
 		}
@@ -108,16 +130,11 @@ func MarkdownLinkTargets(content string, sourceRel string) []string {
 			}
 			clean, err := vault.RelativePath(decoded)
 			if err == nil && clean != "." {
-				targets[filepath.ToSlash(clean)] = struct{}{}
+				occurrences = append(occurrences, MarkdownLinkOccurrence{Target: filepath.ToSlash(clean), Line: lineIndex + 1, Source: strings.TrimSpace(line)})
 			}
 		}
 	}
-	result := make([]string, 0, len(targets))
-	for target := range targets {
-		result = append(result, target)
-	}
-	sort.Strings(result)
-	return result
+	return occurrences
 }
 
 func markdownDestinationTarget(destination string, sourceRel string) (string, bool) {

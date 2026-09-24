@@ -594,7 +594,7 @@ describe('File Tree', () => {
             'Deleted “plan.md” ·',
             'Undo',
             expect.any(Function),
-            { ariaLabel: 'Undo deletion of plan.md' },
+            { ariaLabel: 'Undo deletion of plan.md', actionId: 'deleted-1' },
         );
         expect(statusBar.clearAfter).toHaveBeenCalledWith(10000, 'Deleted “plan.md” ·');
     });

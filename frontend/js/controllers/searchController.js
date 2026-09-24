@@ -16,10 +16,13 @@ import {
     isSearchVisible,
     renderSearchResults,
     selectSearchResult,
+    setSearchPending,
+    showSearchFailure,
     showSearchLoading,
 } from '../views/searchView.js';
 
 let activeSearchIndex = -1;
+let searchPending = false;
 let openWorkspaceTab = null;
 
 export function configureSearchWorkspace({ openTab } = {}) {
@@ -69,6 +72,13 @@ const workspaceSearch = createWorkspaceSearch({
     },
 });
 
+function changeFilter(name) {
+    const current = filters();
+    setSearchFilter(name, !current[name]);
+    const activeQuery = currentSearchQuery();
+    if (activeQuery) performGlobalSearch(activeQuery, { preserveResults: true });
+}
+
 function render(results, query, suggestion = '') {
     renderSearchResults({
         results,
@@ -76,13 +86,9 @@ function render(results, query, suggestion = '') {
         filters: filters(),
         selectedIndex: activeSearchIndex,
         suggestion,
-        onFilter(name) {
-            const current = filters();
-            setSearchFilter(name, !current[name]);
-            const activeQuery = currentSearchQuery();
-            if (activeQuery) performGlobalSearch(activeQuery, { preserveResults: true });
-        },
+        onFilter: changeFilter,
         onOpen(index) {
+            if (searchPending || currentSearchQuery() !== query) return;
             const result = results[index];
             if (result) openSearchResult(result);
         },
@@ -100,6 +106,9 @@ function render(results, query, suggestion = '') {
 export function initSearch() {
     const closeOnOutsideClick = event => {
         if (closeSearchWhenOutside(event.target, event.composedPath?.() || [])) {
+            workspaceSearch.invalidate();
+            searchPending = false;
+            setSearchPending(false);
             activeSearchIndex = -1;
         }
     };
@@ -125,12 +134,27 @@ export async function performGlobalSearch(query, { preserveResults = false } = {
         clearGlobalSearch(false);
         return;
     }
-    if ((!preserveResults || !isSearchVisible()) && !showSearchLoading()) return;
+    if (!preserveResults || !isSearchVisible()) {
+        if (!showSearchLoading()) return;
+        publishResults([]);
+    }
     activeSearchIndex = -1;
+    searchPending = true;
+    setSearchPending(true);
     const outcome = await workspaceSearch.execute(trimmedQuery);
     if (outcome.stale) return;
+    searchPending = false;
+    setSearchPending(false);
     if (outcome.error) {
         clearSearchCount();
+        showSearchFailure({
+            filters: filters(),
+            onFilter: changeFilter,
+            onRetry() {
+                document.getElementById('global-search-input')?.focus();
+                void performGlobalSearch(currentSearchQuery() || trimmedQuery);
+            },
+        });
         return;
     }
     render(outcome.results, outcome.query, outcome.suggestion);
@@ -138,6 +162,8 @@ export async function performGlobalSearch(query, { preserveResults = false } = {
 
 export function clearGlobalSearch(clearInput = true) {
     workspaceSearch.invalidate();
+    searchPending = false;
+    setSearchPending(false);
     activeSearchIndex = -1;
     clearSearchView(clearInput);
     publishQuery('', filters().caseSensitive);
@@ -146,6 +172,7 @@ export function clearGlobalSearch(clearInput = true) {
 }
 
 function openSearchResult(result) {
+    workspaceSearch.invalidate();
     closeSearchView();
     activeSearchIndex = -1;
     const firstMatch = result.matches?.[0];
@@ -173,6 +200,7 @@ export function handleSearchKeydown(event) {
         return false;
     }
 
+    if (searchPending || query !== getState('searchQuery')) return false;
     const results = getState('searchResults') || [];
     if (!results.length) return false;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

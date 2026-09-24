@@ -177,6 +177,7 @@ export async function initDesignSystemCatalog({
             onChange(action) { preferences = changeWritingLenses(preferences, action); view.update({ preferences, status: 'saved' }); },
             onRetry() {}, onApplyAll() { view.element.querySelector('[data-save-status]').textContent = 'Example choices applied to all documents.'; } });
         view.update({ preferences, status: 'saved' });
+        view.setCounts({ proofreading: 3, clarity: 12, directness: 1, 'inclusive-language': 0, 'formulaic-writing': 0 });
         host.replaceChildren(view.element);
     }
     for (const host of root.querySelectorAll('[data-catalog-writing-suggestion]')) {

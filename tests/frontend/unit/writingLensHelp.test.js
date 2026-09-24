@@ -17,9 +17,9 @@ test('each lens has a short summary and three or four contextual examples with e
     expect(writingLensHelp('proofreading', english).limits).toContain('limited to reviewed corrections');
     expect(writingLensHelp('clarity', english).limits).toContain('do not measure writing quality');
     expect(writingLensHelp('clarity', english).limits).toContain('including plural forms');
-    expect(writingLensHelp('direct', english).limits).toContain('overstate a claim');
-    expect(writingLensHelp('inclusive', english).limits).toContain('identity or pronouns');
-    expect(writingLensHelp('formulaic', english).limits).toContain('not evidence of AI authorship');
+    expect(writingLensHelp('directness', english).limits).toContain('overstate a claim');
+    expect(writingLensHelp('inclusive-language', english).limits).toContain('identity or pronouns');
+    expect(writingLensHelp('formulaic-writing', english).limits).toContain('not evidence of AI authorship');
 });
 
 test('lens help moves partial selection detail out of the summary and keeps unavailable examples honest', () => {
@@ -29,7 +29,7 @@ test('lens help moves partial selection detail out of the summary and keeps unav
     const spanish = { ...english, preferences: { language: 'es', lenses: ['spelling'] } };
     expect(writingLensHelp('proofreading', spanish)).toMatchObject({ coverage: expect.stringContaining('Spanish dictionary'), limits: expect.stringContaining('spelling only'), examples: expect.any(Array) });
     expect(writingLensHelp('proofreading', spanish).examples.map(example => example.after)).toEqual(['hola', 'gracias', 'escribir']);
-    expect(writingLensHelp('direct', spanish)).toMatchObject({ examples: [], reason: expect.stringContaining('only available for English') });
+    expect(writingLensHelp('directness', spanish)).toMatchObject({ examples: [], reason: expect.stringContaining('only available for English') });
     expect(writingLensHelp('proofreading', { ...english, preferences: { language: 'none' } })).toMatchObject({ examples: [], reason: expect.stringContaining('Choose an analysis language') });
 });
 
@@ -72,18 +72,18 @@ describe('persistent lens help', () => {
     });
 
     test('Escape and close return focus, while outside pointer and focus dismiss without stealing focus', () => {
-        button('direct').click();
+        button('directness').click();
         const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
         document.activeElement.dispatchEvent(escape);
         expect(escape.defaultPrevented).toBe(true);
         expect(popup().hidden).toBe(true);
-        expect(document.activeElement).toBe(button('direct'));
-        button('direct').click(); popup().querySelector('button').click();
-        expect(document.activeElement).toBe(button('direct'));
+        expect(document.activeElement).toBe(button('directness'));
+        button('directness').click(); popup().querySelector('button').click();
+        expect(document.activeElement).toBe(button('directness'));
         const outside = document.createElement('button'); document.body.append(outside);
-        button('direct').click(); outside.focus();
+        button('directness').click(); outside.focus();
         expect(popup().hidden).toBe(true); expect(document.activeElement).toBe(outside);
-        button('direct').click(); outside.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+        button('directness').click(); outside.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
         expect(popup().hidden).toBe(true);
     });
 
@@ -97,15 +97,15 @@ describe('persistent lens help', () => {
         expect(popup().querySelectorAll('.writing-example')).toHaveLength(3);
         expect(popup().textContent).not.toContain('Before: teh');
         expect(document.activeElement).toBe(close);
-        expect(button('direct').disabled).toBe(false);
-        expect(view.element.querySelector('input[value="direct"]').disabled).toBe(true);
-        button('direct').click();
+        expect(button('directness').disabled).toBe(false);
+        expect(view.element.querySelector('input[value="directness"]').disabled).toBe(true);
+        button('directness').click();
         expect(popup().textContent).toContain('only available for English');
         expect(popup().querySelectorAll('.writing-example')).toHaveLength(0);
         view.update({ ...english, documentKey: 'Other.md' });
         expect(popup().hidden).toBe(true);
-        button('direct').click(); view.close(); expect(popup().hidden).toBe(true);
-        button('direct').click(); view.destroy();
+        button('directness').click(); view.close(); expect(popup().hidden).toBe(true);
+        button('directness').click(); view.destroy();
         expect(document.querySelector('.writing-lens-help')).toBeNull();
     });
 

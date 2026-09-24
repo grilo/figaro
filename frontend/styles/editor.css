@@ -790,7 +790,7 @@
     visibility: hidden;
     min-width: 34px;
     padding: 0 6px;
-    font: 500 var(--editor-active-font-size)/1 var(--font-mono);
+    font: 500 min(var(--font-size-editor), 12px)/1 var(--font-mono);
     letter-spacing: .025em;
 }
 

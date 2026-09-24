@@ -24,6 +24,13 @@ function wrapPlan(source, range, open, close = open) {
 }
 
 function markerTogglePlan(source, range, marker) {
+    if (range.from !== range.to) {
+        const selection = source.slice(range.from, range.to);
+        const content = selection.trim();
+        if (!content) return null;
+        const leading = selection.length - selection.trimStart().length;
+        range = { from: range.from + leading, to: range.from + leading + content.length };
+    }
     const selected = source.slice(range.from, range.to);
     const markerLength = marker.length;
 

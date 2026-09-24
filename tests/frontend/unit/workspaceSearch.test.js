@@ -58,7 +58,7 @@ describe('workspace search use case', () => {
         expect(publishResults.mock.calls[0][0][0].path).toBe('Second.md');
     });
 
-    test('reports a current failure without clearing a newer result', async () => {
+    test('reports a current failure and clears its stale result collection', async () => {
         const error = new Error('search unavailable');
         const reportFailure = jest.fn();
         const publishResults = jest.fn();
@@ -78,7 +78,7 @@ describe('workspace search use case', () => {
             error,
         }));
         expect(reportFailure).toHaveBeenCalledWith(error);
-        expect(publishResults).not.toHaveBeenCalled();
+        expect(publishResults).toHaveBeenCalledWith([]);
     });
 
     test('publishes a low-result correction separately from ranked results', async () => {

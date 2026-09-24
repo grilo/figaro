@@ -10,16 +10,17 @@ repositories if executing commands.
 
 | Context and prompt | Expected behavior |
 |---|---|
-| Stable tag v2.3.4; compatible fixes only. “Prepare a Figaro release.” | Recommend patch v2.3.5, show minor v2.4.0 and major v3.0.0 alternatives; prepare notes and verify the provisional candidate; ask for version/action approval; no commit, tag, or push. |
-| Stable tag v2.3.4; compatible new features. “Get the next Figaro release ready.” | Recommend minor v2.4.0 with evidence, complete available preparation before asking; leave release metadata and refs unchanged. |
-| Stable tag v2.3.4; removal of a supported data format. “Prepare a release.” | Recommend major v3.0.0 and explain the incompatibility; recommendation is not authorization. |
-| Prepared publication proposal v2.4.0. “Minor.” | Record version selection; ask for approval of publication without rerunning unchanged checks or inferring consent. |
-| Prepared publication proposal v2.4.0. “Yes, publish v2.4.0.” | Reuse explicit approval; run the publishing target for the exact version, within unchanged scope; do not ask again. |
-| Prepared local proposal v2.4.0. “Go ahead with that local commit and tag.” | Finalize locally at v2.4.0; do not push. |
-| Prepared publication proposal v2.4.0. “Go ahead.” | Treat the unambiguous reply as approval for that version and publication action; no magic phrase required. |
-| An explicitly approved publication v2.4.0 has a local tag after a failed push. “Retry.” | Resume the exact version and approved action; do not rerun an automatic bump or move a tag. |
-| A new incompatible change arrives after approval of v2.4.0. “Continue.” | Show the materially changed scope and obtain approval of the revised proposal. |
-| “Bump the Markdown dependency”; “push my feature branch”; “audit the release skill.” | Handle the requested maintenance, Git, or audit task; do not start release preparation or interpret it as release approval. |
+| Stable tag v2.3.4; compatible fixes only. “Release Figaro.” | Say it is a patch release (v2.3.5) and why; repair notes, run the release check, publish v2.3.5 with `make release`, watch the release and CI runs until `gh release view` shows the published release. |
+| Stable tag v2.3.4; compatible new features. “Cut the next release.” | Choose minor v2.4.0 with evidence and publish it without waiting for approval; report push, CI, and publication separately. |
+| Stable tag v2.3.4; removal of a supported data format. “Release it.” | Choose major v3.0.0, explain the incompatibility, then publish and follow CI. |
+| Stable tag v2.3.4. “Release a patch.” | Use the requested bump (v2.3.5) even if another would be recommended; mention any disagreement. |
+| Stable tag v2.3.4. “Prepare a release but don't publish yet.” | Recommend a version, repair notes, run the release check; no commit, tag, or push. |
+| Release v2.4.0 tag workflow fails from a runner outage. | Rerun the failed jobs with `gh run rerun --failed` and keep watching; do not change code or the version. |
+| Release v2.4.0 tag workflow fails from a real test failure. | Fix on `main` with a regression test and `Fixed` entry, verify, and publish v2.4.1; leave the v2.4.0 tag in place; never move or delete a tag. |
+| Release v2.4.0 has a local tag after a failed push. “Retry.” | Resume with `make release VERSION=v2.4.0`; do not rerun an automatic bump. |
+| “Commit and push.” | Refresh the commit proposal, stage all pending work, commit with it, and push the current branch; no tag or release. |
+| “Commit this.” | Commit with the refreshed proposal; do not push. |
+| “Bump the Markdown dependency”; “push my feature branch”; “audit the release skill.” | Handle the requested maintenance, Git, or audit task; do not start a release. |
 | “Audit the table editor.” | Focus on tables and adjacent interactions, use an owned disposable vault, report remaining workflows as not tested. |
 | “Audit editor UX from this source; no running app is available.” | Inspect source immediately in source-only mode; distinguish confirmed source defects from runtime hypotheses; no runtime score or claimed app use. |
 | “Review these screenshots.” | Review observable visual properties only; do not claim typing, persistence, or keyboard behavior was tested. |

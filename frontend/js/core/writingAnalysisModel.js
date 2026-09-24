@@ -8,9 +8,8 @@ import { writingTerminology, writingTextlintVersions, writingAcronymDefined, fam
 import { writingSloplessVersion, writingSloplessRules, writingSloplessKinds, writingSloplessConcepts } from './writingSloplessModel.js';
 import { spellingVocabularyVersion } from './spellingVocabulary.js';
 import { writingAdvisoryContext } from './writingContextModel.js';
-import { writingTypographyConvention } from './writingTypographyModel.js';
 
-export const writingMappingVersion = '24';
+export const writingMappingVersion = '25';
 export const writingEngineConfiguration = Object.freeze({ mapping: writingMappingVersion, grammar: writingGrammarVersion, spellingVocabulary: spellingVocabularyVersion, vale: '3.20.0',
     writeGood: 'c9ceca7f574248a201d5524b001099c5626c7519', proselint: '8e24adbaa5dc6593b331f8bfab23c9af044af406',
     passive: '5.0.0', simplify: '8.0.0', repetition: '5.0.0', spelling: 'nspell-2.1.5', article: '5.0.0',
@@ -43,11 +42,12 @@ const concepts = {
     'readability.long-sentence': { lens: 'readability', category: 'readability', title: 'Long sentence', message: 'Consider splitting this sentence where the idea changes.' },
     'grammar.contraction': { lens: 'grammar', category: 'grammar', title: 'Check contraction apostrophe', message: 'Check the missing or misplaced apostrophe in this contraction.' },
     'style.redundant-acronym': { lens: 'plain', category: 'conciseness', title: 'Redundant acronym wording', message: 'The acronym already includes this word. Consider using the acronym on its own.' },
-    'style.quotation': { lens: 'consistency', category: 'consistency', title: 'Consistent quotation style', message: 'Match the prevailing quotation style and nesting convention in this note; the first occurrence breaks a tie.' },
-    'style.apostrophe': { lens: 'consistency', category: 'consistency', title: 'Consistent apostrophe style', message: 'Match the prevailing apostrophe style in this note; the first occurrence breaks a tie.' },
+    'style.quotation': { lens: 'formulaic', category: 'style', title: 'Consistent quotation style', message: 'Match the prevailing quotation style and nesting convention in this note; the first occurrence breaks a tie.' },
+    'style.apostrophe': { lens: 'formulaic', category: 'style', title: 'Consistent apostrophe style', message: 'Match the prevailing apostrophe style in this note; the first occurrence breaks a tie.' },
     'style.stock-phrase': { lens: 'plain', category: 'clarity', title: 'Consider more specific wording', message: 'This expression can sound clichéd or like corporate jargon. Consider saying concretely what you mean.' },
     'style.hedging': { lens: 'direct', category: 'directness', title: 'Review qualifying phrase', message: 'Consider removing this qualifier if it adds no meaning. Keep qualifications that accurately express uncertainty.' },
-    'style.hyperbole': { lens: 'direct', category: 'directness', title: 'Review emphatic punctuation', message: 'Repeated exclamation or question marks add emphasis. Consider a single mark if that better suits your tone.' },
+    'style.hyperbole': { lens: 'formulaic', category: 'style', title: 'Review emphatic punctuation', message: 'Repeated exclamation or question marks add emphasis. Consider a single mark if that better suits your tone.' },
+    'style.reader-assumption': { lens: 'direct', category: 'directness', title: 'Review reader assumption', message: 'This wording can assume that readers find a task easy or already know the answer. Describe the steps or prerequisites when useful; keep factual descriptions of difficulty or clarity.' },
     'language.inclusive': { lens: 'inclusive', category: 'inclusivity', title: 'Consider inclusive wording', message: 'This wording may be insensitive or exclusionary in some contexts. Review whether an alternative fits your intended meaning.' },
     'style.sentence-spacing': { lens: 'consistency', category: 'consistency', title: 'Space between sentences', message: 'Consider using one space between sentences on the same line. Intentional line breaks are preserved.' },
     'style.diacritics': { lens: 'consistency', category: 'consistency', title: 'Consider an accented spelling', message: 'This name or borrowed word can take an accent. Apply the alternative only if it fits the intended name and your preferred spelling.' },
@@ -85,7 +85,7 @@ const rules = {
     'Microsoft.Passive': 'syntax.passive', 'Microsoft.SentenceLength': 'readability.long-sentence', 'Microsoft.Wordiness': 'style.wordiness',
     'Microsoft.Acronyms': 'clarity.undefined-acronym',
 };
-const advisoryOnly = new Set(['syntax.passive', 'readability.long-sentence', 'readability.complex-sentence', 'style.stock-phrase', 'style.hedging', 'style.hyperbole', 'grammar.unmatched-pair', 'clarity.undefined-acronym']);
+const advisoryOnly = new Set(['style.reader-assumption', 'syntax.passive', 'readability.long-sentence', 'readability.complex-sentence', 'style.stock-phrase', 'style.hedging', 'style.hyperbole', 'grammar.unmatched-pair', 'clarity.undefined-acronym']);
 const reviewed = new Set(['in order to', 'due to the fact that', 'at this point in time', 'utilize', 'utilizes', 'utilized', 'utilizing']);
 const clean = text => text.toLowerCase().replace(/\s+/g, ' ').trim();
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
@@ -175,9 +175,7 @@ function quotationFix(raw, range, source, projection) {
 function normalizeObservation(raw, source, projection, spelling) {
     let kind = rules[raw.rule];
     if (!kind) return { raw, rejected: 'Unknown writing rule' };
-    const typography = raw.rule === 'slopless/smart-quotes'
-        ? spelling.typography ??= writingTypographyConvention(projection) : null;
-    if (raw.rule === 'retext-quotes' || raw.rule === 'slopless/smart-quotes') {
+    if (raw.rule === 'retext-quotes') {
         projection = projection.typography || projection;
         if (raw.ruleId === 'apostrophe') kind = 'style.apostrophe';
     }
@@ -192,14 +190,13 @@ function normalizeObservation(raw, source, projection, spelling) {
     if (kind === 'style.wordiness' && /^utiliz/i.test(actual)) kind = 'lexicon.complex-word';
     const indirectPlain = kind === 'style.wordiness' && /^there (?:is|are)$/iu.test(actual);
     if (indirectPlain) kind = 'syntax.indirect-opening';
+    // Reader-assumption tone is directness advice; saved inclusive decisions still apply.
+    const readerAssumption = kind === 'language.inclusive' && raw.adviceType === 'reader-assumption';
+    if (readerAssumption) kind = 'style.reader-assumption';
     if (kind === 'clarity.undefined-acronym' && !spelling.acronyms.has(actual)) spelling.acronyms.set(actual, writingAcronymDefined(actual, projection));
-    const authoredCurly = typography && (actual === '’'
-        && /\p{L}/u.test(projection.text[raw.from - 1] || '') && /\p{L}/u.test(projection.text[raw.to] || '')
-        ? typography.apostropheStyle : typography?.quoteStyle) === 'smart';
     const suppressed = kind === 'clarity.undefined-acronym' && (familiarWritingAcronyms.includes(actual) || projection.ordinaryCapitals?.includes(actual)) ? 'Familiar acronym or ordinary word'
         : kind === 'clarity.undefined-acronym' && spelling.acronyms.get(actual) ? 'Acronym defined in prose'
-            : authoredCurly ? 'Punctuation follows the authored convention'
-                : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context' : '';
+            : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context' : '';
     const phraseNeedsReview = ['style.wordiness', 'lexicon.complex-word'].includes(kind) && !reviewed.has(clean(actual));
     const fixes = referenceLabel || raw.package === 'slopless' || phraseNeedsReview ? [] : kind === 'style.quotation' ? quotationFix(raw, range, source, projection)
         : !suppressed && range.editable && !advisoryOnly.has(kind) && !kind.startsWith('formulaic.')
@@ -212,12 +209,13 @@ function normalizeObservation(raw, source, projection, spelling) {
     if (phraseNeedsReview) presentation.message = 'Consider whether simpler wording would preserve your meaning. This match needs contextual review; no automatic replacement is offered.';
     if (writingGrammarRules[raw.rule]) { presentation.title = writingGrammarRules[raw.rule].title; presentation.message = raw.message || presentation.message; }
     if (raw.engine === 'figaro' && typeof raw.message === 'string') presentation.message = raw.message;
-    if (kind === 'language.inclusive' && typeof raw.note === 'string' && raw.note.trim()) {
-        presentation.message = raw.adviceType === 'reader-assumption' ? raw.note.trim() : `${presentation.message} ${raw.note.trim()}`;
-    }
+    if (kind === 'language.inclusive' && typeof raw.note === 'string' && raw.note.trim()) presentation.message = `${presentation.message} ${raw.note.trim()}`;
     if (referenceLabel) presentation.message += ' This label also identifies its Markdown reference; edit the label and reference together.';
     return { ...range, raw, kind, actual, sourceText: source.slice(range.from, range.to), suppressed, severity: 'advisory', intent: raw.intent || 'review', fixes,
         ...(kind === 'syntax.indirect-opening' && /^there (?:is|are)$/iu.test(actual) ? { legacyKind: 'style.wordiness' } : {}),
+        ...(readerAssumption ? { legacyKind: 'language.inclusive' } : {}),
+        // Apostrophes were also reported by the former Formulaic curly-punctuation rule.
+        ...(kind === 'style.apostrophe' ? { legacyKind: 'formulaic.curly-punctuation' } : {}),
         ...(kind === 'grammar.spelling' ? { bulkSafe: raw.bulkSafe === true } : {}), ...presentation };
 }
 function equivalent(left, right, candidates, source) {

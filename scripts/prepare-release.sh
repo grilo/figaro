@@ -56,7 +56,7 @@ if [ "$check_only" = true ]; then
         "$version" --root "$preview_root" --date "$(date +%F)"
     (cd "$preview_root" && node "$repository_root/scripts/extract-release-notes.mjs" "$tag")
     ./scripts/verify-release.sh
-    printf '\nProvisional release %s verified; version selection and release approval are still required.\n' "$tag"
+    printf '\nRelease candidate %s verified; nothing was committed, tagged, or pushed.\n' "$tag"
     printf 'Repository release metadata, index, commits, tags, and remotes were not changed by release preparation.\n'
     exit 0
 fi

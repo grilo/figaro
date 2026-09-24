@@ -416,7 +416,8 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
         settled = true;
         modalResize.destroy();
         lifecycle.close(false);
-        returnFocus(mainView, options.returnFocus, originalBlock.from);
+        if (apply) mainView.focus();
+        else returnFocus(mainView, options.returnFocus, originalBlock.from);
         return true;
     };
 

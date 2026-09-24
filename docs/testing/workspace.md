@@ -888,3 +888,25 @@ standard editing and Vim Insert: 840 keys across 12 scenarios. A separate
 Chromium CPU profile identifies source-footprint layout reads as an optimization
 candidate. Do not equate a frame callback with physical screen presentation or
 treat this fast Linux desktop as proof about the affected user's machine.
+
+
+## Note loading, search, and recovery regressions
+
+`tabManager.test.js` holds ordinary file reads pending, rejects or returns a
+missing result, and proves that the previous document remains the active save
+target. Retry activates the recovered destination; a superseded read cannot
+show an error or overwrite a newer activation. `home.test.js`, `openTodayNote.test.js`,
+and `topBar.test.js` cover shared Inbox-first daily-note creation, concurrent
+Home/shortcut requests, and revealing global search from a collapsed sidebar.
+The existing borderless-sidebar browser scenario verifies actual shortcut focus.
+
+`search.test.js` and `workspaceSearch.test.js` cover query changes before debounce,
+pending pointer/keyboard activation, disabled preserved filter rows, current and
+stale failures, Retry, and dismissal before completion. `linkedNoteNavigation.test.js`
+covers a rejected read's visible error and successful retry without accidental
+creation. `statusBar.test.js` proves that ordinary messages cannot erase a live
+Undo and older expiry callbacks cannot clear newer actions. `recentlyDeleted.test.js`
+covers mounted-list deletion/restoration updates and stale list completion.
+Backend `relationships_test.go` proves wiki, alias, heading, encoded, bracketed,
+and relative backlinks plus warm save invalidation; `vault_index_test.go` checks
+path remapping without stale relative targets.

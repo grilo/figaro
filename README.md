@@ -46,7 +46,22 @@ Use **Quick note** to catch a thought before it disappears. Link it to an
 existing note as you write, or create a new one from the link completion menu.
 Search helps you return to a phrase, a topic, or a half-remembered title.
 Backlinks show which notes mention the current one. The graph gives you
-another way to explore those connections.
+another way to explore those connections. Backlinks include Markdown and wiki
+links, including aliases and links to headings. If opening a note fails, Figaro
+keeps the current buffer and explains the error.
+
+**Create/Open today’s note** and **Ctrl/Cmd+Shift+N** share the same destination:
+prefer an existing daily note in Inbox, then an existing root daily note, or
+create it in Inbox. **Ctrl/Cmd+Shift+F** reveals global search even with the sidebar
+collapsed. While a new query is loading, old results cannot be opened; a failed
+search offers **Retry**.
+
+After deleting a note, **Undo** stays available for ten seconds despite tree
+refreshes. **Settings → Vault care → Recently deleted** also updates while open
+and lets you restore later. Narrow details panes preserve a wider writing area,
+and helper labels stay compact at larger text sizes. Bold, italic, and strikethrough keep
+selected surrounding whitespace outside the markers; applying Table Editor
+changes returns focus to the document so keyboard Undo works immediately.
 
 Keep several notes open in tabs, and middle-click a tab to close it. Figaro asks
 before discarding unsaved changes. Typing and moving the caret keep the tab strip
@@ -194,6 +209,8 @@ process descriptions, including timed maintenance and API behavior. Concrete
 “there is/are” statements about location, quantity or available time stay unmarked.
 Formulaic punctuation follows the note’s prevailing quote
 and apostrophe styles instead of warning about consistent curly punctuation.
+Directness reviews “simply” or “just” in instructions to the reader, not in
+descriptions, and each selected lens shows its current number of suggestions.
 
 The advice is optional. Grammar checks cover selected issues, and readability
 hints need judgment. Formulaic writing cannot tell you who wrote a text.

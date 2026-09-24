@@ -216,7 +216,7 @@
     "name": "mixed quote styles preserve wording",
     "source": "Use \"one\" and “two”.",
     "lenses": [
-      "consistency"
+      "formulaic"
     ],
     "expected": [
       "style.quotation"
@@ -226,7 +226,7 @@
     "name": "consistent smart quotes",
     "source": "Use “one” and “two”.",
     "lenses": [
-      "consistency"
+      "formulaic"
     ],
     "expected": []
   },
@@ -427,12 +427,8 @@
     "lenses": [
       "plain"
     ],
-    "expected": [
-      "style.wordiness"
-    ],
-    "workerExpected": [
-      "style.wordiness"
-    ]
+    "expected": [],
+    "workerExpected": []
   },
   {
     "name": "lowercase acronym definition",
@@ -440,12 +436,8 @@
     "lenses": [
       "plain"
     ],
-    "expected": [
-      "style.wordiness"
-    ],
-    "workerExpected": [
-      "style.wordiness"
-    ]
+    "expected": [],
+    "workerExpected": []
   },
   {
     "name": "familiar acronym exceptions",
@@ -501,12 +493,8 @@
     "lenses": [
       "plain"
     ],
-    "expected": [
-      "style.wordiness"
-    ],
-    "workerExpected": [
-      "style.wordiness"
-    ]
+    "expected": [],
+    "workerExpected": []
   },
   {
     "name": "audit uppercase ordinary words are not acronym errors",

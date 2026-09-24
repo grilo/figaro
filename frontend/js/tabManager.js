@@ -39,7 +39,7 @@ import { initSettingsPanel } from './theme.js';
 import { isDiskFullError, isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
-import { boundedAdjacentTabId, tabCloseNavigationPlan } from './core/tabNavigationModel.js';
+import { boundedAdjacentTabId, fileTabNeedsActivationRead, tabCloseNavigationPlan } from './core/tabNavigationModel.js';
 import {
     acknowledgeWorkspaceFileSave,
     moveWorkspaceTabPaths,
@@ -146,7 +146,7 @@ let suppressTabClick = false;
 let previousTabActivationStack = [];
 const workspaceReturnTargets = new Map();
 let tabActivationGeneration = 0;
-let pendingExternalActivationId = 0;
+let pendingFileActivationId = 0;
 let tabWheelAccumulatedDeltaY = 0;
 let tabWheelLastEventAt = 0;
 let editorTextScaleWheelAccumulatedDeltaY = 0;
@@ -805,7 +805,9 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
 
     const newTabs = [...tabs, tab];
     setState('openTabs', newTabs);
-    if (shouldActivate && !tab.externalFileId) setState('activeTabId', tab.id);
+    if (shouldActivate && !fileTabNeedsActivationRead(tab, { preparedFile, hasCachedContent: readTabContent(tab) != null })) {
+        setState('activeTabId', tab.id);
+    }
     saveTabsToStorage();
     
     renderTabBar();
@@ -843,52 +845,57 @@ export async function switchTab(tabId, {
         return true;
     }
 
-    // External paths are display metadata, not vault-relative paths. Read the
-    // capability-backed document before changing the selected tab so a failed
-    // read can never leave the previous document under an external tab title.
+    // Resolve readable content before selecting an unloaded tab. A missing or
+    // unreadable target must never put its title over the previous buffer.
     let preparedFile = suppliedPreparedFile;
     let hasPreparedEditorConfiguration = preparedFileConfigured;
-    if (tab.type === 'file' && tab.externalFileId) {
-        pendingExternalActivationId = activationId;
+    if (fileTabNeedsActivationRead(tab, { preparedFile, hasCachedContent: readTabContent(tab) != null })) {
+        pendingFileActivationId = activationId;
         statusBar.set(`Opening “${tab.title}”…`);
         try {
             preparedFile = await readFileTab(tab);
             if (activationId !== tabActivationGeneration) return false;
             if (!getState('openTabs').some(candidate => candidate.id === tab.id)) {
-                if (pendingExternalActivationId === activationId) {
-                    pendingExternalActivationId = 0;
+                if (pendingFileActivationId === activationId) {
+                    pendingFileActivationId = 0;
                     statusBar.set('Ready');
                 }
                 return false;
             }
             if (!preparedFile || preparedFile.issue || preparedFile.binary) {
+                if (preparedFile?.issue) {
+                    if (tab.externalFileId) recordRuntimeFileIssue({ ...preparedFile.issue, externalFileId: tab.externalFileId });
+                    else recordVaultFileIssue(preparedFile.issue);
+                }
                 throw new Error(preparedFile?.issue?.detail || (preparedFile?.binary
-                    ? 'This external file is binary and cannot be edited.'
-                    : 'The external file returned no readable content.'));
+                    ? 'This file is binary and cannot be edited.'
+                    : `“${tab.path}” could not be found. The previous document is still open.`));
             }
             if (!getEditorView()) createEditorView();
             const configured = await configureEditorForFile(tab.path);
             if (activationId !== tabActivationGeneration) return false;
-            if (!configured) throw new Error('The editor is unavailable for this external note.');
+            if (!configured) throw new Error('The editor is unavailable for this note.');
             hasPreparedEditorConfiguration = true;
         } catch (error) {
             if (activationId !== tabActivationGeneration) return false;
-            pendingExternalActivationId = 0;
-            log.error('Failed to load external file:', error);
-            statusBar.set('Failed to open external file');
+            pendingFileActivationId = 0;
+            log.error('Failed to load file:', error);
+            statusBar.set(tab.externalFileId ? 'Failed to open external file' : 'Failed to open file');
             await errorDialog(
-                'Couldn’t open external note',
+                tab.externalFileId ? 'Couldn’t open external note' : 'Couldn’t open note',
                 error,
-                'The original external note could not be read.',
+                tab.externalFileId ? 'The original external note could not be read.' : 'The note could not be read. Try opening it again.',
             );
             statusBar.set('Ready');
             return false;
         }
-        pendingExternalActivationId = 0;
+        const currentTab = getState('openTabs').find(candidate => candidate.id === tab.id);
+        if (currentTab?.dirty && readTabContent(currentTab) != null) preparedFile = null;
+        pendingFileActivationId = 0;
         statusBar.set('Ready');
         currentActiveId = getState('activeTabId');
-    } else if (pendingExternalActivationId) {
-        pendingExternalActivationId = 0;
+    } else if (pendingFileActivationId) {
+        pendingFileActivationId = 0;
         statusBar.set('Ready');
     }
 
@@ -1287,6 +1294,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         if (!tab) return true;
         panel._settingsPanelDisposed = tab.type === 'settings';
         panel._dictionarySettings?.dispose();
+        panel._recentlyDeletedDispose?.();
         panel._graphViewSession?.dispose?.();
         panel._kanbanSession?.dispose?.();
         panel._drawioSession?.dispose?.();
@@ -2544,7 +2552,11 @@ function renderSettingsTab(panel, _tab) {
         openTab('vault-health', 'Vault health', 'health');
     });
 
-    initRecentlyDeletedSettings(container).catch(err => {
+    panel._recentlyDeletedDispose?.();
+    initRecentlyDeletedSettings(container).then(dispose => {
+        if (!panel.isConnected || panel._settingsPanelDisposed) dispose?.();
+        else panel._recentlyDeletedDispose = dispose;
+    }).catch(err => {
         log.warn('Recently deleted settings init failed:', err);
     });
 

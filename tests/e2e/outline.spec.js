@@ -202,12 +202,12 @@ test('writing lens pickers preserve native focus, Pure pane geometry, and editor
     await options.getByRole('option', { name: 'Spanish', exact: true }).click();
     // Native disabled inputs must still deliver hover to the shared tooltip,
     // including when the pointer moves onto their label in the clipped pane.
-    const directLens = page.locator('#writing-lenses-panel input[value="direct"]');
+    const directLens = page.locator('#writing-lenses-panel input[value="directness"]');
     await directLens.hover();
     const explanation = page.locator('#ui-tooltip');
     await expect(explanation).toBeVisible();
     await expect(explanation).toHaveText('Directness is only available for English (US) and English (UK).');
-    await page.locator('#writing-lenses-panel .writing-lenses-layer').filter({ has: page.locator('input[value="direct"]') }).locator('span').first().hover();
+    await page.locator('#writing-lenses-panel .writing-lenses-layer').filter({ has: page.locator('input[value="directness"]') }).locator('span').first().hover();
     await expect(explanation).toBeVisible();
     const explanationGeometry = await explanation.boundingBox();
     expect(explanationGeometry.x).toBeGreaterThanOrEqual(0);
@@ -253,7 +253,8 @@ test('writing lens pickers preserve native focus, Pure pane geometry, and editor
     await expect(review).toBeHidden();
     // Paired quote replacement spans rendered emphasis. Actual hover/button
     // focus and one Undo must preserve the enclosed Markdown exactly.
-    await page.locator('#writing-lenses-panel').getByRole('checkbox', { name: 'Proofreading', exact: true }).check();
+    // Quotation style is Formulaic writing advice with a reviewed mark-only fix.
+    await page.locator('#writing-lenses-panel').getByRole('checkbox', { name: 'Formulaic writing', exact: true }).check();
     await page.locator('.cm-writing-range').filter({ hasText: '“' }).first().hover();
     await expect(review).toContainText('quotation style');
     await review.getByRole('button', { name: /^Replace/ }).click();

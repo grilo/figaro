@@ -172,6 +172,7 @@ describe('Markdown table editor modal', () => {
         dialog.overlay.querySelector('.markdown-table-editor-apply').click();
         expect(harness.view.dispatch).toHaveBeenCalledTimes(1);
         expect(harness.source).toContain('| Changed | 2 |');
+        expect(harness.view.focus).toHaveBeenCalledTimes(1);
     });
 
     test('Keep editing and Escape from the discard notice restore the edited cell and selection', () => {

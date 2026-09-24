@@ -104,7 +104,7 @@ describe('status bar', () => {
         expect(spinner.hidden).toBe(true);
     });
 
-    test('renders one native inline action and clears it with the next status', () => {
+    test('renders one native inline action and consumes it when activated', () => {
         const action = document.getElementById('status-action');
         const undo = jest.fn();
         statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', undo, {
@@ -122,6 +122,39 @@ describe('status bar', () => {
         expect(action.hidden).toBe(true);
         expect(action.onclick).toBeNull();
         expect(document.querySelector('.status-left').dataset.hasAction).toBe('false');
+    });
+
+    test('preserves deletion Undo through tree refresh, ordinary status and old timers for its full lifetime', () => {
+        const action = document.getElementById('status-action');
+        const text = document.getElementById('status-text');
+        statusBar.set('Loading file tree...');
+        statusBar.clearAfter(1000, 'Loading file tree...');
+        statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', jest.fn(), { actionId: 'delete-1' });
+        statusBar.clearAfter(10000, 'Deleted “Draft.md” ·');
+        statusBar.set('Loading file tree...');
+        statusBar.set('Ready');
+        statusBar.clear();
+        jest.advanceTimersByTime(9999);
+        expect(action.hidden).toBe(false);
+        expect(text.textContent).toBe('Deleted “Draft.md” ·');
+        jest.advanceTimersByTime(1);
+        expect(action.hidden).toBe(true);
+        expect(text.textContent).toBe('Ready');
+    });
+
+    test('an older action timer or restore cannot dismiss a newer deletion', () => {
+        const action = document.getElementById('status-action');
+        statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', jest.fn(), { actionId: 'delete-1' });
+        statusBar.clearAfter(10000, 'Deleted “Draft.md” ·');
+        jest.advanceTimersByTime(5000);
+        statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', jest.fn(), { actionId: 'delete-2' });
+        statusBar.clearAfter(10000, 'Deleted “Draft.md” ·');
+        statusBar.dismissAction('delete-1');
+        jest.advanceTimersByTime(5000);
+        expect(action.hidden).toBe(false);
+        expect(action.dataset.actionId).toBe('delete-2');
+        statusBar.dismissAction('delete-2');
+        expect(action.hidden).toBe(true);
     });
 
     test('keeps the spinner visible until every overlapping slow activity settles', () => {
@@ -167,7 +200,7 @@ describe('status bar', () => {
         expect(document.getElementById('status-bar').dataset.writingRest).toBe('false');
         expect(document.getElementById('status-bar').dataset.applicationIdle).toBe('false');
 
-        statusBar.clear();
+        statusBar.dismissAction();
         expect(document.getElementById('status-bar').dataset.writingRest).toBe('true');
 
         document.getElementById('vault-loading-panel').hidden = false;

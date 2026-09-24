@@ -43,7 +43,7 @@ import { configureCalendarWorkspace, initCalendar, navigateCalendarMonth, invali
 import { configureKanbanWorkspace, initKanban, refreshKanbanData } from './kanban.js';
 import { configureDatePickerCalendarSource } from './datePicker.js';
 import { initStatusBarPresentation, statusBar } from './statusBar.js';
-import { confirmDialog } from './dialogs.js';
+import { confirmDialog, errorDialog } from './dialogs.js';
 import { configureSearchWorkspace, initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
 import { configureBacklinksWorkspace, initBacklinks } from './backlinks.js';
 import { loadSession, saveSession } from './session.js';
@@ -54,7 +54,6 @@ import { initTabSizePreference } from './tabSizePreference.js';
 import { applySidebarLayout, initSidebarResizer } from './sidebarResizer.js';
 import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
 import { globalShortcutAction } from './core/globalShortcutModel.js';
-import { localISODate } from './core/dueDateModel.js';
 import { configureHistoryWorkspace, initHistoryPanel } from './historyPanel.js';
 import { initActivity } from './activity.js';
 import { configurePDFPreviewWorkspace, initPDFPreview, openPDFPreview } from './pdfPreview.js';
@@ -81,7 +80,7 @@ import { installEditorSaveProtection } from './usecases/editorSaveProtection.js'
 import { initSettingsNavigation } from './settingsNavigation.js';
 import { configureClipboardImageWorkspace } from './clipboardImage.js';
 import { configureDrawioWorkspace } from './drawio.js';
-import { configureHomeWorkspace } from './home.js';
+import { configureHomeWorkspace, openTodayNote } from './home.js';
 import { configureVaultHealthWorkspace } from './vaultHealth.js';
 import {
     initFileIssues,
@@ -308,6 +307,12 @@ export function initTopBar() {
         }
         setState('sidebarCollapsed', collapsed);
         sidebar.classList.toggle('collapsed', collapsed);
+        const content = sidebar.querySelector('.sidebar-content');
+        if (content) {
+            if (collapsed && content.contains(document.activeElement)) toggleBtn?.focus();
+            content.inert = collapsed;
+            content.setAttribute('aria-hidden', String(collapsed));
+        }
         applySidebarLayout(sidebar, layout);
         toggleBtn?.setAttribute('aria-expanded', String(!collapsed));
         const sidebarResizer = document.getElementById('sidebar-resizer');
@@ -439,8 +444,8 @@ export function initTopBar() {
 /**
  * Initialize keyboard shortcuts
  */
-function initKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
+export function initKeyboardShortcuts() {
+    const onKeydown = e => {
         const shortcut = globalShortcutAction(e);
         if (shortcut) {
             if (shortcut === 'document-find' && getActiveTab()?.type !== 'file') return;
@@ -451,12 +456,11 @@ function initKeyboardShortcuts() {
             if (shortcut === 'quick-note') {
                 void createInboxNote();
             } else if (shortcut === 'daily-note') {
-                const today = localISODate();
-                const path = `${today}.md`;
-                openTab(path, today, 'file', { path });
+                void openTodayNote().catch(error => errorDialog('Couldn’t open today’s note', error, 'Try again from Home or the daily-note shortcut.'));
             } else if (shortcut === 'toggle-sidebar') {
                 document.getElementById('toggle-sidebar')?.click();
             } else if (shortcut === 'global-search') {
+                if (getState('sidebarCollapsed')) document.getElementById('toggle-sidebar')?.click();
                 document.getElementById('global-search-input')?.focus();
             } else if (shortcut === 'document-find') {
                 openEditorSearch();
@@ -486,7 +490,9 @@ function initKeyboardShortcuts() {
             // Close search suggestions
             document.querySelectorAll('.cm-tooltip-autocomplete').forEach(t => t.remove());
         }
-    }, true);
+    };
+    document.addEventListener('keydown', onKeydown, true);
+    return () => document.removeEventListener('keydown', onKeydown, true);
 }
 
 /**

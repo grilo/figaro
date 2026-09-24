@@ -155,7 +155,7 @@
     },
     {
       "id": "editor-fold-control",
-      "description": "Existing block reveal states use data-block-control-relevant on the gutter owner so source-offset updates preserve visibility while the pointer remains over the block.",
+      "description": "Block helper labels use the editor font capped at 12px so text scaling preserves writing space. Existing block reveal states use data-block-control-relevant on the gutter owner so source-offset updates preserve visibility while the pointer remains over the block.",
       "primitives": [
         ".ui-editor-fold-control",
         ".ui-editor-block-guide",

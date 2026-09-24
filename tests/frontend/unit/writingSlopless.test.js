@@ -19,7 +19,6 @@ const fixtures = {
     'hedge-stacking': 'Maybe this might possibly help.',
     'softening-language': 'Some people might generally benefit from this change.',
     'em-dashes': 'The draft is ready—we can send it.',
-    'smart-quotes': 'She said "one". He said "two". They said “ready”.',
     'boilerplate-framing': 'Let me be honest: the deadline is unrealistic.',
     'generic-signposting': 'The short answer is that we need another day.',
     'negation-reframe': 'We do not sell software. We sell outcomes.',
@@ -63,7 +62,7 @@ test('Formulaic writing documents every included and excluded public Slopless ru
     const excluded = names(docs.split('## Excluded rules')[1].split('## Integration')[0]);
     expect(included.sort()).toEqual(Object.keys(writingSloplessRules).sort());
     expect([...included, ...excluded].sort()).toEqual(publicRules);
-    expect(excluded).toHaveLength(47);
+    expect(excluded).toHaveLength(48);
 });
 
 test.each(Object.entries(fixtures))('Formulaic writing executes real Slopless %s with full-scan equivalence, exact source and advisory examples', async (rule, text) => {
@@ -85,15 +84,21 @@ test.each(Object.entries(fixtures))('Formulaic writing executes real Slopless %s
     expect((await review(source, ['spelling'])).findings).toEqual([]);
 });
 
-test('Formulaic typography flags unspaced em dashes and curly outliers without recommending changes to quoted words', async () => {
+test('Formulaic typography owns em dashes and quote style once, changing only quotation marks', async () => {
     const source = 'She said "one". He said "two". It\'s ready. You\'re done. She said “Let me be honest.” It’s ready—we can send it. Use ‘single quotes’ too.';
     const { findings } = await review(source);
-    expect(findings.map(f => f.actual)).toEqual(['“', '”', '’', '—', '‘', '’']);
-    expect(findings.every(f => f.to === f.from + 1 && f.fixes.length === 0)).toBe(true);
+    expect(findings.map(f => [f.kind, f.actual])).toEqual([['style.quotation', '“Let me be honest.”'], ['style.apostrophe', '’'],
+        ['formulaic.em-dash', '—'], ['style.quotation', '‘single quotes’']]);
+    const apply = fix => source.slice(0, fix.from) + fix.replacement + source.slice(fix.to);
+    for (const quote of findings.filter(f => f.kind === 'style.quotation')) {
+        expect(quote.fixes).toHaveLength(1);
+        expect(apply(quote.fixes[0]).replace(/["'“”‘’]/gu, '')).toBe(source.replace(/["'“”‘’]/gu, ''));
+    }
+    expect(findings.find(f => f.kind === 'formulaic.em-dash').fixes).toEqual([]);
     expect((await review('The draft is ready — we can send it. She said "ready". It\'s ready.')).findings).toEqual([]);
-    const { findings: combined } = await review(source, ['formulaic', 'consistency']);
-    expect(combined.filter(f => f.lens === 'formulaic')).toHaveLength(6);
-    expect(combined.filter(f => f.lens === 'consistency')).toEqual((await review(source, ['consistency'])).findings);
+    // No second rule reports the same curly marks, and Consistency no longer owns typography.
+    expect(findings.every(f => f.sources.every(raw => raw.rule !== 'slopless/smart-quotes'))).toBe(true);
+    expect((await review(source, ['consistency'])).findings).toEqual([]);
 });
 
 test.each([
@@ -134,22 +139,22 @@ test('Formulaic keeps different advice on the same sentence and groups repeated 
     const source = [...Array(9).fill('It\'s done.'), ...Array(8).fill('It’s ready—we can send it.')].join('\n\n');
     const { result } = await review(source);
     const cards = writingReviewCards(result.groups);
-    expect(cards).toHaveLength(2);
-    expect(cards.map(card => card.findings.length)).toEqual([8, 8]);
-    expect(cards.every(card => !writingBulkAvailable(card))).toBe(true);
+    expect(cards.map(card => [card.findings[0].kind, card.findings.length])).toEqual([['style.apostrophe', 8], ['formulaic.em-dash', 8]]);
+    expect(writingBulkAvailable(cards.find(card => card.findings[0].kind === 'formulaic.em-dash'))).toBe(false);
 });
 
-test('Formulaic inline suggestions use existing styled Ignore and examples without inferred Apply actions', async () => {
+test('Formulaic inline suggestions use existing styled Ignore and examples, offering Apply only for reviewed typography', async () => {
     const { findings } = await review('It\'s ready. You\'re done. It’s ready—we can send it.');
     const onIgnore = jest.fn();
-    const dom = createWritingInlineView({ findings, onIgnore, onClose() {} });
+    const dom = createWritingInlineView({ findings: findings.filter(f => f.kind === 'formulaic.em-dash'), onIgnore, onClose() {} });
     document.body.replaceChildren(dom);
-    expect(dom.textContent).toContain('Review curly punctuation');
-    expect(dom.textContent).toContain('Before: It’s ready.');
+    expect(dom.textContent).toContain('Review em-dash style');
+    expect(dom.textContent).toContain('After: The draft is ready — we can send it.');
     expect(dom.querySelectorAll('[aria-label^="Replace"]')).toHaveLength(0);
+    expect(findings.find(f => f.kind === 'style.apostrophe').fixes.map(fix => fix.replacement)).toEqual(["'"]);
     const ignore = dom.querySelector('[aria-label^="Ignore"]');
     expect(ignore.classList.contains('ui-button')).toBe(true);
-    ignore.click(); expect(onIgnore).toHaveBeenCalledWith(findings[0].id);
+    ignore.click(); expect(onIgnore).toHaveBeenCalledWith(findings.find(f => f.kind === 'formulaic.em-dash').id);
 });
 
 test('Formulaic Ignore decisions survive serialization and can be restored without changing the note', async () => {

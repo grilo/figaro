@@ -2622,7 +2622,7 @@ export async function deletePath(path, type = 'file') {
                     statusBar.setWithAction(message, 'Undo', async () => {
                         const restored = await restoreRecentlyDeletedItem(result.deleted_id, name);
                         if (!restored) showUndo();
-                    }, { ariaLabel: `Undo deletion of ${name}` });
+                    }, { ariaLabel: `Undo deletion of ${name}`, actionId: result.deleted_id });
                     statusBar.clearAfter(10000, message);
                 };
                 showUndo();

@@ -117,11 +117,12 @@ per completed change.
 Both skills live under `.agents/skills/` for repository discovery:
 
 - [Prepare Figaro release](.agents/skills/prepare-figaro-release/SKILL.md) accepts
-  `$prepare-figaro-release` or a natural-language release request. It prepares
-  notes, recommends a version, and verifies a provisional candidate before
-  asking for version/action approval. It does not treat a dependency bump,
-  ordinary Git push, release question, or skill audit as a release request.
-  Follow [Release process](#release-process) for the command and approval contract.
+  `$prepare-figaro-release` or a natural-language release request. It chooses
+  and explains a major/minor/patch version, publishes it, follows CI until the
+  GitHub release is finished, and fixes and retries failures. A request only to
+  prepare or check a release stops before publishing. It does not treat a
+  dependency bump, ordinary commit or push, release question, or skill audit as
+  a release request. Follow [Release process](#release-process) for the commands.
 - [PKM / Markdown editor UX audit](.agents/skills/pkm-markdown-editor-ux-audit/SKILL.md)
   supports full application audits, focused interaction reviews, and source-only
   inspection. It copies its working note/image fixtures into an owned disposable
@@ -132,9 +133,9 @@ Both skills live under `.agents/skills/` for repository discovery:
 
 Detailed evaluation lenses and task suites are linked from the short UX skill
 entry point and loaded only for the selected scope. Maintain references and UI
-metadata with each skill. Review the trigger and approval cases in
+metadata with each skill. Review the trigger and release-scope cases in
 [`tests/skills/scenarios.md`](tests/skills/scenarios.md) when changing behavior;
-structural tests cannot prove that a model interprets approval correctly.
+structural tests cannot prove that a model interprets a request's scope correctly.
 
 Read-only audits leave product files and the commit proposal alone. For completed
 implementation work, review the full pending diff and write the proposed message
@@ -142,8 +143,9 @@ to the path returned by `git rev-parse --git-path COMMIT_TEMPLATE`. This also
 works in linked worktrees where `.git` is a file. Configure the tracked hook with
 `git config --local core.hooksPath .githooks`; do not set `commit.template`.
 The hook supplies the proposal to a plain `git commit` so saving it unchanged
-works, and preserves explicit messages passed with `-m`. Agents prepare the
-proposal for the user; only an approved release action may commit on their behalf.
+works, and preserves explicit messages passed with `-m`. Agents commit, and
+push, only when the user asks; they use the refreshed proposal as the message,
+stage all pending work, and never force-push or rewrite pushed commits.
 
 ## Architecture principles
 
@@ -419,16 +421,14 @@ propagation. Source-only Go backend tests do not require generated frontend file
 
 ## Release process
 
-Release commands are for maintainers publishing an approved version. They are
+Release commands are for maintainers publishing a version. They are
 intentionally documented here rather than in the application README.
 
-Prepare a reviewable proposal before choosing a final version. The release skill
-described under [Repository skills](#repository-skills) reviews the complete
-pending work, recommends a major/minor/patch bump from the highest stable tag
-reachable from `main`, and presents all three exact candidate versions. Compatible
-fixes suggest patch, compatible new capabilities suggest minor, and incompatible
-supported workflow/data changes suggest major. The recommendation is evidence
-for the user's choice, not approval to release.
+The release skill described under [Repository skills](#repository-skills)
+reviews the complete pending work and chooses a major/minor/patch bump from the
+highest stable tag reachable from `main`: compatible fixes are patch, compatible
+new capabilities are minor, and incompatible supported workflow/data changes are
+major. It explains that choice, then publishes and follows CI to completion.
 
 Verify a provisional candidate without committing or publishing:
 
@@ -444,11 +444,8 @@ body, then runs the shared complete verification suite. It leaves repository
 release metadata, the Git index, commits, tags, and remotes alone; builds/tests
 may update generated artifacts. Checks can run on a feature branch. Failed or
 unavailable checks must be reported, and required native checks remain separate.
-The user reviews notes, pending-change scope, verification results, and the version
-recommendation before choosing the version and approving local finalization or
-publication. Selecting a version alone is not approval for either action.
 
-Use the release target from `main` after the version and publication are approved:
+Publish from `main`:
 
 ```bash
 make release patch
@@ -458,7 +455,7 @@ make release VERSION=vMAJOR.MINOR.PATCH
 
 `major`, `minor`, and `patch` derive the next version from the highest stable
 release tag reachable from `main`; an explicit `VERSION` remains available for
-an approved version. It prints the exact base tag and resolved target before
+a chosen version. It prints the exact base tag and resolved target before
 changing metadata, so an untagged package version is never mistaken for a
 release. The target validates the version and Git identity,
 synchronizes the root npm and Wails metadata plus the changelog, validates the
@@ -466,12 +463,12 @@ exact curated release-note body, runs the complete release verification suite,
 stages all current non-ignored changes into one release commit and annotated
 tag, then pushes `main` and that exact tag in order. It never deletes pending
 work, alters an existing tag, or pushes other refs. Repeating the same version
-resumes a matching tagged release after a failed push. After approval for a local
-commit and tag, use `make release-local patch` or
-`make release-local VERSION=vMAJOR.MINOR.PATCH` to stop before the push. Local
-approval does not authorize publication. Resolve the chosen version once and use
-the explicit `VERSION` form for execution and retries: rerunning a bump after
-tagging would select the next release instead of resuming the approved one.
+resumes a matching tagged release after a failed push. Use
+`make release-local patch` or `make release-local VERSION=vMAJOR.MINOR.PATCH`
+to stop before the push. Resolve
+the chosen version once and use the explicit `VERSION` form for execution and
+retries: rerunning a bump after tagging would select the next release instead
+of resuming the chosen one.
 Both local release verification and tag CI run `node scripts/profile-writing.mjs`
 to check combined native/JavaScript editorial outcomes. A mismatch stops local
 finalization before commit/tag creation and stops tag CI before publication.
@@ -497,11 +494,12 @@ node scripts/extract-release-notes.mjs vMAJOR.MINOR.PATCH
 ```
 
 `$prepare-figaro-release` and natural-language release requests share the same
-approval contract. Complete the available preparation before asking for the
-version choice and go-ahead. A clear approval in response to a proposal covers
-the version and action named there; do not request another confirmation unless
-the scope changes materially. Pushing the tag starts the GitHub release workflow;
-successful pushes and successful workflow publication are separate results.
+workflow. Pushing the tag starts the GitHub release workflow; successful pushes
+and successful workflow publication are separate results. Follow the release
+and CI runs with `gh run watch` and confirm the published release with
+`gh release view`. Rerun transient failures with `gh run rerun --failed`; a
+failure that needs a code fix is fixed on `main` and released as the next patch
+version, leaving the failed tag unpublished. Tags are never moved or deleted.
 
 The tag workflow runs the full Go test suite on native Windows and macOS runners
 before building their packages, in addition to Linux release verification. The
@@ -1035,7 +1033,7 @@ resolution stay in workers during analysis, never in typing handlers.
 Slopless changes must update the explicit rule imports/pure policy and
 [complete included/excluded inventory](docs/WRITING_SLOPLESS.md). Keep rules
 English-only, eager and worker-local; test every selected real rule, protected
-source ranges, individual curly-mark mapping against the authored convention,
+source ranges, quote style owned once by `retext-quotes` under Formulaic writing,
 convention changes after incremental edits, stable duplicate identities,
 examples and reversible Ignore. The imported subset is advisory: never forward
 upstream blanket rewrite instructions or typography preferences as mandatory fixes.
@@ -1075,6 +1073,11 @@ Defined-acronym spelling recognition belongs to the current note, outside the
 shared suggestion cache. Test adding/removing definitions and protected text.
 When merging equivalent advice across lenses, preserve every source, independent
 lens selection, and saved Ignore identities, including partial-provider output.
+Each concern belongs to one lens. When moving a check between lenses, keep its
+kind or add a `legacyKind` so saved Ignore decisions still match, and keep UI
+group IDs distinct from saved check IDs. A new lens replacement or help example
+must pass the cross-lens tests in `writingQuality.test.js`: applying it must not
+create a finding from any lens.
 Pair verification must remain inside one visible block and preserve warnings for
 mismatched, hidden and cross-paragraph closers. Evaluate fresh documents only
 after tuning is settled; report all remaining findings and offered edits with

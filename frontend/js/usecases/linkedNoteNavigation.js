@@ -65,6 +65,9 @@ export function createLinkedNoteNavigation(ports) {
                 path: creation.path, mtime: created.mtime || ports.now(),
             }, true);
             await ports.refreshTree();
-        } catch (error) { ports.log.error('Failed to open link:', error, 'path was:', path); }
+        } catch (error) {
+            ports.log.error('Failed to open link:', error, 'path was:', path);
+            await ports.error('Couldn’t open linked note', error, `Couldn’t open “${path}”. Try the link again.`);
+        }
     };
 }

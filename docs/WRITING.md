@@ -23,6 +23,11 @@ is not a spelling or style suggestion.
 | Ctrl/Cmd+. | Review a writing suggestion at the caret |
 | Ctrl/Cmd+Shift+L | Open lens controls in Pure mode |
 
+Bold, italic, and strikethrough leave selected leading and trailing whitespace
+outside the markers. After applying Table Editor changes, focus returns to the document so
+Ctrl/Cmd+Z immediately undoes the whole table edit. Helper labels stay compact
+when you enlarge document text, preserving more room beside the details pane.
+
 Pasting rich text preserves supported formatting as Markdown. A URL pasted
 over selected prose creates a link. Spreadsheet tables can become Markdown
 tables. Use plain-text paste when you want the clipboard text unchanged.
@@ -101,11 +106,11 @@ then select any combination of lenses:
 
 | Lens | What it reviews |
 | --- | --- |
-| Proofreading | Spelling, repeated words, terminology, quotation consistency, and selected grammar and punctuation |
+| Proofreading | Spelling, repeated words, terminology, term consistency, and selected grammar and punctuation |
 | Clarity | Wordy phrases, jargon, clichés, unexplained acronyms, and long or complex sentences |
-| Directness | Possible passive constructions, qualifying phrases, and emphatic punctuation |
+| Directness | Possible passive constructions, qualifying phrases, and instructions that assume a task is easy or already known |
 | Inclusive language | Generic roles, exclusionary expressions, and accessibility wording |
-| Formulaic writing | Stock phrasing, rhetorical patterns, repetition, and optional typography preferences |
+| Formulaic writing | Stock phrasing, rhetorical patterns, repetition, emphatic punctuation, and quote, apostrophe, and em-dash style |
 
 Proofreading includes selected English verb agreement, infinitive, auxiliary,
 possessive, number, homophone, and phrase checks: for example, “She go” →
@@ -146,8 +151,9 @@ defaults. Choices belong to each document. **Apply to all documents** copies
 the current language and combination to existing documents and sets defaults
 for future notes in this vault. It does not change note text.
 
-Expand **Lenses** to change the combination. Each info button explains coverage,
-limitations, and examples. **Partial** means only some checks in a group are
+Expand **Lenses** to change the combination. Each selected lens shows how many
+suggestions it currently has, so you can see which lens most affects the note.
+Each info button explains coverage, limitations, and examples. **Partial** means only some checks in a group are
 enabled, including choices retained from an older version. Select the group to
 enable all supported checks. Control spelling here. Legacy spellcheck
 frontmatter stays as ordinary metadata.
@@ -225,12 +231,22 @@ or availability, such as “there is still time,” remain unchanged. Weak
 introductions such as “there is a need to” stay reviewable. These are bounded
 context guards, not a claim to understand every sentence.
 
-Formulaic writing includes optional advice about unspaced em dashes and curly
-quotes or apostrophes that differ from the note’s prevailing straight style.
-Consistent curly punctuation is preserved. Quotation and apostrophe conventions
-are inferred separately, with first occurrence breaking ties; code and quoted
-wording do not set the prose apostrophe convention. Those preferences do not
-establish AI authorship.
+Directness reviews words such as “simply,” “just,” and “easy” only in
+instructions or sentences addressed to the reader, such as “Simply run the
+installer.” Describing something as simple (“The algorithm is simple.”) is not
+flagged. “Obviously,” “of course,” and “everyone knows” are reviewed wherever
+they assume the reader already knows the answer. Inclusive language covers
+roles, exclusionary expressions, and accessibility wording.
+
+Formulaic writing includes optional advice about emphatic punctuation such as
+“!!”, unspaced em dashes, and quotation marks or apostrophes that differ from
+the note’s prevailing style, straight or curly. Consistent punctuation is
+preserved, and a quote or apostrophe fix changes only the marks. Quotation and
+apostrophe conventions are inferred separately, with first occurrence breaking
+ties; code and quoted wording do not set the prose apostrophe convention. Those
+preferences do not establish AI authorship. Clarity does not suggest simpler
+wording for the words that define an acronym, such as “service level objective
+(SLO).”
 See [rule coverage](WRITING_SLOPLESS.md), the [writing engine reference](WRITING_ENGINE.md),
 and the [evaluation limits](WRITING_CORPUS_FIXES.md) for more detail.
 

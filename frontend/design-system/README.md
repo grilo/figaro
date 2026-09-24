@@ -82,6 +82,8 @@ Inline writing review composes the approved menu surface, standard buttons, and
 warning notice; its dotted mark shares existing spellcheck paint. The catalogue
 uses the production card controller, including applicable spelling actions.
 
+Block-guide type and its hidden measuring spacer use the same editor font capped
+at 12px, preserving a compact helper lane at 100–150% document text size.
 Editor fold and block-guide primitives read their existing reveal state from
 `data-block-control-relevant` on the gutter owner. This survives CodeMirror
 source-offset updates without flashing; the catalogue uses the same attribute.
@@ -291,6 +293,10 @@ a mixed accessibility state plus a visible **Partial** badge, with enabled-check
 details in accessible descriptions and info help. Group counts reflect the five choices; Spanish Proofreading states
 its spelling-only coverage. The subsequently approved disclosure is implemented
 as the shared family described below.
+Selected lens groups show their current suggestion count in the approved
+`.ui-badge--muted` badge; the number is `aria-hidden`, the checkbox description
+announces the count, and the catalogue lens specimen shows counts. No primitive,
+variant, token, or style-manifest change is required.
 
 ## Approved animated disclosure — 2026-09-07
 

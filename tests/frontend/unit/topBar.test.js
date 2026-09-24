@@ -3,7 +3,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { initTopBar } from '../../../frontend/js/app.js';
+import { initKeyboardShortcuts, initTopBar } from '../../../frontend/js/app.js';
 import { getState, setState } from '../../../frontend/js/state.js';
 import { localISODate } from '../../../frontend/js/core/dueDateModel.js';
 import { testUtils } from '../support/test_setup.js';
@@ -17,6 +17,7 @@ jest.mock('../../../frontend/js/graphView.js', () => ({
 }));
 
 describe('Workspace navigation', () => {
+    let disposeShortcuts;
     beforeEach(() => {
         testUtils.createMockDOM();
         window.go.desktop.App.SaveSession.mockResolvedValue({ success: true });
@@ -27,6 +28,37 @@ describe('Workspace navigation', () => {
         setState('currentCalDate', new Date(2001, 0, 1));
         setState('selectedCalDateStr', null);
         initTopBar();
+        disposeShortcuts = initKeyboardShortcuts();
+    });
+
+    afterEach(() => disposeShortcuts());
+
+    test('collapsed navigation is inert and global search reveals it before accepting focus', () => {
+        const input = document.getElementById('global-search-input');
+        const content = document.querySelector('.sidebar-content');
+        const toggle = document.getElementById('toggle-sidebar');
+        input.focus();
+        toggle.click();
+        expect(content.inert).toBe(true);
+        expect(content.getAttribute('aria-hidden')).toBe('true');
+        expect(document.activeElement).toBe(toggle);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'F', ctrlKey: true, shiftKey: true, bubbles: true }));
+        expect(getState('sidebarCollapsed')).toBe(false);
+        expect(content.inert).toBe(false);
+        expect(content.getAttribute('aria-hidden')).toBe('false');
+        expect(document.activeElement).toBe(input);
+    });
+
+    test('the daily-note shortcut selects Home’s existing Inbox note instead of a phantom root note', async () => {
+        window.go.desktop.App.GetTodayLink.mockResolvedValue('2024-01-15');
+        setState('fileTreeData', [{ path: 'Inbox', type: 'directory', children: [
+            { path: 'Inbox/2024-01-15.md', type: 'file', mtime: 12 },
+        ] }]);
+        window.go.desktop.App.ReadFile.mockResolvedValue({ path: 'Inbox/2024-01-15.md', content: '# Daily', mtime: 12 });
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'N', ctrlKey: true, shiftKey: true, bubbles: true }));
+        await testUtils.waitFor(0);
+        expect(getState('openTabs').map(tab => tab.path)).toEqual(['Inbox/2024-01-15.md']);
+        expect(getState('activeTabId')).toBe('Inbox/2024-01-15.md');
     });
 
     test('places Calendar, Kanban, and Graph under the file tree and Settings beside the window controls', () => {
@@ -66,7 +98,7 @@ describe('Workspace navigation', () => {
         const button = document.getElementById('sidebar-graph');
 
         button.click();
-        await Promise.resolve();
+        await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(getState('openTabs')).toEqual(expect.arrayContaining([
             expect.objectContaining({
@@ -80,7 +112,7 @@ describe('Workspace navigation', () => {
         expect(document.querySelector('#tab-strip [data-tab-id="graph"]')).toBeNull();
 
         button.click();
-        await Promise.resolve();
+        await new Promise(resolve => setTimeout(resolve, 0));
         expect(getState('openTabs').filter(tab => tab.type === 'graph')).toHaveLength(1);
         expect(getState('activeTabId')).toBe('notes/Roadmap.md');
         expect(document.getElementById('graph-workspace-panel').classList.contains('figaro-panel-exit')).toBe(false);

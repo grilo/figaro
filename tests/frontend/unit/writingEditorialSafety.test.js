@@ -24,8 +24,9 @@ test('Inclusive language exposes only reviewed grammatical role alternatives', a
     const [finding] = await findings('The chairman spoke.', 'inclusive');
     expect(finding.fixes.map(fix => fix.replacement)).toEqual(['chair', 'chairperson']);
     for (const fix of finding.fixes) expect(`The ${fix.replacement} spoke.`).toMatch(/^The chair(?:person)? spoke\.$/);
-    const [advice] = await findings('Obviously, you can change it.', 'inclusive');
-    expect(advice.fixes).toEqual([]);
+    expect(await findings('Obviously, you can change it.', 'inclusive')).toEqual([]);
+    const [advice] = await findings('Obviously, you can change it.', 'direct');
+    expect(advice).toMatchObject({ kind: 'style.reader-assumption', fixes: [] });
 });
 
 test.each(['A unicorn appeared.', 'A\nunicorn appeared.', 'A uniform is ready.', 'A European visitor arrived.',

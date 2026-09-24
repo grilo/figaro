@@ -9,6 +9,7 @@ export function writingSuggestionExplanation(finding) {
         'grammar.spelling': 'The word is absent from the selected dictionaries. Names and specialist terms may be correct; add an intentional word to your dictionary from the editor tooltip. Contextual homophones are not checked.',
         'grammar.repeated-word': 'Two adjacent words match. Repetition can be intentional, including “had had”. Review this occurrence before removing a word; this lens does not assess repetition of ideas throughout a note.',
         'language.inclusive': 'This role, expression, or accessibility description may have a more neutral alternative. Broader matches are advice only; Apply is reserved for reviewed replacements. Preserve intended meaning, a person’s preferred title, and historical context. This check does not infer anyone’s identity or pronouns.',
+        'style.reader-assumption': 'Words such as “simply”, “just”, or “obviously” can suggest a step is trivial or already known. They are reviewed in instructions and sentences addressed to readers; describing something as simple is not flagged. Keep factual statements about difficulty.',
         'clarity.undefined-acronym': 'No recognized expansion was found in eligible prose anywhere in the note, including after first use. Definitions in code or quotations do not count. The checker recognizes patterns; it does not know the acronym’s meaning. Accept it for this document if your audience already knows it.',
         'grammar.unmatched-pair': 'An opening mark has no recognized closing partner. Check the surrounding text manually. This check does not cover all unmatched closing marks or crossed pairs, and cannot choose where a closing mark belongs.',
         'style.terminology': 'This is one of the bundled technical names. Use its canonical spelling when you mean that product or technology. Names outside the reviewed list are not checked.',
@@ -33,7 +34,7 @@ export function writingSuggestionExplanation(finding) {
 }
 
 export function writingSuggestionExamples(finding) {
-    if (finding.kind?.startsWith('formulaic.')) return writingSloplessExample(finding.kind, finding.actual);
+    if (finding.kind?.startsWith('formulaic.')) return writingSloplessExample(finding.kind);
     if (finding.kind === 'style.sentence-spacing') return (finding.fixes || []).map(fix => ({
         label: `Suggested spacing (${fix.expected.match(/ {2,}/u)?.[0].length} spaces → 1)`,
         before: fix.expected, after: fix.replacement,
@@ -66,7 +67,8 @@ export function writingSuggestionExamples(finding) {
         'style.stock-phrase': { before: 'Let’s get the ball rolling.', after: 'Let’s start the project.' },
         'style.hedging': { before: 'I would argue that the instructions need an example.', after: 'The instructions need an example.' },
         'style.hyperbole': { before: 'The draft is ready!!', after: 'The draft is ready!' },
-        'language.inclusive': { before: 'Obviously, you can change this setting.', after: 'You can change this setting.' },
+        'language.inclusive': { before: 'She is wheelchair-bound.', after: 'She uses a wheelchair.' },
+        'style.reader-assumption': { before: 'Simply run the installer.', after: 'Run the installer.' },
     };
     if (examples[finding.kind] && !finding.fixes?.length) return [{ label: 'Example', ...examples[finding.kind] }];
     return (finding.fixes || []).map(fix => ({ label: 'Suggested wording', before: fix.expected, after: fix.replacement }));

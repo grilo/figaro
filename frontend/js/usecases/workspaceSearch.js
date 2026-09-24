@@ -51,6 +51,7 @@ export function createWorkspaceSearch({
                 return { requestId, query, results: [], suggestion: '', stale: true, error };
             }
             reportFailure(error);
+            publishResults([]);
             publishSuggestion('');
             return { requestId, query, results: [], suggestion: '', stale: false, error };
         }

@@ -23,10 +23,10 @@ function harness() {
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
 
-test.each(['repetition', 'consistency', 'readability', 'grammar'])('enabling %s fetches its newly restored Vale evidence after a Formulaic-only cached result', async lens => {
+test.each(['repetition', 'consistency', 'readability', 'grammar', 'formulaic'])('enabling %s fetches its newly restored Vale evidence after an Inclusive-only cached result', async lens => {
     const { controller, vale } = harness();
-    const source = 'The draft is ready—we can send it.';
-    controller.update(snapshot({ source, preferences: { language: 'en-US', lenses: ['formulaic'] } }), { immediate: true });
+    const source = 'The chairman spoke.';
+    controller.update(snapshot({ source, preferences: { language: 'en-US', lenses: ['inclusive'] } }), { immediate: true });
     await jest.advanceTimersByTimeAsync(0);
     expect(vale.analyze).not.toHaveBeenCalled();
     let finish;
@@ -186,7 +186,8 @@ test.each([
     const { controller, vale } = harness();
     controller.update(snapshot({ source, preferences: { lenses: [lens], language: 'en-US' } }), { immediate: true });
     await jest.advanceTimersByTimeAsync(0);
-    const needsVale = ['consistency', 'readability', 'grammar'].includes(lens);
+    // Formulaic needs Vale for emphatic punctuation; Inclusive runs on retext alone.
+    const needsVale = ['consistency', 'readability', 'grammar', 'formulaic'].includes(lens);
     expect(controller.snapshot()).toMatchObject({ count, states: { retext: 'complete', vale: needsVale ? 'complete' : 'disabled' } });
     expect(vale.analyze).toHaveBeenCalledTimes(needsVale ? 1 : 0);
     controller.destroy();

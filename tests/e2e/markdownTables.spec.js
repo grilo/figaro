@@ -283,10 +283,8 @@ test('edits a table transactionally without turning an ordinary cell click into 
     await expect.poll(() => page.evaluate(() => window.__markdownTableTestView.state.doc.toString()))
         .toContain('| Changed | 2 |');
 
-    expect(await page.evaluate(async () => {
-        const { undo } = await import('/vendored/codemirror/commands/index.js');
-        return undo(window.__markdownTableTestView);
-    })).toBe(true);
+    await expect(page.locator('#editor-container .cm-content')).toBeFocused();
+    await page.keyboard.press('Control+z');
     await expect.poll(() => page.evaluate(() => window.__markdownTableTestView.state.doc.toString()))
         .toBe(original);
 

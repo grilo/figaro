@@ -134,3 +134,42 @@ func TestUnlinkedMentionCandidatesExcludeIrrelevantIndexedNotes(t *testing.T) {
 		t.Fatalf("unlinked mentions = %#v, err=%v", mentions, err)
 	}
 }
+
+func TestBacklinksIncludeWikiAliasesHeadingsAndRelativeDestinationsAfterSave(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/Target Note.md", "# Target Note\n## Details\n")
+	cases := map[string]string{
+		"wiki.md":           "[[notes/Target Note]]",
+		"alias.md":          "[[notes/Target Note#Details|A label]]",
+		"markdown.md":       "[Different label](notes/Target%20Note.md#Details)",
+		"bracketed.md":      "[Different label](<notes/Target Note.md#Details>)",
+		"notes/relative.md": "[Relative](./Target%20Note.md#Details)",
+	}
+	for path, source := range cases {
+		writeTestFile(t, vaultPath, path, "Before\n"+source+"\nAfter")
+	}
+	writeTestFile(t, vaultPath, "code.md", "```md\n[[notes/Target Note]]\n```\n[External](https://example.com/notes/Target%20Note.md)")
+	results, err := app.SearchBacklinks("notes/Target Note.md")
+	if err != nil || len(results) != len(cases) {
+		t.Fatalf("backlinks = %#v, %v", results, err)
+	}
+	for _, result := range results {
+		if result.LineNum != 2 || result.Snippet != cases[result.Path] {
+			t.Fatalf("wrong context: %#v", result)
+		}
+	}
+	saved, err := app.SaveFile("wiki.md", "[[Other]]", 0)
+	if err != nil || !saved.Success {
+		t.Fatalf("save: %#v, %v", saved, err)
+	}
+	results, err = app.SearchBacklinks("notes/Target Note.md")
+	if err != nil || len(results) != len(cases)-1 {
+		t.Fatalf("updated backlinks = %#v, %v", results, err)
+	}
+	for _, result := range results {
+		if result.Path == "wiki.md" {
+			t.Fatal("stale backlink after save")
+		}
+	}
+}

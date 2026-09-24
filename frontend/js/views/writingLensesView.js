@@ -18,7 +18,7 @@ export function createWritingLensesView({ id = 'writing-lenses', onChange, onRet
             </select>
         </div>
         <fieldset class="writing-lenses-layers"><legend>Lenses</legend>
-            ${writingLensGroups.map(lens => `<div><div class="writing-lenses-row"><label class="writing-lenses-layer"><input class="ui-checkbox" type="checkbox" value="${lens.id}" aria-describedby="${id}-availability ${id}-${lens.id}-description"><span>${lens.label}</span><span class="ui-badge" data-partial hidden>Partial</span></label><button type="button" class="ui-icon-button" data-lens-help="${lens.id}" aria-label="About ${lens.label}" aria-haspopup="dialog" aria-expanded="false" aria-controls="${id}-help"><span aria-hidden="true">${infoIcon()}</span></button></div><p class="writing-lenses-description" id="${id}-${lens.id}-description">${lens.description}</p>${lens.id === 'proofreading' ? '<button type="button" class="ui-button ui-button--quiet" data-manage-dictionary>Manage dictionary…</button>' : ''}</div>`).join('')}
+            ${writingLensGroups.map(lens => `<div><div class="writing-lenses-row"><label class="writing-lenses-layer"><input class="ui-checkbox" type="checkbox" value="${lens.id}" aria-describedby="${id}-availability ${id}-${lens.id}-count ${id}-${lens.id}-description"><span>${lens.label}</span><span class="ui-badge" data-partial hidden>Partial</span><span class="ui-badge ui-badge--muted" data-count aria-hidden="true" hidden></span></label><span class="sr-only" id="${id}-${lens.id}-count" data-count-label></span><button type="button" class="ui-icon-button" data-lens-help="${lens.id}" aria-label="About ${lens.label}" aria-haspopup="dialog" aria-expanded="false" aria-controls="${id}-help"><span aria-hidden="true">${infoIcon()}</span></button></div><p class="writing-lenses-description" id="${id}-${lens.id}-description">${lens.description}</p>${lens.id === 'proofreading' ? '<button type="button" class="ui-button ui-button--quiet" data-manage-dictionary>Manage dictionary…</button>' : ''}</div>`).join('')}
         </fieldset>
         <section class="writing-lenses-review" aria-label="Analysis availability">
             <h3 data-review-title></h3><p id="${id}-availability" data-review-detail></p>
@@ -34,6 +34,16 @@ export function createWritingLensesView({ id = 'writing-lenses', onChange, onRet
     const help = createWritingLensHelpView({ id: `${id}-help` });
     element.append(help.element);
     let snapshot = { preferences: { language: 'none', lenses: [] }, status: 'loading' };
+    let counts = null;
+    function renderCounts() {
+        element.querySelectorAll('input[type="checkbox"]').forEach(input => {
+            // The count describes the checkbox; its accessible name stays the lens label.
+            const badge = input.closest('label').querySelector('[data-count]'), count = counts?.[input.value] || 0;
+            badge.hidden = !input.checked && !input.indeterminate || !count;
+            badge.textContent = String(count);
+            element.querySelector(`#${id}-${input.value}-count`).textContent = badge.hidden ? '' : `${count} ${count === 1 ? 'suggestion' : 'suggestions'}.`;
+        });
+    }
     element.querySelectorAll('[data-lens-help]').forEach(button => {
         setTooltip(button, button.getAttribute('aria-label'));
         button.addEventListener('click', () => { picker.close(); help.toggle(button, writingLensHelp(button.dataset.lensHelp, snapshot)); });
@@ -61,6 +71,8 @@ export function createWritingLensesView({ id = 'writing-lenses', onChange, onRet
             else if (!element.querySelector('[data-retry]').hidden) element.querySelector('[data-retry]').focus();
         },
         close() { picker.close(); help.close(); },
+        /** Counts belong to the current analysis; null clears them while it is unavailable. */
+        setCounts(value) { counts = value; renderCounts(); },
         destroy() { picker.destroy(); disclosure.destroy(); help.destroy(); },
         contains(target) { return element.contains(target) || picker.menu.contains(target) || help.element.contains(target); },
         update({ preferences, status, error, applying = false, applyError = '', documentKey }) {
@@ -87,6 +99,7 @@ export function createWritingLensesView({ id = 'writing-lenses', onChange, onRet
                 setTooltip(input, explanation);
                 input.setAttribute('aria-description', explanation);
             });
+            renderCounts();
             const availability = writingLensesAvailability(preferences);
             element.querySelector('.writing-lenses-review').hidden = preferences.language.startsWith('en-') && preferences.lenses.length > 0;
             element.querySelector('[data-review-title]').textContent = availability.title;

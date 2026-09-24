@@ -1,4 +1,16 @@
-import { boundedAdjacentTabId, tabCloseNavigationPlan } from '../frontend/js/core/tabNavigationModel.js';
+import { boundedAdjacentTabId, fileTabNeedsActivationRead, tabCloseNavigationPlan } from '../frontend/js/core/tabNavigationModel.js';
+
+test.each([
+    [{ type: 'file' }, {}, true],
+    [{ type: 'file', dirty: true }, { hasCachedContent: true }, false],
+    [{ type: 'file', dirty: true }, {}, true],
+    [{ type: 'file', isNew: true }, {}, false],
+    [{ type: 'file' }, { preparedFile: { content: '' } }, false],
+    [{ type: 'file', externalFileId: 'capability' }, { preparedFile: { content: '' } }, true],
+    [{ type: 'settings' }, {}, false],
+])('requires a readable source before activating an unloaded tab (%j)', (tab, options, expected) => {
+    expect(fileTabNeedsActivationRead(tab, options)).toBe(expected);
+});
 
 describe('bounded tab navigation model', () => {
     const tabIds = ['one', 'two', 'three'];

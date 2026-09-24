@@ -7,7 +7,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 
 import { openTab } from '../frontend/js/tabManager.js';
 import { setState } from '../frontend/js/state.js';
-import { configureHomeWorkspace, homeTaskLimit, renderHome } from '../frontend/js/home.js';
+import { configureHomeWorkspace, homeTaskLimit, openTodayNote, renderHome } from '../frontend/js/home.js';
 
 function deferred() {
     let resolve;
@@ -48,6 +48,20 @@ describe('Today workspace overview', () => {
         ]);
         window.go.desktop.App.GetDueTaskSummary.mockResolvedValue({ due_today: 0, overdue: 0 });
         window.go.desktop.App.CreateDirectory.mockResolvedValue({ success: true });
+    });
+
+    test('Home and keyboard capture share one in-flight daily-note creation', async () => {
+        const creation = deferred();
+        window.go.desktop.App.CreateFile.mockReturnValueOnce(creation.promise);
+        const panel = document.getElementById('tab-panels');
+        renderHome(panel, { now: fixedNow });
+        panel.querySelector('[data-home-action="today"]').click();
+        const keyboardRequest = openTodayNote();
+        creation.resolve({ success: true, path: 'Inbox/2024-01-15.md', mtime: 13 });
+        await keyboardRequest;
+        expect(window.go.desktop.App.CreateFile).toHaveBeenCalledTimes(1);
+        expect(openTab).toHaveBeenCalledTimes(1);
+        expect(openTab).toHaveBeenCalledWith('Inbox/2024-01-15.md', '2024-01-15.md', 'file', expect.objectContaining({ path: 'Inbox/2024-01-15.md' }));
     });
 
     test('makes Today the primary action and balances Inbox, tasks, pins, recent notes, and rediscovery', async () => {

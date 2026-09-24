@@ -584,9 +584,9 @@ describe('live PDF preview', () => {
         expect(main.classList.contains('pdf-preview-compact-editor')).toBe(true);
 
         // The preview can consume the editor's former outer margins, but the
-        // editor always retains its 320px manipulation floor.
+        // editor always retains its 400px manipulation floor.
         document.dispatchEvent(new DragEvent(dragStart === 'pointerdown' ? 'pointermove' : 'mousemove', { clientX: 0 }));
-        expect(sidebar.style.width).toBe('960px');
+        expect(sidebar.style.width).toBe('880px');
 
         document.dispatchEvent(new DragEvent(dragStart === 'pointerdown' ? 'pointerup' : 'mouseup'));
         expect(resizer.classList.contains('is-dragging')).toBe(false);
@@ -610,8 +610,8 @@ describe('live PDF preview', () => {
         }));
         expect(sidebar.style.width).toBe('488px');
         expect(resizer.getAttribute('aria-valuenow')).toBe('488');
-        expect(resizer.getAttribute('aria-valuemin')).toBe('240');
-        expect(resizer.getAttribute('aria-valuemax')).toBe('960');
+        expect(resizer.getAttribute('aria-valuemin')).toBe('220');
+        expect(resizer.getAttribute('aria-valuemax')).toBe('880');
 
         resizer.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true,

@@ -82,6 +82,8 @@ to guarded `aria-disabled` controls as well as native-disabled buttons. The
 outline stays keyboard-focusable to explain its unavailable state, with the
 standard focus ring and no hover/active promotion. The catalogue includes this
 existing-state specimen; no family, primitive, or visual variant was added.
+Helper labels and the measuring spacer share a 12px type cap, independent of
+larger document text; details panes reserve a 400px editor floor before overlaying.
 Narrow editor layouts reserve a lane for the existing block-guide controls,
 and the empty Board reuses its instruction area for first-task guidance.
 
@@ -106,7 +108,7 @@ approved selector set:
 | Calendar days | `.ui-date-picker` and its grid/day primitives, including approved weekend, five-level note-density, selected-surface, and due-outline states | Anchor position, locale week policy, activity data, effective selection, and task mutation |
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
 | Document tabs | `.ui-document-tabs--titlebar`, `.ui-document-tab--connected`, `.ui-document-tab--side-connected`, and state modifiers | Title-bar or sidebar placement, overflow geometry, ordering, drag placement, and tab controller behavior |
-| Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table/Draw.io labels, and CodeMirror gutter behavior |
+| Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, compact heading/fenced-code/table/Draw.io labels, and CodeMirror gutter behavior |
 | Image resize handles | `.ui-image-resize-handle` | Image width/height/proportional placement, Gantt endpoint placement, editor-modal corner placement, resize cursors, visibility, tooltip content, keyboard input, and pointer-drag behavior |
 | Graph canvas | `.ui-graph-canvas` | Node/edge drawing, hit testing, pan/zoom, keyboard selection, and refresh lifecycle |
 | Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
@@ -571,6 +573,10 @@ a mixed accessibility state plus a visible **Partial** badge, with enabled-check
 details in accessible descriptions and info help. Group counts reflect the five choices; Spanish Proofreading states
 its spelling-only coverage. The subsequently approved disclosure is implemented
 as the shared family described below.
+Selected lens groups show their current suggestion count in the approved
+`.ui-badge--muted` badge; the number is `aria-hidden`, the checkbox description
+announces the count, and the catalogue lens specimen shows counts. No primitive,
+variant, token, or style-manifest change is required.
 
 ## Approved animated disclosure — 2026-09-07
 

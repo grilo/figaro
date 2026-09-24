@@ -1193,7 +1193,7 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
         guide: Number.parseFloat(getComputedStyle(control).fontSize),
         editor: Number.parseFloat(getComputedStyle(control.closest('.cm-editor')).fontSize),
     }));
-    expect(guideTypeScale.guide).toBeGreaterThanOrEqual(guideTypeScale.editor);
+    expect(guideTypeScale.guide).toBe(Math.min(guideTypeScale.editor, 12));
     const headingGuideAlignment = await collapseControls.first().evaluate(control => {
         const labelRange = document.createRange();
         labelRange.selectNodeContents(control);
@@ -1636,6 +1636,44 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
         window.__headingFoldView.contentDOM.style.getPropertyValue('--markdown-fold-anchor-reserve'),
     ))).toBe(0);
     expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(bottomGuideSource);
+
+    // Computed rail/pane geometry cannot be established by the pure layout model.
+    await page.setViewportSize({ width: 900, height: 700 });
+    const narrowSource = '# Narrow writing\n\nOrdinary paragraphs should retain enough room to read words without fragmenting.\n\n```abcdefghijklmnop\ncode\n```\n\n| Name | Count |\n| --- | --- |\n| First | 2 |\n\nTail';
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown, 'Welcome.md');
+        const view = editor.getEditorView();
+        view.dispatch({ selection: { anchor: 0 } });
+        view.scrollDOM.scrollTop = 0;
+        view.focus();
+    }, narrowSource);
+    await page.locator('#outline-toggle').click();
+    await expect(page.locator('#right-sidebar')).not.toHaveClass(/right-sidebar--responsive-overlay/);
+    for (const scale of [100, 150]) {
+        await page.evaluate(async scale => {
+            const { applyEditorTextScale } = await import('/js/editorTextScale.js');
+            applyEditorTextScale(scale, { view: window.__headingFoldView });
+        }, scale);
+        await expect.poll(() => page.evaluate(() => {
+            const content = document.querySelector('#editor-container .cm-content');
+            const style = getComputedStyle(content);
+            return content.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        })).toBeGreaterThan(230);
+        const rail = await page.evaluate(() => {
+            const view = window.__headingFoldView;
+            const content = view.contentDOM.getBoundingClientRect();
+            const style = getComputedStyle(view.contentDOM);
+            const guide = document.querySelector('.cm-editorHelperRail-before');
+            const rect = guide.getBoundingClientRect();
+            return { width: rect.width, left: rect.left, right: rect.right,
+                canvasLeft: view.dom.getBoundingClientRect().left,
+                writingLeft: content.left + parseFloat(style.paddingLeft) };
+        });
+        expect(rail.width).toBeLessThan(140);
+        expect(rail.left).toBeGreaterThanOrEqual(rail.canvasLeft - 1);
+        expect(rail.right).toBeLessThan(rail.writingLeft);
+    }
 });
 
 test('uses a same-folder note from a rendered missing link and rewrites only its destination', async ({ page }) => {
@@ -3000,6 +3038,11 @@ test('keeps borderless sidebar search, its conditional count, and Quick note foc
 
     await page.locator('#toggle-sidebar').click();
     await expect(page.locator('#sidebar')).toHaveClass(/collapsed/);
+    await page.keyboard.press('Control+Shift+f');
+    await expect(page.locator('#sidebar')).not.toHaveClass(/collapsed/);
+    await expect(search).toBeFocused();
+    await expect(search).toBeVisible();
+    await page.locator('#toggle-sidebar').click();
     const railButton = page.locator('#sidebar-quick-note');
     const railGeometry = await railButton.evaluate(element => {
         const rect = element.getBoundingClientRect();

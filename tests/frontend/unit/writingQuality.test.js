@@ -5,6 +5,11 @@ import { writingSpellingObservations, spellcheckDiagnostics, spellcheckSuggestio
 import { highConfidenceSuggestions } from '../../../frontend/js/core/spellingSuggestionsModel.js';
 import { resolveWritingFindings } from '../../../frontend/js/core/writingAnalysisModel.js';
 import { createWritingDecision } from '../../../frontend/js/core/writingDecisionsModel.js';
+import { writingChecks, writingLensGroups } from '../../../frontend/js/core/writingLensesModel.js';
+import { writingLensHelp } from '../../../frontend/js/core/writingLensHelpModel.js';
+import { inclusiveAlternatives } from '../../../frontend/js/core/writingPackagePolicy.js';
+import { termGroups, capitalizationGroups } from '../../../frontend/js/core/writingAdditionalRules.js';
+import { writingTerminology } from '../../../frontend/js/core/writingTextlintModel.js';
 
 const dictionary = language => nspell({ aff: readFileSync(`frontend/vendored/spellcheck/${language}.aff`, 'utf8'),
     dic: readFileSync(`frontend/vendored/spellcheck/${language}.dic`, 'utf8') });
@@ -142,7 +147,7 @@ test.each([
 });
 
 test('temporal just is preserved while minimizing task language remains reviewable', async () => {
-    const inspect = async source => findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { ...preferences, lenses: ['inclusive'] } }));
+    const inspect = async source => findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { ...preferences, lenses: ['direct'] } }));
     for (const source of ['We arrived just before lunch.', 'We left just after noon.', 'It happened just yesterday.']) {
         expect((await inspect(source)).filter(item => item.actual === 'just')).toEqual([]);
     }
@@ -150,9 +155,64 @@ test('temporal just is preserved while minimizing task language remains reviewab
 });
 
 test('reported route descriptions, overlooked risks and technical classifications preserve their literal meaning', async () => {
-    const inspect = async source => findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { ...preferences, lenses: ['inclusive'] } }));
+    const inspect = async source => findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { ...preferences, lenses: ['direct'] } }))
+        .filter(item => item.kind === 'style.reader-assumption');
     for (const source of ['The sign promised an easy route to the next village.', 'Layout problems are easy to miss in a list.', 'Treat client errors as just unhandled requests.']) {
         expect(await inspect(source)).toEqual([]);
     }
-    expect((await inspect('The task is easy. Just configure the database.')).map(item => item.actual.toLowerCase())).toEqual(['easy', 'just']);
+    // Describing the task is not addressed to the reader; the instruction is.
+    expect((await inspect('The task is easy. Just configure the database.')).map(item => item.actual.toLowerCase())).toEqual(['just']);
+});
+
+// Native Vale checks run outside Jest; their rules are covered by the grammar and Vale fixtures.
+async function everyLens(source, language = 'en-US') {
+    const data = await analyzeWriting(source);
+    const spelling = await writingSpellingObservations(source, language, async () => dictionary(language));
+    return findings(resolveWritingFindings({ source, ...data, observations: [...data.observations, ...spelling],
+        preferences: { language, lenses: writingChecks.map(check => check.id) } }));
+}
+
+test.each(['en-US', 'en-GB'])('%s lens help examples are clean under every other lens', async language => {
+    for (const group of writingLensGroups) {
+        for (const example of writingLensHelp(group.id, { preferences: { language, lenses: [] }, status: 'saved' }).examples) {
+            expect([group.id, example.after, (await everyLens(example.after, language)).map(item => `${item.kind}:${item.actual}`)])
+                .toEqual([group.id, example.after, []]);
+        }
+    }
+});
+
+test('applying any offered lens replacement creates no finding from any lens', async () => {
+    const offered = [...[...inclusiveAlternatives.values()].flat(), ...termGroups.flat(), ...capitalizationGroups.flat(), ...writingTerminology];
+    for (const word of new Set(offered)) {
+        const source = `We use ${word} here.`, from = source.indexOf(word), to = from + word.length;
+        const overlapping = (await everyLens(source)).filter(item => item.from < to && item.to > from);
+        expect([word, overlapping.map(item => item.kind)]).toEqual([word, []]);
+    }
+});
+
+test.each(['We agreed on a service level objective (SLO).', 'We agreed on an SLO (service level objective).'])(
+    'Clarity does not simplify the words that define an acronym: %s', async source => {
+        const plain = findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { lenses: ['plain'], language: 'en-US' } }));
+        expect(plain.filter(item => item.actual === 'objective')).toEqual([]);
+    });
+
+test('wordiness advice still applies outside an acronym definition', async () => {
+    const source = 'Our objective is clear.';
+    const plain = findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { lenses: ['plain'], language: 'en-US' } }));
+    expect(plain.some(item => item.actual === 'objective')).toBe(true);
+});
+
+test('Ignore choices saved before checks changed lens still apply to the moved findings', async () => {
+    const legacy = (source, actual, kind) => {
+        const from = source.indexOf(actual), to = from + actual.length;
+        return createWritingDecision({ kind, title: 'Earlier finding', from, to, actual, sourceText: actual }, source, 'en-US', 'occurrence', kind);
+    };
+    const visibleIn = async (source, lenses, decisions) => findings(resolveWritingFindings({ source, ...await analyzeWriting(source), decisions,
+        preferences: { lenses, language: 'en-US' } }));
+    const tone = 'Simply run the installer.';
+    expect((await visibleIn(tone, ['direct'], [])).map(item => item.kind)).toContain('style.reader-assumption');
+    expect((await visibleIn(tone, ['direct'], [legacy(tone, 'Simply', 'language.inclusive')])).filter(item => item.kind === 'style.reader-assumption')).toEqual([]);
+    const typography = "It's ready. It's done. It’s late.";
+    expect((await visibleIn(typography, ['formulaic'], [])).map(item => item.kind)).toEqual(['style.apostrophe']);
+    expect(await visibleIn(typography, ['formulaic'], [legacy(typography, '’', 'formulaic.curly-punctuation')])).toEqual([]);
 });

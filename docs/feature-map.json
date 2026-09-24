@@ -99,7 +99,12 @@
       "frontend/js/editorWheelScroll.js",
       "frontend/js/state.js",
       "frontend/js/core/previewCache.js",
-      "frontend/js/domPreviewCache.js"
+      "frontend/js/domPreviewCache.js",
+      "frontend/js/markdownTableEditor.js",
+      "frontend/js/core/markdownInlineFormatting.js",
+      "frontend/js/core/rightSidebarLayout.js",
+      "frontend/styles/editor.css",
+      "frontend/styles/features/right-sidebar.css"
     ],
     "docs": [
       "docs/LIVEPREVIEW.md#4-block-widget-geometry-contract",
@@ -128,7 +133,9 @@
       "docs/EDITOR_PERFORMANCE.md#prepared-diagram-return",
       "docs/benchmarks/diagram-remount-2026-09-21.md#native-measurements",
       "docs/EDITOR_PERFORMANCE.md#prepared-code-math-table-and-image-returns",
-      "docs/benchmarks/preview-retention-2026-09-21.md#native-measurements"
+      "docs/benchmarks/preview-retention-2026-09-21.md#native-measurements",
+      "docs/testing/editor.md#ux-recovery-and-narrow-writing-regressions",
+      "docs/WRITING.md#write-in-markdown"
     ],
     "tests": [
       "tests/frontend/unit/verticalCursorModel.test.js",
@@ -166,7 +173,11 @@
       "tests/frontend/unit/state.test.js",
       "tests/frontend/unit/activityGutter.test.js",
       "tests/frontend/unit/previewCache.test.js",
-      "tests/frontend/unit/domPreviewCache.test.js"
+      "tests/frontend/unit/domPreviewCache.test.js",
+      "tests/frontend/unit/markdownInlineFormatting.test.js",
+      "tests/frontend/unit/markdownFormattingEditor.test.js",
+      "tests/frontend/unit/markdownTableEditor.test.js",
+      "tests/frontend/unit/rightSidebarLayout.test.js"
     ],
     "extraChecks": [
       "Run the affected existing editorUX or vimVisualRows Playwright scenario for geometry changes and repeat in the packaged native webview."
@@ -306,6 +317,14 @@
       ],
       "frontend/js/domPreviewCache.js": [
         "createDOMPreviewCache"
+      ],
+      "frontend/js/markdownTableEditor.js": [
+        "openMarkdownTableEditor"
+      ],
+      "frontend/js/core/rightSidebarLayout.js": [
+        "rightSidebarPresentation",
+        "rightSidebarBounds",
+        "rightSidebarWidth"
       ]
     }
   },
@@ -317,23 +336,44 @@
       "frontend/js/editorBreadcrumb.js",
       "frontend/js/editorPreviewLaunchers.js",
       "frontend/js/pureEditingChrome.js",
-      "frontend/js/rightSidebarState.js"
+      "frontend/js/rightSidebarState.js",
+      "frontend/js/app.js",
+      "frontend/js/home.js",
+      "frontend/js/usecases/openTodayNote.js"
     ],
     "docs": [
       "docs/testing/workspace.md#frameless-window-chrome-regressions",
       "docs/testing/workspace.md#pure-mode-regressions",
-      "ARCHITECTURE.md#editor-decoration-updates"
+      "ARCHITECTURE.md#editor-decoration-updates",
+      "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
+      "ARCHITECTURE.md#note-opening-and-recovery-ownership",
+      "docs/NOTES_AND_PLANNING.md#capture-and-connect"
     ],
     "tests": [
       "tests/frontend/unit/windowChrome.test.js",
       "tests/frontend/unit/editorBreadcrumb.test.js",
       "tests/frontend/unit/editorPreviewLaunchers.test.js",
       "tests/frontend/unit/pureEditingChrome.test.js",
-      "tests/frontend/unit/rightSidebarState.test.js"
+      "tests/frontend/unit/rightSidebarState.test.js",
+      "tests/frontend/unit/home.test.js",
+      "tests/frontend/unit/openTodayNote.test.js",
+      "tests/frontend/unit/topBar.test.js"
     ],
     "extraChecks": [
       "Reuse existing outline and windowChrome browser boundaries for focus, accessibility, or geometry changes; verify native window behavior in the packaged webview."
-    ]
+    ],
+    "symbols": {
+      "frontend/js/app.js": [
+        "initKeyboardShortcuts",
+        "initTopBar"
+      ],
+      "frontend/js/home.js": [
+        "openTodayNote"
+      ],
+      "frontend/js/usecases/openTodayNote.js": [
+        "createOpenTodayNote"
+      ]
+    }
   },
   {
     "id": "editor-updates",
@@ -833,6 +873,50 @@
     }
   },
   {
+    "id": "writing-lenses",
+    "title": "Writing lens selection, help, and counts",
+    "sources": [
+      "frontend/js/writingLenses.js",
+      "frontend/js/views/writingLensesView.js",
+      "frontend/js/core/writingLensesModel.js",
+      "frontend/js/core/writingLensHelpModel.js",
+      "frontend/js/views/writingLensHelpView.js",
+      "frontend/js/usecases/writingLensesPreferences.js"
+    ],
+    "docs": [
+      "docs/WRITING.md#choose-writing-lenses",
+      "docs/testing/writing.md#consolidated-writing-lens-controls",
+      "docs/testing/writing.md#writing-lens-help"
+    ],
+    "tests": [
+      "tests/frontend/unit/writingLensesModel.test.js",
+      "tests/frontend/unit/writingLensesView.test.js",
+      "tests/frontend/unit/writingLenses.test.js",
+      "tests/frontend/unit/writingLensHelp.test.js",
+      "tests/frontend/unit/writingLensesPreferences.test.js"
+    ],
+    "extraChecks": [
+      "Moving a check between lenses also needs writing-advice and the cross-lens tests in writingQuality.test.js. Picker focus and geometry changes need the existing outline browser scenario."
+    ],
+    "symbols": {
+      "frontend/js/writingLenses.js": [
+        "initWritingLenses"
+      ],
+      "frontend/js/views/writingLensesView.js": [
+        "createWritingLensesView"
+      ],
+      "frontend/js/core/writingLensesModel.js": [
+        "writingChecks",
+        "writingLensGroups",
+        "writingLensCounts",
+        "changeWritingLenses"
+      ],
+      "frontend/js/core/writingLensHelpModel.js": [
+        "writingLensHelp"
+      ]
+    }
+  },
+  {
     "id": "writing-decisions",
     "title": "Persist and reverse review decisions",
     "sources": [
@@ -866,17 +950,25 @@
       "frontend/js/fileTree.js",
       "frontend/js/usecases/fileTreeTransfer.js",
       "internal/desktop/app_vault_mutations.go",
-      "frontend/js/core/fileTreeModel.js"
+      "frontend/js/core/fileTreeModel.js",
+      "frontend/js/recentlyDeleted.js",
+      "frontend/js/statusBar.js"
     ],
     "docs": [
       "docs/PROMPT.md#3-file-operations",
-      "docs/testing/workspace.md#file-tree-copy-regressions"
+      "docs/testing/workspace.md#file-tree-copy-regressions",
+      "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
+      "ARCHITECTURE.md#note-opening-and-recovery-ownership",
+      "docs/GETTING_STARTED.md#save-history-and-recovery",
+      "docs/NOTES_AND_PLANNING.md#organize-the-file-tree"
     ],
     "tests": [
       "tests/frontend/unit/fileTree.test.js",
       "tests/frontend/unit/fileTreeTransfer.test.js",
       "tests/frontend/unit/fileTreeRefresh.test.js",
-      "tests/frontend/unit/fileTreeModel.test.js"
+      "tests/frontend/unit/fileTreeModel.test.js",
+      "tests/frontend/unit/recentlyDeleted.test.js",
+      "tests/frontend/unit/statusBar.test.js"
     ],
     "extraChecks": [
       "Run go test ./internal/desktop for backend changes, retaining real os.Root containment, collision, rollback, and CSS rename coverage. For Windows rename hangs, capture the packaged app's last progress stage and storage location; Linux checks do not establish native Windows completion. Include slow_history_test.go for save/path-lock ordering."
@@ -885,6 +977,10 @@
       "frontend/js/core/fileTreeModel.js": [
         "fileTreeTabMarkersChanged",
         "dirtyFilePaths"
+      ],
+      "frontend/js/recentlyDeleted.js": [
+        "restoreRecentlyDeletedItem",
+        "initRecentlyDeletedSettings"
       ]
     }
   },
@@ -902,7 +998,8 @@
       "frontend/js/core/workspaceTabModel.js",
       "frontend/js/core/workspaceCursorModel.js",
       "frontend/js/session.js",
-      "frontend/js/usecases/tabContent.js"
+      "frontend/js/usecases/tabContent.js",
+      "frontend/js/core/tabNavigationModel.js"
     ],
     "docs": [
       "docs/PROMPT.md#2-tab-system",
@@ -912,7 +1009,9 @@
       "docs/testing/workspace.md#file-revision-continuity",
       "docs/EDITOR_UPDATES.md#ownership-and-notification-contract",
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
-      "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements"
+      "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements",
+      "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
+      "ARCHITECTURE.md#note-opening-and-recovery-ownership"
     ],
     "tests": [
       "tests/frontend/unit/tabManager.test.js",
@@ -952,6 +1051,10 @@
       ],
       "frontend/js/usecases/tabContent.js": [
         "readTabContent"
+      ],
+      "frontend/js/core/tabNavigationModel.js": [
+        "fileTabNeedsActivationRead",
+        "tabCloseNavigationPlan"
       ]
     }
   },
@@ -992,11 +1095,15 @@
     "sources": [
       "frontend/js/search.js",
       "frontend/js/usecases/workspaceSearch.js",
-      "internal/search/model.go"
+      "internal/search/model.go",
+      "frontend/js/controllers/searchController.js",
+      "frontend/js/views/searchView.js"
     ],
     "docs": [
       "docs/PROMPT.md#73-global-search",
-      "docs/testing/workspace.md#search-and-shell-accessibility-regressions"
+      "docs/testing/workspace.md#search-and-shell-accessibility-regressions",
+      "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
+      "ARCHITECTURE.md#note-opening-and-recovery-ownership"
     ],
     "tests": [
       "tests/frontend/unit/search.test.js",
@@ -1008,6 +1115,14 @@
     "symbols": {
       "frontend/js/usecases/workspaceSearch.js": [
         "createWorkspaceSearch"
+      ],
+      "frontend/js/controllers/searchController.js": [
+        "performGlobalSearch",
+        "handleSearchKeydown"
+      ],
+      "frontend/js/views/searchView.js": [
+        "setSearchPending",
+        "showSearchFailure"
       ]
     }
   },
@@ -1015,18 +1130,26 @@
     "id": "backlinks",
     "title": "Backlinks and unlinked mentions",
     "sources": [
-      "frontend/js/backlinks.js"
+      "frontend/js/backlinks.js",
+      "internal/links/rewrite.go",
+      "internal/desktop/vault_index.go",
+      "internal/desktop/app_search.go",
+      "internal/desktop/relationships.go"
     ],
     "docs": [
       "docs/PROMPT.md#71-relationships-panel",
-      "docs/testing/workspace.md#search-and-shell-accessibility-regressions"
+      "docs/testing/workspace.md#search-and-shell-accessibility-regressions",
+      "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
+      "ARCHITECTURE.md#note-opening-and-recovery-ownership",
+      "docs/NOTES_AND_PLANNING.md#capture-and-connect"
     ],
     "tests": [
       "tests/frontend/unit/backlinks.test.js",
       "tests/frontend/race/backlinks.race.test.js"
     ],
     "extraChecks": [
-      "Relationship backend changes require go test ./internal/desktop; actual popup/windowing focus needs the existing browser boundary."
+      "Relationship backend changes require go test ./internal/desktop; actual popup/windowing focus needs the existing browser boundary.",
+      "Run go test ./internal/links ./internal/desktop, including relationships_test.go and vault_index_test.go for wiki/alias/fragment, warm-save, and remapped-relative backlink coverage."
     ],
     "symbols": {
       "frontend/js/backlinks.js": [

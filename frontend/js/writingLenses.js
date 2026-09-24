@@ -11,7 +11,7 @@ import { isolateHistory } from '@codemirror/commands';
 import { writingEngineConfiguration } from './core/writingAnalysisModel.js';
 import { createWritingAnalysis } from './usecases/writingAnalysis.js';
 import { createWritingResultsView } from './views/writingResultsView.js';
-import { writingLensesDocument, writingLensSupportsLanguage } from './core/writingLensesModel.js';
+import { writingLensesDocument, writingLensSupportsLanguage, writingLensCounts } from './core/writingLensesModel.js';
 import { createWritingLensesApplyAll } from './usecases/writingLensesApplyAll.js';
 import { createWritingLensesPreferences } from './usecases/writingLensesPreferences.js';
 import { createWritingLensesView } from './views/writingLensesView.js';
@@ -199,6 +199,11 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
             // or rebuild review DOM while the author is still typing.
             if (value.current && lastDocument !== getView?.()?.state.doc) return;
             if (!panel.hidden) resultsView.update(value);
+            // Retained results are being refreshed; keep their counts instead of flickering.
+            if (!value.stale) {
+                const counts = value.current ? writingLensCounts(value.groups.flatMap(group => group.findings)) : null;
+                paneView.setCounts(counts); quickView.setCounts(counts);
+            }
             setSpelling(value.current?.spelling || { enabled: false });
             if (inlineVersion === value.resultVersion && inlineDocument === getView?.()?.state.doc) return;
             inlineVersion = value.resultVersion; inlineDocument = getView?.()?.state.doc;

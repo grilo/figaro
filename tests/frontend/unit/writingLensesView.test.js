@@ -44,12 +44,12 @@ test('writing lens error states keep save retries editable and load retries keyb
     const preferences = { primary: 'direct', overlays: ['spelling'], language: 'en-US' };
     view.update({ preferences, status: 'save-error', error: 'Couldn’t save preferences.' });
     expect(view.element.querySelector('.ui-notice--warning').textContent).toContain('Couldn’t save');
-    expect(view.element.querySelector('input[value="direct"]').disabled).toBe(false);
+    expect(view.element.querySelector('input[value="directness"]').disabled).toBe(false);
     expect(view.element.querySelector('[data-retry]').hidden).toBe(false);
     view.element.querySelector('[data-retry]').click();
     expect(onRetry).toHaveBeenCalledTimes(1);
     view.update({ preferences, status: 'load-error', error: 'Couldn’t load preferences.' });
-    expect(view.element.querySelector('input[value="direct"]').disabled).toBe(true);
+    expect(view.element.querySelector('input[value="directness"]').disabled).toBe(true);
     expect(view.element.querySelector('input[value="proofreading"]').disabled).toBe(true);
     view.focus();
     expect(document.activeElement).toBe(view.element.querySelector('[data-retry]'));
@@ -64,9 +64,9 @@ test('writing controls offer equal lens checkboxes and one document language wit
     expect(view.element.textContent).toContain('Lenses');
     expect(view.element.textContent).not.toMatch(/Primary|Writing profile|Settings|Properties/);
     expect(view.element.querySelectorAll('input[type="checkbox"]')).toHaveLength(5);
-    const direct = view.element.querySelector('input[value="direct"]');
+    const direct = view.element.querySelector('input[value="directness"]');
     expect(direct.checked).toBe(true); expect(direct.disabled).toBe(false);
-    direct.click(); expect(onChange).toHaveBeenCalledWith({ type: 'lens', value: 'direct', enabled: false });
+    direct.click(); expect(onChange).toHaveBeenCalledWith({ type: 'lens', value: 'directness', enabled: false });
 });
 
 test('five consolidated lens checkboxes expose complete selection, partial legacy selection, and counts', () => {
@@ -108,9 +108,9 @@ test('language is the first Settings combobox; unsupported lenses are disabled a
     expect(input('proofreading').checked).toBe(true);
     expect(input('proofreading').indeterminate).toBe(false);
     expect(input('proofreading').getAttribute('aria-description')).toBe('Available checks: Spelling. Other checks in Proofreading currently support English.');
-    for (const id of ['clarity', 'direct', 'inclusive', 'formulaic']) expect(input(id).disabled).toBe(true);
-    expect(input('direct').checked).toBe(false);
-    input('direct').click(); expect(onChange).not.toHaveBeenCalled();
+    for (const id of ['clarity', 'directness', 'inclusive-language', 'formulaic-writing']) expect(input(id).disabled).toBe(true);
+    expect(input('directness').checked).toBe(false);
+    input('directness').click(); expect(onChange).not.toHaveBeenCalled();
     const combobox = view.element.querySelector('[role="combobox"]');
     combobox.click();
     combobox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
@@ -119,7 +119,7 @@ test('language is the first Settings combobox; unsupported lenses are disabled a
     view.update({ preferences: { ...preferences, language: 'none' }, status: 'saved' });
     expect([...view.element.querySelectorAll('input')].every(input => input.disabled)).toBe(true);
     view.update({ preferences: { lenses: ['spelling'], language: 'en-GB' }, status: 'saved' });
-    expect(input('direct').checked).toBe(false); expect(input('direct').disabled).toBe(false);
+    expect(input('directness').checked).toBe(false); expect(input('directness').disabled).toBe(false);
     const apply = view.element.querySelector('[data-apply-all]');
     expect(apply.previousElementSibling.textContent).toBe('Choices saved for this document.');
     apply.click(); expect(onApplyAll).toHaveBeenCalledTimes(1);
@@ -133,7 +133,7 @@ test('disabled lens reasons become coverage descriptions when the lens is availa
     const view = createWritingLensesView({ onChange, onRetry() {} });
     document.body.replaceChildren(view.element);
     const tooltips = initTooltips({ root: document, showDelay: 0 });
-    const direct = view.element.querySelector('input[value="direct"]');
+    const direct = view.element.querySelector('input[value="directness"]');
     direct.getBoundingClientRect = () => ({ left: 100, right: 116, top: 100, bottom: 116, width: 16, height: 16 });
     try {
         view.update({ preferences: { language: 'es' }, status: 'saved' });
@@ -146,7 +146,7 @@ test('disabled lens reasons become coverage descriptions when the lens is availa
         direct.closest('label').click();
         expect(onChange).not.toHaveBeenCalled();
         expect(tooltip.hidden).toBe(false);
-        expect(direct.getAttribute('aria-describedby')).toBe('writing-lenses-availability writing-lenses-direct-description ui-tooltip');
+        expect(direct.getAttribute('aria-describedby')).toBe('writing-lenses-availability writing-lenses-directness-count writing-lenses-directness-description ui-tooltip');
 
         view.update({ preferences: { language: 'none' }, status: 'saved' });
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -159,9 +159,9 @@ test('disabled lens reasons become coverage descriptions when the lens is availa
         expect(tooltip.hidden).toBe(false);
         expect(tooltip.textContent).toContain('passive voice');
         expect(direct.getAttribute('aria-description')).toContain('passive voice');
-        expect(direct.getAttribute('aria-describedby')).toContain('writing-lenses-direct-description');
+        expect(direct.getAttribute('aria-describedby')).toContain('writing-lenses-directness-description');
         direct.click();
-        expect(onChange).toHaveBeenCalledWith({ type: 'lens', value: 'direct', enabled: true });
+        expect(onChange).toHaveBeenCalledWith({ type: 'lens', value: 'directness', enabled: true });
     } finally {
         tooltips.destroy(); view.destroy();
     }
@@ -179,4 +179,31 @@ test('Proofreading offers dictionary management even when spelling is disabled',
     expect(button.parentElement.querySelector('input').value).toBe('proofreading');
     button.click(); expect(onManageDictionary).toHaveBeenCalledTimes(1);
     view.destroy(); view.element.remove();
+});
+
+test('selected lenses show an accessible finding count that clears when analysis is unavailable', () => {
+    const view = createWritingLensesView({ compact: false, onChange() {}, onRetry() {} });
+    document.body.replaceChildren(view.element);
+    view.update({ preferences: { lenses: ['plain', 'readability', 'direct'], language: 'en-US' }, status: 'saved', documentKey: 'Memo.md' });
+    const badge = id => view.element.querySelector(`input[value="${id}"]`).closest('label').querySelector('[data-count]');
+    view.setCounts({ proofreading: 4, clarity: 12, directness: 1, 'inclusive-language': 0, 'formulaic-writing': 0 });
+    expect(badge('clarity').hidden).toBe(false);
+    expect(badge('clarity').className).toBe('ui-badge ui-badge--muted');
+    expect(badge('clarity').textContent).toBe('12'); expect(badge('clarity').getAttribute('aria-hidden')).toBe('true');
+    const clarity = view.element.querySelector('input[value="clarity"]');
+    // The checkbox keeps its name; the count is part of its description.
+    expect(clarity.closest('label').textContent).not.toContain('suggestions');
+    expect(clarity.getAttribute('aria-describedby').split(' ')).toContain('writing-lenses-clarity-count');
+    expect(view.element.querySelector('#writing-lenses-clarity-count').textContent).toBe('12 suggestions.');
+    expect(view.element.querySelector('#writing-lenses-directness-count').textContent).toBe('1 suggestion.');
+    // Unselected groups and zero counts stay quiet.
+    expect(badge('proofreading').hidden).toBe(true);
+    expect(badge('formulaic-writing').hidden).toBe(true);
+    view.update({ preferences: { lenses: ['readability'], language: 'en-US' }, status: 'saved', documentKey: 'Memo.md' });
+    expect(badge('clarity').hidden).toBe(false);
+    expect(view.element.querySelector('input[value="clarity"]').indeterminate).toBe(true);
+    view.setCounts(null);
+    expect(badge('clarity').hidden).toBe(true);
+    expect(view.element.querySelector('#writing-lenses-clarity-count').textContent).toBe('');
+    view.destroy();
 });

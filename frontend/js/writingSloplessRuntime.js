@@ -1,6 +1,5 @@
 // Eager package imports only: the CLI and its filesystem/configuration loaders are not bundled.
 import emDashes from 'slopless/rules/orthography/em-dashes';
-import smartQuotes from 'slopless/rules/orthography/smart-quotes';
 import boilerplateFraming from 'slopless/rules/syntactic-patterns/lead-ins/boilerplate-framing';
 import genericSignposting from 'slopless/rules/syntactic-patterns/lead-ins/generic-signposting';
 import negationReframe from 'slopless/rules/syntactic-patterns/contrast/negation-reframe';
@@ -31,7 +30,7 @@ import wordRepetition from 'slopless/rules/metrics/word-repetition';
 import hedgeStacking from 'slopless/rules/words/hedge-stacking';
 import softeningLanguage from 'slopless/rules/syntactic-patterns/generalization/softening-language';
 
-const rules = { 'cliches': cliches, 'corporate-speak': corporateSpeak, 'wordiness': wordiness, 'simplicity': simplicity, 'redundancy': redundancy, 'exclamation-density': exclamationDensity, 'word-repetition': wordRepetition, 'hedge-stacking': hedgeStacking, 'softening-language': softeningLanguage, 'em-dashes': emDashes, 'smart-quotes': smartQuotes,
+const rules = { 'cliches': cliches, 'corporate-speak': corporateSpeak, 'wordiness': wordiness, 'simplicity': simplicity, 'redundancy': redundancy, 'exclamation-density': exclamationDensity, 'word-repetition': wordRepetition, 'hedge-stacking': hedgeStacking, 'softening-language': softeningLanguage, 'em-dashes': emDashes,
     'boilerplate-framing': boilerplateFraming, 'generic-signposting': genericSignposting,
     'negation-reframe': negationReframe, 'contrastive-aphorism': contrastiveAphorism, 'blame-reframe': blameReframe,
     'universalizing-claims': universalizingClaims, 'authority-padding': authorityPadding,

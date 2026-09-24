@@ -21,13 +21,14 @@ test.each([
     expect(finding.sources[0].native.expected).toEqual([replacement.replace(/’/g, "'")]);
 });
 
-test('correct contraction typography belongs to Consistency and never becomes a grammar error', () => {
+test('correct contraction typography belongs to Formulaic writing and never becomes a grammar error', () => {
     const source = "We don't agree. We don’t agree. We don’t agree.";
     expect(review(source, ['grammar'])).toEqual([]);
-    const [finding] = review(source, ['consistency']);
+    expect(review(source, ['consistency'])).toEqual([]);
+    const [finding] = review(source, ['formulaic']);
     expect(finding).toMatchObject({ kind: 'style.apostrophe', actual: "'" });
     expect(apply(source, finding.fixes[0])).toBe('We don’t agree. We don’t agree. We don’t agree.');
-    expect(review('This does’nt work.', ['grammar', 'consistency'])).toHaveLength(1);
+    expect(review('This does’nt work.', ['grammar', 'formulaic'])).toHaveLength(1);
 });
 
 test('redundant acronyms provide individual syntax-safe fixes with original Unicode source offsets', () => {
@@ -44,17 +45,18 @@ test.each([
     ["Use ‘one’ and “two”.", "Use ‘one’ and ‘two’."],
     ["Use “she said 'hello' today”.", 'Use “she said ‘hello’ today”.'],
 ])('quotation fixes change all paired delimiters atomically while preserving wording and Markdown: %s', (source, expected) => {
-    const [finding] = review(source, ['consistency']);
-    expect(finding).toMatchObject({ kind: 'style.quotation' });
+    expect(review(source, ['consistency'])).toEqual([]);
+    const [finding] = review(source, ['formulaic']);
+    expect(finding).toMatchObject({ kind: 'style.quotation', lens: 'formulaic' });
     expect(finding.fixes).toHaveLength(1);
     expect(apply(source, finding.fixes[0])).toBe(expected);
-    expect(review(expected, ['consistency'])).toEqual([]);
+    expect(review(expected, ['formulaic'])).toEqual([]);
 });
 
 test('encoded quotation delimiters remain advisory and consistent quote conventions stay untouched', () => {
-    const [finding] = review('"One" and &ldquo;two&rdquo;.', ['consistency']);
+    const [finding] = review('"One" and &ldquo;two&rdquo;.', ['formulaic']);
     expect(finding.kind).toBe('style.quotation'); expect(finding.fixes).toEqual([]);
-    for (const source of ['"One" and "two".', '“One” and “two”.', '‘One’ and ‘two’.']) expect(review(source, ['consistency'])).toEqual([]);
+    for (const source of ['"One" and "two".', '“One” and “two”.', '‘One’ and ‘two’.']) expect(review(source, ['formulaic'])).toEqual([]);
 });
 
 test('quotation fixes refuse non-delimiters, overlapping markers, and replacements that would alter quoted wording', () => {
@@ -65,7 +67,7 @@ test('quotation fixes refuse non-delimiters, overlapping markers, and replacemen
         [{ from: raw.from + 1, to: raw.from + 2, actual: 't', replacement: '"' }],
         [raw.quotationMarks[0], raw.quotationMarks[0]],
     ]) {
-        const result = resolveWritingFindings({ source, ...data, observations: [{ ...raw, quotationMarks }], preferences: { lenses: ['consistency'] } });
+        const result = resolveWritingFindings({ source, ...data, observations: [{ ...raw, quotationMarks }], preferences: { lenses: ['formulaic'] } });
         expect(result.findings[0].fixes).toEqual([]);
     }
 });
@@ -73,8 +75,9 @@ test('quotation fixes refuse non-delimiters, overlapping markers, and replacemen
 test('Inclusive language is opt-in, contextual, retains package alternatives, and gives examples without inventing edits', () => {
     const source = 'The chairman spoke. Obviously, we can change it.';
     expect(review(source, ['grammar', 'plain'])).toEqual([]);
-    const findings = review(source, ['inclusive']);
-    expect(findings.map(finding => finding.actual)).toEqual(['chairman', 'Obviously']);
+    const findings = [...review(source, ['inclusive']), ...review(source, ['direct'])];
+    expect(findings.map(finding => [finding.actual, finding.kind, finding.lens])).toEqual([
+        ['chairman', 'language.inclusive', 'inclusive'], ['Obviously', 'style.reader-assumption', 'direct']]);
     expect(findings[0].message).toContain('in some contexts');
     expect(findings[0].fixes.map(fix => fix.replacement)).toContain('chairperson');
     expect(findings[0].sources[0]).toMatchObject({ package: 'retext-equality', version: '7.1.0' });
@@ -102,8 +105,9 @@ test('proselint uses the pinned package, merges identical cliché/jargon occurre
         return { Check, Match, Line: 1, Span: [Array.from(source.slice(0, from)).length + 1, Array.from(source.slice(0, from + Match.length)).length], Severity: 'error', Message: 'native advice', Action: { Name: 'replace', Params: ['unsafe'] } };
     };
     const observations = valeWritingObservations({ 'stdin.txt': [alert('proselint.Cliches', 'At the end of the day'), alert('proselint.CorporateSpeak', 'At the end of the day'), alert('proselint.Hedging', 'I would argue that'), alert('proselint.Hyperbole', 'works!!')] }, data.projection);
-    const result = resolveWritingFindings({ source, ...data, observations, preferences: { lenses: ['plain', 'direct'] } });
+    const result = resolveWritingFindings({ source, ...data, observations, preferences: { lenses: ['plain', 'direct', 'formulaic'] } });
     expect(result.rejected).toBe(0); expect(result.count).toBe(3);
+    expect(result.findings.find(finding => finding.kind === 'style.hyperbole').lens).toBe('formulaic');
     expect(result.findings[0].sources).toHaveLength(2);
     for (const finding of result.findings) {
         expect(finding.severity).toBe('advisory'); expect(finding.fixes).toEqual([]);

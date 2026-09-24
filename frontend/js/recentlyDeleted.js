@@ -23,7 +23,9 @@ export async function restoreRecentlyDeletedItem(id, name = 'item') {
             await errorDialog('Couldn’t restore item', result?.error, 'The archived item was not changed or replaced.');
             return false;
         }
+        statusBar.dismissAction(id);
         document.dispatchEvent(new CustomEvent('vault-tree-refresh-requested'));
+        document.dispatchEvent(new CustomEvent('vault-recovery-changed'));
         const restoredName = String(result.path || name).replaceAll('\\', '/').split('/').pop();
         const message = `Restored “${restoredName}”`;
         statusBar.set(message);
@@ -39,7 +41,7 @@ export async function restoreRecentlyDeletedItem(id, name = 'item') {
     }
 }
 
-function renderRecentlyDeletedList(container, items, reload) {
+function renderRecentlyDeletedList(container, items) {
     container.replaceChildren();
     if (!Array.isArray(items) || items.length === 0) {
         const empty = document.createElement('p');
@@ -72,8 +74,7 @@ function renderRecentlyDeletedList(container, items, reload) {
             restore.disabled = true;
             restore.setAttribute('aria-busy', 'true');
             const restored = await restoreRecentlyDeletedItem(item.id, deletedItemName(item));
-            if (restored) await reload();
-            else if (restore.isConnected) {
+            if (!restored && restore.isConnected) {
                 restore.disabled = false;
                 restore.removeAttribute('aria-busy');
             }
@@ -88,20 +89,34 @@ export async function initRecentlyDeletedSettings(root) {
     const container = root?.querySelector?.('#recently-deleted-list');
     if (!container) return;
     let requestID = 0;
+    let disposed = false;
     const reload = async () => {
         const currentRequest = ++requestID;
         container.setAttribute('aria-busy', 'true');
         try {
             const items = await backend().GetRecentlyDeleted();
-            if (currentRequest !== requestID || !container.isConnected) return;
-            renderRecentlyDeletedList(container, items, reload);
+            if (disposed || currentRequest !== requestID || !container.isConnected) return;
+            renderRecentlyDeletedList(container, items);
         } catch (error) {
-            if (currentRequest !== requestID || !container.isConnected) return;
+            if (disposed || currentRequest !== requestID || !container.isConnected) return;
             log.error('Could not load recently deleted items:', error);
             container.innerHTML = '<p class="ui-notice ui-notice--danger" role="alert">Recently deleted items could not be loaded.</p>';
         } finally {
-            if (currentRequest === requestID && container.isConnected) container.removeAttribute('aria-busy');
+            if (!disposed && currentRequest === requestID && container.isConnected) container.removeAttribute('aria-busy');
         }
     };
+    const onRecoveryChanged = () => {
+        if (!container.isConnected) { dispose(); return; }
+        void reload();
+    };
+    const dispose = () => {
+        disposed = true;
+        requestID += 1;
+        document.removeEventListener('vault-path-deleted', onRecoveryChanged);
+        document.removeEventListener('vault-recovery-changed', onRecoveryChanged);
+    };
+    document.addEventListener('vault-path-deleted', onRecoveryChanged);
+    document.addEventListener('vault-recovery-changed', onRecoveryChanged);
     await reload();
+    return dispose;
 }

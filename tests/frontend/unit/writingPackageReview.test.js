@@ -95,8 +95,12 @@ test('word frequency identifies each repeated word independently and keeps Ignor
 test('inclusive review fixtures cover the complete expanded advisory policy', () => {
     expect(inclusiveFixtures.map(f => f.ruleId)).toEqual(inclusiveAdvisoryRules);
 });
-test.each(inclusiveFixtures)('Inclusive language restores contextual $ruleId advice without unreviewed replacements', ({ ruleId, phrase }) => {
+const readerAssumptionRules = ['basically', 'just', 'of-course', 'everyone-knows', 'straightforward', 'obvious', 'simple', 'easy'];
+test.each(inclusiveFixtures)('contextual $ruleId advice appears in its lens without unreviewed replacements', ({ ruleId, phrase }) => {
     const source = `Consider ${phrase} here.`, data = analyzeRetext(source);
-    const finding = visible(resolve(source, data, ['inclusive'])).find(f => f.sources.some(raw => raw.ruleId === ruleId));
-    expect(finding).toMatchObject({ kind: 'language.inclusive', fixes: [] });
+    const tone = readerAssumptionRules.includes(ruleId);
+    const find = lens => visible(resolve(source, data, [lens])).find(f => f.sources.some(raw => raw.ruleId === ruleId));
+    // Reader-assumption tone is Directness advice; roles and expressions stay inclusive.
+    expect(find(tone ? 'direct' : 'inclusive')).toMatchObject({ kind: tone ? 'style.reader-assumption' : 'language.inclusive', fixes: [] });
+    expect(find(tone ? 'inclusive' : 'direct')).toBeUndefined();
 });

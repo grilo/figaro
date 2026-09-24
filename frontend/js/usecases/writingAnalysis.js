@@ -44,7 +44,7 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
         const job = current, token = generation;
         const selected = selectedWritingLenses(job.preferences);
         const proseWanted = selected.some(lens => lens !== 'spelling');
-        const valeWanted = selected.some(lens => ['plain', 'direct', 'repetition', 'consistency', 'readability', 'grammar'].includes(lens));
+        const valeWanted = selected.some(lens => ['plain', 'direct', 'repetition', 'consistency', 'readability', 'grammar', 'formulaic'].includes(lens));
         const proseEnabled = proseWanted && job.language.startsWith('en-');
         const spellEnabled = selected.includes('spelling') && job.spelling.enabled && writingLensSupportsLanguage('spelling', job.language);
         observations = []; spellings = []; valeOutput = undefined; projection = undefined;
@@ -103,7 +103,7 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
                 && current.language === next.language && JSON.stringify(current.spelling) === JSON.stringify(next.spelling);
             const canReuse = !force && !running && analyzed && sameInput && states.review === 'complete' && !next.decisionsPending && !next.decisionsFailed
                 && (states.retext === 'complete' || !selectedWritingLenses(next.preferences).some(lens => lens !== 'spelling'))
-                && (states.vale === 'complete' || !selectedWritingLenses(next.preferences).some(lens => ['plain', 'direct', 'repetition', 'consistency', 'readability', 'grammar'].includes(lens)))
+                && (states.vale === 'complete' || !selectedWritingLenses(next.preferences).some(lens => ['plain', 'direct', 'repetition', 'consistency', 'readability', 'grammar', 'formulaic'].includes(lens)))
                 && (!selectedWritingLenses(next.preferences).includes('spelling') || states.spelling === 'complete' || !next.spelling.enabled);
             if (canReuse) {
                 current = next; analyzed = next; stale = false; result = empty(); resultVersion++; void resolve(); return;

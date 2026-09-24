@@ -152,7 +152,7 @@ func TestRemapVaultIndexedFileReusesBodyAnalysisAndUpdatesPathDerivedRecords(t *
 	if got, want := remapped.linkTargets, []string{"2026-09-01.md", "Archive/Target.md"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("link targets = %#v, want %#v", got, want)
 	}
-	if got := remapped.backlinks["./target.md"]; got.Path != remapped.path || got.Name != remapped.name {
+	if got := remapped.backlinks["archive/target.md"]; got.Path != remapped.path || got.Name != remapped.name {
 		t.Fatalf("remapped backlink = %#v", got)
 	}
 	if got := remapped.noteLinks["2026-09-01"]; got.Path != remapped.path || got.Name != remapped.name {

@@ -5,11 +5,11 @@ export const additionalWritingRulesVersion = '3';
 // check covers sentences a native tokenizer merged across Markdown blocks.
 export const longSentenceWordLimit = 31;
 
-const termGroups = [
+export const termGroups = [
     ['email', 'e-mail'], ['website', 'web site'], ['online', 'on-line'],
     ['offline', 'off-line'], ['ebook', 'e-book'],
 ];
-const capitalizationGroups = [['PDF', 'pdf'], ['HTML', 'html']];
+export const capitalizationGroups = [['PDF', 'pdf'], ['HTML', 'html']];
 const wordPattern = /\p{L}+(?:[’'-]\p{L}+)*/gu;
 export const writingSentenceWordCount = text => [...text.matchAll(wordPattern)].length;
 const escapePattern = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -12,14 +12,14 @@ describe('right sidebar layout', () => {
             currentX: 0,
             startWidth: 320,
             workspaceWidth: 1000,
-        })).toBe(680);
+        })).toBe(600);
         expect(rightSidebarWidth({
             startX: 500,
             currentX: 0,
             startWidth: 340,
             workspaceWidth: 800,
             pdfPreview: true,
-        })).toBe(480);
+        })).toBe(400);
     });
 
     test('compacts the editor only for a narrow open PDF preview', () => {
@@ -48,14 +48,14 @@ describe('right sidebar layout', () => {
         expect(rightSidebarPresentation({
             workspaceWidth: 600,
             preferredWidth: 320,
-        })).toEqual({ overlay: false, width: 280, editorWidth: 320 });
+        })).toEqual({ overlay: true, width: 320, editorWidth: 600 });
         expect(rightSidebarPresentation({
             workspaceWidth: 800,
             preferredWidth: 480,
             pdfPreview: true,
-        })).toEqual({ overlay: false, width: 480, editorWidth: 320 });
+        })).toEqual({ overlay: false, width: 400, editorWidth: 400 });
         expect(rightSidebarBounds({ workspaceWidth: 520, overlay: true }))
-            .toEqual({ minimum: 240, maximum: 340 });
+            .toEqual({ minimum: 220, maximum: 340 });
         expect(rightSidebarWidth({
             startX: 500,
             currentX: 0,
@@ -72,4 +72,10 @@ test('switching a narrow or wide right pane to PDF retains its requested width',
         expect(rightSidebarPresentation({ workspaceWidth: 1100, preferredWidth: width, pdfPreview: true })).toEqual(ordinary);
         expect(ordinary.width).toBe(width);
     }
+});
+
+
+test('a narrow Outline yields pane width before squeezing the writing canvas', () => {
+    expect(rightSidebarPresentation({ workspaceWidth: 660, preferredWidth: 320 }))
+        .toEqual({ overlay: false, width: 260, editorWidth: 400 });
 });

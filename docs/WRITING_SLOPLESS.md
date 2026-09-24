@@ -1,14 +1,14 @@
 # Formulaic writing: Slopless rule selection
 
-Figaro pins **Slopless 0.2.38** (MIT) and enables **30 of its 77 exported rules**.
-The remaining **47 rules** are listed below. The package is an English textlint
+Figaro pins **Slopless 0.2.38** (MIT) and enables **29 of its 77 exported rules**.
+The remaining **48 rules** are listed below. The package is an English textlint
 provider; it runs locally in the existing eager prose worker after debounce.
 This is an optional lens, disabled on new notes until selected, and available
 for English (US) and English (UK). Selecting Spanish or None unchecks it.
 
 Every finding is advisory, with an explanation and illustrative before/after
-example. Slopless contributes no Apply or Fix all action: choosing punctuation or
-rewriting rhetoric needs context. The existing Ignore action persists per
+example. Slopless contributes no Apply or Fix all action: choosing dash
+punctuation or rewriting rhetoric needs context. The existing Ignore action persists per
 occurrence and can be reversed through Saved review decisions. Identical
 occurrences share a card. Only the same concern at the same location shares
 one finding; different concerns on the same sentence remain separate. Clarity and Formulaic writing each work alone. A shared finding can offer a
@@ -17,14 +17,13 @@ evidence remains available, and Ignore follows the concern across lens changes.
 
 **Typography is included at the user's request.** `em-dashes` detects an em dash
 without whitespace on either side; spaced em dashes and en dashes are outside
-this rule. `smart-quotes` flags curly double/single quotation marks and curly
-apostrophes only when they differ from the note’s prevailing straight convention.
-Figaro underlines the individual marks, including delimiters around
-quoted prose, while keeping the quoted words protected. Blockquotes, code,
-frontmatter, math, reference definitions, URLs and wiki targets stay excluded.
-Proofreading’s consistency checks continue to follow the note's prevailing convention;
-Formulaic writing offers a separate optional style review and changes no text.
-These checks do not establish AI authorship or produce an AI probability score.
+this rule. Quotation and apostrophe style also belongs to Formulaic writing, but
+comes from the reviewed `retext-quotes` check rather than Slopless: it follows
+the note’s prevailing straight or curly convention in both directions and can
+apply a mark-only fix. Emphatic punctuation (“!!”) from proselint is also
+Formulaic advice. Blockquotes, code, frontmatter, math, reference definitions,
+URLs and wiki targets stay excluded. These checks do not establish AI
+authorship or produce an AI probability score.
 
 ## Included rules
 
@@ -39,7 +38,6 @@ These checks do not establish AI authorship or produce an AI probability score.
 - `softening-language`
 
 - `em-dashes`
-- `smart-quotes`
 - `boilerplate-framing`
 - `generic-signposting`
 - `negation-reframe`
@@ -61,6 +59,14 @@ These checks do not establish AI authorship or produce an AI probability score.
 - `semantic-thinness`
 
 ## Excluded rules
+
+### Duplicated typography
+
+This rule reported the same curly marks as the retext-quotes quotation and
+apostrophe checks, but only in one direction and without a fix. Formulaic
+writing uses retext-quotes alone, so each mark receives one finding.
+
+`smart-quotes`.
 
 ### Readability metrics
 
@@ -116,19 +122,15 @@ The [package review](WRITING_PACKAGE_REVIEW.md) records the same inclusion polic
 
 `writingSloplessRuntime.js` imports only the selected public rule modules.
 `writingTextlintRuntime.js` registers them with the existing kernel and text
-parser before worker readiness. Wording rules receive protected prose;
-smart-quotes alone receives the typography projection. Invalid, hidden and
-cross-region native ranges are refused. Consequently, block-to-block rhetoric
-and patterns that span protected content are not reported. Curly marks are
-retained as visible advice only when they differ from the current note’s
-prevailing straight quote or apostrophe style. Consistent curly typography stays
-unchanged. Both conventions are inferred independently; ties use the first
-authored occurrence. Raw diagnostics remain available as suppressed evidence,
-and changing earlier paragraphs recomputes the convention during resolution.
+parser before worker readiness. Every rule receives protected prose. Invalid,
+hidden and cross-region native ranges are refused. Consequently, block-to-block
+rhetoric and patterns that span protected content are not reported. Earlier
+Ignore choices for a curly apostrophe continue to apply to the matching
+apostrophe-style finding.
 
 `core/writingSloplessModel.js` owns the selection, neutral presentation,
-examples, UTF-16 range validation, mark splitting and repeated-word anchors.
-Mapping/configuration version 24 includes the package pin and exact selected
+examples, UTF-16 range validation and repeated-word anchors.
+Mapping/configuration version 25 includes the package pin and exact selected
 rule map. No CLI, runtime configuration files, model API, network service or
 interaction-triggered module import is used. Package upgrades require another
 rule review and an updated inventory; upstream additions are never enabled

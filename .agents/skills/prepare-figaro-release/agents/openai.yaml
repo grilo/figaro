@@ -1,4 +1,4 @@
 interface:
   display_name: "Prepare Figaro Release"
-  short_description: "Prepare, verify, and recommend a release version"
-  default_prompt: "Use $prepare-figaro-release to prepare a verified release proposal, recommend a major/minor/patch version, and wait for my version choice and explicit approval before committing, tagging, or publishing."
+  short_description: "Choose, publish, and follow a Figaro release to completion"
+  default_prompt: "Use $prepare-figaro-release to release Figaro: tell me whether it is a major, minor, or patch release and why, publish it, and follow CI until the release is finished, fixing and retrying failures."

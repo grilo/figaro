@@ -2,22 +2,23 @@
 export const writingChecks = Object.freeze([
     { id: 'spelling', label: 'Spelling', description: 'Words outside the selected dictionary. Does not check contextual homophones such as “their/there”.' },
     { id: 'plain', label: 'Plain language', description: 'Simpler phrasing, jargon, word choice, and undefined or redundant acronyms.' },
-    { id: 'direct', label: 'Directness', description: 'Review possible passive constructions, indirect openings, modifiers, hedging, and emphatic punctuation.' },
+    { id: 'direct', label: 'Directness', description: 'Review possible passive constructions, indirect openings, modifiers, hedging, and instructions that assume a task is easy or already known.' },
     { id: 'repetition', label: 'Repetition', description: 'Review possible adjacent repeated words.' },
-    { id: 'consistency', label: 'Consistency', description: 'Technical names, term forms, capitalization, quotation styles, sentence spacing, and optional accents.' },
+    { id: 'consistency', label: 'Consistency', description: 'Technical names, term forms, capitalization, sentence spacing, and optional accents.' },
     { id: 'grammar', label: 'Grammar & punctuation', description: 'Selected agreement, verb, noun, homophone, phrase, word-boundary, number, capitalization, and punctuation checks. Review each correction in context.' },
     { id: 'readability', label: 'Readability', description: 'Long or complex sentences that may benefit from simpler wording or splitting an idea.' },
     { id: 'inclusive', label: 'Inclusive language', description: 'Generic roles, exclusionary expressions, and accessibility descriptions. Personal pronouns and identity remain the author’s choice.' },
-    { id: 'formulaic', label: 'Formulaic writing', description: 'Optional review of stock framing, rhetorical patterns, wordiness, repeated words, layered qualifications, unspaced em dashes, and curly quotes/apostrophes. These patterns do not identify AI authorship.' },
+    { id: 'formulaic', label: 'Formulaic writing', description: 'Optional review of stock framing, rhetorical patterns, wordiness, repeated words, layered qualifications, emphatic punctuation, unspaced em dashes, and quotation and apostrophe style. These patterns do not identify AI authorship.' },
 ]);
 
-/** UI groups compose stable check IDs; saved choices and review identities stay intact. */
+/** UI groups compose stable check IDs; saved choices and review identities stay intact.
+ * Group IDs are distinct from check IDs so either can gain members independently. */
 export const writingLensGroups = Object.freeze([
     { id: 'proofreading', label: 'Proofreading', checks: ['spelling', 'repetition', 'consistency', 'grammar'], description: 'Catch spelling, punctuation, repetition, and consistency issues.' },
     { id: 'clarity', label: 'Clarity', checks: ['plain', 'readability'], description: 'Make wording simpler and sentences easier to follow.' },
-    { id: 'direct', label: 'Directness', checks: ['direct'], description: 'Review passive voice, hedging, and indirect phrasing.' },
-    { id: 'inclusive', label: 'Inclusive language', checks: ['inclusive'], description: 'Review exclusionary expressions and consider inclusive alternatives.' },
-    { id: 'formulaic', label: 'Formulaic writing', checks: ['formulaic'], description: 'Review stock phrasing, rhetorical patterns, and punctuation choices.' },
+    { id: 'directness', label: 'Directness', checks: ['direct'], description: 'Review passive voice, hedging, indirect phrasing, and reader assumptions.' },
+    { id: 'inclusive-language', label: 'Inclusive language', checks: ['inclusive'], description: 'Review exclusionary expressions and consider inclusive alternatives.' },
+    { id: 'formulaic-writing', label: 'Formulaic writing', checks: ['formulaic'], description: 'Review stock phrasing, rhetorical patterns, and punctuation style.' },
 ]);
 
 export const writingLanguages = Object.freeze([
@@ -30,6 +31,16 @@ export const writingLanguages = Object.freeze([
 export function writingLensSupportsLanguage(lens, language) {
     return writingChecks.some(item => item.id === lens)
         && (['en-US', 'en-GB'].includes(language) || (lens === 'spelling' && language === 'es'));
+}
+
+/** Count visible findings once, under the group of the lens that displays them. */
+export function writingLensCounts(findings = []) {
+    const counts = Object.fromEntries(writingLensGroups.map(group => [group.id, 0]));
+    for (const finding of findings) {
+        const group = writingLensGroups.find(item => item.checks.includes(finding.lens));
+        if (group) counts[group.id]++;
+    }
+    return counts;
 }
 
 export function writingLensDisabledReason(lens, { language, status, applying = false }) {

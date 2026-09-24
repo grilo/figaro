@@ -1,3 +1,10 @@
+/** Decide whether selecting a tab first needs a successful source read. */
+export function fileTabNeedsActivationRead(tab, { preparedFile = null, hasCachedContent = false } = {}) {
+    if (tab?.type !== 'file') return false;
+    if (tab.externalFileId) return true;
+    return !preparedFile && !tab.isNew && !(tab.dirty && hasCachedContent);
+}
+
 /**
  * Return the next tab in one direction without crossing either end of the
  * visible tab order. A missing active tab enters from the nearest boundary.

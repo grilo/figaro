@@ -8,7 +8,39 @@ remain as originally published.
 
 ## [Unreleased]
 
+### Added
+
+- Each selected writing lens shows how many suggestions it currently has, so
+  you can see which lens most affects a note.
+
+### Changed
+
+- Directness now reviews wording such as “simply,” “just,” or “obviously” that
+  assumes a task is easy or already known, and flags difficulty words only in
+  instructions or sentences addressed to the reader. Inclusive language focuses
+  on roles, exclusionary expressions, and accessibility wording.
+- Formulaic writing now covers quotation, apostrophe, em-dash, and emphatic
+  punctuation style, with one suggestion per mark; quote fixes change only the
+  marks. Earlier Ignore choices still apply.
+
 ### Fixed
+
+- Today’s note uses the same Inbox-first destination from Home and the keyboard
+  shortcut; failed note loads preserve the previous buffer and save target.
+- Global search reveals a collapsed sidebar, prevents opening stale results,
+  and offers Retry when a search fails. Failed linked-note reads show an error.
+- Deletion Undo survives routine status updates, and Recently deleted refreshes
+  after deletion and restoration without reopening Settings.
+- Narrow windows preserve more writing space beside details panes, with helper
+  labels that stay compact when document text is enlarged.
+- Bold, italic, and strikethrough keep surrounding selection whitespace outside
+  the markers. Applying table edits returns focus for immediate keyboard Undo.
+- Backlinks include wiki links, aliases, heading fragments, and encoded or
+  explicit relative Markdown destinations.
+- Applying a writing suggestion such as allowlist, blocklist, ebook, or a
+  product name like GraphQL no longer marks the new word as a spelling error.
+- Clarity no longer suggests simpler wording for the words that define an
+  acronym, such as “service level objective (SLO).”
 
 - Editor verification no longer fails intermittently when parsing or cursor
   persistence runs at different speeds on CI.
