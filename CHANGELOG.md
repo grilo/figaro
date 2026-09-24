@@ -8,6 +8,10 @@ remain as originally published.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.42.0] - 2026-09-25
+
 ### Added
 
 - Each selected writing lens shows how many suggestions it currently has, so
@@ -59,7 +63,6 @@ remain as originally published.
 - **Upgrade copy** in Properties is disabled when the selected PDF stylesheet
   already uses the current starter, instead of duplicating its rules.
 - The PDF preview keeps its place after an edit re-renders it.
-
 - Editor verification no longer fails intermittently when parsing or cursor
   persistence runs at different speeds on CI.
 - Chart resize verification tolerates an in-progress preview replacement while
@@ -2403,7 +2406,8 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.41.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.42.0...HEAD
+[1.42.0]: https://github.com/grilo/figaro/compare/v1.41.1...v1.42.0
 [1.41.1]: https://github.com/grilo/figaro/compare/v1.41.0...v1.41.1
 [1.41.0]: https://github.com/grilo/figaro/compare/v1.40.0...v1.41.0
 [1.40.0]: https://github.com/grilo/figaro/compare/v1.39.0...v1.40.0

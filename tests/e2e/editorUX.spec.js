@@ -1709,10 +1709,11 @@ test('uses a same-folder note from a rendered missing link and rewrites only its
         await editor.initEditor();
         await editor.configureEditorForFile('notes/current.md');
         tabs.openTab('notes/current.md', 'current.md', 'file', { path: 'notes/current.md', mtime: 1 });
-        const view = editor.getEditorView();
-        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || view.state.doc.toString() !== source) {
+        // Opening reads the note before it mounts the editor view.
+        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || editor.getEditorView()?.state.doc.toString() !== source) {
             await new Promise(resolve => setTimeout(resolve, 10));
         }
+        const view = editor.getEditorView();
     });
 
     const widget = page.locator('.cm-link-widget');
@@ -1767,10 +1768,11 @@ test('keeps unresolved bracket labels ordinary while defined references remain n
         await editor.initEditor();
         await editor.configureEditorForFile('notes/current.md');
         tabs.openTab('notes/current.md', 'current.md', 'file', { path: 'notes/current.md', mtime: 1 });
-        const view = editor.getEditorView();
-        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || view.state.doc.toString() !== source) {
+        // Opening reads the note before it mounts the editor view.
+        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || editor.getEditorView()?.state.doc.toString() !== source) {
             await new Promise(resolve => setTimeout(resolve, 10));
         }
+        const view = editor.getEditorView();
         view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
         view.focus();
         window.__referenceView = view;
@@ -1877,10 +1879,11 @@ test('creates a same-folder note from link autocomplete by keyboard', async ({ p
         await editor.initEditor();
         await editor.configureEditorForFile('notes/current.md');
         tabs.openTab('notes/current.md', 'current.md', 'file', { path: 'notes/current.md', mtime: 1 });
-        const view = editor.getEditorView();
-        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || view.state.doc.toString() !== source) {
+        // Opening reads the note before it mounts the editor view.
+        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || editor.getEditorView()?.state.doc.toString() !== source) {
             await new Promise(resolve => setTimeout(resolve, 10));
         }
+        const view = editor.getEditorView();
         view.dispatch({ selection: { anchor: view.state.doc.length } });
         view.focus();
         window.__linkedNoteView = view;
