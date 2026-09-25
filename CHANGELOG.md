@@ -8,6 +8,10 @@ remain as originally published.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.43.0] - 2026-09-25
+
 ### Changed
 
 - Mermaid diagrams in the editor now appear at the size the PDF will print
@@ -2431,7 +2435,8 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.42.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.43.0...HEAD
+[1.43.0]: https://github.com/grilo/figaro/compare/v1.42.1...v1.43.0
 [1.42.1]: https://github.com/grilo/figaro/compare/v1.42.0...v1.42.1
 [1.42.0]: https://github.com/grilo/figaro/compare/v1.41.1...v1.42.0
 [1.41.1]: https://github.com/grilo/figaro/compare/v1.41.0...v1.41.1
