@@ -4,7 +4,7 @@ import { bracketMatching, indentUnit } from '@codemirror/language';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { lintKeymap, setDiagnostics } from '@codemirror/lint';
 
-import { activateModal, createDialogShell, createPendingChangesNotice } from './dialogs.js';
+import { MODAL_APPLY_SHORTCUT_HINT, activateModal, createDialogShell, createPendingChangesNotice } from './dialogs.js';
 import { makeEditorModalResizable } from './editorModalResize.js';
 import { inspectMermaidSource, renderDiagramSVG } from './diagramRenderer.js';
 import { scanDiagramFences } from './liveDiagramPlugin.js';
@@ -100,6 +100,7 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
         content: '<div class="mermaid-editor-workspace"></div>',
         footer: `
             <span class="mermaid-editor-apply-note" aria-live="polite"></span>
+            <span class="custom-modal-shortcut-hint mermaid-editor-shortcut-hint" aria-live="polite"></span>
             <button type="button" class="ui-button custom-modal-btn mermaid-editor-cancel">Cancel</button>
             <button type="button" class="ui-button ui-button--primary custom-modal-btn mermaid-editor-apply">Apply</button>
         `,
@@ -108,6 +109,9 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     const cancelButton = overlay.querySelector('.mermaid-editor-cancel');
     const applyButton = overlay.querySelector('.mermaid-editor-apply');
     const applyNote = overlay.querySelector('.mermaid-editor-apply-note');
+    const shortcutHint = overlay.querySelector('.mermaid-editor-shortcut-hint');
+    const SHORTCUT_HINT = `Esc, then Tab, leaves the source · ${MODAL_APPLY_SHORTCUT_HINT}`;
+    shortcutHint.textContent = SHORTCUT_HINT;
     const modalResize = makeEditorModalResizable(overlay.querySelector('.custom-modal'));
 
     const templateBar = document.createElement('div');
@@ -366,12 +370,14 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
                     previewSession?.schedule(update.state.doc.toString());
                 }),
                 ...(options.inputProfile?.extensions || []),
+                // Mermaid source is code: it takes the code-editor font and
+                // layout the user chose, like any source file.
+                EditorView.editorAttributes.of({ class: 'cm-code-file' }),
                 keymap.of([
                     ...defaultKeymap,
                     ...historyKeymap,
                     indentWithTab,
                     ...lintKeymap,
-                    { key: 'Mod-Enter', run: () => finish(true) },
                 ]),
             ],
         }),
@@ -796,8 +802,25 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     applyButton.addEventListener('click', () => finish(true));
     keepButton.addEventListener('click', hideDiscard);
     discardButton.addEventListener('click', () => finish(false));
+    // Tab indents inside the source. The first Escape there hands Tab back to
+    // focus movement, as in the main editor; a second Escape closes. Any
+    // other key, or leaving the source, disarms it.
+    let sourceEscapeArmed = false;
+    const disarmSourceEscape = () => {
+        if (!sourceEscapeArmed) return;
+        sourceEscapeArmed = false;
+        shortcutHint.textContent = SHORTCUT_HINT;
+    };
+    editorView.contentDOM.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' && event.key !== 'Tab' && !['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+            disarmSourceEscape();
+        }
+    });
+    editorView.contentDOM.addEventListener('focusout', disarmSourceEscape);
+
     lifecycle = activateModal(overlay, {
         initialFocus: () => editorView.contentDOM,
+        onSubmit: () => finish(true),
         dismissOnBackdrop: false,
         onDismiss: () => finish(false),
         shouldDismissOnEscape: event => {
@@ -809,8 +832,18 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
             }
             event.preventDefault();
             event.stopPropagation();
-            if (!discard.hidden) hideDiscard();
-            else requestCancel();
+            if (!discard.hidden) {
+                hideDiscard();
+                return false;
+            }
+            if (editorView.contentDOM.contains(event.target) && !sourceEscapeArmed) {
+                sourceEscapeArmed = true;
+                editorView.setTabFocusMode(2000);
+                shortcutHint.textContent = 'Press Tab to leave the source, or Esc again to close.';
+                return false;
+            }
+            disarmSourceEscape();
+            requestCancel();
             return false;
         },
     });

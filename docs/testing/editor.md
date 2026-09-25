@@ -692,6 +692,10 @@ npx playwright test tests/e2e/editorUX.spec.js --grep "keeps activity and block-
 
 ### Mermaid Editor dialog
 
+Keyboard exit and fonts: `mermaidEditor.test.js` owns Escape-then-Tab out of Source, the
+second-Escape guard, the shared Ctrl/Cmd+Enter apply and the `cm-code-file` class; the Vim case in
+`mermaidEditor.spec.js` checks the same two-step Escape in a real browser.
+
 The Mermaid Editor extends that matrix without creating a new block widget.
 Pure tests cover the complete 32-type/76-template catalogue, all adaptive Style
 descriptors, color/contrast derivation, conservative frontmatter merging and
@@ -771,6 +775,9 @@ must remain at the same wrapper-relative offset just outside the writing edge
 and never intersect the diagram on any frame.
 
 ### Vega-Lite Chart Editor
+
+`vegaLiteChartEditor.test.js` owns redrawing the preview at a new width after a resize (and not
+for small changes) and creating the chart with Ctrl/Cmd+Enter.
 
 The table-backed Vega-Lite Chart Editor has one focused cross-layer contract.
 Pure model tests own table validation and type inference, retained hidden-column
@@ -887,6 +894,10 @@ npx playwright test tests/e2e/vimVisualRows.spec.js --grep "reuses Mermaid rende
 ```
 
 ### Rendered and interactive GFM tables
+
+`markdownTableEditorModel.test.js` owns reading and rewriting column alignment;
+`markdownTableEditor.test.js` owns the Align control, grid alignment, full toolbar names and
+Ctrl/Cmd+Enter apply. `dialogs.test.js` owns the shared shortcut and its `aria-keyshortcuts`.
 
 Rendered GFM tables add a source-reveal cursor matrix. Unit and CodeMirror
 component tests must prove that CodeMirror's Markdown parser identifies the

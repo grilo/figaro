@@ -987,16 +987,22 @@
       "frontend/js/recentlyDeleted.js",
       "frontend/js/statusBar.js",
       "frontend/js/core/vaultChangeScopeModel.js",
-      "internal/desktop/vault_watcher.go"
+      "internal/desktop/vault_watcher.go",
+      "frontend/js/externalFiles.js",
+      "frontend/js/core/externalFileModel.js",
+      "frontend/js/externalFileNotice.js",
+      "internal/desktop/app_dropped_files.go"
     ],
     "docs": [
       "docs/PROMPT.md#3-file-operations",
+      "docs/PROMPT.md#31a-external-markdown-launches",
       "docs/testing/workspace.md#file-tree-copy-regressions",
       "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
       "ARCHITECTURE.md#note-opening-and-recovery-ownership",
       "docs/GETTING_STARTED.md#save-history-and-recovery",
       "docs/NOTES_AND_PLANNING.md#organize-the-file-tree",
-      "docs/testing/workspace.md#slow-disk-workspace-io-regressions"
+      "docs/testing/workspace.md#slow-disk-workspace-io-regressions",
+      "docs/GETTING_STARTED.md#bring-your-notes"
     ],
     "tests": [
       "tests/frontend/unit/fileTree.test.js",
@@ -1006,10 +1012,14 @@
       "tests/frontend/unit/recentlyDeleted.test.js",
       "tests/frontend/unit/statusBar.test.js",
       "tests/frontend/unit/vaultChangeScopeModel.test.js",
-      "tests/frontend/unit/gitStatus.test.js"
+      "tests/frontend/unit/gitStatus.test.js",
+      "tests/frontend/unit/externalFiles.test.js",
+      "tests/frontend/unit/externalFileModel.test.js",
+      "tests/frontend/unit/externalFileNotice.test.js"
     ],
     "extraChecks": [
-      "Run go test ./internal/desktop for backend changes, retaining real os.Root containment, collision, rollback, and CSS rename coverage. For Windows rename hangs, capture the packaged app's last progress stage and storage location; Linux checks do not establish native Windows completion. Include slow_history_test.go for save/path-lock ordering."
+      "Run go test ./internal/desktop for backend changes, retaining real os.Root containment, collision, rollback, and CSS rename coverage. For Windows rename hangs, capture the packaged app's last progress stage and storage location; Linux checks do not establish native Windows completion. Include slow_history_test.go for save/path-lock ordering.",
+      "Run tests/e2e/desktopStartup.spec.js for the outside-the-vault notice position and a Markdown drop in the assembled app; native drops themselves need the packaged app."
     ],
     "symbols": {
       "frontend/js/core/fileTreeModel.js": [
@@ -1025,6 +1035,18 @@
         "mergeVaultChangeScopes",
         "vaultChangeTouchesRenderedAssets",
         "vaultChangeTouchesPath"
+      ],
+      "frontend/js/externalFiles.js": [
+        "openDroppedMarkdownFiles",
+        "importOpenExternalTab",
+        "importExternalTab"
+      ],
+      "frontend/js/core/externalFileModel.js": [
+        "externalDropAction",
+        "externalFileNotice"
+      ],
+      "frontend/js/externalFileNotice.js": [
+        "initExternalFileNotice"
       ]
     }
   },

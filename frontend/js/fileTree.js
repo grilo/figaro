@@ -11,7 +11,8 @@ import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
 import { isDrawioDiagramPath, isEditableCodeMirrorFile } from './languageSupport.js';
 import { renderLucideIcon } from './lucideIcons.js';
-import { confirmExternalTreeImport, importDroppedExternalPaths } from './externalFiles.js';
+import { confirmExternalTreeImport, importDroppedExternalPaths, openDroppedMarkdownFiles } from './externalFiles.js';
+import { externalDropAction } from './core/externalFileModel.js';
 import { focusEditor, getEditorView, insertTextAtCursor } from './editor.js';
 import {
     directoryPathsForReveal,
@@ -1986,16 +1987,41 @@ export async function copyExternalDrop(paths, targetDirectory, {
     }
 }
 
+/** Open dropped Markdown where it is, reporting anything that could not open. */
+async function openDroppedMarkdown(paths) {
+    try {
+        const { opened, skipped } = await openDroppedMarkdownFiles(paths, {
+            openTab,
+            onExternalKept: addExternalFileTreeEntry,
+        });
+        if (skipped.length) {
+            statusBar.set(`Could not open ${skipped.length === 1 ? 'a dropped file' : `${skipped.length} dropped files`}; only regular Markdown files open`);
+        } else if (opened) {
+            statusBar.set(opened === 1 ? 'Opened dropped note' : `Opened ${opened} dropped notes`);
+        }
+        setTimeout(() => statusBar.set('Ready'), 2400);
+        return opened > 0;
+    } catch (error) {
+        log.warn('Could not open dropped Markdown:', error);
+        statusBar.set('Could not open the dropped note');
+        return false;
+    }
+}
+
 /** Register Wails' cross-platform native path drop callback once. */
 export function initNativeFileDrops(runtime = window.runtime) {
     if (nativeFileDropInitialized || typeof runtime?.OnFileDrop !== 'function') return false;
     runtime.OnFileDrop((x, y, paths) => {
         const element = document.elementFromPoint(x, y);
         const targetDirectory = externalDropTargetDirectory(element);
-        if (targetDirectory !== null) {
+        const target = targetDirectory !== null ? 'tree'
+            : element?.closest?.('#editor-container') ? 'editor' : 'elsewhere';
+        const action = externalDropAction(paths, target);
+        if (action === 'import') {
             return copyExternalDrop(paths, targetDirectory, { confirmTreeImport: true }).catch(() => false);
         }
-        if (element?.closest?.('#editor-container')) {
+        if (action === 'open') return openDroppedMarkdown(paths);
+        if (action === 'ask') {
             return copyExternalDrop(paths, '', { confirmImport: true, coordinates: { x, y } }).catch(() => false);
         }
     // Handle every native file drop ourselves. Passing true would make Wails
@@ -2556,6 +2582,15 @@ async function renameTreePath(path, type) {
     }
 }
 
+/** Drop an external shortcut without touching the file, e.g. after import. */
+export function forgetExternalFileTreeEntry(externalFileId) {
+    const entries = getState('externalFileTreeEntries') || [];
+    if (!entries.some(entry => entry.externalFileId === externalFileId)) return false;
+    setState('externalFileTreeEntries', entries.filter(entry => entry.externalFileId !== externalFileId));
+    renderFileTree();
+    return true;
+}
+
 export async function removeExternalFileTreeEntry(externalFileId, {
     confirm = confirmDialog,
     close = closeTab,
@@ -2578,13 +2613,12 @@ export async function removeExternalFileTreeEntry(externalFileId, {
         const closed = await close(tabId);
         if (!closed) return false;
     }
-    setState('externalFileTreeEntries', entries.filter(entry => entry.externalFileId !== externalFileId));
     document.dispatchEvent(new CustomEvent('vault-file-issue-runtime-clear-requested', {
         detail: { path: external.path },
     }));
     if (getState('selectedTreePath') === external.path) setState('selectedTreePath', null);
     if (getState('selectedFilePath') === external.path) setState('selectedFilePath', null);
-    renderFileTree();
+    forgetExternalFileTreeEntry(externalFileId);
     statusBar.set(`Removed “${external.name}” from the file tree`);
     setTimeout(() => statusBar.set('Ready'), 1800);
     return true;

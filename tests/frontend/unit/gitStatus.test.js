@@ -70,6 +70,18 @@ describe('quiet local-history action', () => {
         expect(document.getElementById('git-status-separator').hidden).toBe(true);
     });
 
+    test('a file kept outside the vault shows no history action and is never checked', async () => {
+        mockState.openTabs = [{ id: 'external:external-1', type: 'file', path: '/home/writer/README.md',
+            title: 'README.md', dirty: true, externalFileId: 'external-1' }];
+        mockState.activeTabId = 'external:external-1';
+
+        await expect(updateGitStatus('/home/writer/README.md')).resolves.toBe(false);
+
+        expect(window.go.desktop.App.FileHasUncommittedChanges).not.toHaveBeenCalled();
+        expect(document.getElementById('git-status').hidden).toBe(true);
+        expect(recordRuntimeFileIssue).not.toHaveBeenCalled();
+    });
+
     test('saves a dirty buffer before recording it, then hides the clean state', async () => {
         mockState.openTabs[0].dirty = true;
         await updateGitStatus('note.md');

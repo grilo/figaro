@@ -92,11 +92,19 @@ export function createPendingChangesNotice(subject = '') {
     return { notice, keepButton, discardButton };
 }
 
+/** Footer hint for editors that apply with the shared shortcut. */
+export const MODAL_APPLY_SHORTCUT_HINT = 'Ctrl/Cmd+Enter to apply';
+
+/**
+ * Open an application modal. `onSubmit`, when given, runs for Ctrl/Cmd+Enter
+ * from anywhere in the modal, so every editor dialog applies the same way.
+ */
 export function activateModal(overlay, {
     initialFocus,
     onDismiss,
     dismissOnBackdrop = true,
     onKeydown,
+    onSubmit,
     shouldDismissOnEscape,
 } = {}) {
     const modal = overlay.querySelector('.custom-modal');
@@ -105,6 +113,12 @@ export function activateModal(overlay, {
     const applicationWasInert = application?.hasAttribute('inert') || false;
     let closed = false;
 
+    if (onSubmit) {
+        const shortcuts = new Set(String(modal.getAttribute('aria-keyshortcuts') || '').split(/\s+/u).filter(Boolean));
+        shortcuts.add('Control+Enter');
+        shortcuts.add('Meta+Enter');
+        modal.setAttribute('aria-keyshortcuts', [...shortcuts].join(' '));
+    }
     if (application && !application.contains(overlay)) application.setAttribute('inert', '');
     document.body.classList.add('custom-modal-open');
 
@@ -139,6 +153,13 @@ export function activateModal(overlay, {
     };
 
     const handleKeydown = (event) => {
+        if (onSubmit && event.key === 'Enter' && (event.ctrlKey || event.metaKey)
+            && !event.altKey && !event.isComposing && modal.contains(event.target)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            onSubmit(event);
+            return;
+        }
         if (event.key === 'Escape') {
             if (shouldDismissOnEscape?.(event) === false) return;
             event.preventDefault();

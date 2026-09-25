@@ -611,11 +611,23 @@ and owned dirty buffers retain their existing activation path.
   whether to import into that exact destination before any copy begins. The dialog explains that
   import copies into the vault while leaving every original untouched; cancelling performs no
   backend copy.
-- Dropping external files or folders on an editor buffer asks once whether to insert their
-  filesystem paths into the document or import the full batch. A successful file import opens its
-  new active editor tab; folder imports are recursive, preserve their structure, and retain the
-  current buffer. Collisions receive the normal non-overwriting copy names, while cancelling changes
+- Dropping only `.md` or `.markdown` files anywhere except the file tree opens them without a
+  question. A file inside the vault opens as its vault note; any other regular file opens as an
+  editable external tab with the same root shortcut, save and exclusion rules as a kept launch
+  document. Dropping the same file again reuses its tab and shortcut. Symbolic links and other
+  non-regular files do not open, and the status bar says so.
+- Dropping other files or folders, or a batch that mixes them with Markdown, on an editor buffer asks
+  once whether to insert their filesystem paths into the document or import the full batch. A
+  successful file import opens its new active editor tab; folder imports are recursive, preserve
+  their structure, and retain the current buffer. Collisions receive the normal non-overwriting copy
+  names, while cancelling changes nothing. Such drops anywhere other than the editor or file tree do
   nothing.
+- While an external tab is active, an info notice between the breadcrumb and the editor reads
+  “Outside the vault. Edits save to the original file and are not kept in history.” with an
+  **Import to vault** action. Importing first saves pending edits to the original, then copies it
+  through the non-overwriting path (“name (copy).md” when the name is taken), opens the copy, and
+  closes the external tab and its shortcut. Pure mode hides the notice. External tabs show no
+  history count or **Save to history** action.
 
 ### 3.2 Supported Operations
 
@@ -1321,8 +1333,13 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   non-empty cell content in reading order with `<br>` markers. An in-memory cache restores exact
   pre-merge cell values if Split occurs before the modal closes; after reopening, Split retains the
   combined anchor text and clears covered cells. Header cells use a theme-derived tint. Labelled
-  icons divide the toolbar into an editing row for History, Cells, and View and a structural row for
-  Rows, Columns, and the adjacent theme-tinted Delete Row/Delete Column actions. Add/delete row and
+  icons divide the toolbar into an editing row for History, Cells, Align, and View and a structural
+  row for Rows, Columns, and the adjacent theme-tinted Delete Row/Delete Column actions. Each group is
+  a labelled `role="group"`, and each structural button has a complete accessible name (**Insert row
+  above**, **Delete column**) while keeping its short visible label. The grid shows each column's
+  Markdown alignment; the approved segmented **Align** control (Default, Left, Center, Right) marks
+  the focused column's alignment and rewrites only the delimiter cells of the focused column or
+  selected columns, keeping their spacing and dash count, as one local Undo step. Add/delete row and
   column commands are contextual: the header and final column stay protected, insertion before/after
   a span shifts its coordinates, and an operation that cuts through or deletes part of a span is
   disabled until the span is split, with the reason exposed through the shared tooltip system.
@@ -1330,7 +1347,8 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   temporary draft, **Show Markdown** exposes a hidden-by-default read-only source snapshot,
   **Apply** revalidates the original range and writes the entire session as one undoable CodeMirror
   transaction, then focuses the main editor for immediate Ctrl/Cmd+Z, and **Cancel** writes nothing;
-  Escape is Cancel and asks for confirmation when the draft is dirty. Rectangular spans serialize as
+  Escape is Cancel and asks for confirmation when the draft is dirty. Ctrl/Cmd+Enter applies from
+  anywhere in the dialog, as in the Mermaid and Chart editors, and the footer shows that shortcut. Rectangular spans serialize as
   immediately adjacent `<!-- figaro:table-merge A2:C3 -->` metadata using visible-grid coordinates
   (header row 1), and the live/PDF renderers consume that comment without displaying it. Selecting
   delimited source and choosing **Convert selection to table…** still opens a preview for comma- or
@@ -2820,9 +2838,10 @@ OS clipboard. Named and numbered Vim registers remain available normally.
   path regardless of which field or embedded editor owns focus, and closing restores focus to the
   invoking control. An open nested picker consumes the first Escape. Transactional Table, Chart, and
   Mermaid editors instead expose the shared inline **Keep editing / Discard** confirmation when
-  their temporary draft differs from its opening state. The Table Editor's Keep editing action and
-  Escape-from-confirmation restore the initiating cell/control and text selection, not the Cancel
-  button. Opening another modal cleanly cancels the previous one.
+  their temporary draft differs from its opening state; that inline prompt uses the dialog's body
+  text size. The Table Editor's Keep editing action and Escape-from-confirmation restore the
+  initiating cell/control and text selection, not the Cancel button. Dialogs given an apply action
+  also accept Ctrl/Cmd+Enter from inside the dialog and add it to `aria-keyshortcuts`. Opening another modal cleanly cancels the previous one.
 - Only the Table, Mermaid, and Chart editor compositions add the approved lower-right resize handle.
   Primary-pointer dragging changes width and height together; a focused handle uses Arrow keys in 24
   px steps, Shift+Arrow in 8 px steps, and Home to restore the CSS-managed default. The pure
@@ -4220,6 +4239,10 @@ diagrams in the editor.
   uses the approved select-only combobox rather than a host-native popup.
   The applied managed chart uses the identical themed backing surface, so
   transparent and opaque data paints preserve their preview appearance.
+  The preview draws at its measured width; when the dialog or window changes
+  that width by 24 px or more, it draws again rather than letting CSS shrink
+  the chart text. Ctrl/Cmd+Enter creates or applies the chart when its primary
+  action is enabled, and the footer shows that shortcut.
   Configuration-pane container rules stack mode controls and split dense
   column mappings into multiple rows before they can overlap. Combobox menus
   use measured fixed positioning, flip above their trigger when needed, and
@@ -4318,10 +4341,16 @@ diagrams in the editor.
   the equivalent `TB` direction. Reopening reconstructs controls from source.
   Style edits preserve the focused control; phase-only preview updates retain
   controls and open palettes, with color swatches synchronized in place after
-  inspection. Palette Escape restores its anchor without closing the editor;
-  otherwise Escape is owned by the modal from every focused Source or Style
-  control and asks before discarding an unapplied Mermaid source draft. Editor
-  closure cleans up the palette.
+  inspection. Palette Escape restores its anchor without closing the editor.
+  Tab indents inside Source, so the first Escape there instead hands Tab back
+  to focus movement for two seconds (the root editor's Escape-then-Tab rule)
+  and the footer says “Press Tab to leave the source, or Esc again to close.”
+  Any other key or leaving Source disarms it. Otherwise Escape is owned by the
+  modal from every focused Source or Style control and asks before discarding
+  an unapplied Mermaid source draft. Ctrl/Cmd+Enter applies from anywhere in the
+  dialog, and the footer names both shortcuts. Source is a code editor
+  (`cm-code-file`): it uses the chosen code font with ligatures disabled, so
+  `-->`, `-.->` and `==>` stay distinct. Editor closure cleans up the palette.
   Unrelated frontmatter is retained; compact or advanced YAML mappings that
   cannot be merged safely, and init directives that override frontmatter,
   are not changed and announce that Source mode is

@@ -158,6 +158,7 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.vega-lite-chart-editor-column-extra'))
             .toMatch(/white-space:\s*nowrap/);
         expect(stylesheet).not.toContain('.vega-lite-chart-editor-trendline-help');
+        expect(declarationsFor('.vega-lite-chart-editor-config [hidden]')).toMatch(/display:\s*none\s*!important/);
         expect(stylesheet).not.toContain('.vega-lite-chart-editor-column-extra.is-disabled > span');
         expect(declarationsFor('.vega-lite-chart-editor-color-button.ui-icon-button'))
             .toMatch(/width:\s*30px[\s\S]*height:\s*30px/);

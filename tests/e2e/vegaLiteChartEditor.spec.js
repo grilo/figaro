@@ -384,11 +384,14 @@ test('converts a simple table into a themed, complete chart and resizes it as on
     await expect(trendlineInput).toBeEnabled();
 
     await modal.getByRole('button', { name: 'Pie' }).click();
+    // Cartesian-only controls leave the layout in Pie mode, not just the model.
+    await expect(modal.locator('[data-orientation-group]')).toBeHidden();
     await expect(modal.locator('[data-pie-section]')).toBeVisible();
     await expect(previewSVG).toBeVisible();
     await expect(preview.locator('.vega-lite-chart-editor-preview-error')).toHaveCount(0);
     await modal.getByRole('button', { name: 'Waterfall' }).click();
     await expect(modal.locator('[data-waterfall-section]')).toBeVisible();
+    await expect(modal.locator('[data-legend-group]')).toBeHidden();
     await expect(previewSVG).toBeVisible();
     await expect(preview.locator('.vega-lite-chart-editor-preview-error')).toHaveCount(0);
     await modal.getByRole('button', { name: 'Cartesian' }).click();

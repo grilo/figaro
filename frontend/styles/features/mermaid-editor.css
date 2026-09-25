@@ -362,6 +362,15 @@
     font: var(--font-size-editor)/1.55 var(--font-mono);
 }
 
+/* The source editor is a code editor (`cm-code-file`), so it uses the chosen
+   code font. Show every character too: ligatures would draw `-->`, `-.->`
+   and `==>` as look-alike arrows, and Mermaid gives each a different meaning. */
+.mermaid-editor-code-host .cm-content,
+.mermaid-editor-code-host .cm-line {
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0;
+}
+
 .mermaid-editor-code-host .cm-scroller {
     overflow: auto;
     font-family: var(--font-mono);

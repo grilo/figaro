@@ -123,6 +123,48 @@ describe('Vega-Lite Chart Editor dialog', () => {
         expect(markTrigger.getAttribute('aria-expanded')).toBe('false');
     });
 
+    test('redraws the preview at its new width when the dialog resizes and creates the chart with Ctrl/Cmd+Enter', async () => {
+        const observers = [];
+        const previousObserver = window.ResizeObserver;
+        window.ResizeObserver = class {
+            constructor(callback) { this.callback = callback; observers.push(this); }
+            observe(element) { this.element = element; }
+            disconnect() { this.disconnected = true; }
+        };
+        try {
+            let width = 836;
+            const dialog = openTable();
+            const preview = dialog.overlay.querySelector('[data-chart-preview]');
+            Object.defineProperty(preview, 'clientWidth', { configurable: true, get: () => width });
+            dialog.overlay.querySelector('[data-chart-mode="pie"]').click();
+            await flush(); await flush();
+            const renders = () => window.vegaEmbed.mock.calls.length;
+            const settledRenders = renders();
+            const observer = observers.find(candidate => candidate.element === preview);
+
+            width = 846; // A small change keeps the drawing.
+            observer.callback([]);
+            await new Promise(resolve => setTimeout(resolve, 40)); await flush();
+            expect(renders()).toBe(settledRenders);
+
+            width = 436; // A narrower dialog draws again at the new width.
+            observer.callback([]);
+            await new Promise(resolve => setTimeout(resolve, 40)); await flush(); await flush();
+            expect(renders()).toBe(settledRenders + 1);
+            expect(window.vegaEmbed.mock.calls.at(-1)[0].style.width).toBe('400px');
+
+            expect(dialog.overlay.querySelector('.custom-modal-shortcut-hint').textContent).toBe('Ctrl/Cmd+Enter to create the chart');
+            dialog.overlay.querySelector('[data-chart-mode="pie"]').dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true,
+            }));
+            expect(dialog.overlay.isConnected).toBe(false);
+            expect(observer.disconnected).toBe(true);
+            expect(view.state.doc.toString()).toContain('```vega-lite');
+        } finally {
+            window.ResizeObserver = previousObserver;
+        }
+    });
+
     test('serializes rapid preview changes and renders only the latest pending configuration', async () => {
         const renderResult = () => ({
             view: {

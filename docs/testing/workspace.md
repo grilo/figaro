@@ -711,7 +711,14 @@ the destination-specific import confirmation before any copy binding; cancel
 must produce no backend mutation. Root-scoped adapter coverage must run the
 same duplicate-name, unsupported-source, nested-symlink, and recursive-copy
 preflight through copy and recursive-merge modes and prove rejection writes
-nothing. Buffer drops
+nothing. Markdown-only
+drops outside the tree must open without a dialog (`fileTree.test.js` drop
+routing, `externalFileModel.test.js` for the routing rule, and
+`app_dropped_files_test.go` for vault members, symlinks, reuse and saving to the
+original). `externalFileNotice.test.js`, `externalFiles.test.js` and
+`gitStatus.test.js` own the notice, its save-then-import order, and the absent
+history action; the native-binding startup case in `desktopStartup.spec.js`
+checks the notice's position and one drop in the assembled app. Other buffer drops
 must prevent CodeMirror's uncontrolled path insertion, ask once for an entire
 native drop batch, insert the selected path at the drop position, and call the recursive collision-safe
 import once for a dropped directory. A successful dropped-file import must

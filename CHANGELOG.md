@@ -8,7 +8,36 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- The Table Editor shows each column's alignment and can change it with a new
+  **Align** control (Default, Left, Center, Right).
+- Ctrl/Cmd+Enter applies the Table, Mermaid and Chart editors, and each shows
+  the shortcut in its footer.
+- Drop a Markdown file on the editor or tab bar to open it where it is, without
+  importing it. A notice above the editor shows that the file is outside the
+  vault, and its **Import to vault** button copies it in when you want to keep
+  it. Dropping onto the file tree still imports into that folder.
+
+### Fixed
+
+- Keyboard users can leave the Mermaid Editor's source: press Escape, then Tab.
+  A second Escape closes the editor.
+- The Mermaid Editor's source uses the code font, so arrows such as `-->`,
+  `-.->` and `==>` are no longer drawn as look-alike symbols.
+- Screen readers announce the Table Editor's toolbar buttons in full, such as
+  "Delete row" instead of "Row".
+- Chart Editor previews redraw when the dialog or window is resized, so their
+  labels stay readable instead of shrinking.
+- The "Discard the unapplied changes?" prompt in these editors uses normal text
+  size.
+- The Chart Editor no longer shows the Orientation control for pie and
+  waterfall charts, or Legend position for waterfall charts, where they have
+  no effect.
+- Importing a note opened from outside the vault no longer fails when the vault
+  already has a note with the same name; the copy gets a new name instead.
+- Notes opened from outside the vault no longer show a **Save to history**
+  button or a history warning, since their edits are never kept in history.
 
 ## [1.43.0] - 2026-09-25
 

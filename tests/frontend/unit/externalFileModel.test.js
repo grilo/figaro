@@ -1,6 +1,9 @@
 import {
+    externalDropAction,
+    externalFileNotice,
     externalTreeImportPrompt,
     fileTabReadTarget,
+    isMarkdownDropPath,
 } from '../frontend/js/core/externalFileModel.js';
 
 describe('external file policy', () => {
@@ -39,5 +42,34 @@ describe('external file policy', () => {
         })).toEqual({ kind: 'external', externalFileId: 'launch-1' });
         expect(fileTabReadTarget({ path: 'notes/inside.md' }))
             .toEqual({ kind: 'vault', path: 'notes/inside.md' });
+    });
+
+    test('recognizes Markdown documents by extension on any platform', () => {
+        expect(isMarkdownDropPath('/home/writer/README.md')).toBe(true);
+        expect(isMarkdownDropPath('C:\\Notes\\Guide.MARKDOWN')).toBe(true);
+        expect(isMarkdownDropPath('/home/writer/notes.md.txt')).toBe(false);
+        expect(isMarkdownDropPath('/home/writer/Folder.md/')).toBe(false);
+    });
+
+    test('routes a drop by its target: the tree imports, Markdown opens, other files ask only in the editor', () => {
+        expect(externalDropAction(['/a.md'], 'tree')).toBe('import');
+        expect(externalDropAction(['/a.png'], 'tree')).toBe('import');
+        expect(externalDropAction(['/a.md', '/b.markdown'], 'editor')).toBe('open');
+        expect(externalDropAction(['/a.md'], 'elsewhere')).toBe('open');
+        expect(externalDropAction(['/a.md', '/b.png'], 'editor')).toBe('ask');
+        expect(externalDropAction(['/b.png'], 'elsewhere')).toBe('ignore');
+        expect(externalDropAction([], 'editor')).toBe('ignore');
+    });
+
+    test('describes the notice only for an open file from outside the vault', () => {
+        expect(externalFileNotice({ type: 'file', externalFileId: 'external-1', path: '/tmp/README.md' }))
+            .toEqual({
+                name: 'README.md',
+                message: 'Outside the vault. Edits save to the original file and are not kept in history.',
+                actionLabel: 'Import to vault',
+            });
+        expect(externalFileNotice({ type: 'file', path: 'Inbox/note.md' })).toBeNull();
+        expect(externalFileNotice({ type: 'calendar-workspace', externalFileId: 'x' })).toBeNull();
+        expect(externalFileNotice(null)).toBeNull();
     });
 });

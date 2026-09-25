@@ -842,6 +842,39 @@ describe('File Tree', () => {
             },
         );
         expect(window.go.desktop.App.CopyExternalPaths).toHaveBeenCalledWith(['/home/writer/note.md'], 'Inbox', false);
+
+        // Markdown dropped anywhere outside the tree opens in place without a
+        // question: vault notes by path, other files as external documents.
+        const editor = document.createElement('div');
+        editor.id = 'editor-container';
+        document.body.append(editor);
+        confirmDialog.mockClear();
+        window.go.desktop.App.OpenDroppedMarkdownFiles.mockResolvedValueOnce({
+            vaultPaths: ['Inbox/kept.md'],
+            external: [{ id: 'external-7', name: 'README.md', path: '/home/writer/README.md', mtime: 7 }],
+            skipped: [],
+        });
+        document.elementFromPoint = jest.fn().mockReturnValue(editor);
+        await callback(10, 20, ['/vault/Inbox/kept.md', '/home/writer/README.md']);
+        expect(confirmDialog).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.OpenDroppedMarkdownFiles)
+            .toHaveBeenCalledWith(['/vault/Inbox/kept.md', '/home/writer/README.md']);
+        expect(openTab).toHaveBeenCalledWith('Inbox/kept.md', 'kept.md', 'file', { path: 'Inbox/kept.md' });
+        expect(openTab).toHaveBeenCalledWith('external:external-7', 'README.md', 'file', {
+            path: '/home/writer/README.md', mtime: 7, externalFileId: 'external-7',
+        });
+        expect(state.externalFileTreeEntries.map(entry => entry.externalFileId)).toContain('external-7');
+
+        // Other files dropped on the editor still ask; elsewhere they are ignored.
+        confirmDialog.mockResolvedValueOnce(false);
+        await callback(10, 20, ['/home/writer/photo.png']);
+        expect(confirmDialog).toHaveBeenCalledWith('How should Figaro handle this drop?',
+            expect.any(String), false, false, expect.objectContaining({ extraLabel: 'Insert path' }));
+        confirmDialog.mockClear();
+        document.elementFromPoint = jest.fn().mockReturnValue(document.body);
+        await callback(10, 20, ['/home/writer/photo.png']);
+        expect(confirmDialog).not.toHaveBeenCalled();
+        editor.remove();
         document.elementFromPoint = originalElementFromPoint;
     });
 

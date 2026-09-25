@@ -98,6 +98,12 @@
     gap: 8px 10px;
 }
 
+/* Mode-specific controls are hidden with the `hidden` attribute. Their layout
+   classes set `display`, which would otherwise override it. */
+.vega-lite-chart-editor-config [hidden] {
+    display: none !important;
+}
+
 .vega-lite-chart-editor-control-label {
     display: grid;
     min-width: 0;

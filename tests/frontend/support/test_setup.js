@@ -113,6 +113,7 @@ export function createNativeAppMock() {
         CopyPath: jest.fn().mockResolvedValue({ success: true, path: '' }),
         CopyExternalPaths: jest.fn().mockResolvedValue({ success: true, paths: [] }),
         MergeExternalPaths: jest.fn().mockResolvedValue({ success: true, paths: [] }),
+        OpenDroppedMarkdownFiles: jest.fn().mockResolvedValue({ vaultPaths: [], external: [], skipped: [] }),
         SearchFiles: jest.fn().mockResolvedValue([]),
         SearchNotes: jest.fn().mockResolvedValue({ results: [], suggestion: '' }),
         SearchBacklinks: jest.fn().mockResolvedValue([]),

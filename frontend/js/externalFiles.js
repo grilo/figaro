@@ -68,18 +68,34 @@ export async function openExternalLaunchFiles(files, openTab, {
     return Array.isArray(files) ? files : [];
 }
 
-// Importing is an explicit copy. CopyExternalPaths already allocates a new
-// name when needed, so the source file and any same-named vault note survive.
-export async function offerExternalFileImport(tab, {
+// Importing is an explicit copy. MergeExternalPaths picks “name (copy).md”
+// when the vault root already has that name, so neither the source file nor
+// an existing note is replaced.
+export async function importExternalTab(tab, {
     openTab,
     closeTab,
     api = backend(),
-    confirm,
     onImported = async () => {},
 } = {}) {
-    if (!tab?.externalFileId || !tab.path || typeof openTab !== 'function' || typeof api?.CopyExternalPaths !== 'function') {
-        return false;
+    if (!tab?.externalFileId || !tab.path || typeof openTab !== 'function' || typeof api?.MergeExternalPaths !== 'function') {
+        return null;
     }
+    const result = await api.MergeExternalPaths([tab.path], '');
+    const importedPath = result?.paths?.[0];
+    if (!result?.success || !importedPath) {
+        throw new Error(result?.error || 'Could not import the external note');
+    }
+    await onImported(importedPath);
+    openTab(importedPath, fileName(importedPath), 'file', { path: importedPath });
+    if (typeof closeTab === 'function') await closeTab(tab.id);
+    return importedPath;
+}
+
+export async function offerExternalFileImport(tab, {
+    confirm,
+    ...options
+} = {}) {
+    if (!tab?.externalFileId || !tab.path || typeof options.openTab !== 'function') return false;
     const shouldImport = await requiredConfirm(confirm)(
         'Import this note into the vault?',
         `“${tab.title || fileName(tab.path)}” is outside this vault. Importing copies it into the vault without replacing an existing note. Keeping it outside adds a temporary root shortcut and continues saving to the original file.`,
@@ -88,16 +104,58 @@ export async function offerExternalFileImport(tab, {
         { confirmLabel: 'Import note', cancelLabel: 'Keep outside vault' }
     );
     if (!shouldImport) return false;
+    return Boolean(await importExternalTab(tab, options));
+}
 
-    const result = await api.CopyExternalPaths([tab.path], '.', false);
-    const importedPath = result?.paths?.[0];
-    if (!result?.success || !importedPath) {
-        throw new Error(result?.error || 'Could not import the external note');
+/**
+ * Import the open external document from its notice. Unsaved edits are saved
+ * to the original file first, so the vault copy holds what the user sees.
+ * Returns the imported vault path, or null when saving did not complete.
+ */
+export async function importOpenExternalTab(tab, {
+    save,
+    forgetShortcut = () => {},
+    ...options
+} = {}) {
+    if (!tab?.externalFileId) return null;
+    if (tab.dirty) {
+        const saved = typeof save === 'function' ? await save(tab) : null;
+        if (!saved?.success) return null;
     }
-    await onImported(importedPath);
-    openTab(importedPath, fileName(importedPath), 'file', { path: importedPath, mtime: result.mtime });
-    if (typeof closeTab === 'function') await closeTab(tab.id);
-    return true;
+    const importedPath = await importExternalTab(tab, options);
+    if (importedPath) forgetShortcut(tab.externalFileId);
+    return importedPath;
+}
+
+/**
+ * Open Markdown files dropped outside the file tree. Vault notes open as
+ * ordinary tabs; other files open in place and gain a temporary root
+ * shortcut, exactly like files the operating system opened.
+ */
+export async function openDroppedMarkdownFiles(paths, {
+    api = backend(),
+    openTab,
+    onExternalKept = () => {},
+} = {}) {
+    const empty = { opened: 0, skipped: [] };
+    if (typeof openTab !== 'function' || typeof api?.OpenDroppedMarkdownFiles !== 'function') return empty;
+    const result = await api.OpenDroppedMarkdownFiles(Array.isArray(paths) ? paths : []);
+    let opened = 0;
+    for (const path of result?.vaultPaths || []) {
+        openTab(path, fileName(path), 'file', { path });
+        opened += 1;
+    }
+    for (const file of result?.external || []) {
+        if (!file?.id || !file?.path) continue;
+        openTab(`external:${file.id}`, file.name || fileName(file.path), 'file', {
+            path: file.path,
+            mtime: file.mtime,
+            externalFileId: file.id,
+        });
+        onExternalKept(file);
+        opened += 1;
+    }
+    return { opened, skipped: result?.skipped || [] };
 }
 
 // Editor drops deliberately offer a controlled path insertion or one recursive

@@ -133,6 +133,11 @@ describe.each(fixtures.filter(([name]) => name === 'images' || name === 'tables'
         let state = mount(source, field);
         const original = state.field(field).blocks;
         const documentReads = jest.spyOn(Object.getPrototypeOf(state.doc), 'toString');
+        // CodeMirror re-parses each edit within a time budget measured with
+        // Date.now(). On a loaded machine a 1000-block note can run past it and
+        // legitimately leave an unparsed tail for the field to rescan. Freeze
+        // the clock so this test measures the field's mapping, not CPU speed.
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now());
         editorDiagnostics.start();
         try {
             editorDiagnostics.interaction('typing', ['document'], () => {
@@ -140,6 +145,7 @@ describe.each(fixtures.filter(([name]) => name === 'images' || name === 'tables'
                     state = state.update({ changes: index % 2 ? { from: 2, to: 3 } : { from: 2, insert: 'x' } }).state;
                 }
             });
+            clock.mockRestore();
             expect(editorDiagnostics.snapshot()[0].counters[`parse.${name}`] || 0).toBe(0);
             expect(editorDiagnostics.snapshot()[0].counters['document.materialize'] || 0).toBe(0);
             expect(documentReads).not.toHaveBeenCalled();
@@ -155,7 +161,7 @@ describe.each(fixtures.filter(([name]) => name === 'images' || name === 'tables'
             const start = state.field(field).blocks[0].from;
             state = state.update({ changes: { from: start, to: start + syntax.length, insert: 'plain' } }).state;
             expect(state.field(field).blocks).toHaveLength(count - 1);
-        } finally { documentReads.mockRestore(); editorDiagnostics.stop(); }
+        } finally { clock.mockRestore(); documentReads.mockRestore(); editorDiagnostics.stop(); }
     });
 });
 

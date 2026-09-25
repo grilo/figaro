@@ -114,8 +114,14 @@ export function initHistoryPanel() {
     updateGitStatus(initialPath);
 }
 
+// Files kept outside the vault save to their original location and never
+// enter local history, so they have no history count or history action.
+function outsideVault(filePath) {
+    return (getState('openTabs') || []).some(tab => tab.externalFileId && tab.path === filePath);
+}
+
 export function updateHistoryCount(filePath) {
-    if (!filePath || typeof filePath !== 'string') {
+    if (!filePath || typeof filePath !== 'string' || outsideVault(filePath)) {
         currentFilePath = null;
         historyNotice = '';
         const countEl = document.getElementById('history-count');
@@ -203,7 +209,7 @@ function setGitStatusError() {
 /** Refresh the active file's Git state without including unrelated files. */
 export async function updateGitStatus(filePath) {
     const requestId = ++gitStatusRequestId;
-    gitStatusPath = typeof filePath === 'string' && filePath ? filePath : null;
+    gitStatusPath = typeof filePath === 'string' && filePath && !outsideVault(filePath) ? filePath : null;
     if (!gitStatusPath) {
         setGitStatusVisibility(false);
         return false;

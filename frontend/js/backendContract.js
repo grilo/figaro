@@ -61,6 +61,7 @@ export const BACKEND_METHODS = Object.freeze([
     'MergeExternalPaths',
     'MergeNotes',
     'MovePath',
+    'OpenDroppedMarkdownFiles',
     'OpenLaunchExternalFile',
     'OpenStartupLogs',
     'OpenWithDefaultApplication',

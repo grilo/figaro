@@ -6,7 +6,8 @@
 
 Write a Markdown table or type `@table` to insert one and open the Table Editor.
 Click a rendered cell to edit its Markdown source. The left-side **editor**
-guide opens a grid editor for rows, columns, alignment, and cell merges.
+guide opens a grid editor for rows, columns, alignment, and cell merges. Use
+**Align** to set the current column to the default, left, center, or right.
 
 Hold Shift while clicking or dragging cells, or use Alt+Shift+Arrow, to select a
 rectangle for Merge. Split applies to a merged cell. **Show Markdown** displays
@@ -36,8 +37,9 @@ in the list or preview to edit it.
 Use the mouse wheel or `+` and `-` to zoom, drag or use arrows to pan, and press
 `0` to reset. Syntax errors keep the last valid preview available while you fix
 the source. **Apply** changes the fence as one undoable edit; **Cancel** keeps
-the original. The Table, Mermaid, and Chart editors can be resized from their
-lower-right handles.
+the original. Tab indents the source; press Escape, then Tab, to move on to the
+other controls. The Table, Mermaid, and Chart editors apply with Ctrl/Cmd+Enter
+and can be resized from their lower-right handles.
 
 An unstyled live diagram follows the app theme. Explicit styling stays in the
 Mermaid source and carries into PDF output. A live diagram appears at the size

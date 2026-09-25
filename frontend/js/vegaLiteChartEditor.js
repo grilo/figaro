@@ -1,6 +1,6 @@
 import { Transaction } from '@codemirror/state';
 
-import { activateModal, createDialogShell, createPendingChangesNotice, errorDialog } from './dialogs.js';
+import { MODAL_APPLY_SHORTCUT_HINT, activateModal, createDialogShell, createPendingChangesNotice, errorDialog } from './dialogs.js';
 import { makeEditorModalResizable } from './editorModalResize.js';
 import { openColorPalettePicker } from './colorPalettePicker.js';
 import { renderDiagramSVG } from './diagramRenderer.js';
@@ -187,6 +187,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
         `,
         footer: `
             <span class="vega-lite-chart-editor-status" role="status" aria-live="polite"></span>
+            <span class="custom-modal-shortcut-hint">${MODAL_APPLY_SHORTCUT_HINT.replace('apply', sourceKind === 'table' ? 'create the chart' : 'apply')}</span>
             <button type="button" class="ui-button custom-modal-btn vega-lite-chart-editor-cancel">Cancel</button>
             <button type="button" class="ui-button ui-button--primary custom-modal-btn vega-lite-chart-editor-apply" ${unsupported ? 'disabled' : ''}>${sourceKind === 'table' ? 'Create chart' : 'Apply'}</button>
         `,
@@ -456,6 +457,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
         reportError: showPreviewError,
     });
 
+    let renderedWidth = null;
     const renderPreview = () => {
         beginPreview();
         try {
@@ -463,6 +465,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
             if (!validation.valid) throw new Error(validation.error);
             const source = previewSource();
             json.value = JSON.stringify(JSON.parse(source), null, 2);
+            renderedWidth = preview.clientWidth;
             previewSession.request({
                 source,
                 containerWidth: preview.clientWidth > 36 ? preview.clientWidth - 36 : 640,
@@ -505,6 +508,20 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
         void renderPreview();
     };
 
+    // Vega draws at the preview's width. When the dialog or window resizes,
+    // draw again rather than letting CSS shrink the text with the chart.
+    const PREVIEW_REDRAW_THRESHOLD = 24;
+    let previewResizeFrame = 0;
+    const previewResize = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
+        if (settled || jsonVisible || renderedWidth === null || previewResizeFrame) return;
+        if (Math.abs(preview.clientWidth - renderedWidth) < PREVIEW_REDRAW_THRESHOLD) return;
+        previewResizeFrame = requestAnimationFrame(() => {
+            previewResizeFrame = 0;
+            if (!settled && !jsonVisible) renderPreview();
+        });
+    }) : null;
+    previewResize?.observe(preview);
+
     const finish = apply => {
         if (settled) return false;
         if (apply) {
@@ -529,6 +546,8 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
             }
         }
         settled = true;
+        previewResize?.disconnect();
+        if (previewResizeFrame) cancelAnimationFrame(previewResizeFrame);
         modalResize.destroy();
         previewSession.destroy();
         colorPicker?.close();
@@ -638,6 +657,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
 
     lifecycle = activateModal(overlay, {
         initialFocus: unsupported ? cancelButton : overlay.querySelector('[data-chart-mode="cartesian"]'),
+        onSubmit: () => { if (!applyButton.disabled) finish(true); },
         dismissOnBackdrop: false,
         onDismiss: () => finish(false),
         shouldDismissOnEscape: event => {

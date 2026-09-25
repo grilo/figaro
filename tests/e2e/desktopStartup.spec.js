@@ -26,6 +26,11 @@ test('boots through the native Wails binding with the workspace overview, vault 
                 mtime: 1,
             },
             GetLaunchExternalFiles: [],
+            OpenDroppedMarkdownFiles: {
+                vaultPaths: [],
+                external: [{ id: 'external-dropped-1', name: 'dropped.md', path: '/home/writer/dropped.md', mtime: 3 }],
+                skipped: [],
+            },
             ReadLaunchExternalFile: {
                 content: '# Forwarded into existing window\n\nThis file stayed outside the vault.',
                 path: 'C:\\Notes\\forwarded.md',
@@ -62,6 +67,7 @@ test('boots through the native Wails binding with the workspace overview, vault 
         window.__desktopBridgeCalls = calls;
         window.runtime = {
             EventsOn: (name, handler) => { handlers[name] = handler; },
+            OnFileDrop: handler => { window.__nativeFileDrop = handler; },
         };
         window.__emitForwardedExternalFiles = files => handlers['launch:external-files']?.(files);
         window.go = {
@@ -167,6 +173,28 @@ test('boots through the native Wails binding with the workspace overview, vault 
     await expect.poll(() => page.evaluate(() => window.__desktopBridgeCalls
         .filter(call => call.method === 'ReadLaunchExternalFile')
         .some(call => call.args[0] === 'external-forwarded-1'))).toBe(true);
+
+    // The outside-the-vault notice sits between the breadcrumb and the editor
+    // and never covers document text.
+    const notice = page.locator('#external-file-notice');
+    await expect(notice).toBeVisible();
+    await expect(notice.getByRole('button', { name: 'Import to vault: forwarded.md' })).toBeVisible();
+    const layout = await page.evaluate(() => ({
+        notice: document.querySelector('#external-file-notice').getBoundingClientRect().toJSON(),
+        editor: document.querySelector('#editor-container').getBoundingClientRect().toJSON(),
+    }));
+    expect(layout.notice.bottom).toBeLessThanOrEqual(layout.editor.top + 0.5);
+    expect(layout.notice.height).toBeLessThan(48);
+
+    // A Markdown file dropped on the editor opens in place without a dialog.
+    const drop = await page.locator('#editor-container .cm-content').boundingBox();
+    await page.evaluate(({ x, y }) => window.__nativeFileDrop(x, y, ['/home/writer/dropped.md']),
+        { x: drop.x + 20, y: drop.y + 20 });
+    await expect(page.locator('.tab[data-tab-id="external:external-dropped-1"]')).toHaveClass(/active/);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(notice).toBeVisible();
+    expect(await page.evaluate(() => window.__desktopBridgeCalls
+        .find(call => call.method === 'OpenDroppedMarkdownFiles')?.args[0])).toEqual(['/home/writer/dropped.md']);
 });
 
 test('restores the saved active buffer directly into persistent Pure mode', async ({ page }) => {

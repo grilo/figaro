@@ -40,7 +40,8 @@ import {
     prepareTabsForPathMove,
     updateTabsForMovedPath,
 } from './tabManager.js';
-import { addExternalFileTreeEntry, configureFileTreeWorkspace, createInboxNote, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
+import { addExternalFileTreeEntry, configureFileTreeWorkspace, createInboxNote, forgetExternalFileTreeEntry, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
+import { initExternalFileNotice } from './externalFileNotice.js';
 import { configureCalendarWorkspace, initCalendar, navigateCalendarMonth, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
 import { configureKanbanWorkspace, initKanban, refreshKanbanData } from './kanban.js';
 import { configureDatePickerCalendarSource } from './datePicker.js';
@@ -50,7 +51,7 @@ import { configureSearchWorkspace, initSearch, performGlobalSearch, clearGlobalS
 import { configureBacklinksWorkspace, initBacklinks } from './backlinks.js';
 import { loadSession, saveSession, flushSessionWithin, installSessionFlush } from './session.js';
 import { restoredWorkspacePlan } from './sessionTabs.js';
-import { openExternalLaunchFiles, openLaunchExternalFiles } from './externalFiles.js';
+import { importOpenExternalTab, openExternalLaunchFiles, openLaunchExternalFiles } from './externalFiles.js';
 import { initTheme, initThemeAppearance } from './theme.js';
 import { initTabSizePreference } from './tabSizePreference.js';
 import { applySidebarLayout, initSidebarResizer } from './sidebarResizer.js';
@@ -187,6 +188,22 @@ function externalLaunchOptions() {
         },
         claimExternalFile: claimExternalLaunchFile,
     };
+}
+
+async function importActiveExternalNote(tab) {
+    try {
+        const imported = await importOpenExternalTab(tab, {
+            save: () => saveActiveTabFile(),
+            openTab,
+            closeTab,
+            onImported: () => refreshFileTree(),
+            forgetShortcut: forgetExternalFileTreeEntry,
+        });
+        statusBar.set(imported ? `Imported as “${imported}”` : 'The note was not imported because it could not be saved');
+    } catch (error) {
+        log.warn('Could not import external note:', error);
+        statusBar.set('Could not import the note');
+    }
 }
 
 function enqueueExternalLaunchFiles(files) {
@@ -654,6 +671,7 @@ export async function initApp() {
     initKeyboardShortcuts();
     initWindowChrome();
     initWorkspaceChromeState({ subscribe, getState });
+    initExternalFileNotice({ onImport: importActiveExternalNote });
     
     // Wait until Wails has published the bound Go App object.
     statusBar.set('Connecting to backend...');

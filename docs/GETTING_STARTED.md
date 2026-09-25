@@ -43,14 +43,22 @@ uses one desktop instance and one vault at a time.
 
 ## Bring your notes
 
-Copy or drop files and folders into the file tree. Figaro asks before importing,
-preserves folder structure, and avoids overwriting existing files.
+Copy or drop files and folders into the file tree to import them. Figaro asks
+before importing, preserves folder structure, and avoids overwriting existing
+files.
 
-Opening a Markdown file outside the vault offers two choices:
+To read or edit a Markdown file where it is, drop it anywhere outside the file
+tree, such as on the editor or the tab bar. A notice above the editor says the
+file is outside the vault: edits save to the original, and the file stays out
+of vault search, planning, history, and saved sessions. Choose **Import to
+vault** in that notice to copy it in. Other files dropped on the editor can be
+inserted as a path or imported.
+
+Opening a Markdown file with Figaro from your file manager asks first:
 
 - **Import** creates a copy in the vault and opens it.
-- **Keep outside vault** edits the original through a temporary shortcut. That
-  file is excluded from vault search, planning, history, and saved sessions.
+- **Keep outside vault** edits the original through a temporary shortcut, as a
+  drop does.
 
 Notes remain Markdown files; images, code, and diagrams keep their normal file
 formats. Unsupported files can still be organized in the tree and opened in

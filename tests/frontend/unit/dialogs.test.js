@@ -207,6 +207,33 @@ describe('New note dialog', () => {
         expect(onDismiss).toHaveBeenCalledTimes(1);
     });
 
+    test('applies an editor dialog with Ctrl/Cmd+Enter from inside it and advertises the shortcut', () => {
+        const { overlay } = createDialogShell({
+            title: 'Structured editor',
+            content: '<div><textarea aria-label="Source"></textarea></div>',
+        });
+        const dialog = overlay.querySelector('[role="dialog"]');
+        const source = overlay.querySelector('textarea');
+        const onSubmit = jest.fn();
+        const lifecycle = activateModal(overlay, { initialFocus: source, onSubmit });
+        source.focus();
+        const press = (target, init) => {
+            const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...init });
+            target.dispatchEvent(event);
+            return event;
+        };
+
+        expect(dialog.getAttribute('aria-keyshortcuts')).toBe('Escape Control+Enter Meta+Enter');
+        expect(press(source, {}).defaultPrevented).toBe(false);
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(press(source, { ctrlKey: true }).defaultPrevented).toBe(true);
+        expect(press(source, { metaKey: true }).defaultPrevented).toBe(true);
+        expect(onSubmit).toHaveBeenCalledTimes(2);
+        press(document.body, { ctrlKey: true });
+        expect(onSubmit).toHaveBeenCalledTimes(2);
+        lifecycle.close(false);
+    });
+
     test('keeps text-entry prompts open on backdrop clicks and validates inline', async () => {
         const result = promptDialog('New folder', 'Choose a folder name.', 'Drafts', {
             validate: value => value.includes('/') ? 'Choose a name, not a path.' : '',

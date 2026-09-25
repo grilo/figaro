@@ -67,6 +67,39 @@ describe('Markdown table editor modal', () => {
             .toBe('Resize editor dialog');
     });
 
+    test('names structural commands fully, shows and sets column alignment, and applies with Ctrl/Cmd+Enter', () => {
+        const harness = editorHarness();
+        const dialog = openMarkdownTableEditor(harness.view, harness.block);
+        const overlay = dialog.overlay;
+        const byName = name => overlay.querySelector(`button[aria-label="${name}"]`);
+        for (const name of ['Insert row above', 'Insert row below', 'Insert column before', 'Insert column after', 'Delete row', 'Delete column']) {
+            expect(byName(name)).not.toBeNull();
+        }
+        const deleteGroup = overlay.querySelector('.markdown-table-editor-danger-group');
+        expect(deleteGroup.getAttribute('role')).toBe('group');
+        expect(document.getElementById(deleteGroup.getAttribute('aria-labelledby')).textContent).toBe('Delete');
+
+        // The right-aligned Count column shows as right-aligned and is selected in the control.
+        const cell = (row, col) => overlay.querySelector(`[data-table-row="${row}"][data-table-column="${col}"] textarea`);
+        expect(cell(1, 1).style.textAlign).toBe('right');
+        expect(cell(1, 0).style.textAlign).toBe('');
+        const align = overlay.querySelector('[role="group"][aria-label="Column alignment"]');
+        const choice = label => [...align.querySelectorAll('button')].find(button => button.textContent === label);
+        cell(1, 1).focus();
+        expect(choice('Right').getAttribute('aria-pressed')).toBe('true');
+
+        choice('Center').click();
+        expect(dialog.source.split('\n')[1]).toBe('| --- | :---: |');
+        expect(cell(1, 1).style.textAlign).toBe('center');
+        expect(choice('Center').getAttribute('aria-pressed')).toBe('true');
+        expect(harness.view.dispatch).not.toHaveBeenCalled();
+
+        expect(overlay.querySelector('.custom-modal-shortcut-hint').textContent).toBe('Ctrl/Cmd+Enter to apply');
+        cell(1, 1).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
+        expect(harness.view.dispatch).toHaveBeenCalledTimes(1);
+        expect(harness.source.split('\n')[1]).toBe('| --- | :---: |');
+    });
+
     test('uses ordinary clicks for text editing and only enters cell-range mode while Shift is held', () => {
         const harness = editorHarness();
         const dialog = openMarkdownTableEditor(harness.view, harness.block);

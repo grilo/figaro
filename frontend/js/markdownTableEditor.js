@@ -1,11 +1,12 @@
 import { Transaction } from '@codemirror/state';
 
-import { activateModal, createDialogShell, createPendingChangesNotice, errorDialog } from './dialogs.js';
+import { MODAL_APPLY_SHORTCUT_HINT, activateModal, createDialogShell, createPendingChangesNotice, errorDialog } from './dialogs.js';
 import { makeEditorModalResizable } from './editorModalResize.js';
 import { renderLucideIcon } from './lucideIcons.js';
 import {
     applyMarkdownTableEditorAction,
     createMarkdownTableEditorState,
+    markdownTableColumnAlignment,
     markdownTableEditorActionState,
     markdownTableEditorCellValue,
     markdownTableEditorSelectedCells,
@@ -14,6 +15,7 @@ import {
     serializeMarkdownTableEditorState,
     tableCellAddress,
     updateMarkdownTableEditorCell,
+    setMarkdownTableColumnAlignment,
 } from './core/markdownTableEditorModel.js';
 
 const commandGroups = [
@@ -31,8 +33,8 @@ const commandGroups = [
         label: 'Rows',
         row: 'structure',
         commands: [
-            { action: 'add-row-above', label: 'Above', icon: 'BetweenHorizontalStart' },
-            { action: 'add-row-below', label: 'Below', icon: 'BetweenHorizontalEnd' },
+            { action: 'add-row-above', label: 'Above', name: 'Insert row above', icon: 'BetweenHorizontalStart' },
+            { action: 'add-row-below', label: 'Below', name: 'Insert row below', icon: 'BetweenHorizontalEnd' },
         ],
     },
     {
@@ -40,8 +42,8 @@ const commandGroups = [
         label: 'Columns',
         row: 'structure',
         commands: [
-            { action: 'add-column-before', label: 'Before', icon: 'BetweenVerticalStart' },
-            { action: 'add-column-after', label: 'After', icon: 'BetweenVerticalEnd' },
+            { action: 'add-column-before', label: 'Before', name: 'Insert column before', icon: 'BetweenVerticalStart' },
+            { action: 'add-column-after', label: 'After', name: 'Insert column after', icon: 'BetweenVerticalEnd' },
         ],
     },
     {
@@ -50,8 +52,8 @@ const commandGroups = [
         row: 'structure',
         danger: true,
         commands: [
-            { action: 'delete-row', label: 'Row', icon: 'Rows3' },
-            { action: 'delete-column', label: 'Column', icon: 'Columns3' },
+            { action: 'delete-row', label: 'Row', name: 'Delete row', icon: 'Rows3' },
+            { action: 'delete-column', label: 'Column', name: 'Delete column', icon: 'Columns3' },
         ],
     },
 ];
@@ -67,15 +69,29 @@ function setButtonContent(button, icon, label) {
     button.append(iconSlot, text);
 }
 
+let controlGroupCount = 0;
+
+// The visible group heading names the group for assistive technology, so a
+// short button such as "Row" is announced within "Delete".
 function createControlGroup(label, className = '') {
     const group = document.createElement('div');
     group.className = `markdown-table-editor-control-group ${className}`.trim();
+    group.setAttribute('role', 'group');
     const heading = document.createElement('span');
     heading.className = 'markdown-table-editor-control-label';
+    heading.id = `markdown-table-editor-group-${++controlGroupCount}`;
     heading.textContent = label;
+    group.setAttribute('aria-labelledby', heading.id);
     group.append(heading);
     return group;
 }
+
+const ALIGNMENT_CHOICES = [
+    { alignment: 'none', label: 'Default', title: 'Use the default alignment for this column' },
+    { alignment: 'left', label: 'Left', title: 'Align this column to the left' },
+    { alignment: 'center', label: 'Center', title: 'Center this column' },
+    { alignment: 'right', label: 'Right', title: 'Align this column to the right' },
+];
 
 function autoGrow(textarea) {
     textarea.style.height = 'auto';
@@ -116,6 +132,7 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
         content: '<div class="markdown-table-editor-workspace"></div>',
         footer: `
             <span class="markdown-table-editor-status" role="status" aria-live="polite"></span>
+            <span class="custom-modal-shortcut-hint">${MODAL_APPLY_SHORTCUT_HINT}</span>
             <button type="button" class="ui-button custom-modal-btn markdown-table-editor-cancel">Cancel</button>
             <button type="button" class="ui-button ui-button--primary custom-modal-btn markdown-table-editor-apply">Apply</button>
         `,
@@ -162,12 +179,32 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
             if (groupDefinition.danger) button.classList.add('ui-button--danger-ghost');
             button.dataset.action = command.action;
             setButtonContent(button, command.icon, command.label);
+            if (command.name) button.setAttribute('aria-label', command.name);
             wrapper.append(button);
             group.append(wrapper);
             commandButtons.set(command.action, { button, wrapper });
         }
         (groupDefinition.row === 'primary' ? primaryRow : structureRow).append(group);
     }
+
+    const alignGroup = createControlGroup('Align', 'markdown-table-editor-align-group');
+    const alignControl = document.createElement('span');
+    alignControl.className = 'ui-segmented-control ui-segmented-control--quiet markdown-table-editor-align';
+    alignControl.setAttribute('role', 'group');
+    alignControl.setAttribute('aria-label', 'Column alignment');
+    const alignButtons = new Map();
+    for (const choice of ALIGNMENT_CHOICES) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'ui-button';
+        button.textContent = choice.label;
+        button.title = choice.title;
+        button.setAttribute('aria-pressed', 'false');
+        alignControl.append(button);
+        alignButtons.set(choice.alignment, button);
+    }
+    alignGroup.append(alignControl);
+    primaryRow.append(alignGroup);
 
     const viewGroup = createControlGroup('View', 'markdown-table-editor-view-group');
     const sourceButton = document.createElement('button');
@@ -255,6 +292,8 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
             elements.button.disabled = !availability.enabled;
             elements.wrapper.dataset.uiTooltip = availability.reason;
         }
+        const alignment = markdownTableColumnAlignment(state, selection.head.col);
+        for (const [choice, button] of alignButtons) button.setAttribute('aria-pressed', String(choice === alignment));
         const selected = markdownTableEditorSelectedCells(selection);
         status.textContent = selection.rangeActive
             ? `${selected.length} ${selected.length === 1 ? 'cell' : 'cells'} selected`
@@ -326,6 +365,8 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
                 textarea.rows = 1;
                 textarea.spellcheck = true;
                 textarea.value = markdownTableEditorCellValue(state, rowIndex, colIndex);
+                const alignment = markdownTableColumnAlignment(state, colIndex);
+                if (alignment !== 'none') textarea.style.textAlign = alignment;
                 textarea.setAttribute('aria-label', `${rowIndex === 0 ? 'Header' : 'Cell'} ${tableCellAddress({ row: rowIndex, col: colIndex })}`);
                 textarea.addEventListener('focus', () => {
                     if (selection.rangeActive || !sameCell(selection.head, { row: rowIndex, col: colIndex })) {
@@ -363,6 +404,18 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
         redoStack = [];
         state = result.state;
         selection = result.selection;
+        renderGrid({ focus: selection.head });
+        return true;
+    };
+
+    const commitAlignment = alignment => {
+        const cells = selection.rangeActive ? markdownTableEditorSelectedCells(selection) : [selection.head];
+        const columns = [...new Set(cells.map(cell => cell.col))];
+        const next = columns.reduce((draft, col) => setMarkdownTableColumnAlignment(draft, col, alignment), state);
+        if (next === state) return false;
+        undoStack.push(state);
+        redoStack = [];
+        state = next;
         renderGrid({ focus: selection.head });
         return true;
     };
@@ -448,6 +501,7 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
     };
 
     commandButtons.forEach(({ button }, action) => button.addEventListener('click', () => commitCommand(action)));
+    alignButtons.forEach((button, alignment) => button.addEventListener('click', () => commitAlignment(alignment)));
     undoButton.addEventListener('click', localUndo);
     redoButton.addEventListener('click', localRedo);
     sourceButton.addEventListener('click', () => {
@@ -488,6 +542,7 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
 
     lifecycle = activateModal(overlay, {
         initialFocus: () => table.querySelector('textarea'),
+        onSubmit: () => { if (!applyButton.disabled) finish(true); },
         dismissOnBackdrop: false,
         onDismiss: requestCancel,
         shouldDismissOnEscape: event => {

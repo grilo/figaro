@@ -812,7 +812,14 @@ launch sends its arguments and working directory to the existing process; launch
 retains only existing Markdown files, and the desktop coordinator registers them before emitting one
 runtime event and restoring/focusing the existing window. Go records only those explicit launch
 documents under process-local opaque IDs; the frontend can read, save, open, or reveal an ID but
-cannot turn it into arbitrary filesystem access. The initial capability snapshot closes the race
+cannot turn it into arbitrary filesystem access. The one webview-supplied path that becomes such a
+capability is a dropped Markdown file: `OpenDroppedMarkdownFiles` accepts only absolute paths to
+regular `.md`/`.markdown` files that are not symbolic links, returns vault members by their relative
+path instead, and reuses the existing ID for a repeated path. Wails delivers native drops through
+the same dispatcher channel as page messages, so these rules, not the drop itself, bound what the
+editor can write outside the vault. The pure `externalDropAction` routes each drop by target (the
+tree imports, Markdown elsewhere opens, other files ask only over the editor), and
+`externalFileNotice.js` renders the approved info notice for the active external tab. The initial capability snapshot closes the race
 when a second launch arrives before the webview event subscriber is ready, and frontend ID claiming
 prevents the snapshot and event from prompting twice. Later batches share the same serialized
 import/keep-outside use case. Before opening, the frontend offers a collision-safe vault import.

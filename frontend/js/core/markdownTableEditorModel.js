@@ -160,6 +160,38 @@ export function serializeMarkdownTableEditorState(state) {
     return [...lines, ...metadata].join('\n');
 }
 
+export const MARKDOWN_TABLE_ALIGNMENTS = Object.freeze(['none', 'left', 'center', 'right']);
+
+/** Column alignment written in the delimiter row: `---`, `:---`, `:---:` or `---:`. */
+export function markdownTableColumnAlignment(state, col) {
+    const delimiter = String(state?.separator?.cells?.[col] ?? '').trim();
+    const left = delimiter.startsWith(':');
+    const right = delimiter.endsWith(':') && delimiter.length > 1;
+    if (left && right) return 'center';
+    if (left) return 'left';
+    if (right) return 'right';
+    return 'none';
+}
+
+/**
+ * Rewrite one delimiter cell for `alignment`, keeping its surrounding spaces
+ * and dash count so an untouched column's source stays as authored.
+ */
+export function setMarkdownTableColumnAlignment(state, col, alignment) {
+    if (!state?.valid || !MARKDOWN_TABLE_ALIGNMENTS.includes(alignment)) return state;
+    const raw = state.separator.cells[col];
+    if (raw === undefined || markdownTableColumnAlignment(state, col) === alignment) return state;
+    const leading = raw.match(/^\s*/u)?.[0] || '';
+    const trailing = raw.match(/\s*$/u)?.[0] || '';
+    const dashes = '-'.repeat(Math.max(3, (raw.match(/-/gu) || []).length));
+    const delimiter = alignment === 'center' ? `:${dashes}:`
+        : alignment === 'left' ? `:${dashes}`
+            : alignment === 'right' ? `${dashes}:` : dashes;
+    const next = cloneState(state);
+    next.separator.cells[col] = `${leading}${delimiter}${trailing}`;
+    return next;
+}
+
 export function markdownTableEditorCellValue(state, row, col) {
     return String(state?.rows?.[row]?.cells?.[col] ?? '').trim();
 }

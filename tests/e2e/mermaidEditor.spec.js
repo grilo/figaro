@@ -742,6 +742,11 @@ test('inherits Vim mode and display-row navigation inside the Mermaid source edi
     await content.press('i');
     await expect(modalEditor).toHaveClass(/vim-insert/);
     await expect(page.locator('#file-type')).toHaveText('INSERT');
+    // The first Escape in the source hands Tab back to focus movement; the
+    // second closes, for Vim users as for everyone else.
+    await content.press('Escape');
+    await expect(modal.locator('.mermaid-editor-shortcut-hint'))
+        .toHaveText('Press Tab to leave the source, or Esc again to close.');
     await content.press('Escape');
     await expect(modal).toHaveCount(0);
     await expect(page.locator('#file-type')).toHaveText('NORMAL');
@@ -753,6 +758,7 @@ test('inherits Vim mode and display-row navigation inside the Mermaid source edi
     await content.press('v');
     await expect(modalEditor).toHaveClass(/vim-visual/);
     await expect(page.locator('#file-type')).toHaveText('VISUAL');
+    await content.press('Escape');
     await content.press('Escape');
     await expect(modal).toHaveCount(0);
 

@@ -164,14 +164,31 @@ describe('Mermaid Editor dialog', () => {
             changes: { from: dialog.editorView.state.doc.length, insert: '\nC --> D' },
         });
         dialog.editorView.contentDOM.focus();
-
-        dialog.editorView.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
-            key: 'Escape',
-            bubbles: true,
-            cancelable: true,
-        }));
-
+        const key = name => {
+            const keyCode = { Tab: 9, Escape: 27 }[name] || name.toUpperCase().charCodeAt(0);
+            const event = new KeyboardEvent('keydown', { key: name, keyCode, bubbles: true, cancelable: true });
+            dialog.editorView.contentDOM.dispatchEvent(event);
+            return event;
+        };
+        const hint = dialog.overlay.querySelector('.mermaid-editor-shortcut-hint');
         const confirmation = dialog.overlay.querySelector('.mermaid-editor-discard');
+        expect(hint.textContent).toBe('Esc, then Tab, leaves the source · Ctrl/Cmd+Enter to apply');
+
+        // Tab indents while typing. The first Escape hands Tab back to focus
+        // movement instead of closing, so keyboard users can leave the source.
+        expect(key('Tab').defaultPrevented).toBe(true);
+        key('Escape');
+        expect(confirmation.hidden).toBe(true);
+        expect(hint.textContent).toBe('Press Tab to leave the source, or Esc again to close.');
+        expect(key('Tab').defaultPrevented).toBe(false);
+
+        // Any other key disarms it; a second Escape in a row asks to discard.
+        key('a');
+        expect(hint.textContent).toBe('Esc, then Tab, leaves the source · Ctrl/Cmd+Enter to apply');
+        key('Escape');
+        expect(confirmation.hidden).toBe(true);
+        key('Escape');
+
         expect(confirmation.hidden).toBe(false);
         expect(document.activeElement).toBe(confirmation.querySelector('.custom-modal-pending-keep'));
         expect(dialog.overlay.isConnected).toBe(true);
@@ -180,6 +197,19 @@ describe('Mermaid Editor dialog', () => {
         confirmation.querySelector('.custom-modal-pending-discard').click();
         expect(dialog.overlay.isConnected).toBe(false);
         expect(mainView.state.doc.toString()).toBe(markdown);
+    });
+
+    test('applies with Ctrl/Cmd+Enter from the source through the shared dialog shortcut', () => {
+        const { dialog } = open();
+        // Source is code: the code-editor class selects the code font and layout.
+        expect(dialog.editorView.dom.classList.contains('cm-code-file')).toBe(true);
+        dialog.editorView.dispatch({ changes: { from: dialog.editorView.state.doc.length, insert: '\nC --> D' } });
+        dialog.editorView.contentDOM.focus();
+        dialog.editorView.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Enter', keyCode: 13, metaKey: true, bubbles: true, cancelable: true,
+        }));
+        expect(dialog.overlay.isConnected).toBe(false);
+        expect(mainView.state.doc.toString()).toContain('C --> D');
     });
 
     test('draws diagnostics, keeps the last good SVG, and still permits applying invalid source', async () => {

@@ -3,10 +3,12 @@ import {
     createMarkdownTableEditorState,
     markdownTableEditorActionState,
     markdownTableEditorSelectedCells,
+    markdownTableColumnAlignment,
     markdownTableEditorSelection,
     markdownTableMergePlans,
     markdownTableMetadataEnd,
     serializeMarkdownTableEditorState,
+    setMarkdownTableColumnAlignment,
     stripMarkdownTableMergeMetadata,
     updateMarkdownTableEditorCell,
 } from '../frontend/js/core/markdownTableEditorModel.js';
@@ -161,5 +163,36 @@ describe('Markdown table editor draft model', () => {
             '<!-- figaro:table-merge B2:B3 -->',
         ].join('\n');
         expect(createMarkdownTableEditorState(overlapping)).toMatchObject({ valid: false });
+    });
+});
+
+describe('Markdown table column alignment', () => {
+    const aligned = [
+        '| Name | Count | Note | Mid |',
+        '|  :----  |   -----:  | --- |:---:|',
+        '| Alpha | 2 | a | b |',
+    ].join('\n');
+
+    test('reads each column alignment from the delimiter row', () => {
+        const state = createMarkdownTableEditorState(aligned);
+        expect([0, 1, 2, 3].map(col => markdownTableColumnAlignment(state, col)))
+            .toEqual(['left', 'right', 'none', 'center']);
+    });
+
+    test('rewrites only the chosen delimiter, keeping its spacing and dash count', () => {
+        const state = createMarkdownTableEditorState(aligned);
+        const centered = setMarkdownTableColumnAlignment(state, 0, 'center');
+        const cleared = setMarkdownTableColumnAlignment(centered, 1, 'none');
+        expect(serializeMarkdownTableEditorState(cleared).split('\n')[1])
+            .toBe('|  :----:  |   -----  | --- |:---:|');
+        expect(markdownTableColumnAlignment(cleared, 0)).toBe('center');
+        expect(serializeMarkdownTableEditorState(state).split('\n')[1]).toBe('|  :----  |   -----:  | --- |:---:|');
+    });
+
+    test('returns the same draft when nothing would change', () => {
+        const state = createMarkdownTableEditorState(aligned);
+        expect(setMarkdownTableColumnAlignment(state, 0, 'left')).toBe(state);
+        expect(setMarkdownTableColumnAlignment(state, 9, 'left')).toBe(state);
+        expect(setMarkdownTableColumnAlignment(state, 0, 'justify')).toBe(state);
     });
 });

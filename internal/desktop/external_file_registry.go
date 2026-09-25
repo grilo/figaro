@@ -3,6 +3,8 @@ package desktop
 import (
 	"fmt"
 	"path/filepath"
+	goruntime "runtime"
+	"strings"
 	"sync"
 )
 
@@ -68,4 +70,23 @@ func (r *externalFileRegistry) path(id string) (string, bool) {
 	defer r.mu.RUnlock()
 	path, ok := r.paths[id]
 	return path, ok
+}
+
+// idForPath returns the capability already registered for path, so a file
+// dropped twice keeps one tab and one shortcut.
+func (r *externalFileRegistry) idForPath(path string) (string, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	same := func(a, b string) bool {
+		if goruntime.GOOS == "windows" {
+			return strings.EqualFold(a, b)
+		}
+		return a == b
+	}
+	for _, id := range r.ids {
+		if same(r.paths[id], path) {
+			return id, true
+		}
+	}
+	return "", false
 }
