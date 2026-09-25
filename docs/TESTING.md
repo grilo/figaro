@@ -530,6 +530,18 @@ for both Playwright and the server, for example:
 FIGARO_PLAYWRIGHT_PORT=34116 npm run test:pdf
 ```
 
+Locally, Playwright reuses a test server that is already running, so a test can
+pass on state an earlier run left behind (saved settings, open tabs). Before
+trusting a pass, or to reproduce a CI-only failure, run with a fresh server as
+GitHub Actions does:
+
+```bash
+CI=1 FIGARO_PLAYWRIGHT_PORT=34125 npm run test:pdf
+```
+
+Release verification always does this (`scripts/verify-release.sh`, port
+`34125` unless `FIGARO_RELEASE_PLAYWRIGHT_PORT` is set).
+
 `cmd/devserver` sends `Cache-Control: no-store`; its focused Go test protects
 that contract so catalogue and browser checks cannot silently reuse stale
 assets after a source edit. Normal requests retain inspectable source modules;
@@ -561,8 +573,10 @@ focus decoration.
 ### Focused iteration
 
 Choose a route with `npm run context`; inspect only that route with
-`npm run context -- <feature>`. [FEATURE_INDEX.md](FEATURE_INDEX.md) is the full
-reference, not required reading for every change.
+`npm run context -- <feature>`. A route lists the documents that own current
+behavior; benchmarks and past performance work appear only as a count until you
+add `--history`. An unknown name suggests similar routes. [FEATURE_INDEX.md](FEATURE_INDEX.md)
+is the full reference, not required reading for every change.
 For example:
 
 ```bash
@@ -580,7 +594,8 @@ failures). Invalid or empty selectors fail before execution. A focused pass does
 coverage or replace required Go, browser, packaged-native, or release checks.
 Use the linked feature contract to identify those additional boundaries.
 
-`featureWorkflow.test.js` covers compact listing and selected output, actual
+`featureWorkflow.test.js` covers compact listing and selected output, the
+docs/history split, route suggestions, actual
 feature ownership, invalid selectors and references, source-symbol renames,
 index freshness, and explicit instruction routing. `npm run context:check` verifies
 that mapped files/headings and named top-level JavaScript declarations exist and

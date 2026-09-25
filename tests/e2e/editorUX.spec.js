@@ -2578,8 +2578,10 @@ test('keeps rendered block source footprints stable and chains code wheel input 
         const view = window.__sourceFootprintView;
         return view.coordsAtPos(view.state.doc.line(22).from).top;
     });
+    // A diagram without a remembered size settles to its drawing once, on
+    // its first render; stability is measured from the rendered layout.
+    await expect(page.locator('.cm-live-diagram-canvas[data-diagram-state="ready"] svg')).toBeVisible();
     const renderedAfterTop = await afterTop();
-    await expect(page.locator('.cm-live-diagram-view svg')).toBeVisible();
     for (const item of [
         { line: 4, selector: '.cm-codeblock-widget', content: '.cm-codeblock-widget pre' },
         { line: 8, selector: '.cm-math-block', content: '.cm-math-block .cm-source-footprint-graphic' },

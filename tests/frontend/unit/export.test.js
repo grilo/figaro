@@ -752,7 +752,21 @@ describe('Interactive PDF export', () => {
         expect(diagram.dataset.figaroHeight).toBe('420');
         expect(diagram.style.getPropertyValue('--figaro-diagram-height')).toBe('420px');
         expect(printable.querySelector('style').textContent)
-            .toContain('.figaro-print-diagram[data-figaro-height]');
+            .toContain('.figaro-print-diagram[data-figaro-height] svg');
+    });
+
+    test('draws an editor-resized Mermaid diagram at its authored height instead of reserving empty space', async () => {
+        setDiagramRenderers();
+        window.mermaid.render = jest.fn(async () => ({ svg: '<svg viewBox="0 0 329 70" width="100%" style="max-width: 329px;"><g/></svg>' }));
+        const source = 'flowchart LR\n  A --> B --> C\n%% figaro:height 210';
+        const printable = parseHTML(await renderPrintableMarkdownWithDiagrams(fence('mermaid', source), 'Sized'));
+        const diagram = printable.querySelector('.figaro-print-diagram');
+        // 210px high at a 329:70 aspect ratio is 987px wide, capped by the page in CSS.
+        expect(diagram.dataset.figaroWidth).toBe('987');
+        expect(diagram.style.getPropertyValue('--figaro-diagram-width')).toBe('987px');
+        const styles = printable.querySelector('style').textContent;
+        expect(styles).not.toMatch(/\.figaro-print-diagram\[data-figaro-height\]\s*\{[^}]*height:/u);
+        expect(styles).toMatch(/\[data-figaro-height\] svg \{[^}]*max-width: 100% !important/u);
     });
 
     test('renders a reversible table-backed chart through the shared preview and PDF SVG surface', async () => {

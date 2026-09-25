@@ -1,0 +1,4 @@
+# Code-search tools (ripgrep and editors that honor .ignore) skip this raw
+# benchmark data, which matches almost any term. Git is unaffected; use
+# `rg --no-ignore` when you need to search it.
+*.json

@@ -1,6 +1,8 @@
 # Writing package coverage review — 2026-09-07
 
-This implementation review follows the decision that every lens must be useful on its own. Sharing advice with another lens is not a reason to disable a rule. Intentional wording can receive contextual advice; an unreviewed replacement must not become an Apply action.
+This implementation review follows the decision that every lens must be useful on its own. Sharing
+advice with another lens is not a reason to disable a rule. Intentional wording can receive
+contextual advice; an unreviewed replacement must not become an Apply action.
 
 The subsequent UI consolidation groups Spelling, Repetition, Consistency, and
 Grammar & punctuation under **Proofreading**, and Plain language plus Readability
@@ -16,21 +18,61 @@ emphatic punctuation move to Formulaic writing, and the duplicate Slopless
 
 ## Changes
 
-- Formulaic writing expands from 21 to 30 pinned Slopless rules. It includes clichés, corporate phrasing, wordiness, redundant phrases, complex-word density, exclamation density, word frequency, hedge stacking, and layered qualifications. Em dashes and curly punctuation remain included; curly findings now require a mismatch with the authored straight convention. [All 47 remaining exclusions](WRITING_SLOPLESS.md) remain explicit.
-- Plain language now exposes the full retext-simplify phrase inventory and native wordiness observations as advice. Only the existing seven reviewed phrase forms can contribute automatic simplification edits. The corpus follow-up suppresses mismatched technical/postal noun senses, including “request”, while retaining useful verb/phrase advice.
-- The later quality policy also guards technical options/limits, forwarding, web addresses, literal end-of-day instructions and emotional states; equivalent indirect-opening advice shares a finding across Plain language and Directness while preserving independent lenses and saved Ignore decisions. Balanced multiline punctuation is verified within its visible block before retaining a warning. Provider pins and included rules are unchanged; see the [quality contract](WRITING_CORPUS_FIXES.md#september-quality-follow-up).
-- Restore 20 previously unbundled Vale rules: five write-good, ten proselint, and five Microsoft. These extend existing lenses with openings, modifiers, jargon, archaic or potentially ambiguous wording, redundant acronyms, spelling consistency, and sentence length. No new lens or visual component is introduced.
-- Inclusive language restores 43 additional native pattern IDs covering generic occupational titles, their plural forms, exclusionary assumptions, accessibility descriptions, and related expressions. This is advisory expansion; the seven reviewed word forms retain their existing alternatives. Personal pronouns, family relationships, personal identity, and medical diagnoses remain protected from inferred rewrites.
-- Consistency expands from nine to 29 exact technical names. It also receives proselint’s spelling-variant consistency observations. Brand spelling is conditional on the intended technology; no general terminology house style is imposed.
-- Deduplicate only an equivalent concern at the same location (plus the existing verified passive-verb span equivalence). Different rhetorical concerns and length versus readability-formula advice remain separate. Shared findings record all contributing lenses and evidence; only enabled lenses supply Apply actions. Ignore is stable across toggling lenses and remains reversible after restart.
+- Formulaic writing expands from 21 to 30 pinned Slopless rules. It includes clichés, corporate
+  phrasing, wordiness, redundant phrases, complex-word density, exclamation density, word frequency,
+  hedge stacking, and layered qualifications. Em dashes and curly punctuation remain included; curly
+  findings now require a mismatch with the authored straight convention. [All 47 remaining
+  exclusions](WRITING_SLOPLESS.md) remain explicit.
+- Plain language now exposes the full retext-simplify phrase inventory and native wordiness
+  observations as advice. Only the existing seven reviewed phrase forms can contribute automatic
+  simplification edits. The corpus follow-up suppresses mismatched technical/postal noun senses,
+  including “request”, while retaining useful verb/phrase advice.
+- The later quality policy also guards technical options/limits, forwarding, web addresses, literal
+  end-of-day instructions and emotional states; equivalent indirect-opening advice shares a finding
+  across Plain language and Directness while preserving independent lenses and saved Ignore
+  decisions. Balanced multiline punctuation is verified within its visible block before retaining a
+  warning. Provider pins and included rules are unchanged; see the [quality
+  contract](WRITING_CORPUS_FIXES.md#september-quality-follow-up).
+- Restore 20 previously unbundled Vale rules: five write-good, ten proselint, and five Microsoft.
+  These extend existing lenses with openings, modifiers, jargon, archaic or potentially ambiguous
+  wording, redundant acronyms, spelling consistency, and sentence length. No new lens or visual
+  component is introduced.
+- Inclusive language restores 43 additional native pattern IDs covering generic occupational titles,
+  their plural forms, exclusionary assumptions, accessibility descriptions, and related expressions.
+  This is advisory expansion; the seven reviewed word forms retain their existing alternatives.
+  Personal pronouns, family relationships, personal identity, and medical diagnoses remain protected
+  from inferred rewrites.
+- Consistency expands from nine to 29 exact technical names. It also receives proselint’s
+  spelling-variant consistency observations. Brand spelling is conditional on the intended
+  technology; no general terminology house style is imposed.
+- Deduplicate only an equivalent concern at the same location (plus the existing verified
+  passive-verb span equivalence). Different rhetorical concerns and length versus
+  readability-formula advice remain separate. Shared findings record all contributing lenses and
+  evidence; only enabled lenses supply Apply actions. Ignore is stable across toggling lenses and
+  remains reversible after restart.
 
 ## Execution and safety
 
-All application modules remain eagerly bundled. Slopless and retext execute in the existing prose worker after deferred snapshot bookkeeping and the 500 ms analysis debounce; the embedded Vale worker runs asynchronously after projection. Plain language, Directness, Repetition, Consistency, Readability, and the later Grammar & punctuation expansion request Vale evidence independently. Enabling one after a cached Formulaic-only result starts the missing analysis. Typing still clears stale results immediately and invalidates late generations; no analyzer runs synchronously in the typing handler.
+All application modules remain eagerly bundled. Slopless and retext execute in the existing prose
+worker after deferred snapshot bookkeeping and the 500 ms analysis debounce; the embedded Vale
+worker runs asynchronously after projection. Plain language, Directness, Repetition, Consistency,
+Readability, and the later Grammar & punctuation expansion request Vale evidence independently.
+Enabling one after a cached Formulaic-only result starts the missing analysis. Typing still clears
+stale results immediately and invalidates late generations; no analyzer runs synchronously in the
+typing handler.
 
-Microsoft’s sentence-length rule emits a first-word anchor. The pure Vale adapter validates it and maps it to the full existing prose sentence before source validation and deduplication; the corpus follow-up also verifies that sentence’s own above-30-word count. The local length check uses the same threshold. Protected text and unmappable spans remain rejected. Slopless frequency reports identify the first occurrence of each repeated word and its verified count, so separate words can be ignored independently.
+Microsoft’s sentence-length rule emits a first-word anchor. The pure Vale adapter validates it and
+maps it to the full existing prose sentence before source validation and deduplication; the corpus
+follow-up also verifies that sentence’s own above-30-word count. The local length check uses the
+same threshold. Protected text and unmappable spans remain rejected. Slopless frequency reports
+identify the first occurrence of each repeated word and its verified count, so separate words can be
+ignored independently.
 
-Current mapping version **24**, editorial policy **8**, spelling vocabulary **4**, with curated grammar policy **8** (the initial package review used mapping 10 / policy 3). Dependency versions and upstream revisions are unchanged. The 29 canonical names are defined in `frontend/js/core/writingTextlintModel.js`; the 43 additional Inclusive advisory IDs are in `frontend/js/core/writingPackagePolicy.js` and have individual real-adapter fixtures.
+Current mapping version **24**, editorial policy **8**, spelling vocabulary **4**, with curated
+grammar policy **8** (the initial package review used mapping 10 / policy 3). Dependency versions
+and upstream revisions are unchanged. The 29 canonical names are defined in
+`frontend/js/core/writingTextlintModel.js`; the 43 additional Inclusive advisory IDs are in
+`frontend/js/core/writingPackagePolicy.js` and have individual real-adapter fixtures.
 
 ## Package-by-package decisions
 
@@ -53,43 +95,87 @@ Current mapping version **24**, editorial policy **8**, spelling vocabulary **4*
 | Figaro rules | Consistency, capitalization, punctuation spacing/repeated commas, long sentences, acronym expansion, and pronunciation exceptions remain registered. No unit-spacing rules are added: attached forms such as 8.1Mib are explicitly supported. |
 | Slopless 0.2.38 | 30/77 rules, all contributing advisory evidence only. See the separate complete inventory and deferred-rule explanations. No authorship classifier or probability claim. |
 
-Vale is pinned to **3.20.0**. The inventories below cover every rule at each pinned upstream revision, not merely files already bundled. The style YAML reviewed in this report is copied unchanged; the later [Harper subset](WRITING_HARPER.md) separately records its adapted participle, suppose, and modal rules, with SHA-256 manifests and existing licenses retained. These original style rules retain Figaro’s advisory presentation and do not expose unchecked substitution actions. Harper grammar uses its separately reviewed presentation and actions.
+Vale is pinned to **3.20.0**. The inventories below cover every rule at each pinned upstream
+revision, not merely files already bundled. The style YAML reviewed in this report is copied
+unchanged; the later [Harper subset](WRITING_HARPER.md) separately records its adapted participle,
+suppose, and modal rules, with SHA-256 manifests and existing licenses retained. These original
+style rules retain Figaro’s advisory presentation and do not expose unchecked substitution actions.
+Harper grammar uses its separately reviewed presentation and actions.
 
 ### write-good
 
-[Pinned upstream source](https://github.com/vale-cli/write-good/tree/c9ceca7f574248a201d5524b001099c5626c7519).
+[Pinned upstream
+source](https://github.com/vale-cli/write-good/tree/c9ceca7f574248a201d5524b001099c5626c7519).
 
 Included (7): `Cliches`, `Illusions`, `Passive`, `So`, `ThereIs`, `TooWordy`, `Weasel`.
 
 Excluded (1): `E-Prime`.
 
-E-Prime prohibits all forms of “to be”. That is a separate constrained-writing mode, not the contract of Directness; detecting passive constructions does not require adopting it. The restored So/ThereIs checks are optional opening advice, and Weasel is presented neutrally as modifier review. Illusions retains its upstream case-sensitive matching alongside retext repetition.
+E-Prime prohibits all forms of “to be”. That is a separate constrained-writing mode, not the
+contract of Directness; detecting passive constructions does not require adopting it. The restored
+So/ThereIs checks are optional opening advice, and Weasel is presented neutrally as modifier review.
+Illusions retains its upstream case-sensitive matching alongside retext repetition.
 
 ### proselint
 
-[Pinned upstream source](https://github.com/vale-cli/proselint/tree/8e24adbaa5dc6593b331f8bfab23c9af044af406).
+[Pinned upstream
+source](https://github.com/vale-cli/proselint/tree/8e24adbaa5dc6593b331f8bfab23c9af044af406).
 
-Included (14): `Airlinese`, `Archaisms`, `Cliches`, `CorporateSpeak`, `Hedging`, `Hyperbole`, `Jargon`, `Malapropisms`, `Oxymorons`, `RASSyndrome`, `Skunked`, `Spelling`, `Uncomparables`, `Very`.
+Included (14): `Airlinese`, `Archaisms`, `Cliches`, `CorporateSpeak`, `Hedging`, `Hyperbole`,
+`Jargon`, `Malapropisms`, `Oxymorons`, `RASSyndrome`, `Skunked`, `Spelling`, `Uncomparables`,
+`Very`.
 
-Excluded (20): `AnimalLabels`, `Annotations`, `Apologizing`, `But`, `Currency`, `Cursing`, `DateCase`, `DateMidnight`, `DateRedundancy`, `DateSpacing`, `DenizenLabels`, `Diacritical`, `GenderBias`, `GroupTerms`, `LGBTOffensive`, `LGBTTerms`, `Needless`, `Nonwords`, `P-Value`, `Typography`.
+Excluded (20): `AnimalLabels`, `Annotations`, `Apologizing`, `But`, `Currency`, `Cursing`,
+`DateCase`, `DateMidnight`, `DateRedundancy`, `DateSpacing`, `DenizenLabels`, `Diacritical`,
+`GenderBias`, `GroupTerms`, `LGBTOffensive`, `LGBTTerms`, `Needless`, `Nonwords`, `P-Value`,
+`Typography`.
 
-The remaining rules fall into four concrete groups: Annotations treats ordinary note TODO/NOTE text as unfinished publication artifacts; Apologizing treats “More research is needed” as excessive apology without establishing its role; AnimalLabels/DenizenLabels/GroupTerms and gender/LGBT substitutions need identity, domain, or referent context; Currency/Date*/Typography/Needless/Nonwords/Cursing/But impose publication, register, regional, or typography choices not configured in these lenses. P-Value is a specialist scientific-reporting check. Their omission is not justified by overlap. Archaisms, Skunked, Oxymorons, and Uncomparables are now contextual review rather than upstream declarations of error.
+The remaining rules fall into four concrete groups: Annotations treats ordinary note TODO/NOTE text
+as unfinished publication artifacts; Apologizing treats “More research is needed” as excessive
+apology without establishing its role; AnimalLabels/DenizenLabels/GroupTerms and gender/LGBT
+substitutions need identity, domain, or referent context;
+Currency/Date*/Typography/Needless/Nonwords/Cursing/But impose publication, register, regional, or
+typography choices not configured in these lenses. P-Value is a specialist scientific-reporting
+check. Their omission is not justified by overlap. Archaisms, Skunked, Oxymorons, and Uncomparables
+are now contextual review rather than upstream declarations of error.
 
 ### Microsoft
 
-[Pinned upstream source](https://github.com/vale-cli/Microsoft/tree/8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e).
+[Pinned upstream
+source](https://github.com/vale-cli/Microsoft/tree/8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e).
 
 Included (6): `Acronyms`, `Adverbs`, `Jargon`, `Passive`, `SentenceLength`, `Wordiness`.
 
-Excluded (41): `AMPM`, `Accessibility`, `Auto`, `Avoid`, `BiasFree`, `Contractions`, `Dashes`, `DateFormat`, `DateNumbers`, `DateOrder`, `Ellipses`, `ExclamationPoints`, `FirstPerson`, `Foreign`, `Gender`, `GenderBias`, `GeneralURL`, `HeadingAcronyms`, `HeadingColons`, `HeadingPunctuation`, `Headings`, `Hyphens`, `Militaristic`, `Negative`, `Ordinal`, `OxfordComma`, `Percentages`, `Plurals`, `QuestionMarks`, `Quotes`, `RangeTime`, `Semicolon`, `Spacing`, `Suspended`, `Terms`, `UIVerbs`, `URLFormat`, `Units`, `Uppercase`, `Vocab`, `We`.
+Excluded (41): `AMPM`, `Accessibility`, `Auto`, `Avoid`, `BiasFree`, `Contractions`, `Dashes`,
+`DateFormat`, `DateNumbers`, `DateOrder`, `Ellipses`, `ExclamationPoints`, `FirstPerson`, `Foreign`,
+`Gender`, `GenderBias`, `GeneralURL`, `HeadingAcronyms`, `HeadingColons`, `HeadingPunctuation`,
+`Headings`, `Hyphens`, `Militaristic`, `Negative`, `Ordinal`, `OxfordComma`, `Percentages`,
+`Plurals`, `QuestionMarks`, `Quotes`, `RangeTime`, `Semicolon`, `Spacing`, `Suspended`, `Terms`,
+`UIVerbs`, `URLFormat`, `Units`, `Uppercase`, `Vocab`, `We`.
 
-The remaining rules encode a Microsoft house style or need information outside projected prose: heading/UI/URL structure, preferred regional date/time/punctuation/capitalization conventions, author viewpoint/register, organization vocabulary, and context for identity or militaristic metaphors. Examples include prescribed Oxford commas, mandatory contractions, bans on first-person writing, and punctuation placement inside quotation marks. Negative prescribes an en dash for negative numbers; importing that as a correction would be misleading. Units/Spacing and number formatting remain out under the explicit user preference. Passive, Adverbs, Jargon, Wordiness, and SentenceLength are restored because they fit existing contextual lens contracts even where they overlap.
+The remaining rules encode a Microsoft house style or need information outside projected prose:
+heading/UI/URL structure, preferred regional date/time/punctuation/capitalization conventions,
+author viewpoint/register, organization vocabulary, and context for identity or militaristic
+metaphors. Examples include prescribed Oxford commas, mandatory contractions, bans on first-person
+writing, and punctuation placement inside quotation marks. Negative prescribes an en dash for
+negative numbers; importing that as a correction would be misleading. Units/Spacing and number
+formatting remain out under the explicit user preference. Passive, Adverbs, Jargon, Wordiness, and
+SentenceLength are restored because they fit existing contextual lens contracts even where they
+overlap.
 
 ## Verification
 
-Focused regressions cover all 30 Slopless rules, all 20 restored Vale rules through the real embedded engine and pure adapter, all 43 restored Inclusive IDs, and all 29 canonical technical names. Resolver tests prove independent lenses, enabled-lens-only actions, exact concern deduplication, separate same-sentence advice, and serialized/restored Ignore. Use-case tests prove newly supported Vale lenses invalidate a missing-evidence cache and accept typing while analysis is pending. Existing protected-source, pronunciation, identity, cancellation, retry, and worker-startup tests remain applicable.
+Focused regressions cover all 30 Slopless rules, all 20 restored Vale rules through the real
+embedded engine and pure adapter, all 43 restored Inclusive IDs, and all 29 canonical technical
+names. Resolver tests prove independent lenses, enabled-lens-only actions, exact concern
+deduplication, separate same-sentence advice, and serialized/restored Ignore. Use-case tests prove
+newly supported Vale lenses invalidate a missing-evidence cache and accept typing while analysis is
+pending. Existing protected-source, pronunciation, identity, cancellation, retry, and worker-startup
+tests remain applicable.
 
-No component, CodeMirror decoration mechanism, layout, or cursor geometry changes in this review. UI coverage uses the existing styled cards, examples, and actions; browser validation is the representative assembled eager-startup boundary rather than duplicated end-to-end rule cases.
+No component, CodeMirror decoration mechanism, layout, or cursor geometry changes in this review. UI
+coverage uses the existing styled cards, examples, and actions; browser validation is the
+representative assembled eager-startup boundary rather than duplicated end-to-end rule cases.
 
 Verification completed: **257 frontend suites / 1,952 tests**, **51/51** combined
 real retext/textlint/Vale editorial fixtures, focused native writing/settings/desktop

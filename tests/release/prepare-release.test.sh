@@ -30,6 +30,10 @@ for command in npm go; do
     cat > "$mock_bin/$command" <<'MOCK'
 #!/usr/bin/env bash
 invocation="$(basename -- "$0") $*"
+if [ "$invocation" = "npm run test:pdf" ]; then
+    # Record how browser checks start their server: fresh (CI) and isolated.
+    invocation="$invocation CI=${CI:-} port=${FIGARO_PLAYWRIGHT_PORT:-}"
+fi
 if [ -n "${FIGARO_TEST_COMMAND_LOG:-}" ]; then
     printf '%s\n' "$invocation" >> "$FIGARO_TEST_COMMAND_LOG"
 fi
@@ -139,7 +143,7 @@ check-go-coverage.sh
 go test -race . ./internal/... ./cmd/...
 npx playwright install chromium
 go test -v ./internal/pdfexport -run ^TestRenderChromiumPDFAgainstOptInBrowser$
-npm run test:pdf
+npm run test:pdf CI=1 port=34125
 COMMANDS
 cmp "$check_root/expected" "$check_root/commands"
 grep -q '### Changed' "$check_root/output"

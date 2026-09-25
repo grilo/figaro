@@ -17,7 +17,8 @@ import {
     stripMarkdownTableMergeMetadata,
 } from './core/markdownTableEditorModel.js';
 import { getEditorContent } from './editor.js';
-import { authoredMermaidDiagramHeight } from './core/mermaidDiagramModel.js';
+import { authoredMermaidDiagramHeight, mermaidDiagramDisplaySize } from './core/mermaidDiagramModel.js';
+import { svgViewBoxSize } from './core/diagramSizeModel.js';
 
 const defaultPrintCSS = `
   @page { margin: 18mm; }
@@ -97,9 +98,13 @@ const defaultPrintCSS = `
   .footnotes li + li { margin-top: .65em; }
   .footnote-backref { margin-left: .35em; text-decoration: none; white-space: nowrap; }
   .figaro-print-diagram { margin: 1.4em 0; break-inside: avoid; page-break-inside: avoid; }
-  .figaro-print-diagram[data-figaro-height] { height: var(--figaro-diagram-height); }
-  .figaro-print-diagram-content { width: 100%; height: 100%; }
-  .figaro-print-diagram svg { display: block; max-width: 100%; max-height: 100%; margin: 0 auto; }
+  .figaro-print-diagram-content { width: 100%; }
+  .figaro-print-diagram svg { display: block; max-width: 100%; margin: 0 auto; }
+  /* An editor-resized diagram is drawn at its authored height: the width that
+     keeps its proportions, capped at the page width (the height then shrinks
+     in proportion). The !important overrides Mermaid's inline natural max-width. */
+  .figaro-print-diagram[data-figaro-height] svg { width: var(--figaro-diagram-width); height: auto; max-width: 100% !important; }
+  .figaro-print-diagram[data-figaro-height]:not([data-figaro-width]) svg { width: auto; height: var(--figaro-diagram-height); }
   @media print { .figaro-print-page-break { break-after: page !important; page-break-after: always !important; } }
 `;
 
@@ -285,6 +290,12 @@ function diagramLanguageFromCodeElement(codeElement) {
     return '';
 }
 
+/** Width that draws an SVG at `height` with the proportions of its viewBox. */
+export function diagramWidthForHeight(svg, height) {
+    const natural = svgViewBoxSize(svg?.getAttribute?.('viewBox'));
+    return mermaidDiagramDisplaySize({ natural, authoredHeight: height })?.width || 0;
+}
+
 function makePrintableDiagram(printable, language, svg, sourceElement = null) {
     const figure = printable.createElement('figure');
     figure.className = 'figaro-print-diagram';
@@ -307,6 +318,13 @@ function makePrintableDiagram(printable, language, svg, sourceElement = null) {
     content.className = 'figaro-print-diagram-content';
     content.innerHTML = svg;
     figure.appendChild(content);
+    if (authoredHeight) {
+        const width = diagramWidthForHeight(content.querySelector('svg'), authoredHeight);
+        if (width) {
+            figure.dataset.figaroWidth = String(width);
+            figure.style.setProperty('--figaro-diagram-width', `${width}px`);
+        }
+    }
     return figure;
 }
 

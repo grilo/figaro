@@ -45,8 +45,11 @@ make release-check VERSION=vMAJOR.MINOR.PATCH
 
 This validates synchronized metadata and the exact dated release notes in a
 disposable directory, then runs the complete verification suite without
-changing the changelog, index, commits, tags, or remotes. Fix failures from
-evidence and rerun. Never bypass a check or claim verification that did not
+changing the changelog, index, commits, tags, or remotes. Its browser checks
+start their own fresh server (`CI=1`), matching GitHub Actions, so a local
+pass cannot rely on state from earlier runs; keep that when changing the
+suite, and use the same setting when reproducing a CI-only failure. Fix
+failures from evidence and rerun. Never bypass a check or claim verification that did not
 run. Apply relevant native checks from `docs/TESTING.md`; Chromium does not
 prove desktop webview behavior.
 

@@ -62,15 +62,26 @@ Use **Settings** to choose a theme, fonts, text width, and editor preferences.
 Collapse the sidebar with **Ctrl/Cmd+Shift+B** to enter Pure mode. Expand it to
 restore the surrounding workspace and any previously open details pane.
 
+Keep several notes open in tabs; middle-click a tab to close it. Figaro asks
+before discarding unsaved changes.
+
 The buttons beside the document open Outline, Raw Text Preview, PDF Preview,
-or Writing lenses. Drag the pane separator to change its width. Switching
+or Writing lenses, and keep your cursor in the editor so you can carry on
+typing. Selecting an Outline heading brings it to the top of the editor. Drag
+the pane separator to change its width. Switching
 panes keeps that width, and returning to a document restores its previous pane
 for the session. Click an active Calendar, Kanban, Graph, or Settings control
 again to return to the previous view.
 
-Vault preferences and workspace state live in `.config/` inside the vault and
-can be tracked in Git. Machine preferences live in the operating system's application-data directory.
-These include window geometry and the selected PDF browser.
+**Settings → Editor → Smooth mouse-wheel scrolling** eases wheel steps in the
+editor. It is off by default, respects reduced motion, and leaves macOS
+scrolling native.
+
+Vault preferences live in `.config/` inside the vault and can be tracked in
+Git. Machine preferences live in the operating system's application-data
+directory. These include open tabs and cursor positions, window geometry, and
+the selected PDF browser, so a synchronized vault never carries one
+computer's workspace to another.
 Keep the whole vault, including `.config/`, when backing up your workspace.
 
 ## Save, history, and recovery

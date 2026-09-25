@@ -14,7 +14,9 @@
     ],
     "docs": [
       "docs/PROMPT.md#45-link-click-behavior",
-      "docs/testing/export.md#raw-text-preview-and-heading-link-regressions",
+      "docs/testing/export.md#raw-text-preview-and-heading-link-regressions"
+    ],
+    "history": [
       "docs/EDITOR_PERFORMANCE.md#inline-cursor-navigation-follow-up"
     ],
     "tests": [
@@ -110,33 +112,35 @@
     "docs": [
       "docs/LIVEPREVIEW.md#4-block-widget-geometry-contract",
       "docs/testing/editor.md#block-widget-and-cursor-regressions",
+      "docs/EDITOR_UPDATES.md",
+      "docs/EDITOR_UPDATES.md#installed-extension-audit",
+      "frontend/vendored/codemirror-live-markdown/README.md",
+      "frontend/vendored/@replit/codemirror-indentation-markers/README.md",
+      "ARCHITECTURE.md#optional-editor-wheel-smoothing",
+      "docs/testing/editor.md#optional-wheel-scrolling",
+      "docs/testing/writing.md#passage-activity-dates",
+      "docs/testing/workspace.md#pure-mode-regressions",
+      "docs/testing/editor.md#ux-recovery-and-narrow-writing-regressions",
+      "docs/WRITING.md#write-in-markdown"
+    ],
+    "history": [
       "docs/EDITOR_PERFORMANCE.md",
       "docs/EDITOR_PERFORMANCE.md#cursor-only-work-follow-up",
       "docs/EDITOR_PERFORMANCE.md#typing-and-interaction-follow-up",
-      "docs/EDITOR_UPDATES.md",
       "docs/EDITOR_PERFORMANCE.md#bounded-cursor-decoration-work",
-      "docs/EDITOR_UPDATES.md#installed-extension-audit",
-      "frontend/vendored/codemirror-live-markdown/README.md",
       "docs/EDITOR_PERFORMANCE.md#bundled-markdown-cursor-work",
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
       "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements",
       "docs/EDITOR_PERFORMANCE.md#inline-cursor-navigation-follow-up",
       "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes",
       "docs/EDITOR_PERFORMANCE.md#consolidated-interaction-findings",
-      "frontend/vendored/@replit/codemirror-indentation-markers/README.md",
       "docs/benchmarks/editor-interaction-findings-2026-09-20.md",
-      "ARCHITECTURE.md#optional-editor-wheel-smoothing",
-      "docs/testing/editor.md#optional-wheel-scrolling",
       "docs/EDITOR_PERFORMANCE.md#scoped-markdown-projection-reuse",
       "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#editor-measurements",
-      "docs/testing/writing.md#passage-activity-dates",
-      "docs/testing/workspace.md#pure-mode-regressions",
       "docs/EDITOR_PERFORMANCE.md#prepared-diagram-return",
       "docs/benchmarks/diagram-remount-2026-09-21.md#native-measurements",
       "docs/EDITOR_PERFORMANCE.md#prepared-code-math-table-and-image-returns",
-      "docs/benchmarks/preview-retention-2026-09-21.md#native-measurements",
-      "docs/testing/editor.md#ux-recovery-and-narrow-writing-regressions",
-      "docs/WRITING.md#write-in-markdown"
+      "docs/benchmarks/preview-retention-2026-09-21.md#native-measurements"
     ],
     "tests": [
       "tests/frontend/unit/verticalCursorModel.test.js",
@@ -354,7 +358,9 @@
       "ARCHITECTURE.md#editor-decoration-updates",
       "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
       "ARCHITECTURE.md#note-opening-and-recovery-ownership",
-      "docs/NOTES_AND_PLANNING.md#capture-and-connect",
+      "docs/NOTES_AND_PLANNING.md#capture-and-connect"
+    ],
+    "history": [
       "docs/EDITOR_PERFORMANCE.md#held-key-style-invalidation",
       "docs/benchmarks/held-key-style-invalidation-2026-09-25.md#findings"
     ],
@@ -406,9 +412,11 @@
       "docs/EDITOR_UPDATES.md",
       "ARCHITECTURE.md#editor-update-dependencies",
       "docs/testing/editor.md#editor-update-contract-regressions",
+      "docs/EDITOR_UPDATES.md#installed-extension-audit"
+    ],
+    "history": [
       "docs/EDITOR_PERFORMANCE.md#editor-update-architecture-follow-up",
       "docs/EDITOR_PERFORMANCE.md#bounded-cursor-decoration-work",
-      "docs/EDITOR_UPDATES.md#installed-extension-audit",
       "docs/EDITOR_PERFORMANCE.md#bundled-markdown-cursor-work",
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
       "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements",
@@ -478,7 +486,7 @@
     ],
     "docs": [
       "docs/testing/editor.md#smart-rich-paste-regressions",
-      "docs/PROMPT.md#4-markdown-editor"
+      "docs/PROMPT.md#418-images-and-smart-paste"
     ],
     "tests": [
       "tests/frontend/unit/clipboardPaste.test.js",
@@ -502,8 +510,11 @@
     "docs": [
       "docs/WRITING_ENGINE.md#asynchronous-execution-contract",
       "docs/testing/writing.md#writing-review-regression-coverage",
-      "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes",
       "docs/WRITING_ENGINE.md#incremental-editing-work--10-september-2026",
+      "ARCHITECTURE.md#writing-lenses-and-prose-analysis"
+    ],
+    "history": [
+      "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes",
       "docs/EDITOR_PERFORMANCE.md#scoped-markdown-projection-reuse",
       "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#writing-measurements"
     ],
@@ -644,28 +655,30 @@
       "docs/testing/writing.md#curated-grammar-regression-coverage",
       "docs/WRITING_HARPER.md#native-verification--19-september-2026",
       "docs/WRITING_HARPER.md#added-constructions-and-homophones",
+      "docs/WRITING_HARPER.md#pronoun-and-question-context",
+      "docs/WRITING_HARPER.md#broad-phrase-and-mechanics-coverage",
+      "docs/WRITING_HARPER.md#contextual-usage-and-noun-subjects",
+      "docs/WRITING_HARPER.md#broader-contexts-and-quality-follow-up",
+      "docs/WRITING_HARPER.md#document-gap-corrections"
+    ],
+    "history": [
       "docs/benchmarks/writing-grammar-expansion-2026-09-19.md#behavioral-comparison-with-native-harper",
       "docs/benchmarks/writing-grammar-expansion-2026-09-19.md#packaged-linux-application-measurements",
-      "docs/WRITING_HARPER.md#pronoun-and-question-context",
       "docs/benchmarks/writing-grammar-context-2026-09-19.md#behavioral-comparison",
       "docs/benchmarks/writing-grammar-context-2026-09-19.md#packaged-linux-verification",
       "docs/benchmarks/writing-documents-2026-09-20.md#results",
-      "docs/WRITING_HARPER.md#broad-phrase-and-mechanics-coverage",
       "docs/benchmarks/writing-grammar-broad-2026-09-20.md#scope-and-method",
       "docs/benchmarks/writing-grammar-broad-2026-09-20.md#behavioral-comparison",
       "docs/benchmarks/writing-grammar-broad-2026-09-20.md#whole-document-review",
       "docs/benchmarks/writing-grammar-broad-2026-09-20.md#packaged-linux-verification",
       "docs/benchmarks/writing-grammar-broad-2026-09-20.md#evidence-and-reproduction",
-      "docs/WRITING_HARPER.md#contextual-usage-and-noun-subjects",
       "docs/benchmarks/writing-grammar-usage-2026-09-20.md#scope-and-method",
       "docs/benchmarks/writing-grammar-usage-2026-09-20.md#behavioral-comparison",
       "docs/benchmarks/writing-grammar-usage-2026-09-20.md#whole-document-review",
       "docs/benchmarks/writing-grammar-usage-2026-09-20.md#packaged-linux-verification",
       "docs/benchmarks/writing-grammar-usage-2026-09-20.md#evidence-and-reproduction",
-      "docs/WRITING_HARPER.md#broader-contexts-and-quality-follow-up",
       "docs/benchmarks/writing-quality-2026-09-20.md#grammar-comparison",
-      "docs/benchmarks/writing-quality-2026-09-20.md#packaged-linux-verification",
-      "docs/WRITING_HARPER.md#document-gap-corrections"
+      "docs/benchmarks/writing-quality-2026-09-20.md#packaged-linux-verification"
     ],
     "tests": [
       "tests/frontend/unit/writingGrammar.test.js",
@@ -703,13 +716,15 @@
     ],
     "docs": [
       "docs/WRITING_CORPUS.md#september-whole-document-snapshot",
-      "docs/benchmarks/writing-documents-2026-09-20.md#corpus-and-method",
-      "docs/benchmarks/writing-documents-2026-09-20.md#reproduction-and-verification",
       "tests/fixtures/writing-documents/README.md",
       "THIRD_PARTY_NOTICES.md#evaluation-only-markdown-manuals",
-      "docs/benchmarks/writing-grammar-broad-2026-09-20.md#whole-document-review",
       "docs/WRITING_CORPUS.md#fresh-quality-evaluation",
-      "tests/fixtures/writing-quality-documents/README.md",
+      "tests/fixtures/writing-quality-documents/README.md"
+    ],
+    "history": [
+      "docs/benchmarks/writing-documents-2026-09-20.md#corpus-and-method",
+      "docs/benchmarks/writing-documents-2026-09-20.md#reproduction-and-verification",
+      "docs/benchmarks/writing-grammar-broad-2026-09-20.md#whole-document-review",
       "docs/benchmarks/writing-quality-2026-09-20.md#scope-and-method",
       "docs/benchmarks/writing-quality-2026-09-20.md#known-document-regressions",
       "docs/benchmarks/writing-quality-2026-09-20.md#fresh-documents",
@@ -814,7 +829,9 @@
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#retained-results-while-editing--10-september-2026",
-      "docs/testing/workspace.md#retained-writing-results-and-adjacent-mermaid-navigation",
+      "docs/testing/workspace.md#retained-writing-results-and-adjacent-mermaid-navigation"
+    ],
+    "history": [
       "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes"
     ],
     "tests": [
@@ -853,7 +870,9 @@
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#inline-review-and-personal-spelling-words",
-      "docs/WRITING.md#review-suggestions",
+      "docs/WRITING.md#review-suggestions"
+    ],
+    "history": [
       "docs/EDITOR_PERFORMANCE.md#inline-cursor-navigation-follow-up",
       "docs/benchmarks/editor-typing-inventory-2026-09-20.md#measurement-and-worthwhile-fixes"
     ],
@@ -899,7 +918,8 @@
     "docs": [
       "docs/WRITING.md#choose-writing-lenses",
       "docs/testing/writing.md#consolidated-writing-lens-controls",
-      "docs/testing/writing.md#writing-lens-help"
+      "docs/testing/writing.md#writing-lens-help",
+      "ARCHITECTURE.md#writing-lenses-and-prose-analysis"
     ],
     "tests": [
       "tests/frontend/unit/writingLensesModel.test.js",
@@ -1034,12 +1054,14 @@
       "ARCHITECTURE.md#session-state-is-not-settings",
       "docs/testing/workspace.md#file-revision-continuity",
       "docs/EDITOR_UPDATES.md#ownership-and-notification-contract",
-      "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
-      "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements",
       "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
       "ARCHITECTURE.md#note-opening-and-recovery-ownership",
       "docs/testing/workspace.md#slow-disk-workspace-io-regressions",
       "ARCHITECTURE.md#machine-local-application-state"
+    ],
+    "history": [
+      "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
+      "docs/EDITOR_PERFORMANCE.md#five-further-interaction-improvements"
     ],
     "tests": [
       "tests/frontend/unit/tabManager.test.js",
@@ -1100,9 +1122,11 @@
       "frontend/js/core/searchMatchModel.js"
     ],
     "docs": [
-      "docs/PROMPT.md#41-capabilities",
+      "docs/PROMPT.md#4110-typing-continuity-performance-search-and-saving",
       "docs/testing/editor.md#editor-update-contract-regressions",
-      "docs/EDITOR_UPDATES.md#installed-extension-audit",
+      "docs/EDITOR_UPDATES.md#installed-extension-audit"
+    ],
+    "history": [
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work"
     ],
     "tests": [
@@ -1234,7 +1258,9 @@
       "docs/PROMPT.md#77-document-outline",
       "ARCHITECTURE.md#outline-navigation",
       "ARCHITECTURE.md#editor-decoration-updates",
-      "docs/testing/workspace.md#sidebar-navigation-regressions",
+      "docs/testing/workspace.md#sidebar-navigation-regressions"
+    ],
+    "history": [
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work"
     ],
     "tests": [
@@ -1348,8 +1374,10 @@
       "docs/PDF_STYLING.md",
       "docs/testing/export.md",
       "ARCHITECTURE.md#pdf-rendering-and-export-snapshots",
-      "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#pdf-workflow-results",
       "docs/PDF_STYLING.md#performance-measurements"
+    ],
+    "history": [
+      "docs/benchmarks/reparse-and-pdf-cost-2026-09-20.md#pdf-workflow-results"
     ],
     "tests": [
       "tests/frontend/unit/pdfPreview.test.js",
@@ -1402,11 +1430,21 @@
       "frontend/js/usecases/markdownDocumentLint.js",
       "frontend/js/core/previewCache.js",
       "frontend/js/liveDiagramPlugin.js",
-      "frontend/js/usecases/diagramQuietScheduler.js"
+      "frontend/js/diagramPresentation.js",
+      "frontend/js/usecases/diagramQuietScheduler.js",
+      "frontend/js/core/mermaidDiagramModel.js",
+      "frontend/js/core/diagramSizeModel.js",
+      "frontend/js/adapters/diagramSizeMemory.js"
     ],
     "docs": [
       "docs/DIAGRAMS_AND_EXPORT.md#mermaid-diagrams",
-      "docs/PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite",
+      "docs/PROMPT.md#3031-live-widgets-and-rendering",
+      "docs/PROMPT.md#3033-mermaid-editor",
+      "docs/LIVEPREVIEW.md#authored-and-content-sized-diagrams",
+      "ARCHITECTURE.md#diagram-rendering-and-caching",
+      "ARCHITECTURE.md#live-diagram-geometry"
+    ],
+    "history": [
       "docs/EDITOR_PERFORMANCE.md#consolidated-interaction-findings",
       "docs/benchmarks/editor-interaction-findings-2026-09-20.md",
       "docs/EDITOR_PERFORMANCE.md#prepared-diagram-return",
@@ -1421,9 +1459,12 @@
       "tests/frontend/unit/diagramRenderer.test.js",
       "tests/frontend/unit/editorRemainingWork.test.js",
       "tests/frontend/unit/previewCache.test.js",
-      "tests/frontend/unit/liveDiagramPlugin.test.js"
+      "tests/frontend/unit/liveDiagramPlugin.test.js",
+      "tests/frontend/unit/diagramSizeMemory.test.js",
+      "tests/frontend/unit/diagramPresentation.test.js"
     ],
     "extraChecks": [
+      "Run tests/e2e/mermaidEditor.spec.js for Mermaid drawing size, box height across source reveal, and the resize handle.",
       "Use charts for Vega/Vega-Lite editing. Add affected Draw.io/table tests for those formats; frame, geometry, or printable changes need existing browser boundaries."
     ],
     "symbols": {
@@ -1451,6 +1492,23 @@
       "frontend/js/usecases/diagramQuietScheduler.js": [
         "scheduleDiagramAfterQuiet",
         "DIAGRAM_QUIET_MS"
+      ],
+      "frontend/js/core/mermaidDiagramModel.js": [
+        "mermaidDiagramDisplaySize",
+        "mermaidDiagramResizePlan",
+        "setMermaidDiagramHeight"
+      ],
+      "frontend/js/core/diagramSizeModel.js": [
+        "svgViewBoxSize",
+        "diagramSizeKey",
+        "rememberDiagramSize"
+      ],
+      "frontend/js/adapters/diagramSizeMemory.js": [
+        "createDiagramSizeMemory"
+      ],
+      "frontend/js/diagramPresentation.js": [
+        "createDiagramPresentation",
+        "diagramSourceBoxHeight"
       ]
     }
   },
@@ -1463,7 +1521,8 @@
     ],
     "docs": [
       "docs/DIAGRAMS_AND_EXPORT.md#charts-and-drawio",
-      "docs/PROMPT.md#30-diagram-support-mermaid-vega-and-vega-lite",
+      "docs/PROMPT.md#3032-diagram-actions-and-the-chart-editor",
+      "ARCHITECTURE.md#mermaid-and-chart-editors",
       "docs/testing/workspace.md#chart-heavy-editing-performance-verification"
     ],
     "tests": [
@@ -1613,15 +1672,19 @@
       "scripts/feature-workflow.cjs",
       "scripts/feature-workflow.mjs",
       "docs/feature-map.json",
-      "AGENTS.md"
+      "AGENTS.md",
+      "scripts/docs-stale.cjs"
     ],
     "docs": [
       "CONTRIBUTING.md#focused-change-workflow",
-      "docs/TESTING.md#focused-iteration",
+      "docs/TESTING.md#focused-iteration"
+    ],
+    "history": [
       "docs/benchmarks/feature-context-2026-09-13.md#feature-discovery-context-baseline--13-september-2026"
     ],
     "tests": [
-      "tests/frontend/unit/featureWorkflow.test.js"
+      "tests/frontend/unit/featureWorkflow.test.js",
+      "tests/frontend/unit/docsStale.test.js"
     ],
     "extraChecks": [
       "Run npm run context:check; audit moved documentation links and preserve all required broader checks."
@@ -1635,6 +1698,10 @@
       "scripts/feature-workflow.mjs": [
         "checkReferences",
         "runFocused"
+      ],
+      "scripts/docs-stale.cjs": [
+        "staleDocHits",
+        "isLivingDoc"
       ]
     }
   }

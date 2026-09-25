@@ -23,7 +23,8 @@
     "context": "node scripts/feature-workflow.mjs context",
     "context:generate": "node scripts/feature-workflow.mjs generate",
     "context:check": "node scripts/feature-workflow.mjs check",
-    "test:focus": "node scripts/feature-workflow.mjs test"
+    "test:focus": "node scripts/feature-workflow.mjs test",
+    "docs:stale": "node scripts/docs-stale.mjs"
   },
   "devDependencies": {
     "@babel/core": "^8.0.1",

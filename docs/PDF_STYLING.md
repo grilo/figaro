@@ -289,9 +289,11 @@ theme. Printable HTML, PDF Preview, and generated PDFs render the unchanged
 source with Mermaid's document defaults, and the two SVG variants use separate
 cache entries.
 An optional `%% figaro:height N` directive inside a Mermaid fence records the
-editor's vertical resize (180–900px). PDF Preview and generated PDFs apply that
-height to the printable figure; the bottom-center lower-edge resize control itself remains
-editor-only.
+editor's vertical resize (60–900px). PDF Preview and generated PDFs draw the
+diagram at that height, using the width its proportions need; a diagram that
+would be wider than the page is capped at the page width and its height shrinks
+in proportion. The figure wraps the drawing, so no empty space is reserved. The
+bottom-center lower-edge resize control itself remains editor-only.
 
 Each fenced `code.figaro-print-code` also carries
 `data-highlight-language="…"`; automatically detected fences additionally carry

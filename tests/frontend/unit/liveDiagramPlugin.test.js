@@ -485,6 +485,72 @@ describe('live diagram preview', () => {
         expect(undo(view)).toBe(false);
     });
 
+    test('draws Mermaid at its natural size and keeps the rendered box for revealed and edited source', async () => {
+        const observers = [];
+        const previousObserver = window.ResizeObserver;
+        window.ResizeObserver = class {
+            constructor(callback) { this.callback = callback; observers.push(this); }
+            observe(element) { this.element = element; }
+            disconnect() { this.disconnected = true; }
+        };
+        window.mermaid.render.mockResolvedValue({ svg: '<svg viewBox="0 0 400 120" style="max-width: 400px"></svg>' });
+        try {
+            const source = ['Before', '', '```mermaid', 'flowchart LR', '  Sized --> Box', '```', '', 'After'].join('\n');
+            const diagramField = createDiagramField(StateField, EditorView, Decoration, WidgetType,
+                shouldShowSource, mouseSelectingField);
+            view = new EditorView({
+                state: EditorState.create({
+                    doc: source,
+                    selection: { anchor: source.length },
+                    extensions: [markdownLanguage, collapseOnSelectionFacet.of(true), mouseSelectingField, diagramField],
+                }),
+                parent: document.body,
+            });
+            let root = view.dom.querySelector('.cm-block-widget--resizable-mermaid');
+            expect(root.style.getPropertyValue('--figaro-diagram-pending-height')).toBe('300px');
+            expect(root.dataset.sourceFootprintWrap).toBe('none');
+            await flush();
+
+            expect(root.querySelector('.cm-live-diagram-canvas').dataset.diagramState).toBe('ready');
+            expect(root.querySelector('.cm-live-diagram-graphic > svg')).not.toBeNull();
+            expect(root.querySelector('.cm-live-diagram-canvas > .cm-mermaid-diagram-resize-handle')).not.toBeNull();
+            expect(root.style.getPropertyValue('--figaro-diagram-width')).toBe('400px');
+            expect(root.style.getPropertyValue('--figaro-diagram-aspect')).toBe('400 / 120');
+            expect(root.style.getPropertyValue('--figaro-diagram-pending-height')).toBe('');
+            expect(root.dataset.figaroDiagramHeight).toBe('120');
+            const boxObserver = observers.find(observer => observer.element === root);
+            boxObserver.callback([{ borderBoxSize: [{ blockSize: 250 }] }]);
+
+            view.dispatch({ selection: { anchor: source.indexOf('Sized') } });
+            const placeholder = () => view.dom.querySelector('.cm-mermaid-diagram-source-placeholder')
+                .style.getPropertyValue('--cm-diagram-source-height');
+            expect(placeholder()).toBe('calc(250px - 3lh)');
+
+            // A height measured at another column width is not reused; the
+            // remembered drawing size gives the estimate instead.
+            const layoutObserver = observers.find(observer => observer.element === view.contentDOM);
+            layoutObserver.callback([{ contentRect: { width: 480 } }]);
+            view.dispatch({ selection: { anchor: source.length } });
+            view.dispatch({ selection: { anchor: source.indexOf('Sized') } });
+            expect(placeholder()).toBe('calc(185px - 3lh)');
+            layoutObserver.callback([{ contentRect: { width: 0 } }]);
+            view.dispatch({ selection: { anchor: source.length } });
+            view.dispatch({ selection: { anchor: source.indexOf('Sized') } });
+            expect(placeholder()).toBe('calc(250px - 3lh)');
+
+            // Typing keeps the rendered box until the new drawing exists.
+            view.dispatch({ changes: { from: source.indexOf('Box'), insert: 'New' } });
+            expect(placeholder()).toBe('calc(250px - 3lh)');
+
+            window.mermaid.render.mockImplementation(() => new Promise(() => {}));
+            view.dispatch({ selection: { anchor: view.state.doc.length } });
+            root = view.dom.querySelector('.cm-block-widget--resizable-mermaid');
+            expect(root.style.getPropertyValue('--cm-diagram-box-hint')).toBe('250px');
+        } finally {
+            window.ResizeObserver = previousObserver;
+        }
+    });
+
     test('cancels a chart resize and reserves its authored height while source is revealed', () => {
         window.vegaEmbed = jest.fn().mockResolvedValue({
             view: {

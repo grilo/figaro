@@ -10,7 +10,7 @@ const features = workflow.validateFeatureMap(JSON.parse(readFileSync(resolve(roo
 
 function checkReferences(selected = features) {
     for (const feature of selected) {
-        for (const ref of [...feature.sources, ...feature.docs, ...feature.tests]) {
+        for (const ref of [...feature.sources, ...feature.docs, ...feature.tests, ...(feature.history || [])]) {
             const [file, anchor] = ref.split('#');
             if (!statSync(resolve(root, file)).isFile()) throw new Error(`Not a file: ${ref}`);
             if (anchor) {
@@ -64,7 +64,9 @@ function runFocused(selected) {
 }
 
 try {
-    const [command, ...ids] = process.argv.slice(2);
+    const [command, ...args] = process.argv.slice(2);
+    const history = args.includes('--history');
+    const ids = args.filter(arg => arg !== '--history');
     if (command === 'generate' || command === 'check') {
         if (ids.length) throw new Error(`${command} takes no feature arguments`);
         checkReferences();
@@ -77,7 +79,7 @@ try {
         else {
             const selected = workflow.selectFeatures(features, ids);
             checkReferences(selected);
-            console.log(workflow.renderContext(selected));
+            console.log(workflow.renderContext(selected, { history }));
         }
     } else if (command === 'test') {
         const selected = workflow.selectFeatures(features, ids);

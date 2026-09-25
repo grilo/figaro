@@ -40,8 +40,12 @@ the original. The Table, Mermaid, and Chart editors can be resized from their
 lower-right handles.
 
 An unstyled live diagram follows the app theme. Explicit styling stays in the
-Mermaid source and carries into PDF output. Drag a live diagram's lower edge to
-change its height; Figaro records the height in a Mermaid comment.
+Mermaid source and carries into PDF output. A live diagram appears at the size
+the PDF prints it, centered in a box as tall as the diagram or its source,
+whichever is taller, so revealing the source never moves the text below. Drag
+the diagram's lower edge to change its height; the width follows its
+proportions, and Figaro records the height in a Mermaid comment that PDF
+output honors.
 
 ## Charts and Draw.io
 

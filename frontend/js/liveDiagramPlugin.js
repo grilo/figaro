@@ -17,22 +17,13 @@ import { Transaction } from '@codemirror/state';
 import { ViewPlugin } from '@codemirror/view';
 import { diagramLanguages, diagramRenderIdentity, renderDiagramSVG } from './diagramRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
-import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
+import { markSourceFootprint } from './sourceFootprint.js';
 import { createDiagramRenderQueue } from './usecases/diagramRenderQueue.js';
 import { DIAGRAM_QUIET_MS, scheduleDiagramAfterQuiet } from './usecases/diagramQuietScheduler.js';
 import { vegaRenderDimensions, vegaUsesContainerSize } from './core/diagramRenderCacheModel.js';
 import { createPreviewCache } from './core/previewCache.js';
-import {
-    setVegaLiteChartHeight,
-    vegaLiteChartHeight,
-    vegaLiteChartResizePlan,
-} from './core/vegaLiteChartEditorModel.js';
-import {
-    mermaidDiagramHeight,
-    mermaidDiagramResizePlan,
-    setMermaidDiagramHeight,
-} from './core/mermaidDiagramModel.js';
-import { mermaidUsesApplicationTheme } from './core/mermaidStyleEditorModel.js';
+import { createDiagramPresentation, diagramSourceBoxHeight, mermaidSizeKeys } from './diagramPresentation.js';
+import { createDiagramSizeMemory } from './adapters/diagramSizeMemory.js';
 
 export { diagramLanguages };
 
@@ -201,7 +192,7 @@ function scheduleDiagramIdle(callback, view) {
     });
 }
 
-function createDiagramWidget(WidgetType, renderQueue) {
+function createDiagramWidget(WidgetType, renderQueue, sizeMemory) {
     return class DiagramWidget extends WidgetType {
         constructor(
             lang,
@@ -212,6 +203,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
             from = 0,
             to = 0,
             sourceIdentity = null,
+            boxHint = 0,
         ) {
             super();
             this.lang = lang;
@@ -222,24 +214,22 @@ function createDiagramWidget(WidgetType, renderQueue) {
             this.from = from;
             this.to = to;
             this.sourceIdentity = sourceIdentity;
-            this.chartHeight = lang === 'vega-lite' ? vegaLiteChartHeight(code) : null;
-            this.mermaidHeight = lang === 'mermaid' ? mermaidDiagramHeight(code) : null;
-            this.diagramHeight = this.chartHeight || this.mermaidHeight;
+            this.presentation = createDiagramPresentation({ lang, code, sizeMemory, boxHint });
             this.destroyed = false;
             this.renderVersion = 0;
             this.renderTask = null;
-            this.stopGraphicFit = null;
+            this.stopSettle = null;
         }
 
+        // Every geometry input derives from the source, so equal sources
+        // share a mounted widget.
         eq(other) {
             return other instanceof DiagramWidget &&
                 other.lang === this.lang &&
                 other.code === this.code &&
                 other.recoveredFence === this.recoveredFence &&
                 other.sourceLines === this.sourceLines &&
-                other.sourceText === this.sourceText &&
-                other.chartHeight === this.chartHeight &&
-                other.mermaidHeight === this.mermaidHeight;
+                other.sourceText === this.sourceText;
         }
 
         currentBlock(view, root) {
@@ -257,71 +247,48 @@ function createDiagramWidget(WidgetType, renderQueue) {
             )) || null;
         }
 
-        resizePlan(startHeight, deltaY) {
-            return this.lang === 'mermaid'
-                ? mermaidDiagramResizePlan({ startHeight, deltaY })
-                : vegaLiteChartResizePlan({ startHeight, deltaY });
-        }
-
-        applyDiagramHeight(root, height) {
-            const normalized = this.resizePlan(height, 0);
-            root.dataset.figaroDiagramHeight = String(normalized);
-            if (this.lang === 'vega-lite') root.dataset.figaroChartHeight = String(normalized);
-            root.style.setProperty('--cm-source-footprint-height', `${normalized + 44}px`);
-            root.querySelector('.cm-diagram-resize-readout').textContent = `${normalized}px high`;
-            return normalized;
-        }
-
-        createDiagramResizeHandle(view, root) {
-            const isMermaid = this.lang === 'mermaid';
-            const label = isMermaid ? 'Resize Mermaid diagram vertically' : 'Resize chart vertically';
+        createDiagramResizeHandle(view, root, anchor) {
+            const presentation = this.presentation;
             const handle = document.createElement('button');
             handle.type = 'button';
-            handle.className = `ui-image-resize-handle cm-diagram-resize-handle ${isMermaid ? 'cm-mermaid-diagram-resize-handle' : 'cm-vega-lite-chart-resize-handle'}`;
-            handle.dataset.uiTooltip = label;
-            handle.setAttribute('aria-label', label);
+            handle.className = `ui-image-resize-handle cm-diagram-resize-handle cm-${presentation.kind}-resize-handle`;
+            handle.dataset.uiTooltip = presentation.label;
+            handle.setAttribute('aria-label', presentation.label);
             const readout = document.createElement('output');
-            readout.className = `cm-diagram-resize-readout ${isMermaid ? 'cm-mermaid-diagram-resize-readout' : 'cm-vega-lite-chart-resize-readout'}`;
+            readout.className = `cm-diagram-resize-readout cm-${presentation.kind}-resize-readout`;
             readout.setAttribute('aria-live', 'polite');
-            readout.textContent = `${this.diagramHeight}px high`;
             handle.addEventListener('pointerdown', event => {
                 if (event.button !== 0) return;
                 event.preventDefault();
                 event.stopPropagation();
-                const start = { y: event.clientY, height: this.diagramHeight };
+                const start = { y: event.clientY, ...presentation.start(root) };
                 let currentHeight = start.height;
                 const tooltip = handle.dataset.uiTooltip;
                 handle.removeAttribute('data-ui-tooltip');
                 root.classList.add('is-resizing');
                 view.dom.classList.add('cm-diagram-resizing');
-                if (!isMermaid) view.dom.classList.add('cm-vega-lite-chart-resizing');
+                if (presentation.viewClass) view.dom.classList.add(presentation.viewClass);
                 handle.setPointerCapture?.(event.pointerId);
 
                 const move = moveEvent => {
-                    currentHeight = this.resizePlan(start.height, moveEvent.clientY - start.y);
-                    this.applyDiagramHeight(root, currentHeight);
+                    currentHeight = presentation.plan(start.height, moveEvent.clientY - start.y, start.maxHeight);
+                    presentation.apply(root, currentHeight);
                 };
                 const finish = endEvent => {
                     root.classList.remove('is-resizing');
                     view.dom.classList.remove('cm-diagram-resizing');
-                    view.dom.classList.remove('cm-vega-lite-chart-resizing');
+                    if (presentation.viewClass) view.dom.classList.remove(presentation.viewClass);
                     const changed = currentHeight !== start.height;
-                    if (endEvent.type === 'pointerup' && changed) {
-                        const block = this.currentBlock(view, root);
-                        const source = block ? (block.rawCode ?? block.code) : '';
-                        const replacement = isMermaid
-                            ? setMermaidDiagramHeight(source, currentHeight, view.state.lineBreak)
-                            : setVegaLiteChartHeight(source, currentHeight);
-                        if (block && replacement && replacement !== source) {
-                            view.dispatch({
-                                changes: { from: block.contentFrom, to: block.contentTo, insert: `${replacement}${view.state.lineBreak}` },
-                                annotations: Transaction.userEvent.of(isMermaid ? 'diagram.resize' : 'chart.resize'),
-                            });
-                        } else {
-                            this.applyDiagramHeight(root, start.height);
-                        }
+                    const block = endEvent.type === 'pointerup' && changed ? this.currentBlock(view, root) : null;
+                    const source = block ? (block.rawCode ?? block.code) : '';
+                    const replacement = block ? presentation.replacement(source, currentHeight, view.state.lineBreak) : '';
+                    if (replacement && replacement !== source) {
+                        view.dispatch({
+                            changes: { from: block.contentFrom, to: block.contentTo, insert: `${replacement}${view.state.lineBreak}` },
+                            annotations: Transaction.userEvent.of(presentation.userEvent),
+                        });
                     } else {
-                        this.applyDiagramHeight(root, start.height);
+                        presentation.restore(root);
                     }
                     if (handle.hasPointerCapture?.(endEvent.pointerId)) {
                         handle.releasePointerCapture(endEvent.pointerId);
@@ -335,7 +302,8 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 handle.addEventListener('pointerup', finish);
                 handle.addEventListener('pointercancel', finish);
             });
-            root.append(handle, readout);
+            anchor.append(handle);
+            root.append(readout);
         }
 
         toDOM(view) {
@@ -358,28 +326,20 @@ function createDiagramWidget(WidgetType, renderQueue) {
             const content = document.createElement('div');
             content.className = 'cm-live-diagram-view';
             content.setAttribute('aria-live', 'polite');
-            setMessage(content, 'cm-live-diagram-loading', 'Rendering ' + this.lang + '…');
-
             dom.append(label, content);
             const wrapper = wrapBlockWidget(dom, 'cm-block-widget--diagram');
-            if (this.lang === 'mermaid') {
-                wrapper.classList.add('cm-block-widget--mermaid');
-                if (mermaidUsesApplicationTheme(this.code)) {
-                    wrapper.classList.add('cm-block-widget--application-mermaid');
-                }
-            }
+            const presentation = this.presentation;
+            const { target, anchor } = presentation.mount(wrapper, content);
+            setMessage(target, 'cm-live-diagram-loading', 'Rendering ' + this.lang + '…');
             markSourceFootprint(wrapper, {
                 kind: this.lang,
                 lineCount: this.sourceLines,
                 lineHeight: view?.defaultLineHeight,
                 sourceText: this.sourceText,
             });
-            if (this.diagramHeight) {
-                wrapper.classList.add('cm-block-widget--resizable-diagram');
-                if (this.chartHeight) wrapper.classList.add('cm-block-widget--figaro-chart');
-                if (this.mermaidHeight) wrapper.classList.add('cm-block-widget--resizable-mermaid');
-                this.createDiagramResizeHandle(view, wrapper);
-                this.applyDiagramHeight(wrapper, this.diagramHeight);
+            if (presentation.resizable) {
+                this.createDiagramResizeHandle(view, wrapper, anchor);
+                presentation.initialize(wrapper);
             }
             const requestRender = () => {
                 if (this.destroyed) return;
@@ -394,19 +354,19 @@ function createDiagramWidget(WidgetType, renderQueue) {
                     const session = this.previewSession;
                     const repeating = session?.repeatedInput
                         && content.ownerDocument.defaultView.performance.now() - session.lastInput < DIAGRAM_QUIET_MS;
-                    if (((repeating && this.lang === 'mermaid') || view?.composing) && session?.cache.get(this.sourceIdentity)) {
-                        // Attaching Mermaid SVG still costs substantial layout
-                        // during native key repeat. Restore it after that burst;
-                        // Vega benefits from immediate restoration. Composition
-                        // keeps both paths out of the active input region.
+                    if (((repeating && presentation.deferDuringKeyRepeat) || view?.composing)
+                        && session?.cache.get(this.sourceIdentity)) {
+                        // Some presentations restore after a key-repeat burst;
+                        // the rest restore immediately. Composition keeps every
+                        // path out of the active input region.
                         this.renderTask = renderQueue.enqueue(() => {
                             if (this.destroyed || version !== this.renderVersion) return;
-                            if (!this.restorePreview(content, wrapper)) return this.renderInto(content, wrapper, version);
+                            if (!this.restorePreview(target, wrapper)) return this.renderInto(target, wrapper, version);
                         }, view);
                         return;
                     }
-                    if (this.restorePreview(content, wrapper)) return;
-                    this.renderTask = renderQueue.enqueue(() => this.renderInto(content, wrapper, version), view);
+                    if (this.restorePreview(target, wrapper)) return;
+                    this.renderTask = renderQueue.enqueue(() => this.renderInto(target, wrapper, version), view);
                 });
             };
             // Container width and appearance are render inputs, even while the
@@ -415,6 +375,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
             let width = vegaRenderDimensions(content.clientWidth || wrapper.clientWidth).width;
             let responsive = false;
             if (this.lang !== 'mermaid') {
+                // Vega output depends on the container width.
                 try { responsive = vegaUsesContainerSize(JSON.parse(this.code)); } catch (_) { /* render reports malformed source */ }
             }
             const resize = responsive && typeof ResizeObserver === 'function'
@@ -432,6 +393,8 @@ function createDiagramWidget(WidgetType, renderQueue) {
             this.stopRenderObservation?.();
             this.stopRenderObservation = () => {
                 resize?.disconnect();
+                this.stopSettle?.();
+                this.stopSettle = null;
                 doc.removeEventListener('figaro:appearance-changed', requestRender);
                 doc.fonts?.removeEventListener('loadingdone', requestRender);
                 doc.fonts?.removeEventListener('loadingerror', requestRender);
@@ -442,15 +405,15 @@ function createDiagramWidget(WidgetType, renderQueue) {
 
         renderOptions(container, root) {
             return {
-                appearance: this.lang === 'mermaid' || this.chartHeight ? 'application' : 'authored',
+                appearance: this.presentation.appearance,
                 containerWidth: container.clientWidth || root.clientWidth,
             };
         }
 
         fitPreview(container, root, preview) {
             preview.graphic.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-            this.stopGraphicFit?.();
-            this.stopGraphicFit = fitGraphicToSourceFootprint(root, container, preview.graphic);
+            this.stopSettle?.();
+            this.stopSettle = this.presentation.settle(root, container, preview.graphic);
             this.completedPreview = preview;
         }
 
@@ -482,6 +445,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
 
                 if (typeof svg !== 'string' || !svg) {
                     setMessage(container, 'cm-live-diagram-error', 'Diagram renderer is unavailable');
+                    this.presentation.fail(root);
                     root.dataset.sourceFootprintState = 'underflow';
                     return;
                 }
@@ -499,6 +463,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 if (this.destroyed || version !== this.renderVersion) return;
                 log.warn('[diagram] ' + this.lang + ' render error: ' + (error.message || error));
                 setMessage(container, 'cm-live-diagram-error', 'Unable to render ' + this.lang + ' diagram');
+                this.presentation.fail(root);
                 root.dataset.sourceFootprintState = 'underflow';
             }
         }
@@ -513,7 +478,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
             this.renderVersion++;
             this.renderTask?.cancel?.();
             this.stopRenderObservation?.();
-            this.stopGraphicFit?.();
+            this.stopSettle?.();
             const preview = this.completedPreview;
             this.completedPreview = null;
             if (preview?.identity && this.sourceIdentity && this.previewSession?.active
@@ -526,14 +491,66 @@ function createDiagramWidget(WidgetType, renderQueue) {
     };
 }
 
-/** Build the live-preview state field for diagram block decorations. */
-export function createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField) {
+/**
+ * Tell the size memory which layout measured box heights belong to. Heights
+ * depend on the column width and line height; an entry from another layout
+ * would give revealed source the wrong height. The observer is created with
+ * the view, before any widget's box observer, so within one delivery the
+ * layout changes before widgets record their new heights.
+ */
+function diagramLayoutTracker(sizeMemory) {
+    return ViewPlugin.fromClass(class {
+        constructor(view) {
+            this.width = 0;
+            this.lineHeight = view.defaultLineHeight;
+            this.observer = typeof ResizeObserver === 'function'
+                ? new ResizeObserver(entries => {
+                    const width = Math.round(entries.at(-1)?.contentRect?.width || 0);
+                    if (width === this.width) return;
+                    this.width = width;
+                    this.publish();
+                })
+                : null;
+            this.observer?.observe(view.contentDOM);
+            this.publish();
+        }
+
+        publish() {
+            sizeMemory.setLayout(`${this.width}:${this.lineHeight}`);
+        }
+
+        update(update) {
+            if (update.view.defaultLineHeight === this.lineHeight) return;
+            this.lineHeight = update.view.defaultLineHeight;
+            this.publish();
+        }
+
+        destroy() {
+            this.observer?.disconnect();
+        }
+    });
+}
+
+/**
+ * Build the live-preview state field for diagram block decorations.
+ * `sizeMemory` remembers diagram sizes across mounts; the composition root
+ * passes a persistent one, and each field otherwise keeps its own.
+ */
+export function createDiagramField(
+    StateField,
+    EditorView,
+    Decoration,
+    WidgetType,
+    shouldShowSource,
+    mouseSelectingField,
+    { sizeMemory = createDiagramSizeMemory({ storage: null }) } = {},
+) {
     const renderQueue = createDiagramRenderQueue({
         schedule: scheduleDiagramIdle,
         cancel: handle => handle?.cancel?.(),
         onError: error => log.warn('[diagram] queued render error: ' + (error.message || error)),
     });
-    const DiagramWidget = createDiagramWidget(WidgetType, renderQueue);
+    const DiagramWidget = createDiagramWidget(WidgetType, renderQueue, sizeMemory);
 
     const sourceRangeIsFolded = (state, block) => {
         const foldFrom = state.doc.lineAt(block.from).to;
@@ -549,13 +566,9 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
         const isDragging = state.field(mouseSelectingField, false);
         const folded = sourceRangeIsFolded(state, block);
         if (!block.code || isDragging || sourceVisible || folded) {
-            const height = sourceVisible && !folded
-                ? (block.lang === 'vega-lite'
-                    ? vegaLiteChartHeight(block.rawCode ?? block.code)
-                    : block.lang === 'mermaid'
-                        ? mermaidDiagramHeight(block.rawCode ?? block.code)
-                        : null)
-                : null;
+            // Revealed source keeps the rendered box's height, so the
+            // following text stays put while the cursor enters or leaves.
+            const height = sourceVisible && !folded ? diagramSourceBoxHeight(sizeMemory, block) : 0;
             if (height) {
                 const firstLine = state.doc.lineAt(block.from).number;
                 const lastLine = state.doc.lineAt(block.to).number;
@@ -565,7 +578,7 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                         sourceBlock: block.sourceIdentity || block,
                         class: `${block.lang === 'mermaid' ? 'cm-mermaid-diagram-source-line' : 'cm-vega-lite-chart-source-line'} cm-diagram-source-line${opener ? ' cm-diagram-source-placeholder' : ''}${opener && block.lang === 'vega-lite' ? ' cm-vega-lite-chart-source-placeholder' : ''}${opener && block.lang === 'mermaid' ? ' cm-mermaid-diagram-source-placeholder' : ''}`,
                         attributes: opener ? {
-                            style: `--cm-diagram-source-height:calc(${height + 44}px - ${lastLine - firstLine}lh)`,
+                            style: `--cm-diagram-source-height:calc(${height}px - ${lastLine - firstLine}lh)`,
                         } : undefined,
                     }).range(state.doc.line(number).from));
                 }
@@ -582,10 +595,23 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                 block.from,
                 block.to,
                 block.sourceIdentity || block,
+                block.lang === 'mermaid' ? block.boxHint || 0 : 0,
             ),
             block: true, sourceBlock: block.sourceIdentity || block,
         }).range(block.from, block.to));
         return decorations;
+    };
+
+    // An edited Mermaid fence keeps the box of the diagram it replaced until
+    // its new drawing renders, so typing in revealed source does not resize it.
+    const inheritBoxHeights = (previous, replacements, changes) => {
+        for (const block of replacements) {
+            if (block.lang !== 'mermaid') continue;
+            const prior = previous.find(old => old.lang === 'mermaid'
+                && changes.mapPos(old.from, -1) <= block.to && changes.mapPos(old.to, 1) >= block.from);
+            const height = prior && (sizeMemory.boxHeight(mermaidSizeKeys(prior.code).box) || prior.boxHint);
+            if (height) block.boxHint = height;
+        }
     };
 
     const buildState = (state, blocks = scanDiagramFences(state.doc)) => {
@@ -642,7 +668,9 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                 if (changesNeedDiagramRescan(value, transaction)) {
                     const regions = markdownProjectionEdit(transaction);
                     if (!regions || regions.some(region => region.name === 'FencedCode' && !region.topLevel)) {
-                        return buildState(transaction.state);
+                        const blocks = scanDiagramFences(transaction.state.doc);
+                        inheritBoxHeights(value.blocks, blocks, transaction.changes);
+                        return buildState(transaction.state, blocks);
                     }
                     const fences = regions.filter(region => region.name === 'FencedCode');
                     const replacements = fences.flatMap(region => scanDiagramFences(
@@ -652,6 +680,7 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                         lineFrom: block.lineFrom + region.nextFrom,
                         contentFrom: block.contentFrom + region.nextFrom, contentTo: block.contentTo + region.nextFrom,
                     })));
+                    inheritBoxHeights(value.blocks, replacements, transaction.changes);
                     value = patchSourceReveal(value, transaction, fences, replacements, shouldShowSource, projectBlock);
                     value.ranges = value.blocks.map(({ from, to }) => ({ from, to }));
                     if (transaction.effects.length || transaction.state.field(mouseSelectingField, false)
@@ -679,6 +708,7 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
         },
         provide: field => [
             preparedDiagramPreviewExtension,
+            diagramLayoutTracker(sizeMemory),
             EditorView.decorations.from(field, value => value.decorations),
             EditorView.updateListener.of(update => {
                 if (update.docChanged) pendingViewActivity.get(update.view)?.();

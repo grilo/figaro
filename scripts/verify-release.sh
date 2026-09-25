@@ -23,7 +23,11 @@ if [ -z "$browser_pdf_executable" ]; then
 fi
 FIGARO_BROWSER_PDF_EXECUTABLE="$browser_pdf_executable" \
     go test -v ./internal/pdfexport -run '^TestRenderChromiumPDFAgainstOptInBrowser$'
-npm run test:pdf
+# Browser checks start their own development server with a fresh vault, as
+# GitHub Actions does. Playwright otherwise reuses a server that is already
+# running, and tests can then pass on state left behind by earlier runs. A
+# dedicated port keeps a developer's own running server out of the way.
+CI=1 FIGARO_PLAYWRIGHT_PORT="${FIGARO_RELEASE_PLAYWRIGHT_PORT:-34125}" npm run test:pdf
 
 git diff --check
 git diff --cached --check

@@ -483,7 +483,8 @@ and reading order; `editorSettings.test.js` owns auto-commit writes and rollback
 The README and product specification share a native Linux editor screenshot.
 The README also illustrates in-place writing review and PDF Preview with
 separate captures. `releaseMetadata.test.js` verifies the shared editor image
-references and its PNG signature. For documentation changes, verify relative
+references and its PNG signature, and holds the README to a 950-word, 8-section
+budget with at most 170 words per section, linking each user guide. For documentation changes, verify relative
 links and images, render the README at repository-page width, and inspect each
 capture for readable content and complete controls. Use demonstration files
 in an isolated native session; keep screenshots free of private notes.

@@ -54,7 +54,8 @@ surface while Figaro Dark retains its red-accented selected state. Settings does
 not replace that primitive's track or shadow: Kanban density/flow, Board/Gantt,
 and Month/Timeline have identical computed paint and selection geometry in the
 same theme. Forced-colors mode replaces the pseudo-element with direct selected
-button paint, and reduced motion removes the transition. Select-only menus now share a body-level, pure-plan-clamped
+button paint, and reduced motion removes the transition. Select-only menus now share a body-level,
+pure-plan-clamped
 overlay across Settings, editor dialogs, and document properties; intentional
 Help and sidebar-search result regions remain inline.
 
@@ -526,7 +527,8 @@ so the improvement adds neither a seam nor a component-local override.
   rewrite.
 
 Writing review now reuses five equal checkboxes: Proofreading, Clarity,
-Directness, Inclusive language, and Formulaic writing, and the existing four-option Settings language
+Directness, Inclusive language, and Formulaic writing, and the existing four-option Settings
+language
 combobox; the primary picker and profile control are removed. The user explicitly
 requested rounded, borderless suggestion backgrounds, approved as `.ui-suggestion`.
 Its canonical rule uses the theme background, text and radius tokens, while child
@@ -536,7 +538,11 @@ checkbox state. Their checkbox and label expose the reason through the shared
 `.ui-tooltip` and an accessible description; no new primitive or variant is added.
 The catalogue mounts the
 production results and inline controllers, including before/after and advisory
-sentence-splitting examples, contextual Inclusive language alternatives, and explicit sentence-spacing counts. Optional accented spellings, formula advice, canonical technical names, and paired-punctuation/acronym examples also reuse these controls; all five lens groups, including Formulaic writing, retain the same primitives and states. The catalogue includes the production advisory acronym example, with Ignore and no invented replacement.
+sentence-splitting examples, contextual Inclusive language alternatives, and explicit
+sentence-spacing counts. Optional accented spellings, formula advice, canonical technical names, and
+paired-punctuation/acronym examples also reuse these controls; all five lens groups, including
+Formulaic writing, retain the same primitives and states. The catalogue includes the production
+advisory acronym example, with Ignore and no invented replacement.
 
 Durable writing decisions reuse existing buttons, disclosure behavior, suggestion
 cards, and warning notices. Inline and pane actions include Ignore this occurrence
@@ -566,11 +572,15 @@ consume worker-provided IDs; the catalogue continues to use the same production
 view. No component family, primitive, visual variant, registry entry, or cascade
 change is required.
 
-Package coverage review: updated descriptions and guidance reuse the approved checkboxes, disclosures, cards, comparisons, and actions. Distinct advice can share an underline without merging its cards; each enabled lens remains independently useful. No new component or visual variant was introduced.
+Package coverage review: updated descriptions and guidance reuse the approved checkboxes,
+disclosures, cards, comparisons, and actions. Distinct advice can share an underline without merging
+its cards; each enabled lens remains independently useful. No new component or visual variant was
+introduced.
 
 Lens consolidation reuses the approved checkbox and badge: legacy subsets expose
 a mixed accessibility state plus a visible **Partial** badge, with enabled-check
-details in accessible descriptions and info help. Group counts reflect the five choices; Spanish Proofreading states
+details in accessible descriptions and info help. Group counts reflect the five choices; Spanish
+Proofreading states
 its spelling-only coverage. The subsequently approved disclosure is implemented
 as the shared family described below.
 Selected lens groups show their current suggestion count in the approved

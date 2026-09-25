@@ -246,7 +246,8 @@ and loaders in view. They must not redefine the element's production visual
 language.
 
 Writing review now reuses five equal checkboxes: Proofreading, Clarity,
-Directness, Inclusive language, and Formulaic writing, and the existing four-option Settings language
+Directness, Inclusive language, and Formulaic writing, and the existing four-option Settings
+language
 combobox; the primary picker and profile control are removed. The user explicitly
 requested rounded, borderless suggestion backgrounds, approved as `.ui-suggestion`.
 Its canonical rule uses the theme background, text and radius tokens, while child
@@ -256,7 +257,11 @@ checkbox state. Their checkbox and label expose the reason through the shared
 `.ui-tooltip` and an accessible description; no new primitive or variant is added.
 The catalogue mounts the
 production results and inline controllers, including before/after and advisory
-sentence-splitting examples, contextual Inclusive language alternatives, and explicit sentence-spacing counts. Optional accented spellings, formula advice, canonical technical names, and paired-punctuation/acronym examples also reuse these controls; all five lens groups, including Formulaic writing, retain the same primitives and states. The catalogue includes the production advisory acronym example, with Ignore and no invented replacement.
+sentence-splitting examples, contextual Inclusive language alternatives, and explicit
+sentence-spacing counts. Optional accented spellings, formula advice, canonical technical names, and
+paired-punctuation/acronym examples also reuse these controls; all five lens groups, including
+Formulaic writing, retain the same primitives and states. The catalogue includes the production
+advisory acronym example, with Ignore and no invented replacement.
 
 Durable writing decisions reuse existing buttons, disclosure behavior, suggestion
 cards, and warning notices. Inline and pane actions include Ignore this occurrence
@@ -286,11 +291,14 @@ consume worker-provided IDs; the catalogue continues to use the same production
 view. No component family, primitive, visual variant, registry entry, or cascade
 change is required.
 
-The package coverage review changes lens descriptions and suggestion content within the same checkbox and suggestion-card contracts. The catalogue consumes those production models. No primitive, variant, token, or style-manifest change is required.
+The package coverage review changes lens descriptions and suggestion content within the same
+checkbox and suggestion-card contracts. The catalogue consumes those production models. No
+primitive, variant, token, or style-manifest change is required.
 
 Lens consolidation reuses the approved checkbox and badge: legacy subsets expose
 a mixed accessibility state plus a visible **Partial** badge, with enabled-check
-details in accessible descriptions and info help. Group counts reflect the five choices; Spanish Proofreading states
+details in accessible descriptions and info help. Group counts reflect the five choices; Spanish
+Proofreading states
 its spelling-only coverage. The subsequently approved disclosure is implemented
 as the shared family described below.
 Selected lens groups show their current suggestion count in the approved
@@ -336,7 +344,8 @@ borders and scrollbar chrome instead of feeding inner sizes into border-box CSS.
 Adapter regressions and repeated native wheel scrolling in the existing catalogue
 scenario cover stable dimensions. No primitive, token, or cascade change is needed.
 
-The catalogue builder normalizes trailing whitespace in parsed JavaScript comments without changing literal contents. `--check` compares this same deterministic output.
+The catalogue builder normalizes trailing whitespace in parsed JavaScript comments without changing
+literal contents. `--check` compares this same deterministic output.
 
 The approved Settings cutout variant `.settings-section--inset` groups related
 options with a heading above the controls. It uses `--workspace-surface` exactly,

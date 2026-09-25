@@ -369,11 +369,53 @@
     max-height: 100% !important;
 }
 
-.cm-block-widget--resizable-mermaid .cm-live-diagram-view svg {
+/* Mermaid draws at its natural or authored size, as in PDF output, capped at
+   the column width. The box is the taller of the source lines and the drawing,
+   so revealing the source never moves the following text; the drawing is
+   centered in it. */
+.cm-block-widget--resizable-mermaid.cm-source-footprint {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: max(var(--cm-source-footprint-height), var(--cm-diagram-box-hint, 0px));
+    max-height: none;
+}
+
+.cm-block-widget--resizable-mermaid .cm-live-diagram {
+    flex: 1 0 auto;
+    height: auto;
+}
+
+.cm-block-widget--resizable-mermaid .cm-live-diagram-view {
+    overflow: visible;
+}
+
+.cm-live-diagram-canvas {
+    position: relative;
+    flex: none;
+    width: min(var(--figaro-diagram-width, 100%), 100%);
+}
+
+.cm-live-diagram-canvas[data-diagram-state="error"] {
+    width: 100%;
+}
+
+.cm-live-diagram-canvas[data-diagram-state="pending"] .cm-live-diagram-graphic {
+    display: grid;
+    min-height: 0;
+    height: var(--figaro-diagram-pending-height, auto);
+    aspect-ratio: var(--figaro-diagram-aspect, auto);
+    overflow: hidden;
+    place-items: center;
+}
+
+.cm-block-widget--resizable-mermaid .cm-live-diagram-graphic > svg {
+    display: block;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100% !important;
-    max-height: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    aspect-ratio: var(--figaro-diagram-aspect, auto);
 }
 
 .ui-image-resize-handle.cm-diagram-resize-handle {
@@ -389,6 +431,12 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--motion-content-duration) ease;
+}
+
+/* Mermaid's handle sits on the drawing's own lower edge, which is inside the
+   box whenever the source lines are taller than the drawing. */
+.ui-image-resize-handle.cm-mermaid-diagram-resize-handle {
+    bottom: -14px;
 }
 
 .cm-block-widget--resizable-diagram:hover .cm-diagram-resize-handle,

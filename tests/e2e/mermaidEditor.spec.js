@@ -1,9 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { openWelcomeEditor } from './support/editorWorkspace.js';
 
-test('small Mermaid diagrams keep their edge handle reachable and commit height once on release', async ({ page }) => {
+test('Mermaid draws at its natural size in a box that does not move when source is revealed', async ({ page }) => {
     await openWelcomeEditor(page);
-    const source = ['Before', '```mermaid', 'flowchart TD', '  A --> B', '```', 'After'].join('\n');
+    const longSource = Array.from({ length: 16 }, (_, index) => `  %% note ${index}`);
+    const source = [
+        'Before', '```mermaid', 'flowchart TD', '  A --> B', '```', 'Middle',
+        '```mermaid', 'flowchart TD', ...longSource, '  A --> B', '```', 'After',
+    ].join('\n');
     await page.evaluate(async markdown => {
         const editor = await import('/js/editor.js');
         editor.setEditorContent(markdown);
@@ -16,9 +20,9 @@ test('small Mermaid diagrams keep their edge handle reachable and commit height 
         window.__resizableMermaidView = view;
     }, source);
 
-    const diagram = page.locator('.cm-block-widget--resizable-mermaid');
-    await expect(diagram).toBeVisible();
-    await expect(diagram.locator('svg')).toBeVisible();
+    const diagrams = page.locator('.cm-block-widget--resizable-mermaid');
+    await expect(diagrams.locator('.cm-live-diagram-graphic > svg')).toHaveCount(2);
+    const diagram = diagrams.first();
     const geometry = await diagram.evaluate(element => {
         const channels = color => (String(color).match(/[\d.]+/gu) || []).slice(0, 3).map(Number);
         const luminance = color => channels(color).reduce((sum, channel, index) => {
@@ -32,19 +36,24 @@ test('small Mermaid diagrams keep their edge handle reachable and commit height 
             const values = [luminance(left), luminance(right)].sort((a, b) => b - a);
             return (values[0] + 0.05) / (values[1] + 0.05);
         };
-        const root = element.getBoundingClientRect();
-        const graphic = element.querySelector('svg').getBoundingClientRect();
-        const canvas = element.querySelector('.cm-live-diagram').getBoundingClientRect();
+        const svg = element.querySelector('svg');
+        const graphic = svg.getBoundingClientRect();
+        const view = element.querySelector('.cm-live-diagram-view').getBoundingClientRect();
         const canvasBackground = getComputedStyle(element.querySelector('.cm-live-diagram')).backgroundColor;
         const edgeStroke = getComputedStyle(element.querySelector('.flowchart-link')).stroke;
         const handle = element.querySelector('.cm-mermaid-diagram-resize-handle');
         const handleRect = handle.getBoundingClientRect();
+        const [, , width, height] = svg.getAttribute('viewBox').split(/\s+/u).map(Number);
         return {
-            rootHeight: root.height,
-            rootWidth: root.width,
+            naturalWidth: width,
+            naturalHeight: height,
             graphicWidth: graphic.width,
-            canvasBottom: canvas.bottom,
-            canvasCenterX: canvas.left + canvas.width / 2,
+            graphicHeight: graphic.height,
+            graphicBottom: graphic.bottom,
+            graphicCenterX: graphic.left + graphic.width / 2,
+            graphicCenterY: graphic.top + graphic.height / 2,
+            viewCenterX: view.left + view.width / 2,
+            viewCenterY: view.top + view.height / 2,
             handleCenterX: handleRect.left + handleRect.width / 2,
             handleCenterY: handleRect.top + handleRect.height / 2,
             handlePosition: getComputedStyle(handle).position,
@@ -53,27 +62,62 @@ test('small Mermaid diagrams keep their edge handle reachable and commit height 
             edgeContrast: contrast(edgeStroke, canvasBackground),
         };
     });
-    expect(geometry.rootHeight).toBeGreaterThanOrEqual(340);
-    expect(geometry.graphicWidth).toBeGreaterThan(geometry.rootWidth * 0.5);
+    // The editor draws the size PDF output draws, centered in its box.
+    expect(Math.abs(geometry.graphicWidth - geometry.naturalWidth)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.graphicHeight - geometry.naturalHeight)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.graphicCenterX - geometry.viewCenterX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.graphicCenterY - geometry.viewCenterY)).toBeLessThanOrEqual(1);
     expect(geometry.handlePosition).toBe('absolute');
     expect(geometry.canvasBackground).toBe(geometry.editorBackground);
     expect(geometry.edgeContrast).toBeGreaterThanOrEqual(3);
-    expect(Math.abs(geometry.handleCenterX - geometry.canvasCenterX)).toBeLessThanOrEqual(1);
-    expect(Math.abs(geometry.handleCenterY - geometry.canvasBottom)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.handleCenterX - geometry.graphicCenterX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.handleCenterY - geometry.graphicBottom)).toBeLessThanOrEqual(1);
+
+    // A source taller than its drawing sets the box; the drawing is centered.
+    const longBox = await diagrams.nth(1).evaluate(element => ({
+        box: element.getBoundingClientRect().height,
+        lines: Number(element.dataset.sourceLines),
+        lineHeight: window.__resizableMermaidView.defaultLineHeight,
+    }));
+    expect(Math.abs(longBox.box - longBox.lines * longBox.lineHeight)).toBeLessThanOrEqual(1);
+
+    const lineTop = text => page.evaluate(value => [...document.querySelectorAll('.cm-line')]
+        .find(line => line.textContent === value).getBoundingClientRect().top, text);
+    const rest = { middle: await lineTop('Middle'), after: await lineTop('After') };
+    for (const [target, following] of [['A --> B', 'Middle'], ['note 3', 'After']]) {
+        await page.evaluate(text => {
+            const view = window.__resizableMermaidView;
+            view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf(text) } });
+        }, target);
+        await expect(page.locator('.cm-mermaid-diagram-source-placeholder')).toHaveCount(1);
+        expect(Math.abs(await lineTop(following) - rest[following.toLowerCase()])).toBeLessThanOrEqual(1);
+        await page.evaluate(() => {
+            const view = window.__resizableMermaidView;
+            view.dispatch({ selection: { anchor: view.state.doc.length } });
+        });
+        await expect(diagrams.locator('.cm-live-diagram-graphic > svg')).toHaveCount(2);
+        expect(Math.abs(await lineTop(following) - rest[following.toLowerCase()])).toBeLessThanOrEqual(1);
+    }
 
     const handle = diagram.getByRole('button', { name: 'Resize Mermaid diagram vertically' });
-    await page.mouse.move(geometry.canvasCenterX, geometry.canvasBottom - 12);
+    await page.mouse.move(geometry.graphicCenterX, geometry.graphicBottom - 12);
     await expect.poll(() => handle.evaluate(element => getComputedStyle(element).opacity)).toBe('1');
     const box = await handle.boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 8 });
     await expect.poll(() => handle.evaluate(element => getComputedStyle(element).opacity)).toBe('1');
+    const resized = Math.round(geometry.graphicHeight) + 80;
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 80, { steps: 8 });
-    await expect(diagram.locator('.cm-diagram-resize-readout')).toHaveText('380px high');
+    await expect(diagram.locator('.cm-diagram-resize-readout')).toHaveText(`${resized}px high`);
     expect(await page.evaluate(() => window.__resizableMermaidView.state.doc.toString())).toBe(source);
     await page.mouse.up();
     await expect.poll(() => page.evaluate(() => window.__resizableMermaidView.state.doc.toString()))
-        .toContain('%% figaro:height 380');
+        .toContain(`%% figaro:height ${resized}`);
+    // The resized drawing keeps its proportions; the box follows it.
+    await expect.poll(() => diagrams.first().locator('svg').evaluate(svg => Math.round(svg.getBoundingClientRect().height)))
+        .toBe(resized);
+    const resizedWidth = await diagrams.first().locator('svg').evaluate(svg => svg.getBoundingClientRect().width);
+    expect(Math.abs(resizedWidth - resized * geometry.naturalWidth / geometry.naturalHeight)).toBeLessThanOrEqual(1);
 
     await page.locator('#editor-container > .cm-editor .cm-content').focus();
     await page.keyboard.press('Control+z');

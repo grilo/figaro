@@ -13,7 +13,15 @@ function validateFeatureMap(features) {
                 throw new Error(`Missing ${field}: ${feature.id}`);
             }
         }
-        for (const ref of [...feature.sources, ...feature.docs, ...feature.tests]) {
+        if (feature.history !== undefined && (!Array.isArray(feature.history) || !feature.history.length
+            || feature.history.some(value => typeof value !== 'string' || !value.trim()))) {
+            throw new Error(`Invalid history: ${feature.id}`);
+        }
+        // Routes lead with the documents that own current behavior. Benchmarks
+        // and performance follow-ups are records, available on request.
+        const record = feature.docs.find(isHistoryRecord);
+        if (record) throw new Error(`Move ${record} from docs to history: ${feature.id}`);
+        for (const ref of [...feature.sources, ...feature.docs, ...feature.tests, ...(feature.history || [])]) {
             if (!/^[a-zA-Z0-9_@.\/-]+(?:#[a-z0-9-]+)?$/.test(ref) || ref.startsWith('/') || ref.split('/').includes('..')) {
                 throw new Error(`Invalid repository reference: ${ref}`);
             }
@@ -30,6 +38,10 @@ function validateFeatureMap(features) {
         }
     }
     return features;
+}
+
+function isHistoryRecord(ref) {
+    return ref.startsWith('docs/benchmarks/') || ref.split('#')[0] === 'docs/EDITOR_PERFORMANCE.md';
 }
 
 function declaredSymbols(source) {
@@ -49,12 +61,19 @@ function renderContextList(features) {
     return features.map(feature => `${feature.id}: ${feature.title}`).join('\n');
 }
 
-function renderContext(features) {
+function renderHistory(feature, history) {
+    if (!feature.history) return '';
+    if (history) return `\nHistory (benchmarks and past performance work):\n${feature.history.map(ref => `  ${ref}`).join('\n')}`;
+    return `\nHistory: ${feature.history.length} records; add --history to list them.`;
+}
+
+function renderContext(features, { history = false } = {}) {
     validateFeatureMap(features);
     return features.map(feature => `${feature.id}: ${feature.title}\n`
         + 'Source (path :: symbols):\n'
         + feature.sources.map(file => `  ${file}${feature.symbols?.[file] ? ` :: ${feature.symbols[file].join(', ')}` : ''}`).join('\n')
         + `\nDocs:\n${feature.docs.map(ref => `  ${ref}`).join('\n')}`
+        + renderHistory(feature, history)
         + `\nTests (npm run test:focus -- ${feature.id}):\n${feature.tests.map(file => `  ${file}`).join('\n')}`
         + `\nAdditional boundaries: ${feature.extraChecks.join(' ')}`).join('\n\n')
         + '\nPaths are repository-relative. Follow callers and shared contracts when the change crosses this route.';
@@ -65,7 +84,13 @@ function selectFeatures(features, ids) {
     if (!ids.length) throw new Error('Choose at least one feature from npm run context');
     return [...new Set(ids)].map(id => {
         const feature = features.find(candidate => candidate.id === id);
-        if (!feature) throw new Error(`Unknown feature: ${id}. Run npm run context to list routes.`);
+        if (!feature) {
+            // Suggest routes sharing the name, such as editor-* for editor.
+            const similar = features.filter(candidate => candidate.id.startsWith(`${id}-`)
+                || candidate.id.includes(id)).map(candidate => candidate.id);
+            const hint = similar.length ? ` Did you mean: ${similar.join(', ')}?` : ' Run npm run context to list routes.';
+            throw new Error(`Unknown feature: ${id}.${hint}`);
+        }
         return feature;
     });
 }
@@ -98,8 +123,9 @@ function renderFeatureIndex(features) {
         + features.map(feature => `## ${feature.id}\n\n${feature.title}\n\n`
             + `- Source: ${feature.sources.map(file => link(file) + (feature.symbols?.[file] ? ` (${feature.symbols[file].map(name => `\`${name}\``).join(', ')})` : '')).join(', ')}\n`
             + `- Documentation: ${feature.docs.map(link).join(', ')}\n`
+            + (feature.history ? `- History: ${feature.history.map(link).join(', ')}\n` : '')
             + `- Frontend tests: ${feature.tests.map(link).join(', ')}\n`
             + `- Additional boundary checks: ${feature.extraChecks.join(' ')}\n`).join('\n');
 }
 
-module.exports = { validateFeatureMap, selectFeatures, declaredSymbols, renderContextList, renderContext, focusedTests, focusedFailureSummary, renderFeatureIndex };
+module.exports = { isHistoryRecord, validateFeatureMap, selectFeatures, declaredSymbols, renderContextList, renderContext, focusedTests, focusedFailureSummary, renderFeatureIndex };

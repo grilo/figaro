@@ -7,7 +7,8 @@ architecture decisions, effect boundaries, and data flow. Start with the
 For implementation, start with `npm run context` and select a feature route for
 source symbols and relevant documentation sections. The full
 [feature index](docs/FEATURE_INDEX.md) remains a browsable reference. Its source
-map is maintained with structural changes; generated navigation and focused test tooling run only during
+map is maintained with structural changes; generated navigation and focused test tooling run only
+during
 development and add no application assets or runtime dependencies. The compact
 CLI and full Markdown index share one map. Optional named JavaScript entry points
 are checked with the existing Babel parser; filesystem reads and check execution
@@ -78,6 +79,8 @@ Native checks remain separately recorded where the testing contract requires the
 
 ## Design-system review surface
 
+### Token contract, catalogue and approved components
+
 `frontend/design-system/` owns the canonical token contract,
 `primitives.css`, semantic theme surfaces, and the approved component registry.
 Both the production application and the static catalogue eagerly load the same
@@ -126,7 +129,8 @@ while the base field continues to own its dimensions, filled surface, focus
 halo, disabled state, and semantic validation boundary. Quick Note keeps its
 existing feature geometry and an invisible border that preserves layout; its
 rest paint mixes 3% `--text-color` into `--sidebar-bg`, hover/focus uses
-`--hover-bg`, and its action icon remains `--accent-color`. File-tree operation selection remains theme-token-owned:
+`--hover-bg`, and its action icon remains `--accent-color`. File-tree operation selection remains
+theme-token-owned:
 the selected surface, font weight, `aria-selected`, and independent focus
 outline carry the state while bundled themes set the decorative selected-row
 shadow, including the former leading accent stripe, to `none`.
@@ -151,7 +155,8 @@ static and dynamically mounted `title` hints, preserves iframe accessible
 names, owns hover/focus/Escape lifecycle and `aria-describedby`, and renders one
 body-level `.ui-tooltip`. While visible, it revalidates the pointer owner on an
 animation frame and after DOM mutations; owner removal or reflow away from a
-stationary pointer dismisses the hint and removes the relationship. Rich Calendar, managed-file, and Markdown-link hints
+stationary pointer dismisses the hint and removes the relationship. Rich Calendar, managed-file, and
+Markdown-link hints
 reuse that visual primitive while retaining only feature content and placement
 hooks. CodeMirror diagnostics and autocomplete remain separately themed
 interactive popovers rather than being coerced into hint semantics.
@@ -165,6 +170,22 @@ owns pointer capture and keyboard/readout lifecycle, cancels an active gesture
 before shared modal Escape handling, and discards session geometry on close.
 Editor feature CSS uses named modal containers for internal reflow; generic
 dialogs remain on the shared responsive shell without the variant.
+
+The selector reads `frontend/themes/manifest.json`, so theme membership has one
+source of truth. Manifest normalization, safe stylesheet-path construction,
+and multi-word catalogue matching are pure functions in
+`themeCatalogModel.js`; `catalog.js` owns fetch, DOM indexing, link replacement,
+and computed-style display. This preserves the same logic/effect direction as
+the application even though the catalogue is a developer-facing surface.
+
+`catalogEntry.js` imports that canonical manifest and is eagerly built into a
+classic `catalog.bundle.js`, allowing the same initialized catalogue to run
+from `file://` without module-fetch or local-JSON CORS failures. Relative HTML,
+stylesheet, font, icon, and theme paths keep the artifact portable between
+direct-file and local-server use; the generated bundle contains no second
+hand-maintained theme list.
+
+### Title-bar help, authoring macros and find
 
 Title-bar authoring help is another eager, local DOM boundary.
 `helpPopup.js` owns pointer/F1 disclosure, invoker-specific focus return, and
@@ -205,19 +226,7 @@ matching options, and replacement actions. The upstream panel adapter therefore
 continues to own searching and mutation while the application stylesheet owns
 stable themed geometry.
 
-The selector reads `frontend/themes/manifest.json`, so theme membership has one
-source of truth. Manifest normalization, safe stylesheet-path construction,
-and multi-word catalogue matching are pure functions in
-`themeCatalogModel.js`; `catalog.js` owns fetch, DOM indexing, link replacement,
-and computed-style display. This preserves the same logic/effect direction as
-the application even though the catalogue is a developer-facing surface.
-
-`catalogEntry.js` imports that canonical manifest and is eagerly built into a
-classic `catalog.bundle.js`, allowing the same initialized catalogue to run
-from `file://` without module-fetch or local-JSON CORS failures. Relative HTML,
-stylesheet, font, icon, and theme paths keep the artifact portable between
-direct-file and local-server use; the generated bundle contains no second
-hand-maintained theme list.
+### Shell layout, tabs and Pure mode
 
 Document-tab ordering follows the same dependency direction. The pure
 `tabReorderModel.js` owns movement thresholds, pin-group constraints, and the
@@ -335,6 +344,8 @@ from the configured base and the actual editor viewport, so normal mode,
 per-buffer scale ownership, Markdown source, and printable output stay
 unchanged.
 
+### Theme tokens, surfaces and ambient treatment
+
 Default semantic values and optional art-direction surfaces live in
 `frontend/design-system/tokens.css`; `theme-surfaces.css` is the only shared
 selector layer that consumes the art-direction tokens. Every file in
@@ -387,6 +398,22 @@ same coordinate instead of adjacent pixels. Borderless themes keep that rail
 transparent. CRT Phosphor keeps the rail, shell dividers, and frameless-window
 outline transparent so dark overscan defines the screen edge.
 
+The same theme-surface boundary owns optional ambient screen treatment. Neutral
+defaults leave content geometry untouched and both non-interactive overlays inert.
+CRT Phosphor keeps content geometry flat: its `::before` glass layer combines
+radial falloff, a repeating
+scanline texture, a repeating 128px multi-level high-pass dither tile, inset
+overscan shadow, and independently timed flicker, warp, and brightness
+keyframes; its `::after` layer combines the ordinary
+frameless-window outline contract with a separate one-minute beam, while the
+theme makes that outline transparent. This separation prevents the vignette
+from disappearing with the beam. `prefers-reduced-motion` removes animations
+from both layers while preserving the static glass, dither, and texture. Both
+overlays ignore pointer input, and all behavior remains in shared selectors and CSS
+keyframes rather than theme-owned selectors or runtime timers.
+
+### Sidebar allocation and workspace timelines
+
 The shell also owns the sidebar's vertical allocation. The fixed workspace
 tools sit outside the clipping `.sidebar-content` flex column, leaving the file
 tree with its own overflow. Calendar is eagerly staged in the central host and,
@@ -410,7 +437,8 @@ Gantt. It keeps the old track visible and scrollable while the adjacent range lo
 The shared widget's synchronous content commit captures the latest marker,
 patches keyed days/rows in place, and rebases scroll coordinates before paint.
 It disables competing browser scroll anchoring and carries unfinished smooth
-scroll destinations and active pan origins across range shifts; pure `timelineScrollTarget` accumulates
+scroll destinations and active pan origins across range shifts; pure `timelineScrollTarget`
+accumulates
 input at that destination. Only edge-event suppression waits for later frames.
 Calendar receives its
 range read, appearance read, and note-open effects as injected functions from
@@ -457,7 +485,8 @@ use `:has()` on `html`, `body` or `#app`: with the application root as the
 subject, every DOM change anywhere (each cursor move updates the editor and the
 Ln/Col status) re-checks the rule and restyles most of the page. A unit test
 rejects such selectors; see
-[the held-key benchmark](docs/benchmarks/held-key-style-invalidation-2026-09-25.md). The editor host,
+[the held-key benchmark](docs/benchmarks/held-key-style-invalidation-2026-09-25.md). The editor
+host,
 CodeMirror surface, tab-panel host, and active panel inherit that computed
 corner so a square inner paint layer cannot bleed through the outer clip. When
 theme divider tokens are visible, the title-bar center masks the radius-wide
@@ -470,19 +499,7 @@ the shared tab-hover surface and raises the hovered tab above the 1px title-bar
 mask. The mask still hides the divider beneath, while the tab supplies one clean
 hover layer without adding tab state to JavaScript.
 
-The same theme-surface boundary owns optional ambient screen treatment. Neutral
-defaults leave content geometry untouched and both non-interactive overlays inert.
-CRT Phosphor keeps content geometry flat: its `::before` glass layer combines
-radial falloff, a repeating
-scanline texture, a repeating 128px multi-level high-pass dither tile, inset
-overscan shadow, and independently timed flicker, warp, and brightness
-keyframes; its `::after` layer combines the ordinary
-frameless-window outline contract with a separate one-minute beam, while the
-theme makes that outline transparent. This separation prevents the vignette
-from disappearing with the beam. `prefers-reduced-motion` removes animations
-from both layers while preserving the static glass, dither, and texture. Both
-overlays ignore pointer input, and all behavior remains in shared selectors and CSS
-keyframes rather than theme-owned selectors or runtime timers.
+### Draw.io editing and image creation
 
 Draw.io is the deliberate exception to that offline-editor boundary: its hosted
 iframe returns editable SVG through the documented cross-origin message
@@ -546,16 +563,6 @@ replacement and source-height line decoration to the native CodeMirror fold
 placeholder. Source-height continuity belongs only to an intentionally revealed
 image source, never to a folded range.
 
-`frontend/js/backend.js` is the frontend's sole backend entry point. It calls
-the native Wails binding at `window.go.desktop.App` using its generated PascalCase
-method names. Browser debugging installs an explicit same-shaped mock through
-that module, rather than emulating a retired desktop runtime.
-`frontend/js/backendContract.js` is the canonical JavaScript inventory of that
-facade. Debug and shared test doubles are generated from it, production binding
-discovery requires the complete surface, and an architecture test compares the
-inventory with every exported Go `*App` method so either side fails immediately
-when the bridge contract drifts.
-
 ## Dependency direction and I/O boundaries
 
 Figaro separates decisions from effects so each can be tested independently.
@@ -606,6 +613,16 @@ The shared right pane has the equivalent single-owner protocol.
 ownership before the next adapter mounts. History, Document Outline, Raw Text,
 and PDF Preview know only their own lifecycle; they do not broadcast or listen
 for pairwise peer-close events.
+
+`frontend/js/backend.js` is the frontend's sole backend entry point. It calls
+the native Wails binding at `window.go.desktop.App` using its generated PascalCase
+method names. Browser debugging installs an explicit same-shaped mock through
+that module, rather than emulating a retired desktop runtime.
+`frontend/js/backendContract.js` is the canonical JavaScript inventory of that
+facade. Debug and shared test doubles are generated from it, production binding
+discovery requires the complete surface, and an architecture test compares the
+inventory with every exported Go `*App` method so either side fails immediately
+when the bridge contract drifts.
 
 The Go executable keeps a deliberately thin root `main.go` to embed the
 root-owned `frontend/` tree and `wails.json`. Its production-only asset guard
@@ -682,7 +699,8 @@ initial shell is visible.
 
 Asynchronous startup is still allowed: independent initialization may run in
 parallel, and background work such as vault indexing, writing engines and
-dictionary restoration, tree construction, and parser warming may continue after the themed shell and
+dictionary restoration, tree construction, and parser warming may continue after the themed shell
+and
 restored active buffer are usable. Interaction- or geometry-affecting saved
 preferences instead settle behind the startup hydration barrier before the
 editor is mounted or exposed. All eager work must begin during startup and
@@ -709,6 +727,28 @@ such as opening a hosted Draw.io document, running Vault health, rendering a
 PDF, or expanding already-loaded tree data, remain request-driven. Their
 application modules, local parsers, renderers, and command handlers are loaded
 and initialized up front, so the request performs only the work itself.
+
+Startup diagnostics are observational. `internal/startup.Trace` receives a
+clock and a nonblocking emitter, validates fixed native/webview stage names,
+deduplicates events, and caps a launch at 128 events. The native composition root
+starts this trace before opening the vault. The `startupTimings` frontend use
+case receives a monotonic clock, buffers at most 64 events before bridge
+connection, and serializes reporting without making application work await
+delivery. This preserves stage order across concurrent Wails dispatch.
+`RecordStartupTiming` rejects arbitrary
+labels, non-finite durations, and out-of-range values; no note data, paths, or
+raw error strings are serialized. Normal recording ends at frontend readiness;
+spans already started may finish, and shutdown remains observable.
+
+`startup.Sink` opens and writes on its own bounded worker queue. Storage failure
+or a full queue drops diagnostics instead of delaying startup, saves, or native
+calls; process shutdown grants at most 100 ms for draining. The desktop log
+adapter uses exclusive, private JSONL files under `os.UserCacheDir()/Figaro/logs`,
+a pure ten-launch retention plan, and rooted removal of matching regular logs.
+It preserves unrelated files and symlinks. Existing settings and WebView storage
+are unchanged. `OpenStartupLogs` takes no path argument and opens only that
+configured directory using the existing file-manager adapter. Settings reuses
+approved buttons and notices for pending, success, and retryable failure states.
 
 ### Implemented refactoring order
 
@@ -766,9 +806,35 @@ physical splitting of `editor.js`, `tabManager.js`, or a desktop capability
 file should follow tested ownership seams rather than creating pass-through
 modules.
 
-Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. The desktop composition root installs Wails' process-wide single-instance lock. A second launch sends its arguments and working directory to the existing process; launch-path resolution retains only existing Markdown files, and the desktop coordinator registers them before emitting one runtime event and restoring/focusing the existing window. Go records only those explicit launch documents under process-local opaque IDs; the frontend can read, save, open, or reveal an ID but cannot turn it into arbitrary filesystem access. The initial capability snapshot closes the race when a second launch arrives before the webview event subscriber is ready, and frontend ID claiming prevents the snapshot and event from prompting twice. Later batches share the same serialized import/keep-outside use case. Before opening, the frontend offers a collision-safe vault import. Declining creates a process-local root projection in the file tree and an external tab; that projection is not vault membership and is never persisted or passed to vault mutation APIs. Removing it closes the capability-backed tab after dirty-state protection and mutates only frontend state, so the original file cannot be deleted by that workflow. The pure external-file model distinguishes capability-backed reads from vault-relative reads and describes destination-specific native-drop confirmation without calling a dialog or backend. Tab activation executes that read plan before committing an external tab as selected; failed or superseded reads leave the previous active tab and CodeMirror owner paired. An external tab writes atomically to its original document and does not join the recent-files list, vault index, watcher, session, or Git history. Native drops on the file tree require confirmation before the copy adapter runs. Copy and recursive-merge modes share the same complete source-batch inspection before either mode writes into the vault. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
+Markdown documents supplied as operating-system launch arguments are deliberately outside that
+boundary. The desktop composition root installs Wails' process-wide single-instance lock. A second
+launch sends its arguments and working directory to the existing process; launch-path resolution
+retains only existing Markdown files, and the desktop coordinator registers them before emitting one
+runtime event and restoring/focusing the existing window. Go records only those explicit launch
+documents under process-local opaque IDs; the frontend can read, save, open, or reveal an ID but
+cannot turn it into arbitrary filesystem access. The initial capability snapshot closes the race
+when a second launch arrives before the webview event subscriber is ready, and frontend ID claiming
+prevents the snapshot and event from prompting twice. Later batches share the same serialized
+import/keep-outside use case. Before opening, the frontend offers a collision-safe vault import.
+Declining creates a process-local root projection in the file tree and an external tab; that
+projection is not vault membership and is never persisted or passed to vault mutation APIs. Removing
+it closes the capability-backed tab after dirty-state protection and mutates only frontend state, so
+the original file cannot be deleted by that workflow. The pure external-file model distinguishes
+capability-backed reads from vault-relative reads and describes destination-specific native-drop
+confirmation without calling a dialog or backend. Tab activation executes that read plan before
+committing an external tab as selected; failed or superseded reads leave the previous active tab and
+CodeMirror owner paired. An external tab writes atomically to its original document and does not
+join the recent-files list, vault index, watcher, session, or Git history. Native drops on the file
+tree require confirmation before the copy adapter runs. Copy and recursive-merge modes share the
+same complete source-batch inspection before either mode writes into the vault. Native drops over
+the editor use one themed choice: insert their paths at the drop location, or reuse the recursive
+merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from
+inserting an absolute path before that choice is made. After refresh, imported result paths that are
+files open as active tabs; directory paths intentionally leave the current buffer in place.
 
 ## Incremental vault index and native changes
+
+### Shared index, Graph projection and cold build
 
 Search, backlinks, Graph, Kanban, and Calendar project the same Markdown vault data,
 so they share one Go-owned in-memory index rather than independently walking
@@ -828,28 +894,6 @@ Once that authoritative buffer is visible and usable, the frontend invokes
 the idempotent `StartVaultLoad` port, reconciles the current snapshot, and
 starts the initial file-tree read while remaining parser warming continues.
 
-Startup diagnostics are observational. `internal/startup.Trace` receives a
-clock and a nonblocking emitter, validates fixed native/webview stage names,
-deduplicates events, and caps a launch at 128 events. The native composition root
-starts this trace before opening the vault. The `startupTimings` frontend use
-case receives a monotonic clock, buffers at most 64 events before bridge
-connection, and serializes reporting without making application work await
-delivery. This preserves stage order across concurrent Wails dispatch.
-`RecordStartupTiming` rejects arbitrary
-labels, non-finite durations, and out-of-range values; no note data, paths, or
-raw error strings are serialized. Normal recording ends at frontend readiness;
-spans already started may finish, and shutdown remains observable.
-
-`startup.Sink` opens and writes on its own bounded worker queue. Storage failure
-or a full queue drops diagnostics instead of delaying startup, saves, or native
-calls; process shutdown grants at most 100 ms for draining. The desktop log
-adapter uses exclusive, private JSONL files under `os.UserCacheDir()/Figaro/logs`,
-a pure ten-launch retention plan, and rooted removal of matching regular logs.
-It preserves unrelated files and symlinks. Existing settings and WebView storage
-are unchanged. `OpenStartupLogs` takes no path argument and opens only that
-configured directory using the existing file-manager adapter. Settings reuses
-approved buttons and notices for pending, success, and retryable failure states.
-
 The initial index reads and transforms a private snapshot without the vault
 lock. Concurrent note writes are journaled and reconciled before publication;
 unknown subtree changes restart the scan. Early sidebar queries return loading
@@ -858,11 +902,14 @@ instead of starting a synchronous scan before `StartVaultLoad`. The independent
 builds, and initial indexing does not invalidate its cache. A pure generation/phase
 reducer rejects delayed or regressive updates. A small DOM adapter updates the
 approved determinate progress primitive in the file-tree-aligned
-application-status region, leaving the active editor interactive. `window._appReady` is published only after the
+application-status region, leaving the active editor interactive. `window._appReady` is published
+only after the
 index reaches a terminal phase and the initial tree, language warming, and
 writing initialization have settled. Successful indexing hides compact progress
 independently of remaining writing preparation; an
 index error remains visible.
+
+### Native change propagation and per-file projections
 
 Figaro writes known Markdown files atomically and updates that one index entry
 in the same vault lock. The recursive native watcher sends a debounced set of
@@ -881,6 +928,25 @@ projections. The index revision advances on every rebuild and mutation so
 dependent caches cannot outlive their source. Other ambiguous broad changes,
 such as merges or an unscoped notification, deliberately invalidate and rebuild
 one coherent snapshot; correctness wins over a speculative partial update.
+
+The `vault:changed` event includes `tree_changed`, `kanban_changed` and, when
+the batch is scoped and at most 256 entries, `paths`: the external
+vault-relative changes (empty for pure acknowledgements of Figaro's own
+writes). `core/vaultChangeScopeModel.js` treats a missing list as an unknown
+scope. Coalesced tree refreshes merge scopes; rendered image and diagram
+previews remount only when a changed path is an image or diagram, and Activity
+dates and Git status re-read history only when the open note changed. On a
+cloud-synced vault this keeps unrelated sync activity from re-reading every
+preview or running Git status. An unknown scope refreshes everything, as before.
+Content-only external Markdown changes refresh dependent data without
+requesting a new file tree; directory or entry changes schedule the normal
+coalesced tree refresh. An acknowledgement of a Figaro-originated save has
+both flags false: the frontend already replaces that file's Kanban cards from
+the saved snapshot, so it does not request the complete board again. The
+initial index is still built after the first Wails window and restored active
+buffer are allowed to appear, so indexing does not delay shell creation or the
+first editable note. Compact status progress owns the remaining warm-up
+interval while the initial tree and index finish concurrently.
 
 Each indexed file owns its own tag, Kanban-card, daily-note, date-link,
 month-grouped Calendar-day, accent-folded search fields, term frequencies,
@@ -916,11 +982,14 @@ first vault scan and genuinely broad filesystem changes.
 The file tree has a separate metadata projection under the same vault lock.
 Its published hierarchy is immutable and may be returned unchanged across
 no-change refreshes; a flat path map updates known file writes/creates and
-adds known copied subtrees or remaps known moves before rebuilding the hierarchy in memory. Broad mutations,
+adds known copied subtrees or remaps known moves before rebuilding the hierarchy in memory. Broad
+mutations,
 ambiguous watcher batches, and unscoped notifications discard that projection,
 so the next request repeats the established root-scoped scan. The bridge still
 returns the complete hierarchy; this cache removes rediscovery cost without
 changing tree membership, sorting, hidden-path, or symlink rules.
+
+### Relationships and vault health
 
 `relationship_paths.go` owns the pure mention-path plan: validate both Markdown
 identities, reject traversal and self-links, then return portable slash-separated
@@ -963,10 +1032,14 @@ findings. A report cache is keyed by index identity and revision; any known or
 ambiguous vault mutation invalidates it. The report contains only
 vault-relative paths and lines, so UI navigation needs no filesystem access.
 
+### Today dashboard, Calendar and Kanban projections
+
 The full Kanban board remains available for its workspace, but the Today dashboard asks the
-backend for its bounded unfinished-card projection and due-task summary directly. A bounded top-k selection avoids copying and sorting the complete
+backend for its bounded unfinished-card projection and due-task summary directly. A bounded top-k
+selection avoids copying and sorting the complete
 board for that small result. Due work is deduplicated by source line,
-prioritized ahead of undated work, and joined from private task metadata onto copies of indexed cards. The joined schedule projection is cached by index
+prioritized ahead of undated work, and joined from private task metadata onto copies of indexed
+cards. The joined schedule projection is cached by index
 revision and schedule revision, so Calendar, Today, and due-task reads do not
 repeat a full-board overlay. The Markdown
 index never interprets due-link syntax. Pure Go and JavaScript helpers own
@@ -980,21 +1053,28 @@ the local calendar date. The open-or-create daily-note use case receives its
 tree, Inbox-directory creation, exclusive file creation, refresh, and navigation
 effects as explicit ports. It prefers `Inbox/YYYY-MM-DD.md`, retains a root-file
 fallback for existing vaults, and opens a same-name creation collision without
-replacing it. The eager `calendarLocale.js` adapter reads the operating-system locale through `Intl`, while its pure
+replacing it. The eager `calendarLocale.js` adapter reads the operating-system locale through
+`Intl`, while its pure
 model accepts the resulting first weekday and weekend set; no holiday source or calendar permission
 enters the application. Its pure session-selection plan chooses local Today when no in-memory
 selection exists; the panel-open coordinator restores the selected month on later openings without
-persisting that selection across launches. The shared vault index maintains per-date note-path reference counts and
+persisting that selection across launches. The shared vault index maintains per-date note-path
+reference counts and
 matching note rows so a daily note or normally linked Markdown file contributes once to both the
 month count and selected-day results, while metadata deadlines supply the independent task signal.
 Calendar month navigation similarly copies only that month's pre-grouped daily-note, linked-day, and
-metadata-derived due-task lists plus compact day summaries containing note counts and due titles. While a Markdown tab
+metadata-derived due-task lists plus compact day summaries containing note counts and due titles.
+While a Markdown tab
 is dirty, the pure Calendar model replaces that file's saved date associations with its current
-in-memory buffer; editor events schedule this projection on the next frame without scanning or saving
-the vault. Vertical wheel policy is isolated in `core/calendarWheelModel.js`: it rejects modified and
-horizontal gestures, accumulates high-resolution deltas, and returns only a month offset. The Calendar
+in-memory buffer; editor events schedule this projection on the next frame without scanning or
+saving
+the vault. Vertical wheel policy is isolated in `core/calendarWheelModel.js`: it rejects modified
+and
+horizontal gestures, accumulates high-resolution deltas, and returns only a month offset. The
+Calendar
 DOM adapter claims wheel input from the month grid, while the distinct selected-day overflow region
-keeps native scrolling. These narrow methods avoid per-day requests and avoid transferring or filtering the rest
+keeps native scrolling. These narrow methods avoid per-day requests and avoid transferring or
+filtering the rest
 of a large vault merely to render a small overview.
 
 The central Calendar workspace and the date picker both consume the pure
@@ -1004,25 +1084,6 @@ the picker receives the same visible activity data without importing the sidebar
 calling the backend itself. The overlay still owns shortcut/footer controls and makes every in-month
 day operable for due-date selection; its grid typography, locale order, theme state classes, labels,
 and rich activity details stay identical to the sidebar presentation.
-
-The `vault:changed` event includes `tree_changed`, `kanban_changed` and, when
-the batch is scoped and at most 256 entries, `paths`: the external
-vault-relative changes (empty for pure acknowledgements of Figaro's own
-writes). `core/vaultChangeScopeModel.js` treats a missing list as an unknown
-scope. Coalesced tree refreshes merge scopes; rendered image and diagram
-previews remount only when a changed path is an image or diagram, and Activity
-dates and Git status re-read history only when the open note changed. On a
-cloud-synced vault this keeps unrelated sync activity from re-reading every
-preview or running Git status. An unknown scope refreshes everything, as before.
-Content-only external Markdown changes refresh dependent data without
-requesting a new file tree; directory or entry changes schedule the normal
-coalesced tree refresh. An acknowledgement of a Figaro-originated save has
-both flags false: the frontend already replaces that file's Kanban cards from
-the saved snapshot, so it does not request the complete board again. The
-initial index is still built after the first Wails window and restored active
-buffer are allowed to appear, so indexing does not delay shell creation or the
-first editable note. Compact status progress owns the remaining warm-up
-interval while the initial tree and index finish concurrently.
 
 The frontend has two complementary hot paths. An unsaved Kanban change is
 projected from the dirty tab buffers on the next animation frame, without an
@@ -1051,6 +1112,44 @@ only entering/leaving window edges so shared cards retain identity. Browser
 scroll anchoring is disabled for that explicitly rebased surface, and transient
 hover elevation pauses until scrolling is quiet.
 
+`core/kanbanBufferModel.js` retains parsed cards per dirty buffer and evicts saved
+or closed buffers. Equivalent card fields preserve projection identity through
+prose edits; source-line changes still invalidate task references. Cards and
+column discovery share those projections. The adapter caches the overlay by
+saved-board and dirty-projection identity, skipping board publication, schedule
+projection, badges, and mounted card updates when tasks are unchanged.
+
+Hashtag completion deliberately reads a second, stable projection of the saved
+Kanban columns rather than the dirty-buffer column list. Unsaved tags still
+reproject the visible board immediately, but a partial new tag cannot become
+its own completion candidate during the same typing frame. The pure
+`core/taskDueDateCompletionModel.js` owns column normalization, saved-column
+suggestion matching, and literal hashtag eligibility. It no longer offers
+post-Space due-link insertions. `core/taskDueMetadataModel.js` plans preferred-style
+date-link insertion and removal of the unchanged `@date` command, assigning an
+untagged checklist item to TODO. `core/taskLineTokens.js` supplies source ranges
+for replacing exactly one date/tag while preserving multiple values and protected
+inline syntax. Plain prose receives only the link, without metadata I/O.
+`taskDueMetadata.js` coordinates injected note-save/current-snapshot/deadline
+ports. The CodeMirror adapter owns the source transaction and shared date
+picker; normal save conflict handling must succeed before metadata is attached.
+A stale buffer or failed save attaches no deadline. Cancelling the picker
+leaves source untouched. `SetTaskDueDate` checks the exact saved task source and
+preserves its existing start while atomically changing only private metadata.
+The Board card adapter uses the same `SetTaskSchedule` port for its independent
+Start and Due pills and its clear-both command. Pure `taskScheduleUpdatePlan`
+validation preserves the untouched endpoint and schedule identity before any
+write; the DOM layer owns picker/menu events and refreshes the shared Board,
+Gantt, Calendar, Today, and reminder projection afterward.
+Known note saves use `taskschedule.DateEdits` and `RebindDateEdits` to preserve
+schedule identity across uniquely matched date-only source changes. This leaves
+ordinary identity rules intact, rejects schedule collisions, and uses the same
+metadata-first/note-write/rollback adapter as first-start changes. Unrelated or
+ambiguous title edits remain unresolved instead of guessing.
+The picker receives its visible-month source eagerly at startup.
+
+### Timeline, Gantt and task schedules
+
 Kanban's alternative Gantt projection is eagerly imported through `kanban.js`.
 Calendar and Gantt both consume `timelineViewport.js`, the shared measured
 date-anchor, wheel/pan/keyboard, and buffered-edge component. Its pure policies
@@ -1063,7 +1162,8 @@ or note-loading policy enters the shared viewport.
 geometry, range shifts, row windows, counts, and measured pointer-zone
 classification. Compact bars reserve a center move target between proportional
 endpoint hit regions, so the DOM event's child target is never authoritative.
-`kanbanGantt.js` adapts DOM, pointer capture, and the existing date/picker primitives through injected
+`kanbanGantt.js` adapts DOM, pointer capture, and the existing date/picker primitives through
+injected
 save/open/status ports. Each endpoint's geometry remains feature-owned while
 its visible dot reuses the approved image-resize-handle primitive. The hit
 region stays inside the bar, while only that primitive's pseudo-element is
@@ -1111,42 +1211,6 @@ Unique canonical task text follows line/tag changes; duplicates require their
 unchanged source-task fingerprint. Unresolved records are preserved rather than
 silently deleted or attached to a replacement. Explicit reconnection validates
 both the live source and target ownership before replacing one record.
-
-`core/kanbanBufferModel.js` retains parsed cards per dirty buffer and evicts saved
-or closed buffers. Equivalent card fields preserve projection identity through
-prose edits; source-line changes still invalidate task references. Cards and
-column discovery share those projections. The adapter caches the overlay by
-saved-board and dirty-projection identity, skipping board publication, schedule
-projection, badges, and mounted card updates when tasks are unchanged.
-
-Hashtag completion deliberately reads a second, stable projection of the saved
-Kanban columns rather than the dirty-buffer column list. Unsaved tags still
-reproject the visible board immediately, but a partial new tag cannot become
-its own completion candidate during the same typing frame. The pure
-`core/taskDueDateCompletionModel.js` owns column normalization, saved-column
-suggestion matching, and literal hashtag eligibility. It no longer offers
-post-Space due-link insertions. `core/taskDueMetadataModel.js` plans preferred-style
-date-link insertion and removal of the unchanged `@date` command, assigning an
-untagged checklist item to TODO. `core/taskLineTokens.js` supplies source ranges
-for replacing exactly one date/tag while preserving multiple values and protected
-inline syntax. Plain prose receives only the link, without metadata I/O.
-`taskDueMetadata.js` coordinates injected note-save/current-snapshot/deadline
-ports. The CodeMirror adapter owns the source transaction and shared date
-picker; normal save conflict handling must succeed before metadata is attached.
-A stale buffer or failed save attaches no deadline. Cancelling the picker
-leaves source untouched. `SetTaskDueDate` checks the exact saved task source and
-preserves its existing start while atomically changing only private metadata.
-The Board card adapter uses the same `SetTaskSchedule` port for its independent
-Start and Due pills and its clear-both command. Pure `taskScheduleUpdatePlan`
-validation preserves the untouched endpoint and schedule identity before any
-write; the DOM layer owns picker/menu events and refreshes the shared Board,
-Gantt, Calendar, Today, and reminder projection afterward.
-Known note saves use `taskschedule.DateEdits` and `RebindDateEdits` to preserve
-schedule identity across uniquely matched date-only source changes. This leaves
-ordinary identity rules intact, rejects schedule collisions, and uses the same
-metadata-first/note-write/rollback adapter as first-start changes. Unrelated or
-ambiguous title edits remain unresolved instead of guessing.
-The picker receives its visible-month source eagerly at startup.
 
 ## Passage activity attribution
 
@@ -1270,7 +1334,9 @@ a line LCS; large revision pairs preserve their shared prefix/suffix and cap
 changed-line output so inspecting history cannot create an unbounded UI
 allocation.
 
-## Outline navigation
+## Writing lenses and prose analysis
+
+### Lens coordination, inline findings and rule policy
 
 Writing lenses share the right-pane coordinator and responsive layout.
 The coordinator applies the pure `core/rightPaneState.js` tab-selection plan,
@@ -1327,11 +1393,15 @@ label ranges and disjoint paint segments without effects. `writingLinkHints.js`
 adapts mounted link widgets through public CodeMirror DOM positions, limits
 matching to the viewport, and decorates labels after drawing without rebuilding
 widgets. The writing StateField owns persistent decoration range trees; mounted link
-labels query that tree directly, avoiding a rebuilt full finding-array index. Mounted labels retain their document/range/text and
-visible-findings plan; unchanged reconciliation skips source reads and painting. Covered source marks schedule a measure write even when CodeMirror
+labels query that tree directly, avoiding a rebuilt full finding-array index. Mounted labels retain
+their document/range/text and
+visible-findings plan; unchanged reconciliation skips source reads and painting. Covered source
+marks schedule a measure write even when CodeMirror
 needs no redraw. Hover requires the painted plan to belong to the current
-finding range tree, so cached choices cannot outlive result invalidation. Link hover uses the existing writing tooltip with the widget
-range for geometry and retains destination information. A document transaction closes the popup and uses `core/writingRetentionModel.js`
+finding range tree, so cached choices cannot outlive result invalidation. Link hover uses the
+existing writing tooltip with the widget
+range for geometry and retains destination information. A document transaction closes the popup and
+uses `core/writingRetentionModel.js`
 for structural/global invalidation policy. The CodeMirror adapter filters only
 touched paragraph ranges from a separate local-finding tree and maps that tree
 through actual changes. Snapshot callers may lazily enumerate findings; editing
@@ -1339,7 +1409,8 @@ and hover never need that array. The adapter reads only touched paragraphs;
 structural Markdown edits invalidate all marks, and document-dependent concepts
 are never retained. Retained marks have no action callbacks. The analysis
 coordinator keeps prior cards and their original analyzed identity while the
-replacement engines settle; an explicit stale flag blocks Apply and bulk Apply. Every popup action captures its displayed analysis identity and
+replacement engines settle; an explicit stale flag blocks Apply and bulk Apply. Every popup action
+captures its displayed analysis identity and
 uses the same fresh-source guard as pane actions. The editor eagerly registers
 the extension; the snapshot adapter publishes effects without re-running engines.
 `core/writingTokenCache.js` owns a bounded LRU computation cache; the vendor build
@@ -1352,7 +1423,9 @@ allocation by sentence-splitter without approximating punctuation checks.
 `core/writingWorkBudget.js` and `internal/writing/budget.go` keep size-based timeout
 policy separate from timer/process adapters: two seconds per started 64 Ki source
 units, bounded to 5–30 seconds. Worker initialization remains five seconds, and
-cancellation rejects callers immediately. Prose and spelling workers stop at cooperative checkpoints and retain caches; initialization failures, errors and deadlines still terminate them. Native Vale uses its existing cooperative worker.
+cancellation rejects callers immediately. Prose and spelling workers stop at cooperative checkpoints
+and retain caches; initialization failures, errors and deadlines still terminate them. Native Vale
+uses its existing cooperative worker.
 `core/writingTechnicalModel.js` separates URL contents from surrounding punctuation
 and shares technical-token ranges between prose projection and spelling.
 Opaque tokens need explicit path, known filename-extension, email/URL, or
@@ -1407,14 +1480,17 @@ to meaningful adjacent words without crossing protected content or line breaks.
 The same pure policy restricts equality advice to reviewed generic expressions
 and handles reviewed/uncertain article pronunciations; exact source mapping is
 separate from editorial suitability.
-Mapping version 25 includes curated grammar policy 8, package pins, reviewed terms/acronym exceptions, editorial policy version 9, spelling vocabulary version 5, and formula options in snapshot
+Mapping version 25 includes curated grammar policy 8, package pins, reviewed terms/acronym
+exceptions, editorial policy version 9, spelling vocabulary version 5, and formula options in
+snapshot
 identity. The resolver keeps formula and length advice distinct, merging only equivalent
 concerns and retaining every contributing lens and native source. A pure comma-spacing
 comparison trims unchanged context from the two reviewed rules’ safe edits. Only
 identical minimal edits adopt the local occurrence range, intent and action; the
 original native observation remains attached. Different edits, advisory-only
 observations, protected ranges and unrelated grammar rules retain their identities. Enabled lenses
-alone may supply fixes; unreviewed simplification matches remain advisory. Readability never generates fixes.
+alone may supply fixes; unreviewed simplification matches remain advisory. Readability never
+generates fixes.
 `core/writingTypographyModel.js` identifies balanced quotations and derives
 existing punctuation conventions without I/O. A second mapped projection
 exposes quotation punctuation to its own checker while prose wording remains
@@ -1428,45 +1504,14 @@ runs missing Vale work before evidence can be reused. Every
 finding retains its exact source slice separately from its projected wording so
 sentence-wide marks across Markdown formatting keep the same freshness guard.
 
-`internal/writing/grammar` owns 160 bounded pure English decisions and lexical
-transformations, including bounded noun/verb, homophone, and pronoun/question
-context, reviewed phrase mappings, and punctuation/number mechanics.
-`phrase_rules.go` prepares a first-word lookup eagerly with the lexicon;
-`phrases.go`, `constructions.go`, and `mechanics.go` own pure bounded checks.
-`prepositions.go`, `usage_words.go`, and `noun_agreement.go` keep complement,
-word-choice, noun-subject, and countability decisions inside that pure layer.
-Noun-subject checks require a bounded determiner/common-noun phrase and an
-adjacent auxiliary; they do not infer agreement across a preposition.
-Reviewed split-word and lexical corrections suppress only competing pronoun
-agreement at the same start.
-Its possessive-gerund guard distinguishes bounded infinitive/auxiliary
-chains from the later finite predicate without performing I/O. `grammar_adapter.go` composes them with the existing Vale engine
-and translates rune spans into the bridge contract. The pure
-`grammar_alerts.go` transformation suppresses generic doubled-determiner advice
-only where a reviewed contraction correction starts at the same position.
-The memory loader adds
-15 pinned Harper rules and eagerly prepares their dictionary; content-addressed
-model names prevent cross-engine dictionary contamination.
-`core/writingGrammarModel.js` owns the reviewed action allowlist, per-rule kinds,
-and complete-context guard. The resolver withholds grammar for prose blocks with
-masked context and validates exact text before allowing a fix. Per-review Unicode
-column tables and block-eligibility caches avoid repeatedly scanning a long line
-for every finding; these caches never survive the immutable review input. The
-[grammar contract](docs/WRITING_HARPER.md) lists scope and verification.
-
-Vale's adapted Go library is vendored in `third_party/vale`. The in-memory facade
-is the analyzer port consumed by `internal/writing`: one worker, one pending
-replacement, prompt cancellation/close responses, cooperative engine checkpoints,
-and bounded regex/alert/output work. Rule and local NLP initialization stays
-outside editor readiness and shutdown locks. No CLI or executable assets are
-part of application composition. The [prototype report](docs/VALE_EMBEDDED_PROTOTYPE.md)
-retains historical measurements and explains the process-isolation tradeoff.
+### Analyzer runtime, review decisions and spelling
 
 `writingRuntime.js` is a build entry for the eagerly loaded retext/textlint worker. It
 parses Markdown into prose with exact source mappings and retains analyzer-native
 evidence. Its asynchronous `analyzeWriting` coordinates retext with the actual
 textlint kernel and maintained text parser in `writingTextlintRuntime.js`.
-The adapter initializes the punctuation, terminology and selected Slopless rules before worker readiness; failed initialization
+The adapter initializes the punctuation, terminology and selected Slopless rules before worker
+readiness; failed initialization
 terminates that worker and remains retryable. `core/writingTextlintModel.js` owns
 the reviewed names, escaped-mark projection, relevance prefilter, native span
 conversion, reviewed uppercase-word exceptions, and acronym-definition recognition
@@ -1479,7 +1524,8 @@ support the real kernel. No runtime filesystem or dynamic import is introduced.
 into this worker. Its CLI is not bundled. `core/writingSloplessModel.js` owns
 selection, neutral messages/examples, native-range validation
 and first-occurrence anchors for each verified repeated word. All selected rules
-use protected prose; quote style comes from `retext-quotes` instead. Snapshot configuration includes the exact rule map.
+use protected prose; quote style comes from `retext-quotes` instead. Snapshot configuration includes
+the exact rule map.
 The new Formulaic writing lens only filters the resulting advisory findings.
 See [the complete rule inventory](docs/WRITING_SLOPLESS.md).
 Six checksum-pinned Microsoft rules join seven write-good and fourteen proselint
@@ -1488,18 +1534,24 @@ a complete eligible paragraph sentence in the pure adapter. All selections and
 remaining exclusions are recorded in [the package review](docs/WRITING_PACKAGE_REVIEW.md).
 The resolver suppresses familiar/defined acronyms with retained reasons and
 offers advisory examples, without guessing expansions or checking unit spacing.
-`core/noteLinks.js` shares wiki target/alias ranges between editor navigation and both writing/spelling exclusions.
+`core/noteLinks.js` shares wiki target/alias ranges between editor navigation and both
+writing/spelling exclusions.
 `core/writingAnalysisModel.js` purely converts coordinates, maps
 canonical concepts, resolves conservative equivalence/conflicts, applies policy,
 groups passages, maps display continuity, and validates fixes.
 `core/writingDecisionsModel.js` constructs unique context anchors, remaps intact
-targets through plain ranges adapted from actual CodeMirror changes, conservatively matches a distinctive
+targets through plain ranges adapted from actual CodeMirror changes, conservatively matches a
+distinctive
 surviving side on reload, and applies
 language-scoped occurrence/acronym suppression without I/O. Decisions participate
 in snapshot configuration, so changing them reuses current analyzer evidence
 while invalidating stale actions. `usecases/writingDecisions.js` owns one note's
 pessimistic load/change/retry/reconcile state and debounced anchor updates through
-injected storage/timer and background tracking ports. Input observation only queues immutable source readers and numeric ranges; deferred jobs track both committed and pending records. Pending commands remain immutable, while separate anchors reconcile source changes before a response takes effect. Inactive IDs are computed in the decision worker, never by the view. Definite capacity rejection releases the pending
+injected storage/timer and background tracking ports. Input observation only queues immutable source
+readers and numeric ranges; deferred jobs track both committed and pending records. Pending commands
+remain immutable, while separate anchors reconcile source changes before a response takes effect.
+Inactive IDs are computed in the decision worker, never by the view. Definite capacity rejection
+releases the pending
 command so removals remain possible; uncertain writes keep idempotent retry
 until an explicit reload reconciles disk. Reload requests coalesce and wait for
 the active tracking job to settle before replacing decisions. Tracking pauses
@@ -1518,7 +1570,10 @@ notices and suggestion cards in both existing review surfaces. Reversal remains
 available independently of selected lenses or whether the original text exists.
 `usecases/writingAnalysis.js` owns bounded snapshot generations, debounce,
 latest-request scheduling, partial results, and display identity through
-injected analyzer, background resolver, and timer ports. `core/writingReviewWork.js` owns pure resolution, identity continuity, presentation grouping, and decision-tracking transformations. Result generations reject late resolutions as well as late analyzer responses. `writingLenses.js` adapts the owned editor snapshot,
+injected analyzer, background resolver, and timer ports. `core/writingReviewWork.js` owns pure
+resolution, identity continuity, presentation grouping, and decision-tracking transformations.
+Result generations reject late resolutions as well as late analyzer responses. `writingLenses.js`
+adapts the owned editor snapshot,
 document-specific preferences, source navigation, and isolated undoable transactions.
 `core/writingReviewModel.js` groups identical suggestions independently of passage
 size and plans all-or-nothing bulk edits only for reviewed single-choice kinds.
@@ -1528,7 +1583,8 @@ distinct cards per page, cycles source occurrences, and creates raw diagnostics
 only on request. Shared view helpers disclose extra alternatives and explain rules
 before technical evidence; configured lens controls start collapsed.
 Spelling runs the existing conservative nspell implementation in a separate
-cancellable worker, with current-source eligibility and up to 4,096 cached lookups keyed by language and exact word across edits.
+cancellable worker, with current-source eligibility and up to 4,096 cached lookups keyed by language
+and exact word across edits.
 `core/spellingModel.js` uses the eagerly bundled Lezer Markdown parser for
 UTF-16 eligibility shared by spelling, context menus and background resolution.
 Reference IDs/definitions and indented code are excluded. Defined implicit
@@ -1550,7 +1606,8 @@ US/UK expand saved base words and recover the base of a singular possessive;
 a terminal possessive also accepts its unpossessed s-ending word without guessing
 a singular. Other languages and internal-apostrophe entries retain exact matching.
 Frontend lookups and Go persistence use NFC keys while retaining original note
-text and UTF-16 ranges; read-only restoration does not rewrite old dictionaries. No shared language checker is mutated, and no generated form
+text and UTF-16 ranges; read-only restoration does not rewrite old dictionaries. No shared language
+checker is mutated, and no generated form
 is persisted. The existing nspell package is eagerly mapped to its browser bundle.
 The Spelling
 lens owns all spelling enablement and language; no standalone linter is mounted.
@@ -1562,7 +1619,8 @@ retains the searchable editor across modal closes. `createDialogShell`,
 and sizing. Pending completions only focus a connected editor; hidden failures
 remain visible in the launcher summary. Settings-target navigation can explicitly
 activate the launcher after revealing it, so Proofreading shortcuts open the same
-dialog. The subscriber is released when the Settings panel closes. Pure normalized filtering and bounded
+dialog. The subscriber is released when the Settings panel closes. Pure normalized filtering and
+bounded
 alphabetical list planning live in `core/spellingDictionaryModel.js`. Add and
 Remove share one pessimistic mutation queue; Undo calls Add for one entry rather
 than replacing a snapshot. Backend Remove holds the settings lock over a rooted
@@ -1572,8 +1630,48 @@ read/plan/atomic write and preserves unknown metadata.
 purely; `app_spelling_dictionary.go` owns the locked rooted read/atomic-write
 boundary for `.config/spelling-dictionary.json`, preserving unreadable data.
 
-`writingAdapters.js` eagerly creates three bundled workers (prose/resolution, spelling, and decision tracking) and initializes
-Vale during startup without placing its readiness promise on the editor reveal barrier. Prose and resolution requests serialize through the same worker so full projections and raw observations remain there; only Vale input and resolved results cross the UI boundary.
+### Native grammar, Vale, workers and lens preferences
+
+`internal/writing/grammar` owns 160 bounded pure English decisions and lexical
+transformations, including bounded noun/verb, homophone, and pronoun/question
+context, reviewed phrase mappings, and punctuation/number mechanics.
+`phrase_rules.go` prepares a first-word lookup eagerly with the lexicon;
+`phrases.go`, `constructions.go`, and `mechanics.go` own pure bounded checks.
+`prepositions.go`, `usage_words.go`, and `noun_agreement.go` keep complement,
+word-choice, noun-subject, and countability decisions inside that pure layer.
+Noun-subject checks require a bounded determiner/common-noun phrase and an
+adjacent auxiliary; they do not infer agreement across a preposition.
+Reviewed split-word and lexical corrections suppress only competing pronoun
+agreement at the same start.
+Its possessive-gerund guard distinguishes bounded infinitive/auxiliary
+chains from the later finite predicate without performing I/O. `grammar_adapter.go` composes them
+with the existing Vale engine
+and translates rune spans into the bridge contract. The pure
+`grammar_alerts.go` transformation suppresses generic doubled-determiner advice
+only where a reviewed contraction correction starts at the same position.
+The memory loader adds
+15 pinned Harper rules and eagerly prepares their dictionary; content-addressed
+model names prevent cross-engine dictionary contamination.
+`core/writingGrammarModel.js` owns the reviewed action allowlist, per-rule kinds,
+and complete-context guard. The resolver withholds grammar for prose blocks with
+masked context and validates exact text before allowing a fix. Per-review Unicode
+column tables and block-eligibility caches avoid repeatedly scanning a long line
+for every finding; these caches never survive the immutable review input. The
+[grammar contract](docs/WRITING_HARPER.md) lists scope and verification.
+
+Vale's adapted Go library is vendored in `third_party/vale`. The in-memory facade
+is the analyzer port consumed by `internal/writing`: one worker, one pending
+replacement, prompt cancellation/close responses, cooperative engine checkpoints,
+and bounded regex/alert/output work. Rule and local NLP initialization stays
+outside editor readiness and shutdown locks. No CLI or executable assets are
+part of application composition. The [prototype report](docs/VALE_EMBEDDED_PROTOTYPE.md)
+retains historical measurements and explains the process-isolation tradeoff.
+
+`writingAdapters.js` eagerly creates three bundled workers (prose/resolution, spelling, and decision
+tracking) and initializes
+Vale during startup without placing its readiness promise on the editor reveal barrier. Prose and
+resolution requests serialize through the same worker so full projections and raw observations
+remain there; only Vale input and resolved results cross the UI boundary.
 `usecases/writingProse.js` owns the worker-local source cache through an injected
 analysis port. `usecases/writingParagraphChecks.js` admits bounded exact-input
 paragraph caches through injected package/checkpoint ports. Cold misses run in
@@ -1596,7 +1694,9 @@ mutate caches concurrently. Resolution carries an explicit `proseRequired` flag:
 rebuild inside the worker, and failed recovery returns independent spelling
 with `proseFailure`, excluding unmappable Vale output. The analysis coordinator
 keeps that review partial and retryable until recovery actually succeeds.
-Decision requests serialize separately across document controllers. No worker failure falls back to synchronous UI computation. `internal/writing` embeds only the selected write-good, proselint, and Microsoft
+Decision requests serialize separately across document controllers. No worker failure falls back to
+synchronous UI computation. `internal/writing` embeds only the selected write-good, proselint, and
+Microsoft
 rules. The locally adapted Vale 3.20.0 Go module in `third_party/vale` compiles
 into Figaro, initializes sentence data and rules from memory, and never extracts
 or starts a helper executable. A pure admission policy accepts at most one active
@@ -1624,6 +1724,8 @@ removes the exact legacy `.config/` rule while preserving other patterns and lin
 endings. Configuration is eligible for explicit vault Git tracking; startup and
 preference saves neither stage nor commit it, and automatic note history remains
 file-scoped.
+
+## Outline navigation
 
 Outline is intentionally a source-navigation surface rather than another
 CodeMirror live-preview feature. `core/outlineModel.js` parses only the active
@@ -1668,9 +1770,29 @@ touches the sticky DOM only when the hierarchy signature changes. This follows
 the visible covered edge instead of the deliberately batched virtual viewport
 without parsing Markdown or forcing layout from the scroll handler. The small
 top-right launcher uses the approved icon-button disabled state when the model
-has no headings and remains visible with a pressed state while the outline owns the right pane. History,
+has no headings and remains visible with a pressed state while the outline owns the right pane.
+History,
 Raw Text Preview, and PDF Preview release the outline before taking that shared
 pane.
+
+Document Outline's width transition is coordinated at its existing UI-effect
+boundary. A bounded request-animation-frame loop asks CodeMirror to measure
+while the editor width changes, then stops after three stable frames (or thirty
+frames maximum), keeping block widgets and gutters in one layout generation
+without introducing a persistent observer. A shared adapter publishes that
+visible width plus the measured gap between CodeMirror's outer left gutter and
+the padded, centered writing edge through block-action CSS properties during
+ordinary geometry updates and the bounded transition. A pure layout model
+bounds that left-rail inset and decides from the measured editor-to-writing-edge
+gap whether a full text action can fit without entering the sidebar. Mermaid
+and table actions share the helper stack; a constrained writing margin gains
+stable left padding instead of an overlapping or clipped action row.
+The left-side layout hook positions both entries in each control stack
+toward the writing surface without redefining the shared button primitive. It
+uses the primitive's monospace typography capped at 12px, shares CodeMirror's
+row offsets without extra vertical padding, and translates the helper rail just
+outside the writing edge. Editor width stays unchanged; the writing column is measured
+with its reserved helper lane before pointer interaction.
 
 ## Editor buffer ownership and undo history
 
@@ -1734,7 +1856,8 @@ clears all open overrides before applying the new baseline. Pointer-triggered
 reflow uses CodeMirror read/write correction passes to retain the source point
 beneath the wheel; the unitless line-height ratio remains constant so font and
 row height are not scaled twice. The status row remains visible outside Pure
-mode, so scale changes are immediately observable without a temporary reveal. The existing three-second
+mode, so scale changes are immediately observable without a temporary reveal. The existing
+three-second
 scale-gesture marker is informational and no longer changes footer opacity.
 
 ## UI continuity surfaces
@@ -1868,6 +1991,8 @@ Markdown implementation so these contracts apply to the shipped editor.
 
 ## Editor decoration updates
 
+### Projection mapping and viewport-scoped decorations
+
 The checked-in live-Markdown adapter follows the same work contract as first-party
 plugins. Inline formatting/style descriptors are viewport-scoped, with pure
 `formattingMarkerVisibility` selecting the revealed markers. Ordinary movement
@@ -1886,7 +2011,8 @@ changed heading titles and fence labels locally; image-line changes and uncertai
 syntax retain their fallback. Source payloads
 and decoration values survive those edits; unchanged descriptor arrays retain
 their reveal indexes. Code/table pointer handlers resolve current positions from
-the mounted decoration, including a remount after scrolling. Structural/uncertain edits and parser changes invalidate
+the mounted decoration, including a remount after scrolling. Structural/uncertain edits and parser
+changes invalidate
 caches; folding, reveal-policy changes and drag settlement refresh projections.
 Unrelated reconfiguration retains descriptors and decorations in these fields.
 `markdownWorkFacet` injects diagnostic counts at editor composition; the vendor
@@ -1903,7 +2029,8 @@ through an edit. Proven prose edits outside their owned lines map cached ranges
 and source-reveal variants; task clicks resolve the mounted widget position.
 Proven inline edits inside a list/quote line reread and patch only that line.
 Callouts, changed block/inline structure, parser, viewport and configuration
-changes retain the full visible projection fallback. Plain prose with no indented blocks reads no computed
+changes retain the full visible projection fallback. Plain prose with no indented blocks reads no
+computed
 indentation style; mapped edits retain existing metrics, while later geometry
 or configuration changes recheck typography.
 
@@ -1918,7 +2045,8 @@ and Setext-adjacent edits; ordinary single-line prose maps heading positions
 through `mapOutlineHeadings`. Parser fallbacks preserve frontmatter/fence rules.
 Rows with unchanged labels/levels retain identity and focus, and their click
 handler resolves its stable heading index in the current model. Position-only
-edits skip row-label comparisons and position attributes, including sticky rows. Document/owner changes always
+edits skip row-label comparisons and position attributes, including sticky rows. Document/owner
+changes always
 refresh. `outlineHeadingStructure` builds parent and next-section indexes in
 one pass; sticky ancestry follows at most six parents after binary search,
 and guide folding uses the indexed next boundary. Active-row references are
@@ -1940,10 +2068,12 @@ retain their invalidation paths.
 Selection within the same source range leaves decorations intact; entry/exit
 patches only that block using cached descriptors. Structural table edits/parser
 progress and math delimiter/range edits reparse; newline edits also reparse math
-because they can join an inline expression. `core/mathPreviewModel.js` owns the existing math recognition.
+because they can join an inline expression. `core/mathPreviewModel.js` owns the existing math
+recognition.
 Block guides cache label width per guide array, use an interval index for widget
 overlap and binary lookup for visible guide lines. They cache their structural
-model by immutable document and syntax-tree identity and map through proven prose edits; viewport/fold changes only rebuild
+model by immutable document and syntax-tree identity and map through proven prose edits;
+viewport/fold changes only rebuild
 visible markers from that model. Find's accessibility announcement caches native
 query matches by immutable document/query/word-character context and uses a pure
 binary search for the current selection. Changed text/query/context invalidates
@@ -1959,6 +2089,8 @@ explicit typography refresh and font completion clear the cache, and loading
 fonts bypass retention. Disposal clears the editor's entries. Measurements
 remain before paint to preserve source/replacement height equivalence.
 
+### Preview caches and cursor-only invalidation
+
 Prepared code, math, table and image content uses `domPreviewCache.js`, a
 CodeMirror/DOM adapter around the same pure bounded-retention policy. Each
 editor and feature configuration owns its session; removing the extension
@@ -1971,7 +2103,8 @@ estimates, not browser heap limits; mounted content is outside these caches.
 Source identities transfer each subtree to one mount. Source/render signatures
 reject changed content; code also checks highlighter registration generation,
 math checks its KaTeX render function, and tables check their math renderer.
-Highlighter exceptions remain retryable. Table subtrees containing images or failed math remain on the fresh rendering
+Highlighter exceptions remain retryable. Table subtrees containing images or failed math remain on
+the fresh rendering
 path. CSS continues to apply current fonts/themes; source footprints and math
 fitting recompute for the connected wrapper. Code retains only its highlighted
 `pre`, tables their semantic `table`, math its rendered content, and images the
@@ -2001,7 +2134,8 @@ from the first-line caret class. Its focus adapter resolves the current syntax
 block, normalizes phrase segmentation once per document and block range, and
 passes the prepared ranges and document length to the pure range policy. Ordered
 phrases use binary lookup with the original inclusive boundary behavior; unusual
-unordered/overlapping injected ranges retain first-match semantics. It reuses decorations while the focus
+unordered/overlapping injected ranges retain first-match semantics. It reuses decorations while the
+focus
 range and visible document are unchanged. Edits, viewport changes, Find,
 selection, pointer drag, nested blocks, and settings changes retain their
 invalidation paths; widget focus synchronization is coalesced per microtask.
@@ -2017,23 +2151,13 @@ while replacements or cursor relocation rebuild context once. Empty-link
 autofill gates wider reads on its local closing suffix and checks document
 identity before applying a queued replacement.
 
-Mermaid validation uses the injected `mermaidValidationReuse.js` coordinator:
-exact source and the initialized renderer identity own successful, failed and
-pending results, bounded to 128 entries and 2,000,000 retained source characters.
-Renderer initialization owns the fixed parser configuration. A changed renderer
-invalidates reuse; safety/availability checks precede it. Lint maps cached errors
-onto current fence offsets and abandons obsolete documents before the next
-parser call. A parser call already running cannot be interrupted.
-
-The vertical-motion adapter coalesces requests within one animation frame. It
-retains the keyed coordinate check and the post-paint physical-scroll repair,
-then requests ordinary CodeMirror reconciliation without a third identical
-coordinate read. Native scrolling recovery remains enabled in every engine.
+### Selective preview state
 
 CodeMirror preview state is intentionally selective. Math and diagram
 `StateField`s retain the source ranges that produced their replacement
 decorations, so a selection move or edit outside those ranges maps or preserves
-the existing state instead of reparsing the whole note. Diagram fields also retain parsed fences when entering/leaving source or
+the existing state instead of reparsing the whole note. Diagram fields also retain parsed fences
+when entering/leaving source or
 folding, and reuse the complete decoration state for motion within the same
 revealed fence. Content edits invalidate or map those records as before.
 Frontmatter reparses only header/delimiter changes and retains metadata through body edits.
@@ -2134,7 +2258,8 @@ control, and content coordinates, tracks pointer/focus input, and writes only a
 `data-block-control-relevant` attribute on the gutter owner. CodeMirror
 replaces that owner's classes when edits remap source offsets, so an attribute
 preserves reveal state until the next geometry measurement without a flash.
-The approved primitive owns opacity, hit testing, and reduced-motion behavior. A control's visual relevance range is distinct from
+The approved primitive owns opacity, hit testing, and reduced-motion behavior. A control's visual
+relevance range is distinct from
 its fold range, so a heading-line caret reveals the guide without changing the
 folded source.
 `markdownBlockGuides.js` is the CodeMirror adapter: it reads Lezer's top-level
@@ -2181,7 +2306,8 @@ new gutters are installed, and reconfiguration need not emit a CodeMirror
 microtask after CodeMirror installs the gutter DOM, including document/parser
 updates and mount. Reading inside `ViewPlugin.update` sees the previous spacer;
 waiting for the next animation-frame measurement can paint its stale negative
-margin. Removing the plugin cancels its pending layout publication. Activity-date toggles use the same before-paint
+margin. Removing the plugin cancels its pending layout publication. Activity-date toggles use the
+same before-paint
 timing. Activity and Pure layout classes are registered with CodeMirror
 `editorAttributes`, so focus-driven root-attribute updates cannot hide the date
 rail or drop Pure/typewriter styling until a background plugin update repairs it.
@@ -2205,7 +2331,8 @@ source serialization, merge-coordinate shifting, and disabled reasons do not
 read CodeMirror or the DOM. The modal owns temporary Undo/Redo and performs no
 root change until Apply revalidates the original source and dispatches one
 replacement transaction. The discard notice remembers its initiating control
-and native selection; Keep editing or Escape restores that editing context. Its shell and pane frames consume the borderless
+and native selection; Keep editing or Escape restores that editing context. Its shell and pane
+frames consume the borderless
 modal-surface contract, while ordinary toolbar actions reuse the approved
 outlined compact button and one feature-owned divider separates Rows from
 Columns. The internal cell grid, danger actions, focus, and forced-colors
@@ -2241,6 +2368,8 @@ above later positioned editor lines; transient panel transforms can therefore
 animate without trapping a picker beneath the note content that follows it,
 because open property menus share the body-level floating-menu lifecycle.
 
+### Vertical motion, folds and keyboard input
+
 Vertical document navigation has a separate deterministic boundary policy in
 `frontend/js/core/verticalCursorModel.js`. It consumes movement at the absolute
 first and last positions and rejects a browser or height-map result that moves
@@ -2267,6 +2396,11 @@ Arrow Up/Down, Page Up/Page Down, and Vim `j`/`k`. The classification and pixel
 delta stay independent from DOM and timer effects; the adapter owns those
 effects and does not alter source text or pointer/wheel scrolling.
 
+The vertical-motion adapter coalesces requests within one animation frame. It
+retains the keyed coordinate check and the post-paint physical-scroll repair,
+then requests ordinary CodeMirror reconciliation without a third identical
+coordinate read. Native scrolling recovery remains enabled in every engine.
+
 Windows keyboard layouts remain owned by the native WebView2 and CodeMirror
 input stack. The editor does not map physical key codes to assumed Spanish
 characters, prevent dead-key events, synthesize accent output, or reconcile
@@ -2291,7 +2425,8 @@ Vim is outside Insert mode, leaving the adapter's Left/Down/Up/Right mappings
 equivalent to `h`/`j`/`k`/`l`. When the opt-in Vim rendered-block motion is
 active, the root editor recognizes both physical Up/Down events and their
 `k`/`j` counterparts, then uses those retained source ranges to stop Normal
-motion at the adjacent block. Visual vertical motion independently preserves its anchor and extends the selection
+motion at the adjacent block. Visual vertical motion independently preserves its anchor and extends
+the selection
 into adjacent fenced source, so source-first decoration rebuilding reveals the
 block without exiting Visual mode. Frontmatter is the deliberate boundary
 exception: `gg` keeps Properties rendered and a following `k` or Up reveals its
@@ -2314,6 +2449,8 @@ The pure `core/tablePreviewInteractionModel.js` decides that ownership from
 plain target/geometry inputs; the widget adapter supplies DOM measurements and
 stops owned events. Native overflow geometry and retained selection are
 asserted in the focused browser contract.
+
+### Structural editing, paste and editor preferences
 
 Table structural editing keeps the same dependency direction.
 `core/markdownTableEditing.js` parses exact row/cell boundaries and maps a
@@ -2402,7 +2539,8 @@ List-marker lines carry an inline hanging-indent decoration that aligns wrapped
 display rows with the visible item body. Active/passive variants retain their
 measured prefixes across cursor movement and refresh with source, typography
 or tab-size changes. Revealed markers inherit the measured body font, including
-numbered markers; quote measurements use the rendered italic style. The decoration never adds block height or changes Markdown source.
+numbered markers; quote measurements use the rendered italic style. The decoration never adds block
+height or changes Markdown source.
 
 Tab width is one portable editor preference rather than a file-mode default.
 The pure `frontend/js/core/tabSizeModel.js` owns the four-space default,
@@ -2416,6 +2554,8 @@ reconfigures the root and refreshes source-footprint measurement. The Mermaid
 dialog copies those
 facets from its root view, and `--editor-tab-size` aligns rendered code and Raw
 Text Preview without entering the isolated printable document.
+
+### Diagnostics, proofreading and document observers
 
 Markdown diagnostics are an intentionally separate idle-time extension rather
 than a live-preview widget. They scan only the active Markdown document after
@@ -2432,10 +2572,19 @@ root supplies the same eagerly loaded Mermaid parser adapter used by preview
 and export. CodeMirror's async linter discards a completed result if its source
 document has since changed.
 
+Mermaid validation uses the injected `mermaidValidationReuse.js` coordinator:
+exact source and the initialized renderer identity own successful, failed and
+pending results, bounded to 128 entries and 2,000,000 retained source characters.
+Renderer initialization owns the fixed parser configuration. A changed renderer
+invalidates reuse; safety/availability checks precede it. Lint maps cached errors
+onto current fence offsets and abandons obsolete documents before the next
+parser call. A parser call already running cannot be interrupted.
+
 Proofreading owns local spelling checks through its dedicated spelling worker and
 shared inline findings. Its English US/UK and Spanish Hunspell assets are bundled
 and cached locally. The document’s lens combination and analysis language are
-authoritative for spelling enablement and language; Settings manages accepted personal words and frontmatter no longer configures spelling. Legacy
+authoritative for spelling enablement and language; Settings manages accepted personal words and
+frontmatter no longer configures spelling. Legacy
 settings/YAML are preserved without effect. A hyphenated prose compound
 is accepted when every component is recognized by the same active dictionary,
 so terms such as `faster-than-usual` remain unmarked despite dictionary
@@ -2460,7 +2609,8 @@ where possible, avoiding a whole-document tokenization per keypress.
 
 `settings.json` stores durable preferences such as theme, fonts, tab size, Vim visual-row
 and rendered-block motions and the Markdown-lint toggle. Per-note writing
-lenses and language live in `.config/writing-lenses.json`. Open tabs, their ordering, current per-file cursor
+lenses and language live in `.config/writing-lenses.json`. Open tabs, their ordering, current
+per-file cursor
 selections, and the active workspace state live in the dedicated session record.
 The pure `sessionTabStorageUpdate` comparison prevents cursor/buffer-only tab
 updates from issuing synchronous local tab-storage writes; the active-tab key
@@ -2601,7 +2751,8 @@ file, the vendor adapter bundles its locked ESM default export into the
 script and print worker. The canonical renderer also owns the print-only
 horizontal-rule policy: a parsed body `---` token receives the authored
 page-break hooks, while frontmatter stripping and Markdown-It's Setext parsing
-keep metadata delimiters and heading underlines out of that rule. The repository's Babel 8 transform configuration is a
+keep metadata delimiters and heading underlines out of that rule. The repository's Babel 8 transform
+configuration is a
 development-only boundary; the generated desktop browser assets do not ship
 Babel, and Jest's isolated internal Babel 7 copy is not part of that runtime.
 Jest 30's current-Node syntax preset comes from the reviewed compatibility copy
@@ -2692,211 +2843,6 @@ each render then receives its own token. The parent validates the frame
 that messages came from its parent. The bootstrap token matters after a bad
 navigation: a foreign page retains the iframe's `WindowProxy`, but cannot
 forge `ready` and receive the printable document snapshot.
-
-Markdown-to-print rendering can include asynchronous diagram work. The parent
-therefore allows only one preview render at a time: each input event invalidates
-the active request immediately, preserves the ordinary trailing debounce, and
-queues one latest snapshot. Completed stale work is never sent through the
-bridge, so expensive bursts cannot race a later edit or paint an older preview.
-The initial render exposes the existing preparation state; after a printable
-snapshot exists, later renders leave that page and its settled status visually
-undisturbed until the replacement is ready. Refresh failures still replace the
-settled status with the error instead of being hidden.
-The pure Markdown-It parsing phase runs in a module worker when the webview
-supports it; callout/TOC decoration, fenced-code highlighting, and DOM-dependent
-Mermaid/Vega conversion remain on the document side. A worker failure or unsupported WebKit build falls
-back to the established in-thread renderer, preserving preview correctness.
-The shared diagram renderer consults a pure Mermaid source policy before the
-vendored parser is initialized: it applies the parser's 50,000-character limit
-before YAML frontmatter work and rejects YAML ordered-map tags. Live preview,
-PDF preview, and export therefore share one effect-free security decision and
-the existing failed-source recovery behavior. The live-diagram CodeMirror
-adapter also observes native folded ranges: an exact fence-body fold suppresses
-its replacement decoration so the fold placeholder owns the block, and an
-unfold transaction rebuilds the live decoration under the ordinary
-cursor-reveal rule.
-
-For Mermaid source without an authored theme or custom variables,
-`core/mermaidStyleEditorModel.js` produces an ephemeral application-only source
-variant from colors read by the renderer adapter from Figaro theme tokens. The
-live widget and Mermaid Editor request that appearance; printable consumers do
-not. Explicit Mermaid styling bypasses the transformation. Because the
-transformed source is the cache input, application and printable SVGs cannot
-alias even though they retain one shared render engine.
-
-Diagram render identity and reusable-input policy live in pure
-`core/diagramRenderCacheModel.js`. Mermaid retains its 64-entry SVG LRU and
-in-flight coalescing, keyed by effective source, engine generation and font
-identity. Vega/Vega-Lite use `usecases/diagramOutputReuse.js`, with an
-injected renderer, a 64-entry LRU and a budget of 4,194,304 UTF-16 code units for retained
-keys and SVGs (about 8 MiB of UTF-16 payload). Pending-key retention is also bounded.
-Vega keys include effective source/configuration, normalized container dimensions,
-and font identity/loading generation. External URLs/images and expressions reading time, randomness or window/screen
-state bypass reuse; failures and empty output are retryable. Font completion
-or a replaced engine clears entries and prevents earlier work from repopulating
-them. The DOM adapter rewrites generated SVG IDs and local references per mount,
-without replacing label text or external links. Printable and live callers share
-this renderer, with separate effective appearance/geometry inputs.
-
-The live adapter injects `usecases/diagramRenderQueue.js` and
-`usecases/diagramQuietScheduler.js`. The scheduler waits 120 ms after key/input,
-composition, wheel or scroll activity, then requests idle execution. New input
-revokes an already queued idle slot; composition also blocks timeout execution.
-Timer, idle, activity-observation and composition ports are injected. A running
-DOM renderer is still main-thread work and cannot be preempted. Source changes,
-widget disposal, container resizing and appearance/font changes reject stale
-results immediately; new or invalidated output uses the same quiet queue.
-Completed live SVG subtrees are detached into an editor-owned cache when their
-widgets leave the viewport or reveal source. `core/previewCache.js` bounds this
-cache to 32 entries and 4 MiB estimated SVG/key/node data; this is an estimate,
-not a browser heap measurement. Reuse transfers a subtree to exactly one mount
-and preserves its unique IDs. Wrappers, controls and observers belong to each
-mount and are recreated. `diagramRenderIdentity` uses the renderer's own
-source/appearance/font/engine/width and volatile-input policy to validate a
-retained subtree after its new wrapper connects. Valid previews return in a
-microtask before paint, bypassing generation and SVG reparsing. Source changes,
-failed/missing output, font loading and external/ambient Vega data cannot return
-a stale preview. A capture-phase key listener detects active repeat bursts;
-prepared Mermaid restoration waits through those bursts, while Vega restores
-immediately. Active composition routes both through the quiet slot. This keeps
-Mermaid attachment/layout out of continuous keyboard input. Removing the
-extension clears retained nodes and its listener. Graphic fitting coalesces resize
-notifications into the next animation frame, outside observer delivery, and
-cancels measurements on disposal. Source-height rulers defer resize-originated requests outside observer delivery;
-source/mount changes still measure before paint to preserve replacement height.
-Source-footprint geometry and the inline SVG
-representation remain unchanged.
-
-Measured tab, inline-SVG and native workload results are recorded in
-[Editor performance verification](docs/EDITOR_PERFORMANCE.md).
-
-The focused Mermaid Editor reuses that adapter without adding another rendering
-path. The configured Markdown-guide extension adds an **editor** action beneath
-the left-side **mermaid** fold guide; the application composition root resolves
-that guide against the current diagram scan before opening the modal. The modal
-keeps edits in a temporary CodeMirror state. Pure
-catalogue normalization, parser-error mapping, adaptive-delay policy, and
-fence-body replacement planning live in `core/mermaidEditorModel.js`.
-`core/mermaidStyleEditorModel.js` separately owns the 32-type styling
-capability table, readable color derivation, conservative YAML scalar merge,
-exact theme preset reconstruction, parsed-node projection, palette cardinality,
-and reversible native
-Mermaid node-style/direction transforms. It cannot parse, render, touch the DOM,
-or dispatch an editor transaction; unsafe compact YAML produces a refusal plan
-instead of an overwrite. `diagramRenderer.js` is the concrete inspection adapter:
-it snapshots Mermaid's original vertices/classes, plot identities, authored
-configuration, and effective colors. A shared engine queue prevents inspection,
-lint validation, and rendering from interleaving mutable Mermaid config. The
-injected `usecases/mermaidPreviewSession.js` coordinates timers, parsing, and a
-single latest-only render queue. `mermaidEditor.js` alone owns dialog DOM,
-temporary CodeMirror effects, and the final atomic dispatch to the root editor.
-Its template-state policy distinguishes protected user source from live
-template browsing before the dialog performs any CodeMirror transaction. The
-dialog receives the already-configured Vim extension and global visual-row
-mapping as an input profile, and copies the root tab-size and indent-unit facets
-into its temporary state. Vim cursor-mode classes are owned by a CodeMirror
-editor-attribute compartment rather than an ad-hoc DOM mutation, so diagnostics
-transactions cannot discard them; cleanup restores root-editor Ex commands and
-status ownership. Dynamic Diagram-to-Template option changes reuse the shared
-select-combobox adapter's refresh boundary rather than rebuilding modal UI.
-The DOM adapter builds applicable Style controls only for inspected current
-source and delegates color menus to the existing Kanban palette adapter.
-Phase-only status updates retain the controls and palette anchor; effective
-color refreshes update swatches in place. Source/selection rebuilds restore a
-stable semantic focus key. For flowcharts it keeps the selected-node editor
-first, ahead of the full-height chooser and diagram defaults, implements roving
-listbox focus locally, and asks the preview adapter only for the selected
-authored id. The Style panel owns scrolling and preserves its offset across
-DOM refreshes; the chooser has no height cap or nested overflow container. It
-uses the approved menu-item row so pointer-down paint cannot translate its
-geometry. Both the active editor and chooser use
-feature-owned identity/shape/color grid layout without owning control states.
-The modal also reuses the approved quiet picker and segmented-choice variants;
-feature CSS removes redundant shell, pane, heading, and node-list frames while
-retaining the CodeMirror gutter, focus, diagnostic, and forced-colors boundaries.
-Those presentation decisions never enter the
-source transform. Whitespace classification, rendered flowchart-id matching, and preview
-transform decisions remain in pure Mermaid models. `mermaidPreviewNavigation.js` alone translates wheel,
-pointer, and keyboard events into those transforms, publishes explicit SVG
-dimensions plus pan offsets, distinguishes a node click from a pan, publishes
-the selected node id, and tears down its listeners with the dialog; it
-has no reference to the root document or Apply transaction.
-
-Table-backed Vega-Lite authoring uses a parallel pure/effect split without a
-second rendering pipeline. `core/vegaLiteChartEditorModel.js` owns table
-validation and type inference, normalized editor state, canonical Vega-Lite
-generation, fixed first-column Cartesian category ownership, Pie/Waterfall
-category selection and calculations, dual-axis grouping, non-owning
-threshold overlays and stack
-policy, collision-safe hidden row-order predictors for nominal-category
-regression, explicit no-sort nominal category encodings, complete visible-series legend domains and placement, exact embedded
-table restoration, foreign-JSON detection, and height
-clamping. Its compatibility reader accepts the exact prior managed-legend and
-axis-suppressing threshold shapes plus earlier category-predictor trendlines,
-but still rejects any
-other JSON drift; the next Apply writes the current
-canonical form. It has no DOM or CodeMirror dependency. `vegaLiteChartEditor.js` owns
-the approved borderless modal composition, quiet field/picker/stepper/segmented
-variants, and shared
-Kanban color-palette adapter, keeps the fixed first Cartesian category visible
-without a redundant control, makes disabled trendline policy discoverable through the
-complete label's shared tooltip above modal surfaces, represents column visibility with approved icon
-buttons, and represents fixed series/threshold axis pairs plus the four legend
-positions with the approved segmented control rather than invoking the
-variable-list combobox adapter. It performs live calls to the existing shared diagram renderer and
-owns one guarded root transaction. `usecases/latestPreviewSession.js` keeps that
-expensive renderer strictly serialized: a change during an active render
-replaces the one pending request, stale success/error results are suppressed,
-and modal disposal invalidates every completion. The guide composition root re-scans
-the table or fence before opening; confirmed chart-to-table conversion re-scans
-again after its asynchronous dialog. The live-diagram adapter alone owns pointer
-capture and temporary DOM geometry for the lower-edge resize handle, then asks the
-pure model for one replacement on release. Managed source lines use an authored
-height placeholder and no wrapping, so CodeMirror measures the same document
-geometry in rendered and source states. PDF Preview and export continue through
-the existing shared Vega-Lite-to-SVG adapter and do not know about the editor.
-For interactive managed charts, that adapter reads the current semantic theme
-tokens and merges them into Vega's presentation defaults without changing the
-portable authored specification. Its container-width measurement target is
-temporarily attached off screen—detached targets collapse to zero in
-WebKitGTK—and is finalized and removed in the same adapter call. The modal
-stays non-destructive while rendering: configuration validation and SVG
-geometry checks gate its one Apply transaction, and visible live-alert state
-belongs to the UI adapter rather than the pure chart model.
-
-Mermaid height follows the same seam. `core/mermaidDiagramModel.js` reads,
-clamps, and replaces the portable `%% figaro:height N` directive without DOM or
-CodeMirror dependencies. `liveDiagramPlugin.js` owns the shared bottom-center
-pointer gesture, while the feature layout anchors the approved 28px primitive
-directly across the visible canvas edge instead of the measured wrapper's lower
-boundary. The adapter updates only mounted geometry while dragging and dispatches
-one source transaction on release. `sourceFootprint.js` preserves the authored
-height while source is revealed, and `pdfExport.js` applies it to the printable
-figure through the existing shared Mermaid renderer.
-
-The editor preview and managed live widget deliberately share the same
-`--editor-surface` backing canvas, while ordinary portable diagrams retain the
-generic white diagram canvas. Configuration-pane container rules own only
-control reflow; they do not alter the pure chart mapping state.
-
-Document Outline's width transition is coordinated at its existing UI-effect
-boundary. A bounded request-animation-frame loop asks CodeMirror to measure
-while the editor width changes, then stops after three stable frames (or thirty
-frames maximum), keeping block widgets and gutters in one layout generation
-without introducing a persistent observer. A shared adapter publishes that
-visible width plus the measured gap between CodeMirror's outer left gutter and
-the padded, centered writing edge through block-action CSS properties during
-ordinary geometry updates and the bounded transition. A pure layout model
-bounds that left-rail inset and decides from the measured editor-to-writing-edge
-gap whether a full text action can fit without entering the sidebar. Mermaid
-and table actions share the helper stack; a constrained writing margin gains
-stable left padding instead of an overlapping or clipped action row.
-The left-side layout hook positions both entries in each control stack
-toward the writing surface without redefining the shared button primitive. It
-uses the primitive's monospace typography capped at 12px, shares CodeMirror's
-row offsets without extra vertical padding, and translates the helper rail just
-outside the writing edge. Editor width stays unchanged; the writing column is measured
-with its reserved helper lane before pointer interaction.
 
 | Direction | Messages | Purpose |
 | --- | --- | --- |
@@ -3048,6 +2994,215 @@ below `$HOME/snap/<snap>/common/figaro` for validation and export, keeping the
 profile, printable HTML, local assets, and output inside a path visible through
 Snap confinement; the effect coordinator removes that leaf afterward.
 
+## Diagram rendering and editors
+
+### Diagram rendering and caching
+
+Markdown-to-print rendering can include asynchronous diagram work. The parent
+therefore allows only one preview render at a time: each input event invalidates
+the active request immediately, preserves the ordinary trailing debounce, and
+queues one latest snapshot. Completed stale work is never sent through the
+bridge, so expensive bursts cannot race a later edit or paint an older preview.
+The initial render exposes the existing preparation state; after a printable
+snapshot exists, later renders leave that page and its settled status visually
+undisturbed until the replacement is ready. Refresh failures still replace the
+settled status with the error instead of being hidden.
+The pure Markdown-It parsing phase runs in a module worker when the webview
+supports it; callout/TOC decoration, fenced-code highlighting, and DOM-dependent
+Mermaid/Vega conversion remain on the document side. A worker failure or unsupported WebKit build
+falls
+back to the established in-thread renderer, preserving preview correctness.
+The shared diagram renderer consults a pure Mermaid source policy before the
+vendored parser is initialized: it applies the parser's 50,000-character limit
+before YAML frontmatter work and rejects YAML ordered-map tags. Live preview,
+PDF preview, and export therefore share one effect-free security decision and
+the existing failed-source recovery behavior. The live-diagram CodeMirror
+adapter also observes native folded ranges: an exact fence-body fold suppresses
+its replacement decoration so the fold placeholder owns the block, and an
+unfold transaction rebuilds the live decoration under the ordinary
+cursor-reveal rule.
+
+For Mermaid source without an authored theme or custom variables,
+`core/mermaidStyleEditorModel.js` produces an ephemeral application-only source
+variant from colors read by the renderer adapter from Figaro theme tokens. The
+live widget and Mermaid Editor request that appearance; printable consumers do
+not. Explicit Mermaid styling bypasses the transformation. Because the
+transformed source is the cache input, application and printable SVGs cannot
+alias even though they retain one shared render engine.
+
+Diagram render identity and reusable-input policy live in pure
+`core/diagramRenderCacheModel.js`. Mermaid retains its 64-entry SVG LRU and
+in-flight coalescing, keyed by effective source, engine generation and font
+identity. Vega/Vega-Lite use `usecases/diagramOutputReuse.js`, with an
+injected renderer, a 64-entry LRU and a budget of 4,194,304 UTF-16 code units for retained
+keys and SVGs (about 8 MiB of UTF-16 payload). Pending-key retention is also bounded.
+Vega keys include effective source/configuration, normalized container dimensions,
+and font identity/loading generation. External URLs/images and expressions reading time, randomness
+or window/screen
+state bypass reuse; failures and empty output are retryable. Font completion
+or a replaced engine clears entries and prevents earlier work from repopulating
+them. The DOM adapter rewrites generated SVG IDs and local references per mount,
+without replacing label text or external links. Printable and live callers share
+this renderer, with separate effective appearance/geometry inputs.
+
+The live adapter injects `usecases/diagramRenderQueue.js` and
+`usecases/diagramQuietScheduler.js`. The scheduler waits 120 ms after key/input,
+composition, wheel or scroll activity, then requests idle execution. New input
+revokes an already queued idle slot; composition also blocks timeout execution.
+Timer, idle, activity-observation and composition ports are injected. A running
+DOM renderer is still main-thread work and cannot be preempted. Source changes,
+widget disposal, container resizing and appearance/font changes reject stale
+results immediately; new or invalidated output uses the same quiet queue.
+Completed live SVG subtrees are detached into an editor-owned cache when their
+widgets leave the viewport or reveal source. `core/previewCache.js` bounds this
+cache to 32 entries and 4 MiB estimated SVG/key/node data; this is an estimate,
+not a browser heap measurement. Reuse transfers a subtree to exactly one mount
+and preserves its unique IDs. Wrappers, controls and observers belong to each
+mount and are recreated. `diagramRenderIdentity` uses the renderer's own
+source/appearance/font/engine/width and volatile-input policy to validate a
+retained subtree after its new wrapper connects. Valid previews return in a
+microtask before paint, bypassing generation and SVG reparsing. Source changes,
+failed/missing output, font loading and external/ambient Vega data cannot return
+a stale preview. A capture-phase key listener detects active repeat bursts;
+prepared Mermaid restoration waits through those bursts, while Vega restores
+immediately. Active composition routes both through the quiet slot. This keeps
+Mermaid attachment/layout out of continuous keyboard input. Removing the
+extension clears retained nodes and its listener. Graphic fitting coalesces resize
+notifications into the next animation frame, outside observer delivery, and
+cancels measurements on disposal. Source-height rulers defer resize-originated requests outside
+observer delivery;
+source/mount changes still measure before paint to preserve replacement height.
+Source-footprint geometry and the inline SVG
+representation remain unchanged.
+
+Measured tab, inline-SVG and native workload results are recorded in
+[Editor performance verification](docs/EDITOR_PERFORMANCE.md).
+
+### Mermaid and chart editors
+
+The focused Mermaid Editor reuses that adapter without adding another rendering
+path. The configured Markdown-guide extension adds an **editor** action beneath
+the left-side **mermaid** fold guide; the application composition root resolves
+that guide against the current diagram scan before opening the modal. The modal
+keeps edits in a temporary CodeMirror state. Pure
+catalogue normalization, parser-error mapping, adaptive-delay policy, and
+fence-body replacement planning live in `core/mermaidEditorModel.js`.
+`core/mermaidStyleEditorModel.js` separately owns the 32-type styling
+capability table, readable color derivation, conservative YAML scalar merge,
+exact theme preset reconstruction, parsed-node projection, palette cardinality,
+and reversible native
+Mermaid node-style/direction transforms. It cannot parse, render, touch the DOM,
+or dispatch an editor transaction; unsafe compact YAML produces a refusal plan
+instead of an overwrite. `diagramRenderer.js` is the concrete inspection adapter:
+it snapshots Mermaid's original vertices/classes, plot identities, authored
+configuration, and effective colors. A shared engine queue prevents inspection,
+lint validation, and rendering from interleaving mutable Mermaid config. The
+injected `usecases/mermaidPreviewSession.js` coordinates timers, parsing, and a
+single latest-only render queue. `mermaidEditor.js` alone owns dialog DOM,
+temporary CodeMirror effects, and the final atomic dispatch to the root editor.
+Its template-state policy distinguishes protected user source from live
+template browsing before the dialog performs any CodeMirror transaction. The
+dialog receives the already-configured Vim extension and global visual-row
+mapping as an input profile, and copies the root tab-size and indent-unit facets
+into its temporary state. Vim cursor-mode classes are owned by a CodeMirror
+editor-attribute compartment rather than an ad-hoc DOM mutation, so diagnostics
+transactions cannot discard them; cleanup restores root-editor Ex commands and
+status ownership. Dynamic Diagram-to-Template option changes reuse the shared
+select-combobox adapter's refresh boundary rather than rebuilding modal UI.
+The DOM adapter builds applicable Style controls only for inspected current
+source and delegates color menus to the existing Kanban palette adapter.
+Phase-only status updates retain the controls and palette anchor; effective
+color refreshes update swatches in place. Source/selection rebuilds restore a
+stable semantic focus key. For flowcharts it keeps the selected-node editor
+first, ahead of the full-height chooser and diagram defaults, implements roving
+listbox focus locally, and asks the preview adapter only for the selected
+authored id. The Style panel owns scrolling and preserves its offset across
+DOM refreshes; the chooser has no height cap or nested overflow container. It
+uses the approved menu-item row so pointer-down paint cannot translate its
+geometry. Both the active editor and chooser use
+feature-owned identity/shape/color grid layout without owning control states.
+The modal also reuses the approved quiet picker and segmented-choice variants;
+feature CSS removes redundant shell, pane, heading, and node-list frames while
+retaining the CodeMirror gutter, focus, diagnostic, and forced-colors boundaries.
+Those presentation decisions never enter the
+source transform. Whitespace classification, rendered flowchart-id matching, and preview
+transform decisions remain in pure Mermaid models. `mermaidPreviewNavigation.js` alone translates
+wheel,
+pointer, and keyboard events into those transforms, publishes explicit SVG
+dimensions plus pan offsets, distinguishes a node click from a pan, publishes
+the selected node id, and tears down its listeners with the dialog; it
+has no reference to the root document or Apply transaction.
+
+Table-backed Vega-Lite authoring uses a parallel pure/effect split without a
+second rendering pipeline. `core/vegaLiteChartEditorModel.js` owns table
+validation and type inference, normalized editor state, canonical Vega-Lite
+generation, fixed first-column Cartesian category ownership, Pie/Waterfall
+category selection and calculations, dual-axis grouping, non-owning
+threshold overlays and stack
+policy, collision-safe hidden row-order predictors for nominal-category
+regression, explicit no-sort nominal category encodings, complete visible-series legend domains and
+placement, exact embedded
+table restoration, foreign-JSON detection, and height
+clamping. Its compatibility reader accepts the exact prior managed-legend and
+axis-suppressing threshold shapes plus earlier category-predictor trendlines,
+but still rejects any
+other JSON drift; the next Apply writes the current
+canonical form. It has no DOM or CodeMirror dependency. `vegaLiteChartEditor.js` owns
+the approved borderless modal composition, quiet field/picker/stepper/segmented
+variants, and shared
+Kanban color-palette adapter, keeps the fixed first Cartesian category visible
+without a redundant control, makes disabled trendline policy discoverable through the
+complete label's shared tooltip above modal surfaces, represents column visibility with approved
+icon
+buttons, and represents fixed series/threshold axis pairs plus the four legend
+positions with the approved segmented control rather than invoking the
+variable-list combobox adapter. It performs live calls to the existing shared diagram renderer and
+owns one guarded root transaction. `usecases/latestPreviewSession.js` keeps that
+expensive renderer strictly serialized: a change during an active render
+replaces the one pending request, stale success/error results are suppressed,
+and modal disposal invalidates every completion. The guide composition root re-scans
+the table or fence before opening; confirmed chart-to-table conversion re-scans
+again after its asynchronous dialog. The live-diagram adapter alone owns pointer
+capture and temporary DOM geometry for the lower-edge resize handle, then asks the
+pure model for one replacement on release. Managed source lines use an authored
+height placeholder and no wrapping, so CodeMirror measures the same document
+geometry in rendered and source states. PDF Preview and export continue through
+the existing shared Vega-Lite-to-SVG adapter and do not know about the editor.
+For interactive managed charts, that adapter reads the current semantic theme
+tokens and merges them into Vega's presentation defaults without changing the
+portable authored specification. Its container-width measurement target is
+temporarily attached off screen—detached targets collapse to zero in
+WebKitGTK—and is finalized and removed in the same adapter call. The modal
+stays non-destructive while rendering: configuration validation and SVG
+geometry checks gate its one Apply transaction, and visible live-alert state
+belongs to the UI adapter rather than the pure chart model.
+
+### Live diagram geometry
+
+Mermaid height follows the same seam. `core/mermaidDiagramModel.js` reads,
+clamps, and replaces the portable `%% figaro:height N` directive and derives
+the drawing size from a natural size and optional authored height, without DOM
+or CodeMirror dependencies. `core/diagramSizeModel.js` parses viewBoxes, hashes
+source keys, and bounds the remembered-size map; `adapters/diagramSizeMemory.js`
+owns webview storage, the delayed write, and the session's measured box
+heights, which it keys by the current layout (column width and line height).
+`editor.js` creates that memory once and injects it into `createDiagramField`;
+without one, a field keeps a session-only memory, so tests stay isolated.
+`diagramPresentation.js` holds one geometry adapter per kind (Mermaid, managed
+chart, fitted) so the shared widget has no per-language branches: Mermaid sizes
+its canvas from the model and records the measured box so revealed source
+reserves the same height. `liveDiagramPlugin.js` owns the bottom-center pointer
+gesture and a per-view layout tracker whose content observer is created before
+any widget observer, so a width change is published before widgets record their
+new heights. `sourceFootprint.js` gives Mermaid only a non-wrapping line-count floor, and
+`pdfExport.js` applies the same display size to the printable figure through
+the existing shared Mermaid renderer.
+
+The editor preview and managed live widget deliberately share the same
+`--editor-surface` backing canvas, while ordinary portable diagrams retain the
+generic white diagram canvas. Configuration-pane container rules own only
+control reflow; they do not alter the pure chart mapping state.
+
 ## Dialog system and focus boundary
 
 All application-owned dialogs are created by `frontend/js/dialogs.js`; feature
@@ -3093,7 +3248,8 @@ creation planning in `core/linkedNoteNavigationModel.js` from read, review,
 creation, and tab sequencing in `usecases/linkedNoteNavigation.js`. The editor
 composition injects live tab/tree getters, backend operations, dialogs, target
 replacement, heading navigation, file-tree refresh, and clock/log adapters.
-Getters preserve current tab ownership after awaited reads. Successful creation opens the note and then
+Getters preserve current tab ownership after awaited reads. Successful creation opens the note and
+then
 refreshes the tree through the injected adapter. An assembled editor regression
 protects that wiring. The use case reuses the existing similar-note
 review and never turns a rejected read or create collision into an overwrite.

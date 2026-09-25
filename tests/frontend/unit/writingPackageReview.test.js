@@ -13,7 +13,8 @@ const resolve = (source, data, lenses, decisions = []) => resolveWritingFindings
 test.each(Object.keys(inventory))('package review accounts for every pinned %s rule and matches the bundled selection', name => {
     const { included, excluded } = inventory[name];
     const docs = readFileSync('docs/WRITING_PACKAGE_REVIEW.md', 'utf8').split(`### ${name}\n`)[1].split(/\n##/u)[0];
-    const ruleList = prefix => [...docs.split(prefix)[1].split('\n')[0].matchAll(/`([^`]+)`/gu)].map(match => match[1]);
+    // Each list is one wrapped Markdown line item; read it up to the next item or blank line.
+    const ruleList = prefix => [...docs.split(prefix)[1].split(/\n(?:\s*\n|\s*[-*] )/u)[0].matchAll(/`([^`]+)`/gu)].map(match => match[1]);
     expect(ruleList('Included (')).toEqual(included);
     expect(ruleList('Excluded (')).toEqual(excluded);
     expect(new Set([...included, ...excluded]).size).toBe(included.length + excluded.length);

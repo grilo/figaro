@@ -88,9 +88,25 @@ describe('feature index and focused verification workflow', () => {
     test('empty and unknown selectors cannot silently run an unrelated suite', () => {
         expect(() => workflow.selectFeatures(features, [])).toThrow('Choose at least one');
         expect(() => workflow.selectFeatures(features, ['typo'])).toThrow('Unknown feature');
+        expect(() => workflow.selectFeatures(features, ['editor'])).toThrow(/Did you mean: editor-links, editor-layout/);
         const result = spawnSync(process.execPath, ['scripts/feature-workflow.mjs', 'test', '--all'], { encoding: 'utf8' });
         expect(result.status).toBe(1);
         expect(result.stderr).toContain('Unknown feature');
+    });
+
+    test('routes lead with owning documents and list history records only on request', () => {
+        const route = { id: 'sample', title: 'Sample', sources: ['a.js'], docs: ['docs/PROMPT.md#x'],
+            history: ['docs/benchmarks/run.md', 'docs/EDITOR_PERFORMANCE.md#y'], tests: ['tests/frontend/a.test.js'], extraChecks: ['None.'] };
+        const brief = workflow.renderContext([route]);
+        expect(brief).toContain('History: 2 records; add --history to list them.');
+        expect(brief).not.toContain('docs/benchmarks/run.md');
+        expect(workflow.renderContext([route], { history: true })).toContain('  docs/benchmarks/run.md');
+        expect(() => workflow.validateFeatureMap([{ ...route, docs: ['docs/benchmarks/run.md'] }]))
+            .toThrow('Move docs/benchmarks/run.md from docs to history: sample');
+        expect(() => workflow.validateFeatureMap([{ ...route, docs: ['docs/EDITOR_PERFORMANCE.md'] }]))
+            .toThrow('from docs to history');
+        expect(() => workflow.validateFeatureMap([{ ...route, history: [] }])).toThrow('Invalid history');
+        expect(features.every(feature => !feature.docs.some(workflow.isHistoryRecord))).toBe(true);
     });
 
     test('rejects duplicate ownership IDs, missing checks, traversal, and test globs', () => {

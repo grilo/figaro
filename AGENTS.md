@@ -29,7 +29,10 @@ a skill does not authorize running its product-changing workflow.
   points, named source symbols, tests, documentation sections, or verification
   commands, update the affected routes in `docs/feature-map.json` in the same change. Update a route
   when ownership changes even if its old path still exists. Add a route for a
-  new feature area; list entry points rather than every helper. Regenerate
+  new feature area; list entry points rather than every helper. A route's
+  `docs` name the few sections that own current behavior; benchmarks and
+  performance follow-ups go in its `history`, which `npm run context` shows
+  only with `--history`. Regenerate
   `docs/FEATURE_INDEX.md` with `npm run context:generate`, then run
   `npm run context:check`. Before finishing, explicitly check that the index
   still describes the changed area. Never hand-edit the generated index.
@@ -54,15 +57,31 @@ a skill does not authorize running its product-changing workflow.
 ## Keep all documentation synchronized
 
 - Every change must audit and update every affected documentation surface in
-  the same change. User-facing workflows belong in `README.md`, and their
-  detailed behavior contract belongs in `docs/PROMPT.md`; update
-  `ARCHITECTURE.md`, `CONTRIBUTING.md`, `docs/TESTING.md`,
+  the same change. Everyday how-to belongs in the matching user guide listed in
+  `docs/README.md`, and the detailed behavior contract in `docs/PROMPT.md`;
+  update `ARCHITECTURE.md`, `CONTRIBUTING.md`, `docs/TESTING.md`,
   `docs/LIVEPREVIEW.md`, and `docs/PDF_STYLING.md` whenever their subject is
   affected. A changelog entry alone is not sufficient documentation.
-- Before finishing, search all Markdown documentation for stale names,
-  defaults, counts, commands, limitations, version numbers, and behavior
-  descriptions related to the change. Explicitly confirm that every match is
-  either updated or still correct.
+- Give each fact one owner and link to it instead of restating it. User
+  guides own how-to, `docs/PROMPT.md` owns product behavior,
+  `docs/LIVEPREVIEW.md` owns editor mechanics, `ARCHITECTURE.md` owns module
+  boundaries and data flow, `docs/PDF_STYLING.md` owns print classes and CSS,
+  and the testing docs say in a line which test owns which guarantee, without
+  narrating its assertions. Keep sections under about 1,500 words so a route
+  can point at one; add a subheading rather than growing a section.
+- `README.md` is the product pitch, not a feature list. Change it only when
+  what Figaro is, its headline capabilities, platforms, requirements, privacy
+  stance, or limitations change. Never add fixes, performance or stability
+  notes, settings, shortcuts, or edge cases to it; they belong in the
+  changelog, a user guide, or the specification. Prefer replacing a sentence
+  to adding one. A test enforces its word budget; move detail into a guide
+  rather than raising the budget.
+- Before finishing, run `npm run docs:stale -- <term> [term…]` for stale
+  names, defaults, counts, commands, limitations, version numbers, and
+  behavior descriptions related to the change. It searches the living
+  documentation (not the changelog, generated index, benchmarks, vendored or
+  fixture text) and prints one short line per hit. Explicitly confirm that
+  every match is either updated or still correct.
 - Release preparation must keep the version, license identifier, tag examples,
   changelog heading, package metadata, Wails metadata, and release workflow in
   agreement. Cut the accumulated `[Unreleased]` entries into the dated release

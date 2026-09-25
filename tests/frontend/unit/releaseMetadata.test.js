@@ -188,6 +188,26 @@ describe('release metadata and documentation', () => {
         }
     });
 
+    test('keeps the README a short product introduction', () => {
+        // The README is the pitch. Detail belongs in the user guides and the
+        // specification; move it there instead of raising these limits.
+        const readme = read('README.md');
+        const words = text => text.split(/\s+/u).filter(Boolean).length;
+        const sections = readme.split(/^## /mu).slice(1);
+        expect(words(readme)).toBeLessThanOrEqual(950);
+        expect(sections.length).toBeLessThanOrEqual(8);
+        const longSections = sections
+            .map(section => ({ section: section.split('\n', 1)[0], words: words(section) }))
+            .filter(section => section.words > 170);
+        expect(longSections).toEqual([]);
+        for (const guide of ['docs/README.md', 'docs/NOTES_AND_PLANNING.md', 'docs/WRITING.md',
+            'docs/DIAGRAMS_AND_EXPORT.md', 'docs/GETTING_STARTED.md']) {
+            expect(readme).toContain(`](${guide})`);
+        }
+        const instructions = read('AGENTS.md');
+        expect(instructions).toContain('`README.md` is the product pitch, not a feature list.');
+    });
+
     test('requires every affected documentation surface to stay synchronized', () => {
         const instructions = read('AGENTS.md');
         const contributing = read('CONTRIBUTING.md');

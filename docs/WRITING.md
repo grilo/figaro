@@ -39,7 +39,8 @@ Fold headings and blocks using their left-side guides. Raw Text Preview shows
 the complete source, including Properties, and can copy it to the clipboard.
 
 **Settings → Editor** includes optional Vim editing, relative line numbers,
-and Tab Size. Tab Size defaults to four spaces and accepts values from two to
+and Tab Size. With Vim **Move by visual rows**, Up/Down and `j`/`k` move through
+wrapped lines before entering an adjacent diagram or code block. Tab Size defaults to four spaces and accepts values from two to
 eight; it does not rewrite existing indentation. Press Escape, then Tab or
 Shift+Tab, to move keyboard focus out of the document editor.
 

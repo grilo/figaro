@@ -22,6 +22,7 @@ import { recordVaultFileIssue, showFileIssues } from './fileIssues.js';
 import { mathField } from './mathPlugin.js';
 import { createDOMPreviewCache } from './domPreviewCache.js';
 import { createDiagramField, diagramLanguages, scanDiagramFences } from './liveDiagramPlugin.js';
+import { createDiagramSizeMemory } from './adapters/diagramSizeMemory.js';
 import { createMarkdownTableField, scanMarkdownTables, renderedTableSourceRange } from './liveMarkdownTablePlugin.js';
 import { createMarkdownImageField, resetMarkdownImageSize } from './markdownImagePlugin.js';
 import { requestSourceFootprintMeasure, sourceFootprintExtension } from './sourceFootprint.js';
@@ -1801,6 +1802,9 @@ function defaultFrontmatterAuthor() {
     return typeof app.GetOSUsername === 'function' ? app.GetOSUsername() : '';
 }
 
+// Diagram sizes outlive editor views and are remembered across restarts.
+const diagramSizeMemory = createDiagramSizeMemory();
+
 function createDiagramEditorField() {
     if (!StateField || !EditorView || !WidgetType || !shouldShowSource || !mouseSelectingField) return [];
     try {
@@ -1811,6 +1815,7 @@ function createDiagramEditorField() {
             WidgetType,
             shouldShowSource,
             mouseSelectingField,
+            { sizeMemory: diagramSizeMemory },
         );
     } catch (error) {
         log.warn('[diagram] create failed: ' + (error.message || error));

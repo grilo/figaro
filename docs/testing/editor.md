@@ -114,6 +114,8 @@ Chromium and the packaged native webview.
 
 ## Block widget and cursor regressions
 
+### Gutter stability and cursor-motion work reuse
+
 The gutter-fold browser scenario samples every animation frame while equal-line-
 count fixtures widen and shrink the helper labels, blur/refocus the editor, and
 fold/unfold a containing heading. With enough writing margin, both the content
@@ -202,7 +204,6 @@ sizes; the image resize case checks first-paint image size before using its new
 controls. Native verification repeats warmed source crossings, clicks, drags,
 resizing and held-arrow reversal for all four retained content families.
 
-
 Cursor-only reuse is covered below layout: `fileTreeModel.test.js` compares dirty
 path sets, and `fileTree.test.js` defensively passes 100 cursor-only snapshots
 to the presentation callback without querying mounted tree rows; dirty/clean
@@ -236,6 +237,8 @@ The existing transactional table browser case checks real center-hit ownership
 at 800px and 100%/150% editor size, with normal and compact PDF-split padding.
 Keep its table/selection cursor matrix and the native smoke below;
 hover/focus must not cause reflow, and guides may not cover source or sidebars.
+
+### Pane launcher, Outline and modal focus
 
 `rightPaneLauncher.test.js` covers mouse focus preservation, keyboard/assistive
 activation, non-editor focus, cancelled presses, cleanup, and delayed activation
@@ -278,6 +281,33 @@ line 23 Up/Down, heading arrows, bidirectional mouse selection, document-end
 boundaries, and exact source preservation passed. Native DOM focus was verified;
 the headless display has no physical keyboard seat and does not prove OS window
 focus or Windows/WebView2 behavior.
+
+For tab or workspace-view work, retain a browser regression that places a
+nonzero file selection, opens and closes Settings, and verifies the exact
+anchor/head pair in the restored editor. `workspaceCursorModel.test.js` and
+`workspaceTabChanges.test.js` own the live cursor-store and portable-session
+assertions below the browser layer; tab records carry only initial seeds.
+
+`tests/frontend/unit/dialogs.test.js` owns the shared modal keyboard contract:
+the visible **ESC to close** cue and `aria-keyshortcuts` metadata are present,
+and Escape dismisses while a text field or embedded editor owns focus. Feature
+component tests retain responsibility for nested picker precedence and
+dirty-draft confirmation.
+
+Resizable editor modals stay below the generic dialog boundary.
+`editorModalResizeModel.test.js` owns independent width/height clamping,
+minimum-size yielding for small viewports, and Arrow-key deltas.
+`editorModalResize.test.js` owns pointer commit/cancel/no-movement behavior,
+keyboard steps, Home reset, live readout, viewport reclamping, disposal, and
+the capture-phase rule that lets the first Escape cancel an active resize while
+the next reaches modal dismissal. Table, Mermaid, and Chart component suites
+assert the shared accessible handle is attached; the generic dialog suite
+asserts it is absent. The existing Mermaid Editor browser workflow performs one
+real pointer resize, requires modal-container pane reflow and viewport
+containment, then restores the CSS-managed geometry with Home. Other editor
+workflows do not duplicate that shared geometry boundary.
+
+### Block-widget height, source footprints and images
 
 CodeMirror block widgets have a strict measured-height contract documented in
 [`LIVEPREVIEW.md`](../LIVEPREVIEW.md#4-block-widget-geometry-contract). Any new
@@ -370,6 +400,8 @@ gesture. Pointer cancellation must restore the starting frame, preserve source,
 and add no history item; a press/release without geometry movement must likewise
 leave source and history untouched.
 
+### Diagram render reuse, Mermaid sizing and Properties
+
 Diagram virtualization has a separate performance contract.
 `diagramRenderCacheModel.test.js` covers source, geometry/font/appearance keys,
 external/volatile-data bypass and local SVG references. `diagramOutputReuse.test.js`
@@ -398,19 +430,15 @@ preceding application render cannot contaminate printable output. The browser re
 Mermaid fences in both directions, verifies that the engine renders the
 repeated source once, and checks that mounted SVG ids remain unique.
 
-`mermaidDiagramModel.test.js` separately owns default/minimum/maximum height,
-portable directive replacement, duplicate cleanup, and source-order retention.
-`liveDiagramPlugin.test.js` proves the shared lower-edge handle changes only mounted
-height during pointer movement, commits one transaction on release, and keeps
-the same footprint when source is revealed. `blockWidgetLayout.test.js` guards
-the feature selector that overrides the later-loaded primitive positioning.
-`mermaidEditor.spec.js` is the one real-browser geometry check for full-width
-rendering, an uninterrupted hover path to the canvas-edge handle, pointer
-capture, one-step Undo, Arrow Up/Down across the widget, mouse placement, and drag selection.
-`export.test.js` owns the matching printable height.
+Mermaid sizing: `mermaidDiagramModel.test.js` owns the height and display-size
+rules, `diagramSizeMemory.test.js` the remembered sizes, `diagramPresentation.test.js`
+the per-kind geometry, `liveDiagramPlugin.test.js` the resize gesture and
+revealed-source height, `blockWidgetLayout.test.js` the selectors,
+`mermaidEditor.spec.js` the real-browser geometry, and `export.test.js` the
+printable size.
 The consolidated source-footprint browser case performs its forward and reverse
 drag while the pointer remains held and the editor scrolls between endpoints;
-the 300px Mermaid default can legitimately place those endpoints outside one
+a tall Mermaid drawing can legitimately place those endpoints outside one
 viewport, so cached off-screen coordinates are not a valid input boundary.
 Calendar startup fixtures must pin browser time to the month represented by
 their mocked native response. Geometry-only checks of animated overflow fades
@@ -459,6 +487,8 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/editor.test.js
 npx playwright test tests/e2e/frontmatterProperties.spec.js
 ```
+
+### Document edges, editing transforms and editor preferences
 
 Every change to vertical cursor movement or its keymaps must also prove the
 document-edge contract in both directions. The pure boundary cases belong in
@@ -558,6 +588,30 @@ npm run test:unit -- --runTestsByPath \
 npx playwright test tests/e2e/editorUX.spec.js --grep 'Ctrl\+wheel text scale'
 ```
 
+`relativeLineNumbers.test.js` owns the pure distance/spacer rules and a concrete
+CodeMirror gutter update when the primary cursor changes lines, while
+horizontal movement leaves labels unchanged. The focused
+Settings/editor browser scenario keeps the gutter enabled while exercising
+Arrow Down/Up, mouse placement, and forward drag selection, asserting the
+visible relative labels after each move. The same scenario owns Focus scope's
+browser-only popup geometry: its listbox stays horizontally attached to the
+trigger, chooses the available side, and remains viewport-clamped while the
+animated Settings panel scrolls. Generic `selectCombobox.test.js` coverage
+proves menus leave clipping ancestors for the body overlay, track scroll, then
+return to their control wrapper on close.
+
+Conventional formatting belongs below the browser boundary.
+`markdownInlineFormatting.test.js` owns marker toggle, inline-code delimiter,
+link-caret, and empty-selection plans; `markdownFormattingEditor.test.js`
+dispatches all five real CodeMirror chords, proves one Undo, and repeats Arrow
+Up/Down plus selection across the formatted line. The pure global-shortcut
+test proves unshifted Ctrl/Cmd+B remains available to Bold while
+Ctrl/Cmd+Shift+B owns the sidebar. The help-popup component test must list the
+same bindings. No Playwright scenario is needed for these deterministic keymap
+transactions.
+
+### Markdown block guides and folding
+
 Markdown block guides add their own focused matrix. Pure coverage must prove
 that only headings, fenced code, tables, and standalone images receive guides;
 ordinary images expose `image` plus the size-dependent **original size** action,
@@ -625,17 +679,18 @@ mouse placement reached the following line, and forward/reverse drags selected
 across it with line numbers off and on. Windows WebView2 and macOS WKWebView
 were unavailable locally and were not verified by this run.
 
-`relativeLineNumbers.test.js` owns the pure distance/spacer rules and a concrete
-CodeMirror gutter update when the primary cursor changes lines, while
-horizontal movement leaves labels unchanged. The focused
-Settings/editor browser scenario keeps the gutter enabled while exercising
-Arrow Down/Up, mouse placement, and forward drag selection, asserting the
-visible relative labels after each move. The same scenario owns Focus scope's
-browser-only popup geometry: its listbox stays horizontally attached to the
-trigger, chooses the available side, and remains viewport-clamped while the
-animated Settings panel scrolls. Generic `selectCombobox.test.js` coverage
-proves menus leave clipping ancestors for the body overlay, track scroll, then
-return to their control wrapper on close.
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/markdownHeadingFolding.test.js \
+  tests/frontend/unit/markdownBlockGuides.test.js \
+  tests/frontend/unit/editorBlockActionLayoutModel.test.js \
+  tests/frontend/unit/codeBlockInteraction.test.js \
+  tests/frontend/unit/codeEditorMode.test.js \
+  tests/frontend/unit/editor.test.js
+npx playwright test tests/e2e/editorUX.spec.js --grep "keeps activity and block-guide gutters aligned"
+```
+
+### Mermaid Editor dialog
 
 The Mermaid Editor extends that matrix without creating a new block widget.
 Pure tests cover the complete 32-type/76-template catalogue, all adaptive Style
@@ -699,14 +754,23 @@ against rendered node counts for chains, standalone nodes, icon labels, and
 native/class fills. This remains one renderer-boundary test, not an end-to-end
 dialog workflow per diagram. Pure source transformations stay in unit tests.
 
-The interactive-table browser contract also owns the shared helper-rail action
-placement boundary. It must prove that `editor`, `chart`, and `delete` remain in
-that order beneath `table`, stay
-outside the grid on every sampled frame while Document Outline changes editor
-width, moves above the grid rather than beneath the sidebar when the measured
-left margin is too narrow, adopts destructive styling only on hover/focus, and
-still deletes and undoes through one normal table transaction.
-The existing diagram cursor/drag browser scenario remains the geometry oracle.
+In the packaged WebKitGTK/WebView2/WKWebView smoke, open the Mermaid Editor from
+both a rendered block and revealed source, traverse chart types with arrows,
+hover one invalid range, Cancel, then Apply and undo. Also verify
+the Style panel's initial node inspector, chained/standalone nodes, native/class
+fill reset, control focus after shape/color edits, palette Escape/cleanup,
+and compact-pane containment above the footer. With Vim enabled, verify
+Insert/Escape, Visual mode, and the configured wrapped-row `j`/`k` behavior in
+the temporary editor. Repeat Arrow Up/Down plus
+forward/reverse drag selection immediately around the block with line numbers
+off and on; the left control stack must not change any landing position or selection.
+At a narrow window width, place wrapped prose before a visible Mermaid block,
+open and close Document Outline, and sample both helper buttons, the measured
+wrapper, and diagram rectangles throughout both width animations. The stack
+must remain at the same wrapper-relative offset just outside the writing edge
+and never intersect the diagram on any frame.
+
+### Vega-Lite Chart Editor
 
 The table-backed Vega-Lite Chart Editor has one focused cross-layer contract.
 Pure model tests own table validation and type inference, retained hidden-column
@@ -822,32 +886,7 @@ npx playwright test tests/e2e/vegaLiteChartEditor.spec.js
 npx playwright test tests/e2e/vimVisualRows.spec.js --grep "reuses Mermaid rendering"
 ```
 
-In the packaged WebKitGTK/WebView2/WKWebView smoke, open the Mermaid Editor from
-both a rendered block and revealed source, traverse chart types with arrows,
-hover one invalid range, Cancel, then Apply and undo. Also verify
-the Style panel's initial node inspector, chained/standalone nodes, native/class
-fill reset, control focus after shape/color edits, palette Escape/cleanup,
-and compact-pane containment above the footer. With Vim enabled, verify
-Insert/Escape, Visual mode, and the configured wrapped-row `j`/`k` behavior in
-the temporary editor. Repeat Arrow Up/Down plus
-forward/reverse drag selection immediately around the block with line numbers
-off and on; the left control stack must not change any landing position or selection.
-At a narrow window width, place wrapped prose before a visible Mermaid block,
-open and close Document Outline, and sample both helper buttons, the measured
-wrapper, and diagram rectangles throughout both width animations. The stack
-must remain at the same wrapper-relative offset just outside the writing edge
-and never intersect the diagram on any frame.
-
-```bash
-npm run test:unit -- --runTestsByPath \
-  tests/frontend/unit/markdownHeadingFolding.test.js \
-  tests/frontend/unit/markdownBlockGuides.test.js \
-  tests/frontend/unit/editorBlockActionLayoutModel.test.js \
-  tests/frontend/unit/codeBlockInteraction.test.js \
-  tests/frontend/unit/codeEditorMode.test.js \
-  tests/frontend/unit/editor.test.js
-npx playwright test tests/e2e/editorUX.spec.js --grep "keeps activity and block-guide gutters aligned"
-```
+### Rendered and interactive GFM tables
 
 Rendered GFM tables add a source-reveal cursor matrix. Unit and CodeMirror
 component tests must prove that CodeMirror's Markdown parser identifies the
@@ -894,40 +933,14 @@ advance from synthetic Chromium input. Packaged WebKitGTK, WebView2, and
 WKWebView checks remain required after changes to table/source cursor geometry.
 There is no third-party table-editor module to map or vendor.
 
-Conventional formatting belongs below the browser boundary.
-`markdownInlineFormatting.test.js` owns marker toggle, inline-code delimiter,
-link-caret, and empty-selection plans; `markdownFormattingEditor.test.js`
-dispatches all five real CodeMirror chords, proves one Undo, and repeats Arrow
-Up/Down plus selection across the formatted line. The pure global-shortcut
-test proves unshifted Ctrl/Cmd+B remains available to Bold while
-Ctrl/Cmd+Shift+B owns the sidebar. The help-popup component test must list the
-same bindings. No Playwright scenario is needed for these deterministic keymap
-transactions.
-
-For tab or workspace-view work, retain a browser regression that places a
-nonzero file selection, opens and closes Settings, and verifies the exact
-anchor/head pair in the restored editor. `workspaceCursorModel.test.js` and
-`workspaceTabChanges.test.js` own the live cursor-store and portable-session
-assertions below the browser layer; tab records carry only initial seeds.
-
-`tests/frontend/unit/dialogs.test.js` owns the shared modal keyboard contract:
-the visible **ESC to close** cue and `aria-keyshortcuts` metadata are present,
-and Escape dismisses while a text field or embedded editor owns focus. Feature
-component tests retain responsibility for nested picker precedence and
-dirty-draft confirmation.
-
-Resizable editor modals stay below the generic dialog boundary.
-`editorModalResizeModel.test.js` owns independent width/height clamping,
-minimum-size yielding for small viewports, and Arrow-key deltas.
-`editorModalResize.test.js` owns pointer commit/cancel/no-movement behavior,
-keyboard steps, Home reset, live readout, viewport reclamping, disposal, and
-the capture-phase rule that lets the first Escape cancel an active resize while
-the next reaches modal dismissal. Table, Mermaid, and Chart component suites
-assert the shared accessible handle is attached; the generic dialog suite
-asserts it is absent. The existing Mermaid Editor browser workflow performs one
-real pointer resize, requires modal-container pane reflow and viewport
-containment, then restores the CSS-managed geometry with Home. Other editor
-workflows do not duplicate that shared geometry boundary.
+The interactive-table browser contract also owns the shared helper-rail action
+placement boundary. It must prove that `editor`, `chart`, and `delete` remain in
+that order beneath `table`, stay
+outside the grid on every sampled frame while Document Outline changes editor
+width, moves above the grid rather than beneath the sidebar when the measured
+left margin is too narrow, adopts destructive styling only on hover/focus, and
+still deletes and undoes through one normal table transaction.
+The existing diagram cursor/drag browser scenario remains the geometry oracle.
 
 Table conversion retains focused component coverage: selection conversion
 previews delimiter/header changes and cancels without editing, invalid input

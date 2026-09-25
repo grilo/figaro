@@ -129,9 +129,20 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(sourceLine).toMatch(/white-space:\s*pre/);
         expect(declarationsFor('.cm-editor .cm-diagram-source-placeholder'))
             .toMatch(/min-height:\s*var\(--cm-diagram-source-height\)\s*!important/);
-        const mermaidGraphic = declarationsFor('.cm-block-widget--resizable-mermaid .cm-live-diagram-view svg');
-        expect(mermaidGraphic).toMatch(/width:\s*100%\s*!important/);
-        expect(mermaidGraphic).toMatch(/height:\s*100%\s*!important/);
+        // Mermaid draws at its natural or authored size inside a box that
+        // grows to the taller of the drawing and its source lines.
+        const mermaidBox = declarationsFor('.cm-block-widget--resizable-mermaid.cm-source-footprint');
+        expect(mermaidBox).toMatch(/height:\s*auto/);
+        expect(mermaidBox).toMatch(/max-height:\s*none/);
+        expect(mermaidBox).toMatch(/min-height:\s*max\(var\(--cm-source-footprint-height\), var\(--cm-diagram-box-hint, 0px\)\)/);
+        expect(declarationsFor('.cm-live-diagram-canvas'))
+            .toMatch(/width:\s*min\(var\(--figaro-diagram-width, 100%\), 100%\)/);
+        const mermaidGraphic = declarationsFor('.cm-block-widget--resizable-mermaid .cm-live-diagram-graphic > svg');
+        expect(mermaidGraphic).toMatch(/max-width:\s*100%\s*!important/);
+        expect(mermaidGraphic).toMatch(/height:\s*auto\s*!important/);
+        expect(mermaidGraphic).toMatch(/aspect-ratio:\s*var\(--figaro-diagram-aspect, auto\)/);
+        expect(declarationsFor('.ui-image-resize-handle.cm-mermaid-diagram-resize-handle'))
+            .toMatch(/bottom:\s*-14px/);
 
         const workspace = declarationsFor('.vega-lite-chart-editor-workspace');
         expect(workspace).toMatch(/grid-template-columns:\s*minmax\(330px, \.68fr\) minmax\(540px, 1\.62fr\)/);

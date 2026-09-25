@@ -8,7 +8,20 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+
+- Mermaid diagrams in the editor now appear at the size the PDF will print
+  them, centered in a box that fits the diagram or its source, whichever is
+  taller. Moving the cursor into or out of a diagram no longer shifts the text
+  below it, and Figaro remembers each diagram's size so reopened notes do not
+  jump as diagrams appear. Dragging a diagram's lower edge resizes only the
+  drawing, keeps its proportions, and can now make small diagrams smaller.
+
+### Fixed
+
+- A Mermaid diagram resized in the editor now appears at that size in the PDF
+  preview and exported PDF, instead of staying small inside a block of empty
+  space.
 
 ## [1.42.1] - 2026-09-25
 

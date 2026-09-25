@@ -72,7 +72,10 @@ checkout.
 Start with `npm run context` for a compact route list, then use
 `npm run context -- editor-links` for that area's repository-relative paths,
 named source symbols, documentation sections, and explicit frontend tests.
-The CLI prints each source path once. Skip the list when the route is known;
+The CLI prints each source path once. A route's documentation lists only the
+sections that own current behavior; benchmarks and past performance work are
+kept in its `history` and printed with `--history`. An unknown route name
+suggests similar ones. Skip the list when the route is known;
 read only the relevant symbols and sections before widening to callers or shared
 contracts. The full [feature index](docs/FEATURE_INDEX.md) remains a browsable
 reference rather than required context for every change.
@@ -88,19 +91,33 @@ frontend tests, prints a concise result, and saves complete output and Jest JSON
 in a unique ignored `test-logs/focused/` directory. On failure it returns a
 nonzero exit status and displays failed assertions (or the log tail if no report
 exists). Consult the full log when abbreviated output is insufficient. Go,
-coverage, browser, native, and release checks remain required where the testing contract calls for them; the command prints
+coverage, browser, native, and release checks remain required where the testing contract calls for
+them; the command prints
 additional boundaries to assess rather than claiming they passed.
 
 Keep `docs/feature-map.json` synchronized when adding, moving, renaming, splitting,
 or removing modules, named entry-point symbols, tests, documentation sections, or
 commands, and when their ownership changes. Add an area for a new feature; list
-useful entry points rather than every helper. The optional `symbols` object maps a listed JavaScript source
+useful entry points rather than every helper. Put benchmark reports and
+`docs/EDITOR_PERFORMANCE.md` sections in the optional `history` list; the check
+rejects them under `docs`. The optional `symbols` object maps a listed JavaScript
+source
 path to its entry-point names; names are parsed as declarations, not matched in
 comments or strings. Run `npm run context:generate` after editing the map, then
 `npm run context:check`. The check rejects missing files, headings, top-level
 JavaScript declarations, and stale generated output; human review must still
-catch routes pointing to an existing but wrong owner. The root [AGENTS.md](AGENTS.md) explicitly requires this maintenance and
+catch routes pointing to an existing but wrong owner.
+
+To audit documentation for stale text after a change, run
+`npm run docs:stale -- "old name" "old default"`. It searches only living
+documentation and prints one trimmed `path:line:` hit per match. Raw benchmark
+JSON carries a `.ignore` file so code search skips it; use `rg --no-ignore` to
+include it. The root [AGENTS.md](AGENTS.md) explicitly
+requires this maintenance and
 routes specialized editor, testing, and UI requirements to `.agents/guidance/`.
+
+Feature-map repository references support scoped vendored package directories
+(such as `@replit`); absolute paths, parent traversal and globs remain invalid.
 
 Search symbols and relevant document headings before reading entire files.
 Preserve the source-of-truth behavior specification and the linked detailed
@@ -362,10 +379,12 @@ Resolve retained preview interactions from their current
 mounted positions. Cache guide widths and normalized phrase ranges; index widget,
 viewport and phrase lookups. Use model-owned single-record buffer transitions to
 avoid unrelated tab classification/cursor reconciliation, preserving immutable
-snapshots and structural publication handling. Share the heading parent/next-boundary index, and cache
+snapshots and structural publication handling. Share the heading parent/next-boundary index, and
+cache
 Find match lists independently from active-result lookup. Assert decoration identity and
 actual block/DOM access at both small and large fixture sizes; a zero parse
-counter alone does not establish bounded navigation work. Gate native-title and shell DOM writes by their
+counter alone does not establish bounded navigation work. Gate native-title and shell DOM writes by
+their
 derived presentation. Map ordinary prose edits through Outline positions while
 preserving row identity; structural edits must use its complete parser. Cache
 guide structure independently of viewport markers and dirty task projections
@@ -387,6 +406,12 @@ fixed and content-free, and never await diagnostics delivery or disk writes.
 Use **Settings → Vault care → Open startup logs** to inspect a native launch;
 see [startup troubleshooting](docs/GETTING_STARTED.md#troubleshoot-a-slow-launch)
 for paths and the recorded fields.
+
+Keep optional wheel easing separate from cursor, Find and Pure typewriter
+navigation. Preserve Apple's native events, reduced motion and interruption;
+never identify a trackpad solely by one delta or impose a global smooth-scroll
+style. Keep eligibility/easing pure and frame/scroll effects injected. Reuse the
+existing Settings toggle primitive and default new scrolling behavior off.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete dependency and startup
 decisions.
@@ -442,7 +467,10 @@ This copies npm/Wails metadata and the changelog to a disposable directory,
 synchronizes the candidate there, prints and validates its exact release-note
 body, then runs the shared complete verification suite. It leaves repository
 release metadata, the Git index, commits, tags, and remotes alone; builds/tests
-may update generated artifacts. Checks can run on a feature branch. Failed or
+may update generated artifacts. Checks can run on a feature branch. Browser
+checks always start their own test server with a fresh vault (`CI=1`) on port
+`34125` (override with `FIGARO_RELEASE_PLAYWRIGHT_PORT`), as GitHub Actions
+does, so a pass cannot depend on state left by an earlier local run. Failed or
 unavailable checks must be reported, and required native checks remain separate.
 
 Publish from `main`:
@@ -504,7 +532,8 @@ version, leaving the failed tag unpublished. Tags are never moved or deleted.
 The tag workflow runs the full Go test suite on native Windows and macOS runners
 before building their packages, in addition to Linux release verification. The
 embedded Vale module is tested separately without executable preparation. All
-platform tests and builds must pass before the publication job can run; a Windows binary compiling successfully is not proof
+platform tests and builds must pass before the publication job can run; a Windows binary compiling
+successfully is not proof
 that Windows behavior passed. Also inspect the ordinary CI run for the same commit
 when reporting release health, since it includes checks such as the dependency
 audit beyond the tag workflow. Local release verification tests the current host;
@@ -560,6 +589,13 @@ use-case tests and reserve the real engine boundary for the opt-in Chromium
 contract documented in `docs/TESTING.md`. Set `FIGARO_PDF_TEST_OUTPUT` on that
 test when a retained PDF is needed for Poppler rendering and visual review.
 
+CI's authored Chromium PDF fixture sets `FIGARO_BROWSER_PDF_ARGUMENTS=--no-sandbox`
+for that single step on its disposable Ubuntu runner. This test-only override
+accommodates the runner's AppArmor policy; do not add it to packaged browser
+arguments or use it as a global workflow environment setting. Desktop tests
+canonicalize temporary roots so macOS filesystem aliases do not skew file URLs
+or synthetic watcher events.
+
 Assign every acceptance case to the lowest capable test layer. Add Playwright
 coverage only for a browser-only property, prefer extending an existing focused
 spec, and use one representative browser workflow rather than duplicating
@@ -576,7 +612,9 @@ plain/content medians with a generous relative regression ceiling. See
 [the huge-vault procedure](docs/TESTING.md#huge-vault-stress-profile) and
 [the reference audit](docs/HUGE_VAULT_STRESS.md).
 
-For changes to Raw Text Preview, the global tab-size/indentation policy, sticky headings, Markdown image resizing or source-reveal geometry, Markdown block guides, activity dates, or their writing-column rail geometry,
+For changes to Raw Text Preview, the global tab-size/indentation policy, sticky headings, Markdown
+image resizing or source-reveal geometry, Markdown block guides, activity dates, or their
+writing-column rail geometry,
 raw-source Mermaid diagnostics, the Mermaid Editor, current-note heading
 completion, frontmatter Properties navigation, Vim rendered-block navigation, or per-tab cursor
 persistence, follow the
@@ -673,6 +711,9 @@ Run `npm run build:design-system` after changing catalogue JavaScript or the
 theme manifest. The focused unit contract verifies that the checked-in bundle
 still matches its module sources.
 
+Catalogue generation normalizes trailing whitespace only inside parsed JavaScript comments; literal
+contents remain byte-for-byte unchanged. The build and its exact-output check share that formatter.
+
 ## Generated and vendored assets
 
 `make icons` runs [scripts/generate-icons.sh](scripts/generate-icons.sh) and
@@ -697,7 +738,8 @@ assets or remove their notices without auditing the upstream dictionary terms.
 Manage personal spelling words through Settings → Editor → Personal dictionary,
 using its Manage dialog, also linked from Proofreading. Keep Settings limited to
 its count/launcher and the dialog list bounded independently of its search and
-actions. Reuse the shared modal/focus/resize adapters. Add/Remove share a serialized, pessimistic store; Undo
+actions. Reuse the shared modal/focus/resize adapters. Add/Remove share a serialized, pessimistic
+store; Undo
 adds the removed entry without replacing other words. Keep pure list planning,
 component failure/focus coverage, and rooted persistence tests synchronized.
 Personal spelling words are separate vault data in
@@ -897,10 +939,15 @@ the assembled webview rather than one JavaScript package in isolation.
 - Eagerly load bundled feature code during startup. Do not hide dependency
   cycles or postpone feature initialization with interaction-triggered dynamic
   imports.
-- Keep user-facing workflow summaries and guide links in `README.md`, practical
-  instructions in the relevant user guide, and the detailed behavior contract
-  in `docs/PROMPT.md` in the same change. The README introduces the product;
-  avoid appending pixel measurements, migration history, or test internals.
+- Put practical instructions in the relevant user guide and the detailed
+  behavior contract in `docs/PROMPT.md` in the same change. Each fact has one
+  owning document (see the root `AGENTS.md`); link to it rather than restating
+  it elsewhere. `README.md` is the
+  product pitch: change it only when Figaro's headline capabilities,
+  platforms, requirements, privacy stance, or limitations change. Fixes,
+  performance notes, settings, shortcuts, and edge cases never go there. The
+  README budget test caps its length; move detail into a guide instead of
+  raising the cap.
 
 ## Licensing contributions
 
@@ -909,6 +956,10 @@ later](LICENSE). By contributing material to this repository, you agree that
 it may be distributed under those terms. Keep third-party notices and vendored
 dependency licenses intact.
 
+## Writing review contributions
+
+### Writing lenses, review decisions and workers
+
 Writing suggestions use document-specific lens combinations, with Proofreading
 controlling spelling. Keep preference migration and example selection pure;
 the rooted adapter saves version 3 document choices atomically without discarding
@@ -916,7 +967,6 @@ other notes or unknown fields. Preserve old YAML without applying its retired
 spellcheck controls. Keep inline/sidebar examples synchronized and render only
 validated fixes as Apply actions. The user-approved `.ui-suggestion` primitive
 owns the rounded, borderless suggestion background; feature CSS owns layout.
-
 
 Writing-lens preference changes must keep language-support policy in the pure
 model, use the existing Settings combobox, and test that unsupported checks
@@ -931,7 +981,9 @@ attached forms such as `8.1Mib` are intentional. Unmatched opening punctuation
 and undefined acronyms remain advisory with general examples. Preserve the
 pinned acronym exceptions and eligible lowercase definitions without guessing
 expansions; equivalent soft wraps must stay within one eligible prose region,
-and ordinary capitals from the bundled lowercase dictionary must not become acronym warnings. Cover hyphenated and conventional eX expansions while keeping protected-region guards. Initialize the real textlint kernel/parser before worker readiness
+and ordinary capitals from the bundled lowercase dictionary must not become acronym warnings. Cover
+hyphenated and conventional eX expansions while keeping protected-region guards. Initialize the real
+textlint kernel/parser before worker readiness
 and test source mapping through the bundled adapter. Its sentence-spacing check suggests
 one same-line space without touching line breaks; diacritics remain optional
 contextual alternatives. Readability remains advisory at its explicit length
@@ -961,7 +1013,8 @@ may cross formatting only while preserving all enclosed source bytes.
 Proselint advice must not fabricate replacements or turn qualifiers into errors.
 Cover language/selection persistence together, save
 failure and retry, returning to a supported language without reselecting lenses,
-and older preferences loading without an unsolicited write. Bulk preference changes must drain pending writes and
+and older preferences loading without an unsolicited write. Bulk preference changes must drain
+pending writes and
 use the atomic settings plan; test metadata preservation and retry below the
 browser boundary. Right-pane modes register their own close/open adapters with
 the coordinator. Keep session width common to every mode and restore a pane
@@ -996,7 +1049,6 @@ CodeMirror history transaction. Do not generalize it to contextual advice.
 Reuse approved buttons for occurrence navigation and disclosure; show writer
 explanations before lazily created technical diagnostics. Keep actual focus,
 popup containment, and native Undo/Redo checks in the existing writing scenario.
-
 
 Writing input handlers may only capture immutable source readers and numeric
 change ranges. Schedule coalesced tasks, never document scans in input callbacks
@@ -1038,7 +1090,10 @@ convention changes after incremental edits, stable duplicate identities,
 examples and reversible Ignore. The imported subset is advisory: never forward
 upstream blanket rewrite instructions or typography preferences as mandatory fixes.
 
-Package selections must not exclude a useful rule solely because another lens overlaps. Review advice separately from Apply safety. Update the full package inventory, native hash manifests, and specific real-adapter fixtures together; preserve identity, pronunciation, source, and explicitly requested unit-spacing protections.
+Package selections must not exclude a useful rule solely because another lens overlaps. Review
+advice separately from Apply safety. Update the full package inventory, native hash manifests, and
+specific real-adapter fixtures together; preserve identity, pronunciation, source, and explicitly
+requested unit-spacing protections.
 
 The approved writing-lens disclosure uses `createDisclosure` and `.ui-disclosure`;
 do not recreate its resting, hover, pressed, focus or motion styles in feature
@@ -1061,7 +1116,8 @@ replacement. Context guards must have positive controls and remain independent
 per lens. For passive/existential guards, test every provider span shape, explicit
 actors after time/location, sentence/paragraph/protected-text boundaries, weak
 introductions and independent overlapping grammar. Require local semantic cues;
-do not turn an entire grammatical construction off. Both sentence-length paths check the mapped sentence above 30 words.
+do not turn an entire grammatical construction off. Both sentence-length paths check the mapped
+sentence above 30 words.
 Keep reverse/plural acronym recognition syntactic and within eligible prose.
 See [the corpus correction contract](docs/WRITING_CORPUS_FIXES.md); changes need
 real dictionary/package regressions plus pure policy and bulk-planner coverage.
@@ -1107,14 +1163,13 @@ Performance equivalence does not prove editorial usefulness: follow the
 annotations and a held-out evaluation before tuning advice.
 
 The [integration report](docs/VALE_INTEGRATION.md) records the current native
-checks and limitations. The [embedded Vale evaluation](docs/VALE_EMBEDDED_PROTOTYPE.md) records the original
+checks and limitations. The [embedded Vale evaluation](docs/VALE_EMBEDDED_PROTOTYPE.md) records the
+original
 prototype. Production profiling now uses `cmd/writing-profile` through
 `node scripts/profile-writing.mjs --long`. The optional prototype comparison tool
 can still download a checksum-verified upstream CLI into a disposable directory;
 normal builds and tests do not use it. Preserve the pinned CLI alert fixtures,
 race-tested lifecycle checks, and independent native platform validation.
-
-Catalogue generation normalizes trailing whitespace only inside parsed JavaScript comments; literal contents remain byte-for-byte unchanged. The build and its exact-output check share that formatter.
 
 Pinned Vale rules under `internal/writing/styles/` retain their reviewed source bytes
 on every platform through `.gitattributes`; adapted Harper rules record both
@@ -1125,17 +1180,11 @@ and a reviewed bridge fixture are required. Their `SOURCE.json` hashes remain
 mandatory. Run `node scripts/evaluate-writing-documents.mjs --output /tmp/writing-review.json`
 for the frozen whole-document combined-provider evaluation. Keep source/license
 hashes, deliberate errors and negative controls unchanged; record new editorial
-judgments separately from raw output. The [evaluation report](docs/benchmarks/writing-documents-2026-09-20.md)
+judgments separately from raw output. The [evaluation
+report](docs/benchmarks/writing-documents-2026-09-20.md)
 explains the limits of these agent-reviewed fixtures.
 The upstream Microsoft `SentenceLength.yml` ends in a blank line,
 so only that file permits `blank-at-eof`; other whitespace checks still apply.
-
-CI's authored Chromium PDF fixture sets `FIGARO_BROWSER_PDF_ARGUMENTS=--no-sandbox`
-for that single step on its disposable Ubuntu runner. This test-only override
-accommodates the runner's AppArmor policy; do not add it to packaged browser
-arguments or use it as a global workflow environment setting. Desktop tests
-canonicalize temporary roots so macOS filesystem aliases do not skew file URLs
-or synthetic watcher events.
 
 Footnote identifiers are protected by shared
 pure ranges in `core/writingFootnoteModel.js`; cover unresolved references and
@@ -1153,12 +1202,3 @@ late replies, retries and note/configuration changes at the component/use-case l
 For adjacent rendered-block Vim entry, visual movement within the current source
 line must precede source reveal. Keep the focused Chromium and packaged native
 Up/Down, mouse and drag checks in sync.
-
-Feature-map repository references support scoped vendored package directories
-(such as `@replit`); absolute paths, parent traversal and globs remain invalid.
-
-Keep optional wheel easing separate from cursor, Find and Pure typewriter
-navigation. Preserve Apple's native events, reduced motion and interruption;
-never identify a trackpad solely by one delta or impose a global smooth-scroll
-style. Keep eligibility/easing pure and frame/scroll effects injected. Reuse the
-existing Settings toggle primitive and default new scrolling behavior off.

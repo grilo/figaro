@@ -12,7 +12,8 @@ safe edits change exactly the same source characters to the same replacement.
 The combined finding retains both sources, the local occurrence identity, and
 one Apply action. Overlap or a shared comma alone is insufficient. Full projections and raw
 observations stay there. Separate eager workers run spelling and durable-decision
-tracking. The UI receives resolved suggestions and computed active decision IDs. The user-approved suggestion primitive adds rounded, borderless grouping.
+tracking. The UI receives resolved suggestions and computed active decision IDs. The user-approved
+suggestion primitive adds rounded, borderless grouping.
 
 ## Capability and packaging contract
 
@@ -95,7 +96,8 @@ Vale 3.20.0 is compiled from the adapted source in `third_party/vale`; builds do
 not download, package, extract, or launch its executable. Rules and local NLP data
 initialize eagerly in memory. The fixed plain-text facade accepts Figaro's 27
 trusted rules, rejects external/script styles, and does not discover host config
-or interpret note text as a filename. The original [prototype measurements](VALE_EMBEDDED_PROTOTYPE.md)
+or interpret note text as a filename. The original [prototype
+measurements](VALE_EMBEDDED_PROTOTYPE.md)
 are historical; the [integration report](VALE_INTEGRATION.md) records current
 production-adapter validation and profiling.
 
@@ -111,7 +113,8 @@ These limits do not claim process-level hard termination or isolate fatal runtim
 errors. Source-size request deadlines remain 5–30 seconds.
 
 The installed app needs no Node, package manager, analyzer download, custom
-styles, or user-installed Vale. Prose and spelling workers now cancel cooperatively and retain warm caches; errors and timeouts still terminate them.
+styles, or user-installed Vale. Prose and spelling workers now cancel cooperatively and retain warm
+caches; errors and timeouts still terminate them.
 
 ## Asynchronous execution contract
 
@@ -128,7 +131,8 @@ requires completed prose evidence when selected checks need it.
 inside a replacement worker after failure. If rebuilding fails, it returns
 independent spelling results with an explicit failure and excludes unmappable
 Vale output. The coordinator keeps partial status and Retry analysis until a
-full recovery succeeds; a later spelling completion cannot silently clear it. Source edits immediately invalidate touched-paragraph and document-dependent
+full recovery succeeds; a later spelling completion cannot silently clear it. Source edits
+immediately invalidate touched-paragraph and document-dependent
 marks, while other paragraph marks remain mapped and read-only. Structural
 Markdown edits invalidate all marks. Explicit Apply validates current source before its
 normal undoable editor transaction. UI rendering remains bounded to the requested
@@ -140,7 +144,8 @@ aliased targets; only safe explicit display aliases remain eligible prose.
 
 ## Editorial scope and source safety
 
-Plain language exposes all native simplification matches as contextual advice. Automatic simplification edits remain restricted to this reviewed set:
+Plain language exposes all native simplification matches as contextual advice. Automatic
+simplification edits remain restricted to this reviewed set:
 
 - `in order to` → `to`
 - `due to the fact that` → a retext-provided shorter alternative
@@ -150,10 +155,13 @@ Plain language exposes all native simplification matches as contextual advice. A
 Other simplification observations remain visible without Apply. The known noun
 “request” → “ask” problem restricts editing, not the availability of contextual
 advice. The redundant-acronym package separately supplies its reviewed acronym
-alternatives. Native style and Slopless substitutions never become edits directly. The separate reviewed grammar allowlist admits only bounded literal replacements after exact-match and source-mapping validation.
+alternatives. Native style and Slopless substitutions never become edits directly. The separate
+reviewed grammar allowlist admits only bounded literal replacements after exact-match and
+source-mapping validation.
 
 Selecting Directness enables an invitation to consider naming the actor,
-without an additional profile gate. Selected proselint qualifying-phrase and emphatic-punctuation advice is also
+without an additional profile gate. Selected proselint qualifying-phrase and emphatic-punctuation
+advice is also
 available, always advisory. Both passive detectors can identify “was written,” with retext returning
 only “written”; verified auxiliary/participle anchors merge those into one finding.
 Detector lexicons are incomplete: retext-passive does not identify every passive
@@ -202,14 +210,25 @@ Article context must reach the next prose word without crossing an excluded
 range. Sentence-initial “A” becomes “An”; acronym capitalization alternatives
 retain the chosen form. Contractions repair missing/misplaced apostrophes while
 preserving the existing style, or using the prevailing convention if absent.
-Correct straight/curly contraction typography belongs to optional Formulaic style advice, rather than Grammar. Quote and apostrophe findings must differ from the note’s prevailing straight or curly convention; consistent authored styles are preserved. Ellipses and expressive punctuation remain unchanged.
+Correct straight/curly contraction typography belongs to optional Formulaic style advice, rather
+than Grammar. Quote and apostrophe findings must differ from the note’s prevailing straight or curly
+convention; consistent authored styles are preserved. Ellipses and expressive punctuation remain
+unchanged.
 
 Editorial policy version 9 retains the correction to the upstream article treatment for reviewed
 consonant-sounding vowels (“a unicorn,” “a European”) and silent consonants
 (“an hour,” “an honest answer”). Unknown `u`/`eu` families and dialect-dependent
 `herb`/`historic`, SQL, and URL pronunciations are withheld. Reviewed cases can
 span a soft wrap within eligible prose; context cannot cross protected spans.
-Fifteen reviewed Harper-port rules and 162 pure Go checks add conservative agreement, infinitive, auxiliary, number, possessive, homophone, word-choice, compound-subject, question, phrase, word-boundary, ordinal, capitalization, and comma coverage (177 IDs). Reviewed preposition/word-choice contexts and determiner-led noun-subject auxiliaries add usage coverage; fewer → less preserves countable noun compounds. Selected adjacent-pronoun conflicts remain advisory. These are selected patterns, not complete grammar analysis; see [the grammar contract](WRITING_HARPER.md). Contextual grammar retains whole-block masking. CountableAmount instead verifies its complete visible phrase, and advisory-only CommaSplice verifies bounded clauses while treating technical subjects as opaque; neither can alter hidden text.
+Fifteen reviewed Harper-port rules and 162 pure Go checks add conservative agreement, infinitive,
+auxiliary, number, possessive, homophone, word-choice, compound-subject, question, phrase,
+word-boundary, ordinal, capitalization, and comma coverage (177 IDs). Reviewed
+preposition/word-choice contexts and determiner-led noun-subject auxiliaries add usage coverage;
+fewer → less preserves countable noun compounds. Selected adjacent-pronoun conflicts remain
+advisory. These are selected patterns, not complete grammar analysis; see [the grammar
+contract](WRITING_HARPER.md). Contextual grammar retains whole-block masking. CountableAmount
+instead verifies its complete visible phrase, and advisory-only CommaSplice verifies bounded clauses
+while treating technical subjects as opaque; neither can alter hidden text.
 
 The unmatched-pair rule flags supported opening marks left without a matching
 closer, including parentheses, brackets, braces, and straight double quotes.
@@ -230,14 +249,20 @@ Gunning-Fog, SMOG, and Spache. It estimates each sentence, not the whole note's
 reading grade. Both checks skip headings, table cells, and sentences containing
 excluded spans. Length and formula advice remain separate even at identical spans. Equivalent
 length findings from Figaro and Microsoft retain both native sources. Microsoft
-uses the same threshold; its native anchor expands only when the mapped sentence itself exceeds 30 words. The local check preserves eligible long-sentence coverage when native sentence boundaries disagree. The explanation distinguishes measured length from formula
+uses the same threshold; its native anchor expands only when the mapped sentence itself exceeds 30
+words. The local check preserves eligible long-sentence coverage when native sentence boundaries
+disagree. The explanation distinguishes measured length from formula
 estimates and includes a general splitting/simplifying example; no automatic
 rewrite or reading-grade score is offered, and the estimates do not measure
-writing quality. Mapping/configuration version 25 includes package pins, editorial policy version 9, spelling vocabulary version 5,
-reviewed terms/acronym exceptions, and formula options so stale findings cannot survive a policy change. All prose
+writing quality. Mapping/configuration version 25 includes package pins, editorial policy version 9,
+spelling vocabulary version 5,
+reviewed terms/acronym exceptions, and formula options so stale findings cannot survive a policy
+change. All prose
 lenses support English US/UK, save independently with the existing version 3
 preferences, and reuse dotted marks, grouped cards, Ignore, and guarded fixes.
-Vale runs when Plain language, Directness, Repetition, Consistency, Readability, Grammar & punctuation, or Formulaic writing needs it. Enabling one of these check families through its UI group
+Vale runs when Plain language, Directness, Repetition, Consistency, Readability, Grammar &
+punctuation, or Formulaic writing needs it. Enabling one of these check families through its UI
+group
 after another prose lens requests missing native evidence before reuse.
 
 Plain language adds redundant acronyms, clichés, and corporate jargon. Identical
@@ -246,7 +271,8 @@ sources; overlapping but independent editorial goals remain distinct. Directness
 adds selected qualifying phrases from proselint Hedging and repeated `!`/`?`
 from Hyperbole. These are not semantic certainty or exaggeration detectors.
 Their explanations invite review, explicitly retain accurate uncertainty, and
-show general examples without fabricated source-specific replacements. Fourteen selected proselint files are copied unchanged from the immutable revision;
+show general examples without fabricated source-specific replacements. Fourteen selected proselint
+files are copied unchanged from the immutable revision;
 their SHA-256 manifest and license travel with the bundled style directory.
 The adapter and profiler consume the same `styles/figaro.ini` configuration.
 
@@ -268,7 +294,8 @@ Ambiguous capitals that are also ordinary words favor avoiding false alarms.
 The supplemental match does not cross paragraphs, quoted text, or hidden source. This is a bounded
 pattern check, not semantic knowledge of an acronym's meaning. Advice invites
 the writer to consider their audience and includes a general SLO example, with
-persistent Ignore and document-scoped acceptance, but no fabricated expansion or Apply action. No other Microsoft or Google
+persistent Ignore and document-scoped acceptance, but no fabricated expansion or Apply action. No
+other Microsoft or Google
 style rules are bundled. Number/unit spacing is deliberately excluded: `8.1Mib`,
 `10MB`, and `20ms` stay as authored.
 
@@ -310,19 +337,24 @@ from projected wording; inline freshness checks therefore support a long
 sentence across Markdown formatting without accepting stale source.
 Apply checks identity, revision, effective configuration, bounds, and original
 source synchronously, then makes one isolated undoable transaction. Group context
-and display IDs never authorize an edit. Display continuity follows only unambiguously unchanged prefix/suffix ranges
+and display IDs never authorize an edit. Display continuity follows only unambiguously unchanged
+prefix/suffix ranges
 within the current session. Durable occurrence decisions instead require a unique
-match of their saved source wording and surrounding context. Overlap alone never merges independent findings.
+match of their saved source wording and surrounding context. Overlap alone never merges independent
+findings.
 
-The exact settings schema and workflow are in [PROMPT.md](PROMPT.md#77a-writing-lenses-and-local-review).
+The exact settings schema and workflow are in
+[PROMPT.md](PROMPT.md#77a-writing-lenses-and-local-review).
 Version 3 saves lens combinations and language per note path. Versions 1/2
 read primary plus overlays as independent lenses and retain legacy vault choices
 as defaults; explicit save migrates without losing unknown fields or other notes.
 The former profile gate is removed. Proofreading and the analysis language are the sole
-spelling enablement/language controls; old Settings and YAML values are preserved but ignored. Settings also manages the vault’s accepted personal words.
+spelling enablement/language controls; old Settings and YAML values are preserved but ignored.
+Settings also manages the vault’s accepted personal words.
 
 Spelling eligibility uses the existing pure Lezer Markdown parser through
-`core/spellingModel.js`. It excludes explicit link-reference IDs/definitions, footnote identifiers and
+`core/spellingModel.js`. It excludes explicit link-reference IDs/definitions, footnote identifiers
+and
 indented code (including nested blocks), preserves exact UTF-16 offsets, and
 shares unfinished/closed YAML boundaries with metadata. The spelling adapter,
 context-menu lookup and worker resolver use the same ranges; protected or
@@ -350,7 +382,8 @@ Forward/reverse definitions in visible spelling prose recognize three-to-five-le
 acronyms for the current note only. Adding or removing a definition immediately
 changes eligibility without storing document context in the word-suggestion cache.
 Shared technical masking protects URLs, email, explicit paths, known filename
-extensions, and identifiers including lower camel case; slash/dot-separated prose stays eligible. NFC lookup
+extensions, and identifiers including lower camel case; slash/dot-separated prose stays eligible.
+NFC lookup
 normalization changes comparisons only, preserving source text and ranges.
 Ordinary title/sentence capitals and all-caps words receive case-matched
 lowercase-dictionary alternatives. Unreviewed mixed-case or name-only alternatives
@@ -402,10 +435,12 @@ grammar corrections while removing 32 further reviewed unnecessary findings.
 ## Inline review and personal spelling words
 
 Current findings decorate their existing source text with the same dotted
-underline as spellcheck. Hover opens an explanation, before/after wording for available fixes, and applicable Apply/Ignore
+underline as spellcheck. Hover opens an explanation, before/after wording for available fixes, and
+applicable Apply/Ignore
 actions; Ctrl/Cmd+. opens and focuses the popup at the caret, Tab/Shift+Tab
 traverse its buttons, and Escape restores editor focus. The popup works with the
-pane closed and in Pure mode. Source edits close the popup and invalidate affected marks immediately;
+pane closed and in Pure mode. Source edits close the popup and invalidate affected marks
+immediately;
 unaffected paragraph marks remain display-only while refreshing, with disabled
 actions in reopened popups;
 its actions retain the displayed snapshot and share pane source guards. Marks
@@ -415,7 +450,8 @@ and reference labels carry these marks inside their existing widgets; the popup
 keeps link destination/title information available. Label segments are mapped
 purely and painted only for mounted widgets, without replacing widget identity,
 changing activation, or introducing saved/printable syntax. Hover geometry uses
-the complete widget range, so the pointer can enter the review popup. Passive advice includes a labelled general example
+the complete widget range, so the pointer can enter the review popup. Passive advice includes a
+labelled general example
 without manufacturing a document-specific actor or fix. The pane separates each
 suggestion using a rounded borderless theme surface.
 
@@ -435,7 +471,8 @@ apostrophes after s; loading old data does not rewrite it.
 `core/spellingDictionaryModel.js` uses nspell with only the pinned English S/M
 affix subset in a fresh personal checker, shared by review resolution and
 context-menu/standalone spelling. Its terminal-apostrophe check requires an
-accepted s-ending base or regular plural. Inline review and the existing context menu filter these words; the Spelling
+accepted s-ending base or regular plural. Inline review and the existing context menu filter these
+words; the Spelling
 lens owns both paths and deselecting it turns off spelling for this note. Saves
 are serialized and pessimistic, and the rooted adapter preserves unknown fields,
 rejects invalid/newer files and outside symlinks, and writes atomically. Failure
@@ -502,8 +539,10 @@ replace surviving or newly loaded decisions. A failed tracking job retains its
 edit for recovery against the loaded set. Concurrent load/tracking failures
 retain a separate retryable load state. Retry restores authoritative decisions
 before draining queued source changes, so neither failure can strand Loading
-or silently restart tracking against an unreconciled set. A definite capacity rejection instead releases that
-command, explains the limit, and leaves Restore available to make room. Delayed responses stay with the
+or silently restart tracking against an unreconciled set. A definite capacity rejection instead
+releases that
+command, explains the limit, and leaves Restore available to make room. Delayed responses stay with
+the
 original note, including when the user switches away. Maximums are 1,000 records
 per document and 16 MiB for the file; source snippets above 8,192 UTF-16 units
 cannot be captured by the frontend. Renaming currently uses a new path's decision
@@ -581,7 +620,8 @@ This small curated evaluation is not an estimate of accuracy on arbitrary prose.
 | Unsupported prose language | disabled | disabled | 0 |
 
 Retained technical-noun observations demonstrate deliberate suppression; passive advice
-appears only when Directness is selected. Multiple independent concepts share a passage but retain separate
+appears only when Directness is selected. Multiple independent concepts share a passage but retain
+separate
 findings. Pure tests additionally cover ambiguous overlaps, conflicts, duplicate
 evidence, malformed/unknown output, CRLF/Unicode, and stale/colliding fixes.
 
@@ -628,8 +668,10 @@ physical keyboard latency or prolonged typing under every combination of lenses.
 Use-case tests separately establish the maximum of one active and one latest
 pending request, 500 ms debounce, immediate stale-action invalidation, and real
 worker/process cancellation. At that historical stage, main-thread resolution took up to 39 ms on
-this dense fixture. The second-audit implementation below moves it into the worker. Paragraph incremental
-analysis was deferred at that stage (implemented on 10 September below); passage mounting is paged without dropping finding counts.
+this dense fixture. The second-audit implementation below moves it into the worker. Paragraph
+incremental
+analysis was deferred at that stage (implemented on 10 September below); passage mounting is paged
+without dropping finding counts.
 
 Raw measurements and editorial output are in
 [writing-2026-09-06.json](benchmarks/writing-2026-09-06.json).
@@ -917,7 +959,8 @@ respectively. The relevance prefilter keeps ordinary prose near the preceding
 worker cost; the technical sample exercises the full textlint kernel. These
 measurements exclude browser scheduling and are not typing-latency guarantees.
 The five-second termination/retry boundary was unchanged at that stage. Raw data:
-[punctuation, terminology, and acronyms report](benchmarks/writing-terminology-acronyms-2026-09-06.json).
+[punctuation, terminology, and acronyms
+report](benchmarks/writing-terminology-acronyms-2026-09-06.json).
 
 The Markdown audit updated current package, rule-count, mapping-version,
 example, and source-safety contracts across user, architecture, contributor,
@@ -934,7 +977,8 @@ The persistence change passed pure policy and use-case tests, component and
 controller-recreation tests, and the full settings/desktop/writing Go suites.
 Rooted tests use a new App instance to prove reload, independent documents,
 concurrent changes, per-record removal, private file permissions and original
-file preservation on corruption or symlink errors. The full frontend suite passed 250 suites / 1,693 tests; lint and the
+file preservation on corruption or symlink errors. The full frontend suite passed 250 suites / 1,693
+tests; lint and the
 test-integrity guard also passed. Existing Chromium inline and Pure
 workflows passed, along with the assembled eager production startup check.
 
@@ -973,7 +1017,8 @@ loads without migration; the effective policy/mapping signature is version 6.
 Verification passed 252 frontend suites / 1,747 tests, the settings/desktop/writing
 Go suites, lint, test integrity, catalogue/application builds, and three focused
 Chromium workflows for inline bulk focus/Undo, Pure geometry/scrolling, and eager
-production startup. The [51-case editorial and timing report](benchmarks/writing-audit-fixes-2026-09-06.json)
+production startup. The [51-case editorial and timing
+report](benchmarks/writing-audit-fixes-2026-09-06.json)
 uses actual bundled adapters. Its ordinary-prose medians were 47/375 ms in the
 JavaScript worker and 93/135 ms in Vale at approximately 1k/10k words; technical
 10k-word JavaScript work measured 883 ms. These are adapter timings from this run,
@@ -995,7 +1040,8 @@ stale, overlapping, protected, and contextual bulk plans.
 Native verification used an external observation overlay without instrumenting
 product files. Windows/macOS webviews, screen readers, and 200% UI scaling were
 not tested. General grammar understanding, semantic acronym validation, and
-rename migration remained outside that audit pass. Rename/move continuity is implemented below. Current docs/catalogue/changelog
+rename migration remained outside that audit pass. Rename/move continuity is implemented below.
+Current docs/catalogue/changelog
 contracts were synchronized; historical measurements and version references
 remain historical. PDF styling and syntax rendering remain unchanged.
 

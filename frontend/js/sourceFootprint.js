@@ -73,9 +73,15 @@ function createSourceRuler(sourceText, metrics) {
     return sizer;
 }
 
+// Managed charts own a fixed height. Mermaid only sets a floor of its source
+// lines; its drawing sizes the rest of the box.
 function authoredFootprintHeight(element) {
-    const height = Number(element.dataset.figaroDiagramHeight || element.dataset.figaroChartHeight);
+    const height = Number(element.dataset.figaroChartHeight);
     return Number.isFinite(height) && height > 0 ? height + 44 : 0;
+}
+
+function footprintWraps(element) {
+    return element.dataset.sourceFootprintWrap !== 'none';
 }
 
 function refreshWrappedSourceFootprints(view, geometryChanged = true) {
@@ -89,7 +95,7 @@ function refreshWrappedSourceFootprints(view, geometryChanged = true) {
         const before = footprintInputs.get(element), after = inputs.get(element);
         return before && before.every((value, index) => value === after[index]);
     })) return;
-    const wrapped = elements.filter(element => !authoredFootprintHeight(element)
+    const wrapped = elements.filter(element => !authoredFootprintHeight(element) && footprintWraps(element)
         && typeof element[SOURCE_TEXT_PROPERTY] === 'string');
     const heights = new Map();
     if (wrapped.length) {
@@ -310,10 +316,7 @@ export function requestSourceFootprintMeasure(view) {
             sourceHeightCaches.get(view)?.clear();
             view.dom.querySelectorAll('.cm-source-footprint[data-source-lines]').forEach(element => {
                 const lines = normalizeSourceLineCount(element.dataset.sourceLines);
-                const diagramHeight = Number(element.dataset.figaroDiagramHeight || element.dataset.figaroChartHeight);
-                const height = Number.isFinite(diagramHeight) && diagramHeight > 0
-                    ? diagramHeight + 44
-                    : lines * lineHeight;
+                const height = authoredFootprintHeight(element) || lines * lineHeight;
                 if (element.style.getPropertyValue('--cm-source-footprint-height') !== `${height}px`) {
                     element.style.setProperty('--cm-source-footprint-height', `${height}px`);
                 }

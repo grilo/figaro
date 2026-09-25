@@ -11,7 +11,8 @@ example. Slopless contributes no Apply or Fix all action: choosing dash
 punctuation or rewriting rhetoric needs context. The existing Ignore action persists per
 occurrence and can be reversed through Saved review decisions. Identical
 occurrences share a card. Only the same concern at the same location shares
-one finding; different concerns on the same sentence remain separate. Clarity and Formulaic writing each work alone. A shared finding can offer a
+one finding; different concerns on the same sentence remain separate. Clarity and Formulaic writing
+each work alone. A shared finding can offer a
 reviewed plain-language fix only while Clarity’s plain-language checks are enabled. All native
 evidence remains available, and Ignore follows the concern across lens changes.
 
@@ -22,7 +23,8 @@ comes from the reviewed `retext-quotes` check rather than Slopless: it follows
 the note’s prevailing straight or curly convention in both directions and can
 apply a mark-only fix. Emphatic punctuation (“!!”) from proselint is also
 Formulaic advice; `exclamation-density` stays quiet when a paragraph’s only
-exclamation marks form that single run, so one “!!” gets one finding. Blockquotes, code, frontmatter, math, reference definitions,
+exclamation marks form that single run, so one “!!” gets one finding. Blockquotes, code,
+frontmatter, math, reference definitions,
 URLs and wiki targets stay excluded. These checks do not establish AI
 authorship or produce an AI probability score.
 
@@ -71,53 +73,76 @@ writing uses retext-quotes alone, so each mark receives one finding.
 
 ### Readability metrics
 
-Deferred pending formula-specific guidance and threshold calibration for this lens. A formula score or paragraph limit alone is not a formulaic-writing diagnosis. Overlap with Clarity’s readability checks is not a reason to exclude these forever.
+Deferred pending formula-specific guidance and threshold calibration for this lens. A formula score
+or paragraph limit alone is not a formulaic-writing diagnosis. Overlap with Clarity’s readability
+checks is not a reason to exclude these forever.
 
 `coleman-liau`, `flesch-kincaid`, `gunning-fog`, `paragraph-length`.
 
 ### Specialist academic and narrative advice
 
-These need genre-specific guidance and fixtures; the current lens does not know whether a passage is academic writing, fiction, or another genre. They remain candidates for a future expansion rather than blanket prohibitions on those styles.
+These need genre-specific guidance and fixtures; the current lens does not know whether a passage is
+academic writing, fiction, or another genre. They remain candidates for a future expansion rather
+than blanket prohibitions on those styles.
 
-`academic-boilerplate`, `academic-formula-frames`, `tortured-phrases`, `body-action-density`, `empty-beat`, `emotion-telling`, `flat-action-cadence`, `low-information-beat-density`, `perception-verb-density`, `narrative-cliches`, `genre-cliches`, `self-help-cliches`.
+`academic-boilerplate`, `academic-formula-frames`, `tortured-phrases`, `body-action-density`,
+`empty-beat`, `emotion-telling`, `flat-action-cadence`, `low-information-beat-density`,
+`perception-verb-density`, `narrative-cliches`, `genre-cliches`, `self-help-cliches`.
 
 ### Broad vocabulary and phrase policies
 
-These broad vocabulary lists and frequency policies remain deferred. Their individual word senses, thresholds, and explanations need further evaluation before presenting them as useful formulaic-writing advice. A word’s presence alone does not establish a formulaic passage. This is a coverage limitation, not a claim that other lenses cover every entry or that intentional style should never be flagged.
+These broad vocabulary lists and frequency policies remain deferred. Their individual word senses,
+thresholds, and explanations need further evaluation before presenting them as useful
+formulaic-writing advice. A word’s presence alone does not establish a formulaic passage. This is a
+coverage limitation, not a claim that other lenses cover every entry or that intentional style
+should never be flagged.
 
-`actually-overuse`, `llm-vocabulary`, `llm-vocabulary-density`, `prohibited-words`, `quietly-filler`, `quietly-overuse`, `silently-filler`, `jargon-faker`, `skunked-terms`, `uncomparables`, `humble-bragger`, `prohibited-phrases`, `seo-filler`.
+`actually-overuse`, `llm-vocabulary`, `llm-vocabulary-density`, `prohibited-words`,
+`quietly-filler`, `quietly-overuse`, `silently-filler`, `jargon-faker`, `skunked-terms`,
+`uncomparables`, `humble-bragger`, `prohibited-phrases`, `seo-filler`.
 
 ### Author-defined terminology
 
-These require a separate term policy. Figaro already has a small reviewed terminology set and does not supply a Slopless term configuration.
+These require a separate term policy. Figaro already has a small reviewed terminology set and does
+not supply a Slopless term configuration.
 
 `recommended-terms`, `required-terms`.
 
 ### Section-dependent advice
 
-These require reliable first/last-sentence section boundaries. The current textlint input is protected projected prose, not the Markdown section tree.
+These require reliable first/last-sentence section boundaries. The current textlint input is
+protected projected prose, not the Markdown section tree.
 
 `affirmation-closers`, `false-question`, `llm-openers`.
 
 ### Formatting and source artifacts
 
-These impose additional heading/colon conventions or inspect placeholders, timestamps and hidden controls. They need dedicated source-aware review beyond this prose lens.
+These impose additional heading/colon conventions or inspect placeholders, timestamps and hidden
+controls. They need dedicated source-aware review beyond this prose lens.
 
-`artifact-placeholders`, `colon-dramatic`, `fake-timestamps`, `hidden-unicode-controls`, `sentence-case`.
+`artifact-placeholders`, `colon-dramatic`, `fake-timestamps`, `hidden-unicode-controls`,
+`sentence-case`.
 
 ### Citation-sensitive claims
 
-The projected prose omits link destinations, definitions and quoted evidence. These checks cannot reliably establish whether a source is missing. The included authority-padding rule is framed only as optional wording advice and explicitly does not verify citations.
+The projected prose omits link destinations, definitions and quoted evidence. These checks cannot
+reliably establish whether a source is missing. The included authority-padding rule is framed only
+as optional wording advice and explicitly does not verify citations.
 
 `uncited-authority`, `weasel-attribution`.
 
 ### Additional cadence and density constraints
 
-These broader fragment, predicate, list, and document-density rules remain deferred pending appropriate spans and specific guidance. Deliberate rhythm is not itself a reason for permanent exclusion. The included word-frequency rule now identifies each repeated word separately, alongside repeated openings and transitions.
+These broader fragment, predicate, list, and document-density rules remain deferred pending
+appropriate spans and specific guidance. Deliberate rhythm is not itself a reason for permanent
+exclusion. The included word-frequency rule now identifies each repeated word separately, alongside
+repeated openings and transitions.
 
-`demonstrative-emphasis`, `fragment-stacking`, `repeated-predicate-end`, `triple-sentence-repeat`, `triple-word-repeat`, `significance-density`.
+`demonstrative-emphasis`, `fragment-stacking`, `repeated-predicate-end`, `triple-sentence-repeat`,
+`triple-word-repeat`, `significance-density`.
 
-The [package review](WRITING_PACKAGE_REVIEW.md) records the same inclusion policy across the other providers.
+The [package review](WRITING_PACKAGE_REVIEW.md) records the same inclusion policy across the other
+providers.
 
 ## Integration and limits
 
@@ -140,14 +165,19 @@ automatically.
 Regression coverage is in `writingSlopless.test.js`: each included real rule
 with complete full-scan/incremental equivalence before and after prepending prose,
 protected Markdown, CRLF/Unicode/encoded source, exact typography marks,
-same-concern deduplication, distinct-concern retention, examples, independent selection, preserved Consistency behavior,
+same-concern deduplication, distinct-concern retention, examples, independent selection, preserved
+Consistency behavior,
 and reversible serialized Ignore. Shared use-case/worker tests cover debounce,
 late-result rejection, cancellation and retry. Component tests cover the Formulaic writing
 control and the existing inline buttons; rooted Go tests cover preference
 save/restart and Apply to all documents. The production browser startup check
 verifies eager worker readiness without later module requests.
 
-The additional density rules remain contextual: complex-word clusters, more than one exclamation mark per paragraph, words repeated more than five times in a paragraph, and stacked qualifications are prompts to review. The native thresholds are not correctness requirements. Word frequency anchors the first occurrence of each repeated word and states its count; ignoring one word does not hide another word or sentence-opening advice.
+The additional density rules remain contextual: complex-word clusters, more than one exclamation
+mark per paragraph, words repeated more than five times in a paragraph, and stacked qualifications
+are prompts to review. The native thresholds are not correctness requirements. Word frequency
+anchors the first occurrence of each repeated word and states its count; ignoring one word does not
+hide another word or sentence-opening advice.
 
 ### Long-note runtime adapter
 
@@ -160,5 +190,6 @@ document-wide Figaro policy still receives the complete note. No Slopless rule i
 removed or reconfigured for performance.
 The build checks the wrapper seam when vendoring; complete real-package output
 equivalence is checked by `node scripts/verify-writing-performance.mjs`. See
-[long-note evidence](WRITING_ENGINE.md#rename-continuity-and-long-note-performance--7-september-2026)
+[long-note
+evidence](WRITING_ENGINE.md#rename-continuity-and-long-note-performance--7-september-2026)
 and the separate [usefulness corpus proposal](WRITING_CORPUS.md).
