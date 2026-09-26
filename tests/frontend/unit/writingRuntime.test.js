@@ -12,7 +12,7 @@ test('shared prose projection preserves slash and dot alternatives while protect
 const preferences = { primary: 'plain', overlays: ['direct', 'repetition'], profile: 'direct' };
 
 test('writing lenses exclude defined and undefined footnote markers while checking footnote prose', async () => {
-    const source = '😀 We utilize it[^utilize] and [^markdownreferences]. [^was written]\r\n\r\n[^utilize]: The report was written in order to help.\r\n\r\nAn inline note ^[We utilize it].';
+    const source = '😀 We utilize it[^utilize] and [^markdownreferences]. [^was written]\r\n\r\n[^utilize]: The report was written by Maya in order to help.\r\n\r\nAn inline note ^[We utilize it].';
     const data = await analyzeWriting(source);
     expect(data.projection.text).not.toContain('markdownreferences');
     const ranges = [...source.matchAll(/\[\^[^\]\r\n]+\]/g)].map(match => ({ from: match.index, to: match.index + match[0].length }));
@@ -23,6 +23,22 @@ test('writing lenses exclude defined and undefined footnote markers while checki
     expect(findings.filter(item => item.kind === 'syntax.passive')).toHaveLength(1);
     expect(findings.filter(item => item.actual === 'utilize')).toHaveLength(2);
     for (const finding of findings) expect(ranges.some(range => finding.from < range.to && finding.to > range.from)).toBe(false);
+});
+
+test('a bare URL inside square brackets keeps the surrounding prose reviewable at exact offsets', async () => {
+    // GFM links these only after parsing and gives the split text no source positions.
+    const source = '# Use [www.example.com] now\n\nWe utilize [https://example.com/a] and [the site][https://example.org] daily.\n\n- The the [http://x.org] item';
+    const data = await analyzeWriting(source);
+    for (const unit of data.projection.units.filter(item => item.safe && !item.hidden && item.from >= 0)) {
+        expect(source.slice(unit.from, unit.to)).toBe(unit.char);
+    }
+    expect(data.projection.text).not.toContain('https://example.com/a');
+    const result = resolveWritingFindings({ source, ...data, preferences: { lenses: ['plain', 'repetition'], language: 'en-US' } });
+    const findings = result.groups.flatMap(group => group.findings);
+    for (const actual of ['utilize', 'The the']) {
+        const finding = findings.find(item => item.actual === actual);
+        expect(source.slice(finding.from, finding.to)).toBe(actual);
+    }
 });
 
 test('pinned retext checks emit real passive, simplification, and repeated-word evidence', () => {

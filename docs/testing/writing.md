@@ -41,9 +41,16 @@ Unicode offsets, explicit labels and advisory implicit link/image labels.
 `writingSpelling.test.js` uses both bundled English dictionaries for valid
 possessives, unknown stems and suffix-preserving corrections; it also feeds real
 results into the pane to prove misleading Apply/bulk controls are absent.
+With both real English dictionaries it also owns suggestion quality (capital-only
+fixes, reviewed missing-space splits, no different-word guesses for mid-sentence
+names), sentence-start detection, derivation and accent recognition with their
+misspelled controls, and exact-case reviewed vocabulary.
 `spellingDictionaryModel.test.js` covers regular personal plurals and possessives,
 case/apostrophe normalization, malformed or unrelated endings, exact entries,
-language scope, canonical accent matching, possessive-first additions, and dictionary isolation. Real-dictionary cases in
+language scope, canonical accent matching, possessive-first additions, dictionary isolation and checker reuse,
+and which note-title and tag words become vault vocabulary. `writingLenses.test.js` proves
+vault words reach review and the context menu after a debounced change without
+joining the personal dictionary. Real-dictionary cases in
 `writingSpelling.test.js` compare personal forms with the existing Hunspell noun
 model and guard eager package mapping. `spellingDictionary.test.js` proves
 restored words suppress standalone marks and context-menu suggestions;
@@ -56,7 +63,7 @@ unknown-field preservation, and unchanged note text/private permissions. These a
 URLs, email, explicit paths, identifiers and common filenames. Real spelling
 cases cover all-caps errors, ordinary capitals, conservative name guesses, and
 composed/decomposed accents at exact source offsets. The runtime test proves the
-same technical policy reaches prose projection; mapping version 25 invalidates
+same technical policy reaches prose projection; mapping version 27 invalidates
 older evidence.
 Resolver tests reject protected or corrupt spelling ranges. They also protect
 implicit reference keys from other prose fixes. Test these eligibility and
@@ -67,6 +74,8 @@ link interaction and eager startup.
 and `writingSpelling.test.js` prove defined and unresolved footnotes are excluded
 while body and inline-note prose remain eligible at exact Unicode/CRLF offsets.
 These are analysis-only rules; editor geometry and printable syntax are unchanged.
+`writingRuntime.test.js` also proves prose around a bare URL in square brackets
+keeps exact offsets.
 
 `writingIncremental.test.js` compares cached Markdown mappings and complete
 findings with fresh analysis across Unicode, CRLF, entities, quotes, protected
@@ -163,7 +172,8 @@ rule matrix below the browser layer and reuse the assembled production startup
 check for eager dependencies. Harper's isolated evaluation and reproduction
 command are recorded in [WRITING_ENGINE.md](../WRITING_ENGINE.md#harper-evaluation).
 
-`writingSlopless.test.js` runs every one of the 29 selected real Slopless rules,
+`writingSlopless.test.js` runs every one of the 30 selected real Slopless rules
+and the five Figaro-local Formulaic frames, keeps a list of ordinary prose quiet,
 checks the complete 77-rule inclusion/exclusion inventory, protected Markdown,
 CRLF/Unicode/encoded offsets, one quote-style finding per mark under Formulaic
 writing with mark-only fixes, stable merged evidence,
@@ -590,7 +600,7 @@ local dispatch measurements, not a guarantee for every document or platform.
 ## Curated grammar regression coverage
 
 [The grammar contract](../WRITING_HARPER.md#verification-and-maintenance) owns
-the 15-rule port corpus and 162 pure Go checks. Run `npm run test:focus --
+the 15-rule port corpus and 167 pure Go checks. Run `npm run test:focus --
 writing-grammar`, `go test ./internal/writing/...`, and the nested Vale race
 suite. The checked-in native bridge fixture is verified by Go and consumed by
 frontend projection/action tests. The shared reviewed minimal-pair corpus also runs directly against the pure
@@ -632,6 +642,13 @@ multiline advisory spans. The native reference comparison includes the 60
 Harper families and MassNouns; the independent noun-subject rule has no claimed
 matching Harper rule ID. Report corpus judgments separately from native parity.
 
+Grammar policy 9 minimal pairs in the shared corpus own the common-error checks
+(weather/whether, object “me,” fewer, possessive time expressions, advisory
+“could care less”) and the broadened contraction, comma-clause existential,
+affect/effect and comma-splice cues. `TestCommonErrorBoundaries` owns their
+protected-text and paragraph boundaries. Bridge probes and CodeMirror cases own
+list-item, emphasis and curly-apostrophe Apply/Undo plus advisory Ignore.
+
 ## Writing quality regression coverage
 
 `writingQuality.test.js` checks real US/UK dictionary behavior across the pane,
@@ -666,8 +683,9 @@ manifests; the previously fresh sample is now a development regression corpus.
 
 `writingRelevance.test.js` checks technical passive descriptions across every
 provider span shape, explicit-actor and unrelated-sentence controls, familiar
-vocabulary versus useful phrase shortening, and meaningful modifiers versus
-broad emphasis. Real package output proves independent quote/apostrophe
+vocabulary versus useful phrase shortening, meaningful modifiers versus
+broad emphasis, Be-specific rate and frequency words, and actorless passives
+shown only in clusters. Real package output proves independent quote/apostrophe
 conventions, protected code, exact advisory marks, and current whole-note policy
 after incremental paragraph edits. Replay both development manifests and retain
 all prior judgments; record any lost useful advice or correction separately.

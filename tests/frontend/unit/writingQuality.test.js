@@ -80,7 +80,6 @@ test.each([
 });
 
 test.each([
-    ['We must address the problem.', 'address', 'Microsoft.Wordiness'],
     ['The visitors were disappointed by the cancellation.', 'were disappointed', 'Microsoft.Passive'],
     ['At the end of the day, the proposal is too expensive.', 'At the end of the day', 'proselint.Cliches'],
 ])('context suppression preserves useful review: %s', (source, actual, rule) => {
@@ -196,10 +195,11 @@ test.each(['We agreed on a service level objective (SLO).', 'We agreed on an SLO
         expect(plain.filter(item => item.actual === 'objective')).toEqual([]);
     });
 
-test('wordiness advice still applies outside an acronym definition', async () => {
+test('an everyday word without a reviewed replacement is already plain outside an acronym definition', async () => {
     const source = 'Our objective is clear.';
-    const plain = findings(resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { lenses: ['plain'], language: 'en-US' } }));
-    expect(plain.some(item => item.actual === 'objective')).toBe(true);
+    const result = resolveWritingFindings({ source, ...await analyzeWriting(source), preferences: { lenses: ['plain'], language: 'en-US' } });
+    expect(findings(result).some(item => item.actual === 'objective')).toBe(false);
+    expect(result.findings.find(item => item.actual === 'objective')?.suppressed).toBe('Already plain wording');
 });
 
 test('Ignore choices saved before checks changed lens still apply to the moved findings', async () => {

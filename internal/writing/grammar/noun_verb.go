@@ -66,6 +66,12 @@ func (s *grammarScan) nounVerbConfusions(i int) {
 			s.emit("NounVerbConfusion", "Use “effect” for the result or consequence in this expression.", i, i, replacement)
 		}
 	}
+	if in(t.word, "effects effected effect") && s.lower(i) {
+		if replacement := s.effectOnPeople(i); replacement != "" {
+			s.emit("NounVerbConfusion", "Use “affect” when the intended meaning is to influence someone.", i, i, replacement)
+			return
+		}
+	}
 	if t.word == "effect" && in(next.word, "me you him her us them everyone everybody someone somebody") {
 		_, action := s.actionSlot(i)
 		// A demonstrative or bounded noun subject also establishes a modal
@@ -78,6 +84,57 @@ func (s *grammarScan) nounVerbConfusions(i int) {
 			s.emit("NounVerbConfusion", "Use “affect” when the intended meaning is to influence someone.", i, i, "affect")
 		}
 	}
+}
+
+// effectOnPeople recognizes a finite “effects/effected/effect” between a
+// bounded subject and a reviewed human or performance object: “The new design
+// effects everyone who…” The verb “effect” (bring about) takes results such as
+// “a change” or “the transfer,” and a following verb marks a noun compound with
+// a relative clause (“The sound effects everyone loved”), so both abstain.
+func (s *grammarScan) effectOnPeople(i int) string {
+	t, prev := s.tokens[i], s.at(i, -1)
+	subject := false
+	switch t.word {
+	case "effects":
+		subject = in(prev.word, "it this that which who he she")
+	case "effected":
+		subject = pronoun(prev.word) && prev.word != "i" || in(prev.word, "this that which who")
+	case "effect":
+		subject = in(prev.word, "they we")
+	}
+	// A determiner, at most two modifiers, and a common-noun head. “effect”
+	// agrees only with a plural head; “effects” only with a singular one.
+	if !subject && prev.word != "" && s.lower(i-1) {
+		labels := s.lex.words[prev.word]
+		number := t.word == "effected" && labels&noun != 0 || t.word == "effects" && labels&singularNoun != 0 && labels&pluralNoun == 0 || t.word == "effect" && labels&pluralNoun != 0 && labels&singularNoun == 0
+		for n := 2; number && n <= 4; n++ {
+			if in(s.at(i, -n).word, "the a an this that these those my our your their his her its") {
+				subject = s.nominalHead(i-n+1) == i-1
+				break
+			}
+			if s.lex.words[s.at(i, -n).word]&(adjective|noun) == 0 {
+				break
+			}
+		}
+	}
+	if !subject {
+		return ""
+	}
+	object := i + 1
+	next := s.at(i, 1).word
+	if in(next, "the our your their my his her all many most every each some") {
+		object = s.nominalHead(i + 2)
+		if object < 0 || !in(s.tokens[object].word, "people users customers team teams staff employees students developers readers performance") {
+			return ""
+		}
+	} else if !in(next, "everyone everybody anyone anybody someone somebody nobody us them him her me you people users customers developers readers students employees") {
+		return ""
+	}
+	after := s.at(object, 1).word
+	if !(s.terminal(object) || s.followedByComma(object) || in(after, "who all alike in on at across by with from when during throughout equally differently directly badly negatively positively significantly deeply greatly most more today now")) {
+		return ""
+	}
+	return map[string]string{"effects": "affects", "effected": "affected", "effect": "affect"}[t.word]
 }
 
 // actionSlot recognizes bounded grammatical cues, never arbitrary dictionary

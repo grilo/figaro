@@ -37,7 +37,29 @@ test.each([
     ['The function runs. The manager was called yesterday.', 'was called'],
     ['The function runs.\n\nThis is recommended for the committee.', 'is recommended'],
 ])('Directness retains actor-focused and unrelated prose: %s', (source, actual) => {
-    expect(visible(nativeReview(source, actual, 'Microsoft.Passive'))).toHaveLength(1);
+    const result = nativeReview(source, actual, 'Microsoft.Passive');
+    expect(result.evidence[0].suppressed).toBe('');
+    if (/\bby\b/u.test(source)) expect(visible(result)).toHaveLength(1);
+    else expect(result.findings[0].suppressed).toBe('Single passive without a named actor');
+});
+
+test('Directness shows actorless passives only where they cluster', async () => {
+    const passives = async (source, matches) => {
+        const { projection } = await analyzeWriting(source);
+        const observations = matches.map(actual => {
+            const from = projection.text.indexOf(actual);
+            return { engine: 'vale', rule: 'Microsoft.Passive', actual, from, to: from + actual.length, replacements: [] };
+        });
+        return visible(resolveWritingFindings({ source, projection, observations, preferences })).map(finding => finding.actual);
+    };
+    expect(await passives('The report was written and was sent.', ['was written', 'was sent'])).toEqual(['was written', 'was sent']);
+    expect(await passives('The report was written. It was sent. It was read.', ['was written', 'was sent', 'was read']))
+        .toEqual(['was written', 'was sent', 'was read']);
+    expect(await passives('The report was written. It was sent.', ['was written', 'was sent'])).toEqual([]);
+    expect(await passives('The report was written.\n\nIt was sent. It was read.', ['was written', 'was sent', 'was read'])).toEqual([]);
+    const named = resolveWritingFindings({ source: 'The report was written by Maya.', projection: prepareWritingSource('The report was written by Maya.'),
+        observations: [{ engine: 'vale', rule: 'Microsoft.Passive', actual: 'was written', from: 11, to: 22, replacements: [] }], preferences });
+    expect(visible(named)[0].message).toMatch(/names who acts/u);
 });
 
 test('ordinary vocabulary no longer creates synonym-only tasks while useful shortening remains', async () => {
@@ -49,21 +71,21 @@ test('ordinary vocabulary no longer creates synonym-only tasks while useful shor
     const wordiness = visible(result).filter(finding => finding.kind === 'style.wordiness');
     expect(wordiness.map(finding => finding.actual)).toEqual(['in order to']);
     expect(wordiness[0].fixes.map(fix => fix.replacement)).toEqual(['to']);
-    expect(visible(await review('We utilize this tool to make a purchase with the exception of food.'))
-        .map(finding => finding.actual)).toEqual(expect.arrayContaining(['utilize', 'purchase', 'with the exception of']));
+    // Unreviewed matches stay only for wordy phrases and formal words, not everyday words such as “purchase”.
+    const plain = visible(await review('We utilize this tool to facilitate a purchase with the exception of food.')).map(finding => finding.actual);
+    expect(plain).toEqual(expect.arrayContaining(['utilize', 'facilitate', 'with the exception of']));
+    expect(plain).not.toContain('purchase');
 });
 
 test.each([
     ['Most of the ocean is completely dark.', 'completely'],
     ['If you need a passport urgently, use the faster service.', 'urgently'],
-    ['The first bus was usually crowded.', 'usually'],
     ['The instructions were deliberately short.', 'deliberately'],
     ['This is a deliberately incorrect test string.', 'deliberately'],
-    ['Find the seam and work slowly.', 'slowly'],
     ['The child took home a neatly mended bag.', 'neatly'],
     ['Their waiting quietly helped the clerk.', 'quietly'],
     ['The path is strictly a single directory.', 'strictly'],
-])('meaningful manner, frequency and degree survive generic adverb advice: %s', (source, actual) => {
+])('meaningful manner and degree survive generic adverb advice: %s', (source, actual) => {
     expect(visible(nativeReview(source, actual, 'Microsoft.Adverbs'))).toEqual([]);
 });
 
@@ -72,7 +94,22 @@ test.each([
     ['We urgently believe that this changes everything.', 'urgently'],
     ['This is very good.', 'very'],
 ])('broad emphasis remains reviewable: %s', (source, actual) => {
-    expect(visible(nativeReview(source, actual, 'Microsoft.Adverbs'))).toHaveLength(1);
+    expect(visible(nativeReview(source, actual, 'Microsoft.Adverbs'))).toMatchObject([{ kind: 'style.modifier' }]);
+});
+
+test.each([
+    ['The first bus was usually crowded.', 'usually'],
+    ['It is generally believed that the method works.', 'generally'],
+    ['Pressure is slowly building up.', 'slowly'],
+    ['Reading slowly is something that is perhaps inefficient.', 'slowly'],
+    ['Scroll slowly through the list.', 'slowly'],
+    ['Sales grew quickly after launch.', 'quickly'],
+    ['The backlog has gradually increased.', 'gradually'],
+])('vague degree, rate and frequency ask for specifics: %s', (source, actual) => {
+    for (const rule of ['Microsoft.Adverbs', 'write-good.Weasel']) {
+        const result = nativeReview(source, actual, rule);
+        expect(visible(result)).toMatchObject([{ kind: 'style.vague-quantity', title: 'Be specific', legacyKind: 'style.modifier' }]);
+    }
 });
 
 test('Formulaic punctuation honors authored quotation and apostrophe conventions independently', async () => {

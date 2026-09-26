@@ -71,6 +71,9 @@ test.each([
     ['gap participle emphasis', 'saw', 'seen', 'Maya had **seen** the missing tool.'],
     ['gap countable emphasis', 'amount of times', 'number of times', 'The **number of times** is limited to `10`.'],
     ['comma before emphasis', ',', ', ', 'Hello, *world*.'],
+    ['policy9 object pronoun emphasis', 'and I', 'and me', 'Chen will send it to **Ana and me** on Friday.'],
+    ['policy9 possessive time curly', 'years', 'year’s', 'It’s late: compare last year’s prices.'],
+    ['policy9 list item comma existential', 'their', 'there', '- Bruno said the the migration is almost done, there is one table left.'],
 ])('%s applies a native expansion as one Markdown-preserving Undo step', async (name, actual, replacement, corrected) => {
     jest.useFakeTimers();
     const sample = nativeCases.probes.find(f => f.name === name);
@@ -89,6 +92,7 @@ test.each([
     ['MultipleSequentialPronouns', 'Review adjacent pronouns', 'multiplesequentialpronouns'],
     ['IfWouldve', 'Review past conditional', 'ifwouldve'],
     ['CommaSplice', 'Review comma between clauses', 'commasplice'],
+    ['CouldCareLess', 'Review “could care less”', 'couldcareless'],
 ])('%s offers rule-specific Ignore without a guessed correction', async (rule, title, kind) => {
     jest.useFakeTimers();
     const sample = nativeCases.fixtures.find(f => f.rule === `FigaroGrammar.${rule}`);

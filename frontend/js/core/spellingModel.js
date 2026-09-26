@@ -105,3 +105,24 @@ export function spellingPossessive(word, languages) {
     if (!match || match[2].length === 1 && !/s$/iu.test(match[1])) return null;
     return { stem: match[1], suffix: match[2], plural: match[2].length === 1 };
 }
+
+const blockLead = /^([ \t>]*)((?:(?:#{1,6}|[-+*]|\d{1,9}[.)]|\[[ xX]\])[ \t]+)*)[ \t"'“‘«([*_~`]*$/u;
+const sentenceEnd = /[.!?…|]["'”’)\]*_~`]*[ \t]*$/u;
+
+/**
+ * Whether the word at `from` begins a sentence, heading, list item, table cell
+ * or paragraph. A wrapped line continues its sentence unless the previous line
+ * ends one or is a heading. Colons do not start a sentence: in
+ * “Database: Postgres” the capital marks a name.
+ */
+export function spellingSentenceStart(source, from) {
+    const text = String(source || '');
+    const lineStart = text.lastIndexOf('\n', from - 1) + 1;
+    const prefix = text.slice(lineStart, from);
+    const lead = blockLead.exec(prefix);
+    if (!lead) return sentenceEnd.test(prefix.replace(/[ \t"'“‘«([*_~`]+$/u, ''));
+    if (lead[2] || lineStart === 0) return true;
+    const previous = text.slice(0, Math.max(0, lineStart - 1)).replace(/[ \t\r]+$/u, '');
+    const line = previous.slice(previous.lastIndexOf('\n') + 1);
+    return !line.trim() || /^[ \t>]*#{1,6}[ \t]/u.test(line) || sentenceEnd.test(line);
+}

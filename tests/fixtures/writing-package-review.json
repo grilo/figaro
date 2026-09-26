@@ -120,7 +120,7 @@
   },
   {
     "rule": "Microsoft.Passive",
-    "source": "The report was written today.",
+    "source": "The report was written by Maya today.",
     "actual": "was written",
     "lens": "direct",
     "kind": "syntax.passive"

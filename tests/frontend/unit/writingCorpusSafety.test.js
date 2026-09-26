@@ -47,9 +47,9 @@ test('unknown names remain reviewable without ordinary-word replacement guesses'
 });
 
 test('dictionary alternatives preserve an unknown plural rather than deleting its suffix or inventing possession', async () => {
-    const [finding] = await spelling('precedences');
+    const [finding] = await spelling('absorbances');
     expect(finding.replacements).toEqual([]);
-    expect(finding.replacements).not.toContain("precedence's");
+    expect(finding.replacements).not.toContain("absorbance's");
     expect(finding.bulkSafe).toBe(false);
     expect((await spelling('doesnt'))[0].replacements).toContain("doesn't");
 });
@@ -57,7 +57,7 @@ test('dictionary alternatives preserve an unknown plural rather than deleting it
 test('suggestion cards expose spelling Apply to all only for reviewed corrections', async () => {
     const onApplyAll = jest.fn();
     const view = createWritingResultsView({ onRetry() {}, onApplyAll });
-    for (const [source, bulk] of [['precedences precedences', false], ['teh teh', true]]) {
+    for (const [source, bulk] of [['absorbances absorbances', false], ['teh teh', true]]) {
         const current = { source, id: 'note', revision: 1, configuration: 'current', language: 'en-US', preferences: preferences(['spelling']) };
         const result = resolveWritingFindings({ source, observations: await spelling(source), preferences: current.preferences });
         view.update({ ...result, analyzed: current, current });
@@ -160,9 +160,14 @@ test.each(['The HTTP request passes parameters to a function with a return type.
         expect((await review(source, ['plain'])).filter(f => ['function', 'request', 'parameters', 'type', 'address'].includes(f.actual.toLowerCase()))).toEqual([]);
     });
 
-test.each(['We request permission.', 'We should address the concern.', 'We utilize tools in order to finish.'])(
-    'Clarity retains useful verb and purpose-phrase advice: %s', async source => {
+test.each(['We utilize tools in order to finish.', 'We facilitate the review.', 'We decided with the exception of one item.'])(
+    'Clarity retains useful formal-word and wordy-phrase advice: %s', async source => {
         expect((await review(source, ['plain'])).length).toBeGreaterThan(0);
+    });
+
+test.each(['We request permission.', 'We should address the concern.', 'Delete the previous copy.'])(
+    'Clarity leaves everyday words without a reviewed replacement alone: %s', async source => {
+        expect(await review(source, ['plain'])).toEqual([]);
     });
 
 test.each(['Use the easy read guide.', 'The setup is not easy.', 'This is not just a list.',

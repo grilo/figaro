@@ -57,7 +57,7 @@ test('writing resolver preserves distinct passive occurrences and rejects unknow
 });
 
 test('Directness shows passive advice independently of the retired profile while contextual guards preserve request nouns', () => {
-    const result = resolve('The request was written in order to help.', [], { ...preferences, profile: 'standard' });
+    const result = resolve('The request was written by Maya in order to help.', [], { ...preferences, profile: 'standard' });
     expect(result.groups[0].findings.map(item => item.actual)).toEqual(expect.arrayContaining(['in order to', 'written']));
     expect(result.findings.find(item => item.kind === 'syntax.passive').suppressed).toBe('');
     expect(result.findings.find(item => item.actual === 'request')).toMatchObject({ suppressed: 'Wording has an established meaning in this context', fixes: [] });

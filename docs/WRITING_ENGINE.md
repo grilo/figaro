@@ -46,7 +46,7 @@ with the note’s selected analysis language. There is no automatic language det
 | Dependency / immutable pin | Upstream and notices | Emitted checks / scope | Fix support |
 | --- | --- | --- | --- |
 | Vale 3.20.0 | [Vale release](https://github.com/vale-cli/vale/releases/tag/v3.20.0), MIT in `third_party/vale/LICENSE` | Embedded Go library; in-memory Figaro rules, projected prose, compatible JSON output | Style rules are advisory; reviewed grammar actions require exact source validation |
-| Harper port 0.1.0 + Figaro grammar 8 | Apache-2.0 rules/dictionary in `internal/writing/styles/Harper`; [reviewed scope](WRITING_HARPER.md) | Fifteen selected YAML rules and 162 pure Go checks in the existing native worker | Bounded allowlisted literal replacements; exact, editable source only |
+| Harper port 0.1.0 + Figaro grammar 8 | Apache-2.0 rules/dictionary in `internal/writing/styles/Harper`; [reviewed scope](WRITING_HARPER.md) | Fifteen selected YAML rules and 167 pure Go checks in the existing native worker | Bounded allowlisted literal replacements; exact, editable source only |
 | write-good `c9ceca7f574248a201d5524b001099c5626c7519` | [Pinned style source](https://github.com/vale-cli/write-good/tree/c9ceca7f574248a201d5524b001099c5626c7519), MIT in `internal/writing/styles/LICENSE` | Seven rules: Passive, TooWordy, Cliches, Illusions, So, ThereIs, Weasel; E-Prime and Vale built-ins disabled | Detection only; compatible retext evidence can contribute a phrase fix |
 | retext-passive 5.0.0 | [Source](https://github.com/retextjs/retext-passive), MIT | `retext-passive` plus native rule IDs; participle-based possible passive detection | Advisory only |
 | retext-simplify 8.0.0 | [Source](https://github.com/retextjs/retext-simplify), MIT | `retext-simplify` plus native message subtypes; all native phrases map to contextual wordiness or vocabulary advice | Seven reviewed phrase forms offer verified alternatives, case matched, contiguous source only |
@@ -61,7 +61,7 @@ with the note’s selected analysis language. There is no automatic language det
 | retext-readability 8.0.0 | [Source](https://github.com/retextjs/retext-readability), MIT | Conservative complex-sentence advice under Readability | Advisory only; length and complexity remain separate concerns |
 | @textlint-rule/textlint-rule-no-unmatched-pair 2.0.4 | [Source](https://github.com/textlint-rule/textlint-rule-no-unmatched-pair), MIT | Unmatched opening punctuation under Grammar & punctuation | Advisory example; no guessed closing position |
 | textlint-rule-terminology 5.2.16 | [Source](https://github.com/sapegin/textlint-rule-terminology), MIT | 29 reviewed technical names under Consistency; defaults/file configuration disabled | Exact canonical spelling, individual safe source edits |
-| Slopless 0.2.38 | [Source](https://github.com/berelevant-ai/slopless), MIT in bundled writing notices | 29 selected English rules under Formulaic writing; [all 48 exclusions](WRITING_SLOPLESS.md) | Advisory examples and reversible Ignore only, including unspaced em dashes |
+| Slopless 0.2.38 | [Source](https://github.com/berelevant-ai/slopless), MIT in bundled writing notices | 30 selected English rules under Formulaic writing, plus five [Figaro-local frames](WRITING_SLOPLESS.md#figaro-local-frames); [all 47 exclusions](WRITING_SLOPLESS.md) | Advisory examples and reversible Ignore only, including unspaced em dashes |
 | Microsoft `8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e` | [Pinned source](https://github.com/vale-cli/Microsoft/tree/8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e), MIT in `internal/writing/styles/Microsoft/LICENSE` | Acronyms, Adverbs, Jargon, Passive, SentenceLength, Wordiness; hashes in `SOURCE.json` | General example only; no guessed expansion |
 | proselint `8e24adbaa5dc6593b331f8bfab23c9af044af406` | [Pinned source](https://github.com/vale-cli/proselint/tree/8e24adbaa5dc6593b331f8bfab23c9af044af406), BSD-3-Clause in `internal/writing/styles/proselint/LICENSE` | Fourteen selected rules; full inventory in [package review](WRITING_PACKAGE_REVIEW.md), hashes in `SOURCE.json` | General examples only; no generated replacements |
 | Figaro writing rules 1 | `frontend/js/core/writingAdditionalRules.js`, repository license | Curated consistency, punctuation, and paragraph sentence length | Individual term/punctuation fixes; Readability is advisory |
@@ -215,12 +215,12 @@ than Grammar. Quote and apostrophe findings must differ from the note’s prevai
 convention; consistent authored styles are preserved. Ellipses and expressive punctuation remain
 unchanged.
 
-Editorial policy version 9 retains the correction to the upstream article treatment for reviewed
+Editorial policy version 10 retains the correction to the upstream article treatment for reviewed
 consonant-sounding vowels (“a unicorn,” “a European”) and silent consonants
 (“an hour,” “an honest answer”). Unknown `u`/`eu` families and dialect-dependent
 `herb`/`historic`, SQL, and URL pronunciations are withheld. Reviewed cases can
 span a soft wrap within eligible prose; context cannot cross protected spans.
-Fifteen reviewed Harper-port rules and 162 pure Go checks add conservative agreement, infinitive,
+Fifteen reviewed Harper-port rules and 167 pure Go checks add conservative agreement, infinitive,
 auxiliary, number, possessive, homophone, word-choice, compound-subject, question, phrase,
 word-boundary, ordinal, capitalization, and comma coverage (177 IDs). Reviewed
 preposition/word-choice contexts and determiner-led noun-subject auxiliaries add usage coverage;
@@ -241,7 +241,7 @@ advisory with a general example; Figaro never guesses where to insert a closer.
 
 Readability checks paragraph sentences of more than 30 words using the existing
 sentence parser and reviews complex sentences with `retext-readability`.
-Figaro uses `age: 16`, `minWords: 15`, and `threshold: 5/7`, requiring at least
+Figaro uses `age: 16`, `minWords: 25`, and `threshold: 5/7`, requiring at least
 five agreeing formulas. These conservative settings differ from the package's
 five-word / four-formula defaults because short sentences can skew its estimates.
 The package applies Dale–Chall, Automated Readability, Coleman–Liau, Flesch,
@@ -255,7 +255,7 @@ disagree. The explanation distinguishes measured length from formula
 estimates and includes a general splitting/simplifying example; no automatic
 rewrite or reading-grade score is offered, and the estimates do not measure
 writing quality. Mapping/configuration version 25 includes package pins, editorial policy version 9,
-spelling vocabulary version 5,
+spelling vocabulary version 6,
 reviewed terms/acronym exceptions, and formula options so stale findings cannot survive a policy
 change. All prose
 lenses support English US/UK, save independently with the existing version 3
@@ -363,6 +363,8 @@ collapsed link/image labels stay advisory, with an explanation: their visible
 text is also the reference key. All prose fixes crossing those labels are
 withheld; explicit `[label][id]` labels remain editable.
 
+### Spelling dictionary policy
+
 Pure dictionary policy in `core/spellingSuggestionsModel.js` recognizes valid
 English plural/name possessives such as `users’` and `James'`. Unknown stems
 remain checkable. Candidate stem corrections retain the exact authored
@@ -370,10 +372,24 @@ apostrophe and possessive suffix and must pass dictionary validation; they
 cannot merely remove or relocate possession. Spanish keeps its own dictionary
 policy. Parsed emphasis marks are separated before technical-token masking;
 underscores do not hide prose or truncate possessives. Closing single quotes
-are outside spelling tokens, and numeric compounds remain intact. The reviewed
-English vocabulary recognizes common technical terms; acronym plurals require a
-recognized acronym stem. All-caps words are checked instead of exempted by shape.
-The vocabulary includes async, dotfiles, etags, fallbacks and middleware.
+are outside spelling tokens, and numeric compounds remain intact.
+
+The bundled English dictionaries omit some regular forms. English recognition
+also accepts a few derivations whose base the dictionary itself supports: the
+plural of a noun (its base takes a possessive, so `durations` but not `thats`),
+un- before a known past participle (`untagged`), re- before a known verb
+(`rescan`), multi- before a known word (`multiline`), and -able after a known
+verb (`reviewable`, `resizable`). Soft c/g stems and words with an -ible
+spelling stay flagged (`noticable`, `accessable`), and accented loanwords
+match their unaccented entry (`clichés`).
+
+The reviewed English vocabulary in `core/spellingVocabulary.js` (version 6)
+recognizes common technical, keyboard/OS, interface and note-taking terms such
+as async, middleware, Cmd, backend, stylesheet, tooltip, strikethrough,
+backlinks, callouts, frontmatter and Kanban, plus a small list of general words
+the dictionary lacks. Names and acronyms such as macOS, GTK, WebKitGTK, UI and
+Gantt match only their exact casing. Acronym plurals require a recognized
+acronym stem. All-caps words are checked instead of exempted by shape.
 Every replacement a lens offers is recognized, so applying one never creates a
 spelling finding: inclusive alternatives such as allowlist and blocklist,
 consistent-term forms such as ebook, and terminology product names in their
@@ -385,9 +401,19 @@ Shared technical masking protects URLs, email, explicit paths, known filename
 extensions, and identifiers including lower camel case; slash/dot-separated prose stays eligible.
 NFC lookup
 normalization changes comparisons only, preserving source text and ranges.
-Ordinary title/sentence capitals and all-caps words receive case-matched
-lowercase-dictionary alternatives. Unreviewed mixed-case or name-only alternatives
-still require an adjacent transposition;
+
+Suggestions stay conservative. Reviewed corrections come first, including a few
+missing spaces (`alot` → `a lot`, `infact`, `aswell`, `eachother`, `noone`,
+`atleast`); ambiguous forms such as `incase` get none. A lowercase word whose
+capitalized form is a dictionary word gets only that capital (`friday` →
+`Friday`). `spellingSentenceStart` in `core/spellingModel.js` decides whether a
+capital begins a sentence, heading, list item, table cell or paragraph; wrapped
+lines and colons do not. There, and for all-caps words, capitals receive
+case-matched lowercase-dictionary alternatives. Elsewhere a capitalized unknown
+word is treated as a likely name: it stays flagged with Add to dictionary but
+gets only a case change or an adjacent transposition (`Postgres` gets no
+`Postures`). Mixed-case words and lowercase words likewise get name-only
+dictionary entries only as an adjacent transposition;
 invented possessive apostrophes are withheld, while reviewed contraction shapes
 remain available. Generated English alternatives cannot merely remove a final
 plural `s` from an unknown word. Recognition of a term never
@@ -483,6 +509,19 @@ with Manage dictionary… in both lens views. Writes share the serialized dictio
 use case; Undo adds only the removed entry and preserves intervening additions.
 The list mounts 100 matching entries at a time with Show more; failed loads/saves
 remain retryable and do not change effective spelling words.
+
+The vault’s own vocabulary is accepted too, in memory only: words in Markdown
+note titles (file names without extension) and saved tags. It never joins the
+personal dictionary or its file. Pure `vaultSpellingWords` in
+`core/spellingDictionaryModel.js` skips folders, other file types, chunks with
+digits (dates, versions), words under three letters and words with a reviewed
+correction such as `teh`, and stops at 5,000 words. The writing-lens adapter
+reads the file tree and the saved tag vocabulary through an injected port,
+recomputes one second after they change rather than while typing, and re-reviews
+only when the word set changes. Review and the context menu share these words
+and the English plural/possessive rules of personal words. The personal checker
+is reused while its words and language are unchanged.
+
 Occurrence Ignore remains separate, is saved per note, and can be reversed in
 Saved review decisions.
 

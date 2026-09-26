@@ -67,6 +67,11 @@ function passiveSubject(before) {
         .replace(/\s+(?:(?:am|is|are|was|were|be|been|being|will|can|cannot|could|may|might|must|should|would|has|have|had|not|already|also|still)\s+)+$/iu, ' ');
 }
 
+/** Whether the passive's own clause names who acts (“… by the editor”). */
+export function writingPassiveNamesActor(after) {
+    return passiveActor(String(after || '').split(/[.!?;]/u)[0]);
+}
+
 function passiveActor(after) {
     // Keep explicit actors even after a time or location. A deadline or an
     // implementation mechanism does not identify an actor.
@@ -127,12 +132,26 @@ function meaningfulExistence(actual, after) {
     return /^\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|several)\s+(?:[\p{L}’-]+\s+){0,2}(?:jugs?|bottles?|boxes|box|chairs?|tables?|books?|shelves|shelf|seats?|cups?|bags?|tools?|visitors?|people)\s+(?:on|in|at|beside|behind|under|near)\s+(?:the|a|an|this|that|each)\b/iu.test(after);
 }
 
+// Vague degree, rate, frequency and generalisation stand in for a number, a
+// date or a source the writer may have, whether they describe a change
+// (“slowly building up”) or an action (“reading slowly”): ask for it instead of
+// calling the word padding. Filler intensifiers keep the remove-if-empty advice.
+const generalisationWords = new Set(['generally', 'usually', 'typically', 'commonly', 'normally', 'often', 'frequently',
+    'rarely', 'seldom', 'sometimes', 'occasionally', 'mostly', 'largely', 'widely', 'broadly', 'recently', 'soon', 'eventually']);
+const rateWords = new Set(['slowly', 'quickly', 'rapidly', 'gradually', 'steadily', 'sharply', 'dramatically', 'significantly',
+    'substantially', 'considerably', 'slightly', 'marginally']);
+/** 'precision' for vague degree/frequency words, 'filler' for everything else. */
+export function writingModifierConcern(actual) {
+    const word = String(actual || '').toLowerCase();
+    return generalisationWords.has(word) || rateWords.has(word) ? 'precision' : 'filler';
+}
+
 function meaningfulModifier(actual, before, after) {
-    if (actual === 'usually') return true;
+    // How slowly, how often, according to whom: always worth a number or source.
+    if (writingModifierConcern(actual) === 'precision') return false;
     if (actual === 'completely') return /^\s+(?:dark|empty|full|dry|wet|silent|closed|open|submerged|covered)\b/iu.test(after);
     if (actual === 'urgently') return /\b(?:need|needs|needed|require|requires|required|request|requested|apply|applied)(?:\s+[\p{L}'’-]+){0,5}\s+$/iu.test(before);
     if (actual === 'deliberately') return /^\s+(?:short|incorrect|wrong|false|blank|empty|omitted|excluded|left)\b/iu.test(after);
-    if (actual === 'slowly') return /\b(?:work|works|worked|walk|walks|walked|move|moves|moved|drive|drives|drove|read|reads|stir|stirs|stirred)\s+$/iu.test(before);
     if (actual === 'neatly') return /^\s+(?:mended|folded|stacked|written|arranged|labelled|labeled|packed)\b/iu.test(after);
     if (actual === 'quietly') return /\b(?:wait|waited|waiting|speak|speaking|spoke|work|working|worked|sit|sitting|sat)\s+$/iu.test(before);
     return actual === 'strictly' && /^\s+(?:(?:a|an)\s+)?(?:single|one|limited|less|greater|positive|negative)\b/iu.test(after);
@@ -140,10 +159,10 @@ function meaningfulModifier(actual, before, after) {
 
 export function writingAdvisoryContext(kind, raw, projection) {
     if (kind === 'style.wordiness') return writingWordinessContext(raw, projection);
-    if (!['syntax.passive', 'syntax.indirect-opening', 'style.modifier', 'style.stock-phrase', 'formulaic.generalization'].includes(kind)) return false;
+    if (!['syntax.passive', 'syntax.indirect-opening', 'style.modifier', 'style.vague-quantity', 'style.stock-phrase', 'formulaic.generalization'].includes(kind)) return false;
     const actual = raw.actual?.toLowerCase() || '', { before, after } = contextAt(raw, projection, kind === 'syntax.passive' ? 256 : 160);
     if (kind === 'syntax.indirect-opening') return meaningfulExistence(actual, after);
-    if (kind === 'style.modifier') return meaningfulModifier(actual, before, after);
+    if (kind === 'style.modifier' || kind === 'style.vague-quantity') return meaningfulModifier(actual, before, after);
     if (kind === 'formulaic.generalization') {
         // A reported past scene is not a timeless claim about everyone.
         return /^(?:nobody|no one|everyone|everybody)\s+(?:seemed|appeared)\s+to\s+(?:know|understand|notice|remember)\b/u.test(actual);

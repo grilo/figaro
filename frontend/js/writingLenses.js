@@ -23,9 +23,10 @@ import { updateInlineWriting } from './writingInline.js';
 import { selectedWritingLenses } from './core/writingAnalysisModel.js';
 import { planWritingBulkFix } from './core/writingReviewModel.js';
 import { bindRightPaneLauncher } from './rightPaneLauncher.js';
+import { vaultSpellingWords } from './core/spellingDictionaryModel.js';
 
 /** Workspace adapter for owned snapshots, existing panes, and validated editor edits. */
-export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusEditor, loadPreferences, savePreferences, applyAllPreferences, loadDecisions = async () => [], changeDecisions = async () => { throw new Error('Review storage unavailable'); }, getView, analysisPorts, dictionary, dictionaryReady = Promise.resolve(), setSpelling = () => {} }) {
+export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusEditor, loadPreferences, savePreferences, applyAllPreferences, loadDecisions = async () => [], changeDecisions = async () => { throw new Error('Review storage unavailable'); }, getView, analysisPorts, dictionary, dictionaryReady = Promise.resolve(), setSpelling = () => {}, vaultVocabulary }) {
     const sidebar = document.getElementById('right-sidebar');
     const content = document.getElementById('right-sidebar-content');
     const launcher = document.getElementById('writing-lenses-toggle');
@@ -37,6 +38,8 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
     let analysis, resultsView, lastDocument, lastSource = '', revision = 0;
     let inlineVersion, inlineDocument;
     let observedDocument, observedPath, decisionViewKey, refreshTimer;
+    // Note titles and tags are accepted in memory; they never join the saved dictionary.
+    let vaultWords = vaultVocabulary ? vaultSpellingWords(vaultVocabulary.read()) : [], vaultTimer;
     let disposed = false;
     let placement = null;
     let popupOpen = false;
@@ -129,7 +132,8 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
             lastDocument = view.state.doc; lastSource = selected.length ? view.state.doc.toString() : undefined; revision++;
         }
         const language = saved.preferences.language;
-        const effectiveSpelling = { language, words: dictionary?.words() || [],
+        const personalWords = dictionary?.words() || [];
+        const effectiveSpelling = { language, words: vaultWords.length ? [...personalWords, ...vaultWords] : personalWords,
             enabled: selectedWritingLenses(saved.preferences).includes('spelling') && writingLensSupportsLanguage('spelling', language) };
         const review = reviewState?.decisions || [];
         const decisionsPending = Boolean(reviewState?.tracking), decisionsFailed = reviewState?.status === 'tracking-error';
@@ -299,6 +303,19 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         clearTimeout(refreshTimer);
         refreshTimer = setTimeout(deferEditorWork('writing.refresh', 'document or workspace', () => { refreshTimer = undefined; refresh(); }, 'debounce'), typeof delay === 'number' ? delay : 0);
     };
+    // Tree and tag snapshots change after vault events, not keystrokes. Debounce
+    // bursts and re-review only when the accepted vocabulary actually changes.
+    const refreshVaultWords = () => {
+        vaultTimer = undefined;
+        if (disposed) return;
+        const next = vaultSpellingWords(vaultVocabulary.read());
+        if (next.length === vaultWords.length && next.every((word, index) => word === vaultWords[index])) return;
+        vaultWords = next; refreshAnalysis(true);
+    };
+    const stopVaultVocabulary = vaultVocabulary?.subscribe(() => {
+        clearTimeout(vaultTimer);
+        vaultTimer = setTimeout(deferEditorWork('writing.vocabulary', 'vault titles and tags', refreshVaultWords, 'debounce'), 1000);
+    });
     const onEditorUpdate = detail => {
         if ((detail?.docChanged || detail?.writingChanges) && detail.documentTabId === activeDocument()?.id) {
             // Undo can restore the very same immutable Text object before the
@@ -343,7 +360,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
     return {
         toggle, refresh, ready, movePaths: continuity.move,
         destroy() {
-            clearTimeout(refreshTimer);
+            clearTimeout(refreshTimer); clearTimeout(vaultTimer); stopVaultVocabulary?.();
             updateInlineWriting(getView?.(), null, {}); setSpelling({ enabled: false });
             analysis?.destroy(); analysisPorts?.destroy(); closeQuick(); close(); disposed = true; documents.forEach(({ controller, review }) => { controller.destroy(); review.destroy(); }); observer.disconnect(); unregister();
             unbindLauncher(); quick.removeEventListener('click', toggle);

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import nspell from '../../../frontend/vendored/spellcheck/nspell.js';
 import { resolveWritingFindings } from '../../../frontend/js/core/writingAnalysisModel.js';
 import { createWritingResultsView } from '../../../frontend/js/views/writingResultsView.js';
-import { spellingPossessive } from '../../../frontend/js/core/spellingModel.js';
+import { spellingPossessive, spellingSentenceStart } from '../../../frontend/js/core/spellingModel.js';
 import { acceptedSpelling } from '../../../frontend/js/core/spellingDictionaryModel.js';
 import { inclusiveAlternatives } from '../../../frontend/js/core/writingPackagePolicy.js';
 import { termGroups, capitalizationGroups } from '../../../frontend/js/core/writingAdditionalRules.js';
@@ -173,4 +173,65 @@ test.each(['en-US', 'en-GB'])('%s spelling accepts every replacement a writing l
     // Recognition is exact for product names: a miscased brand is still reviewed.
     const miscased = await writingSpellingObservations('Graphql and allowlist', language, async () => dictionary(language));
     expect(miscased.map(item => item.actual)).toEqual(['Graphql']);
+});
+
+test.each(['en-US', 'en-GB'])('%s lowercase proper nouns get their capital and missing spaces get reviewed splits', async language => {
+    const checker = dictionary(language);
+    const source = 'See you friday about english. We have alot to do, infact aswell as eachother and noone. Alot remains. Maybe incase and amercia.';
+    const observations = await writingSpellingObservations(source, language, async () => checker);
+    const fixes = Object.fromEntries(observations.map(item => [item.actual, item.replacements]));
+    expect(fixes).toMatchObject({ friday: ['Friday'], english: ['English'], alot: ['a lot'], infact: ['in fact'],
+        aswell: ['as well'], eachother: ['each other'], noone: ['no one'], Alot: ['A lot'], amercia: ['America'] });
+    // Ambiguous or name-only alternatives are not offered for lowercase prose.
+    expect(fixes.incase).not.toContain('in case');
+    expect(fixes.incase).not.toContain('Incas');
+    expect(observations.find(item => item.actual === 'alot').bulkSafe).toBe(true);
+    expect(observations.find(item => item.actual === 'friday').bulkSafe).toBe(false);
+    expect(await spellcheckSuggestionsAtPosition(source, source.indexOf('friday') + 1, language, async () => checker))
+        .toMatchObject({ suggestions: ['Friday'] });
+});
+
+test.each(['en-US', 'en-GB'])('%s capitalized unknown words inside a sentence stay flagged without a different-word correction', async language => {
+    const checker = dictionary(language);
+    const source = 'We moved to Postgres last week and Recieve Waht.\n\nTeh result was fine. Speling matters.\n\n## Using Postgres\n\n- Postgres list item';
+    const observations = await writingSpellingObservations(source, language, async () => checker);
+    const at = (word, index = 0) => observations.filter(item => item.actual === word)[index];
+    expect(at('Postgres')).toMatchObject({ replacements: [] });
+    expect(at('Postgres', 1)).toMatchObject({ replacements: [] });
+    expect(at('Recieve').replacements).toEqual(['Receive']);
+    expect(at('Waht').replacements).toEqual(['What']);
+    expect(at('Teh').replacements).toEqual(['The']);
+    expect(at('Speling').replacements).toContain('Spelling');
+    // A list item begins a sentence, so its capital is ordinary sentence case.
+    expect(at('Postgres', 2).replacements.length).toBeGreaterThan(0);
+    expect(await spellcheckSuggestionsAtPosition(source, source.indexOf('Postgres') + 1, language, async () => checker))
+        .toMatchObject({ word: 'Postgres', suggestions: [] });
+});
+
+test('sentence starts follow punctuation, blocks and paragraphs but not wrapped lines or colons', () => {
+    for (const [source, expected] of [['Postgres is', true], ['We use Postgres', false], ['Done. Postgres', true],
+        ['Done! "Postgres', true], ['Database: Postgres', false], ['# Postgres', true], ['## Using Postgres', false],
+        ['- Postgres', true], ['1. Postgres', true], ['- [ ] Postgres', true], ['text\n\nPostgres', true],
+        ['we use\nPostgres', false], ['ends.\nPostgres', true], ['# Head\nPostgres', true], ['| a | Postgres |', true],
+        ['> we use\n> Postgres', false], ['**Postgres**', true], ['we use **Postgres**', false], ['see (Postgres', false]]) {
+        expect([source, spellingSentenceStart(source, source.indexOf('Postgres'))]).toEqual([source, expected]);
+    }
+});
+
+test.each(['en-US', 'en-GB'])('%s recognizes regular derivations and accented spellings the small dictionary omits', async language => {
+    const checker = dictionary(language);
+    const valid = ['transformative', 'durations', 'clichés', 'Clichés', 'resizable', 'callouts', 'multiline', 'reviewable',
+        'unspaced', 'untagged', 'unlinked', 'rescan', 'Durations', 'durations’'];
+    expect((await writingSpellingObservations(valid.join(' '), language, async () => checker)).map(item => item.actual)).toEqual([]);
+    // Every derivation needs a known base, and familiar misspellings stay reviewable.
+    const misspelled = ['noticable', 'accessable', 'reversable', 'thats', 'everyones', 'durashuns', 'unrecieved', 'recieveable', 'clíchez', 'multilyne'];
+    expect((await writingSpellingObservations(misspelled.join(' '), language, async () => checker)).map(item => item.actual)).toEqual(misspelled);
+});
+
+test.each(['en-US', 'en-GB'])('%s reviewed software, keyboard and note-taking vocabulary keeps exact casing where it matters', async language => {
+    const checker = dictionary(language);
+    const known = 'Cmd Cmd-click macOS Kanban Gantt strikethrough GTK WebKitGTK backlinks Backlinks callouts backtick Prepending tooltip frontmatter backend stylesheet UI TODO todos io env dir';
+    expect((await writingSpellingObservations(known, language, async () => checker)).map(item => item.actual)).toEqual([]);
+    const miscased = await writingSpellingObservations('macos Macos ui gtk gantt webkitgtk', language, async () => checker);
+    expect(miscased.map(item => item.actual)).toEqual(['macos', 'Macos', 'ui', 'gtk', 'gantt', 'webkitgtk']);
 });

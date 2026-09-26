@@ -1,4 +1,4 @@
-import { personalDictionaryList } from '../../../frontend/js/core/spellingDictionaryModel.js';
+import { personalDictionaryList, vaultSpellingWords } from '../../../frontend/js/core/spellingDictionaryModel.js';
 import { acceptedSpelling, filterAcceptedSpelling } from '../../../frontend/js/core/spellingDictionaryModel.js';
 
 test.each(['en-US', 'en-GB'])('%s personal words accept regular noun plurals and singular/plural possessives', language => {
@@ -65,4 +65,35 @@ test('dictionary list filters normalized stored entries and bounds alphabetical 
     expect(personalDictionaryList(['zebra', 'alpha', 'beta'], '', 2)).toEqual({ count: 3, matching: 3, visible: ['alpha', 'beta'], more: true });
     expect(personalDictionaryList(["author's"], 'author’s').visible).toEqual(["author's"]);
     expect(personalDictionaryList([], '')).toEqual({ count: 0, matching: 0, visible: [], more: false });
+});
+
+test('vault spelling words come from Markdown note titles and tags, skipping dates, short words and reviewed typos', () => {
+    const tree = [
+        { type: 'file', name: 'Postgres setup.md' },
+        { type: 'file', name: '2024-05-01.md' },
+        { type: 'file', name: 'Diagramsnet.drawio' },
+        { type: 'directory', name: 'Hiddenfolder', children: [
+            { type: 'file', name: 'Q3 roadmap_v2.markdown' },
+            { type: 'file', name: 'Zettel-Kasten ideas.md' },
+            { type: 'file', name: 'Recieve payments.md' },
+            { type: 'file', name: 'Joe’s AI plan.md' },
+        ] },
+    ];
+    const words = vaultSpellingWords({ tree, tags: ['proj-alpha', 'wip', 'x2', 'ok', '2024'] });
+    expect(words).toEqual(['alpha', 'ideas', 'joe\'s', 'kasten', 'payments', 'plan', 'postgres', 'proj', 'proj-alpha',
+        'roadmap', 'setup', 'wip', 'zettel', 'zettel-kasten']);
+    // Folder names, other file types, dates, versions and two-letter words are not vocabulary.
+    for (const word of ['hiddenfolder', 'diagramsnet', 'recieve', 'ai', 'ok', 'q']) expect(words).not.toContain(word);
+    expect(vaultSpellingWords({ tree, tags: [] }, 3)).toHaveLength(3);
+    expect(vaultSpellingWords()).toEqual([]);
+});
+
+test('accepted spelling reuses its checker only for identical words and language', () => {
+    const first = acceptedSpelling(['postgres'], 'en-US');
+    expect(acceptedSpelling(['postgres'], 'en-US')).toBe(first);
+    expect(first('Postgres')).toBe(true);
+    const changed = acceptedSpelling(['kubectl'], 'en-US');
+    expect(changed('postgres')).toBe(false);
+    expect(changed('kubectl')).toBe(true);
+    expect(acceptedSpelling(['kubectl'], 'es')('kubectls')).toBe(false);
 });

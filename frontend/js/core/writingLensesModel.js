@@ -2,7 +2,7 @@
 export const writingChecks = Object.freeze([
     { id: 'spelling', label: 'Spelling', description: 'Words outside the selected dictionary. Does not check contextual homophones such as “their/there”.' },
     { id: 'plain', label: 'Plain language', description: 'Simpler phrasing, jargon, word choice, and undefined or redundant acronyms.' },
-    { id: 'direct', label: 'Directness', description: 'Review possible passive constructions, indirect openings, modifiers, hedging, and instructions that assume a task is easy or already known.' },
+    { id: 'direct', label: 'Directness', description: 'Review clustered or actor-naming passives, indirect openings, filler and vague words, hedging, and instructions that assume a task is easy or already known.' },
     { id: 'repetition', label: 'Repetition', description: 'Review possible adjacent repeated words.' },
     { id: 'consistency', label: 'Consistency', description: 'Technical names, term forms, capitalization, sentence spacing, and optional accents.' },
     { id: 'grammar', label: 'Grammar & punctuation', description: 'Selected agreement, verb, noun, homophone, phrase, word-boundary, number, capitalization, and punctuation checks. Review each correction in context.' },

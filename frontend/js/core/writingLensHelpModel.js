@@ -23,11 +23,11 @@ const help = {
         ],
     },
     directness: {
-        coverage: 'Reviews possible passive constructions, indirect openings, modifiers, hedging, and wording that assumes readers find a task easy or already know the answer.',
-        limits: 'Passive voice can be appropriate when the actor is unknown or unimportant. Qualifiers can express real uncertainty; removing them can overstate a claim. Words such as “simple” and “just” are reviewed only in instructions or sentences addressed to the reader; describing something as simple is not flagged. Examples require your judgment.',
+        coverage: 'Reviews passives that name their actor or cluster together, indirect openings, filler words, vague amounts, rates and generalisations, hedging, and wording that assumes readers find a task easy or already know the answer.',
+        limits: 'A single passive without a named actor is not flagged; passive voice can be appropriate when the actor is unknown or unimportant. Qualifiers can express real uncertainty; removing them can overstate a claim. Words such as “simple” and “just” are reviewed only in instructions or sentences addressed to the reader; describing something as simple is not flagged. Examples require your judgment.',
         examples: [
             { label: 'Name the actor', before: 'The report was written by Maya.', after: 'Maya wrote the report.' },
-            { label: 'Direct opening', before: 'There are three tests that still fail.', after: 'Three tests still fail.' },
+            { label: 'Be specific', before: 'The backlog is slowly growing.', after: 'The backlog grew from 40 to 55 items in March.' },
             { label: 'Review hedging', before: 'I would argue that the instructions need an example.', after: 'The instructions need an example.' },
             { label: 'Reader assumption', before: 'Simply run the installer.', after: 'Run the installer.' },
         ],

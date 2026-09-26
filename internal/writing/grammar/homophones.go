@@ -60,7 +60,9 @@ func (s *grammarScan) homophones(i int) {
 		if s.at(i, nounStart-i).word == "not" {
 			nounStart++
 		}
-		if s.homophoneSubject(i) && verb && s.at(i, nounStart-i).word != "" && s.existentialNoun(nounStart) {
+		// A comma-joined clause (“…almost done, their is one table left”)
+		// cannot use possessive “their” before a verb either.
+		if (s.homophoneSubject(i) || s.afterComma(i)) && verb && s.at(i, nounStart-i).word != "" && s.existentialNoun(nounStart) {
 			s.emit("TheirToThere", "Use “there” to introduce something that exists or is present.", i, i, "there")
 		} else if s.placeEnding(i) && in(prev.word, "over from near around out in up down right go going went been meet stop stopped wait waiting standing paused park") {
 			s.emit("TheirToThere", "Use “there” when referring to a place.", i, i, "there")

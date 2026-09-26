@@ -42,7 +42,7 @@
   },
   {
     "name": "passive with Directness unselected",
-    "source": "The report was written yesterday.",
+    "source": "The report was written by Maya yesterday.",
     "expected": [],
     "lenses": [
       "plain",
@@ -51,7 +51,7 @@
   },
   {
     "name": "passive with Directness selected",
-    "source": "The report was written yesterday.",
+    "source": "The report was written by Maya yesterday.",
     "expected": [
       "syntax.passive"
     ],
@@ -106,7 +106,7 @@
   },
   {
     "name": "independent concepts in one sentence",
-    "source": "The report was written in order to help.",
+    "source": "The report was written by Maya in order to help.",
     "expected": [
       "style.wordiness",
       "syntax.passive"
@@ -349,13 +349,21 @@
   },
   {
     "name": "readability formulas review complex sentences below 35 words",
-    "source": "The implementation of multidisciplinary institutional reorganization necessitates comprehensive consideration of interconnected administrative responsibilities and organizational communication requirements.",
+    "source": "The implementation of multidisciplinary institutional reorganization necessitates comprehensive consideration of interconnected administrative responsibilities, organizational communication requirements, and departmental accountability mechanisms across numerous international subsidiaries of the organization.",
     "lenses": [
       "readability"
     ],
     "expected": [
       "readability.complex-sentence"
     ]
+  },
+  {
+    "name": "readability formulas omit complex sentences under 25 words",
+    "source": "The implementation of multidisciplinary institutional reorganization necessitates comprehensive consideration of interconnected administrative responsibilities and organizational communication requirements.",
+    "lenses": [
+      "readability"
+    ],
+    "expected": []
   },
   {
     "name": "readability formulas omit short complex prose",

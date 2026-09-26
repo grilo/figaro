@@ -67,6 +67,14 @@ func (s *grammarScan) contractionPredicate(i int) bool {
 	if in(w, "planning answering") && in(next, "a an the any some no my your his her our their") {
 		return s.at(i, 2).word != "" && s.terminalNominal(i+2)
 	}
+	// “Its not clear who owns it”: an evaluative adjective with a clausal
+	// complement. “its clear glass” and “its worth increased” stay possessive.
+	if in(w, "clear unclear obvious") {
+		return s.terminal(i) || in(next, "who what which whether how why when where if that to")
+	}
+	if w == "worth" {
+		return next == "it" || next != "" && s.lex.words[next]&gerund != 0 && !s.finite(i+1)
+	}
 	if in(w, "available ready committed dedicated invited tired happy sorry offline online warm cold awake calm brave loyal") {
 		return s.terminal(i) || in(next, "until yet now today tonight tomorrow right for")
 	}

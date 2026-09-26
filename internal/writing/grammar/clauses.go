@@ -67,13 +67,23 @@ func (s *grammarScan) independentClause(text string) bool {
 	finite := func(word string) bool {
 		return in(word, "is are was were am has have had do does did") || modal(word) || s.lex.words[word]&(past|third) != 0
 	}
+	// The dictionary labels many regular past forms only as base verbs. An
+	// -ed verb counts when an adverb or object follows it; a bare participle
+	// before the comma may be an absolute phrase (“The final report submitted,”).
+	regularPast := func(j int) bool {
+		w := words[j]
+		if !strings.HasSuffix(w, "ed") || s.lex.lemma(w) == "" || j+1 >= len(words) {
+			return false
+		}
+		return in(words[j+1], "twice again once early late yesterday today overnight quickly suddenly repeatedly the a an our their my your his her its this that")
+	}
 	head := -1
 	if pronoun(words[0]) || strings.Trim(words[0], "\uFFFC") == "" {
 		head = 0
 	} else if in(words[0], "the a an this that these those my your his her our their") {
 		for j := 1; j+1 < len(words) && j <= 5; j++ {
 			labels := s.lex.words[words[j]]
-			if labels&noun != 0 && finite(words[j+1]) {
+			if labels&noun != 0 && (finite(words[j+1]) || regularPast(j+1)) {
 				head = j
 				break
 			}
@@ -89,5 +99,5 @@ func (s *grammarScan) independentClause(text string) bool {
 	for n := 0; n < 2 && verb < len(words) && in(words[verb], "then still already just also never always often usually now"); n++ {
 		verb++
 	}
-	return verb < len(words)-1 && finite(words[verb])
+	return verb < len(words)-1 && (finite(words[verb]) || regularPast(verb))
 }

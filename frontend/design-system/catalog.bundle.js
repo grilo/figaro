@@ -85,7 +85,7 @@
   var writingChecks = Object.freeze([
     { id: "spelling", label: "Spelling", description: "Words outside the selected dictionary. Does not check contextual homophones such as \u201Ctheir/there\u201D." },
     { id: "plain", label: "Plain language", description: "Simpler phrasing, jargon, word choice, and undefined or redundant acronyms." },
-    { id: "direct", label: "Directness", description: "Review possible passive constructions, indirect openings, modifiers, hedging, and instructions that assume a task is easy or already known." },
+    { id: "direct", label: "Directness", description: "Review clustered or actor-naming passives, indirect openings, filler and vague words, hedging, and instructions that assume a task is easy or already known." },
     { id: "repetition", label: "Repetition", description: "Review possible adjacent repeated words." },
     { id: "consistency", label: "Consistency", description: "Technical names, term forms, capitalization, sentence spacing, and optional accents." },
     { id: "grammar", label: "Grammar & punctuation", description: "Selected agreement, verb, noun, homophone, phrase, word-boundary, number, capitalization, and punctuation checks. Review each correction in context." },
@@ -287,7 +287,7 @@
   }
 
   // frontend/js/core/writingGrammarModel.js
-  var writingGrammarVersion = "harper-0.1.0-curated-1+figaro-8";
+  var writingGrammarVersion = "harper-0.1.0-curated-1+figaro-9";
   var rule = (title, fixes = true, context = "block") => Object.freeze({ title, fixes, context });
   var writingGrammarRules = Object.freeze({
     "Harper.BetterOffWith": rule("Check \u201Cbetter off with\u201D"),
@@ -468,7 +468,13 @@
     "FigaroGrammar.HaveAHardTime": rule("Check \u201Chave a hard time\u201D"),
     "FigaroGrammar.HowDoesCompared": rule("Check verb after \u201Cdo/does\u201D"),
     "FigaroGrammar.NounSubjectAgreement": rule("Check noun and verb agreement"),
-    "FigaroGrammar.UseToUsedTo": rule("Check \u201Cused to\u201D")
+    "FigaroGrammar.UseToUsedTo": rule("Check \u201Cused to\u201D"),
+    "FigaroGrammar.WeatherWhether": rule("Check \u201Cweather/whether\u201D"),
+    "FigaroGrammar.CompoundObjectMe": rule("Check object pronoun \u201Cme\u201D"),
+    "FigaroGrammar.LessFewer": rule("Check \u201Cfewer\u201D with countable nouns"),
+    "FigaroGrammar.TimePossessive": rule("Check possessive time expression"),
+    // The informal idiom is common; explain the literal meaning, never rewrite it.
+    "FigaroGrammar.CouldCareLess": rule("Review \u201Ccould care less\u201D", false)
   });
   var writingGrammarKinds = Object.freeze(Object.fromEntries(Object.keys(writingGrammarRules).map((name2) => [name2, `grammar.${name2.toLowerCase()}`])));
 
@@ -4794,8 +4800,8 @@
   var reverseClosing = new RegExp(`^(${wordsPattern}{0,7})\\)`, "u");
 
   // frontend/js/core/writingPackagePolicy.js
-  var readabilityOptions = Object.freeze({ age: 16, minWords: 15, threshold: 5 / 7 });
-  var writingEditorialPolicyVersion = "9";
+  var readabilityOptions = Object.freeze({ age: 16, minWords: 25, threshold: 5 / 7 });
+  var writingEditorialPolicyVersion = "10";
   var inclusiveAdvisoryRules = Object.freeze([
     "cameraman-camerawoman",
     "cameramen-camerawomen",
@@ -4845,6 +4851,47 @@
   // frontend/js/core/writingAdditionalRules.js
   var additionalWritingRulesVersion = "3";
 
+  // frontend/js/core/writingFormulaicFrames.js
+  var writingFormulaicFramesVersion = "1";
+  var writingFormulaicFrameRules = Object.freeze({
+    "not-just-reframe": "contrast",
+    "not-about-reframe": "contrast",
+    "cliche-aphorism": "contrast",
+    "stock-opener": "framing",
+    "fragment-question": "fragment-question"
+  });
+  var apostrophe = "['\u2019]";
+  var negated = `(?:\\b(?:is|are|was|were)n${apostrophe}t|\\b(?:is|are|was|were)\\s+not|${apostrophe}(?:s|re)\\s+not)`;
+  var pivot = "\\s*(?:[\u2014\u2013]|--|\\s-|;|,|:)\\s*";
+  var pronounCopula = `(?:it|they|this|that|he|she|we|you)(?:${apostrophe}(?:s|re)|\\s+(?:is|are|was|were))`;
+  var clause = "[^.!?;:\u2014\u2013\\n]";
+  var payoff = "([^.!?\\n]{1,80}?)(?=[.!?\\n]|$)";
+  var patterns = [
+    // “X isn’t just a tool — it’s a mindset.” Additive “it’s also” and “not only … but also” stay quiet.
+    ["not-just-reframe", new RegExp(`${negated}\\s+(?:just|merely|simply)\\s+(${clause}{1,60}?)${pivot}${pronounCopula}\\s+(?!also\\b|too\\b)${payoff}`, "giu")],
+    // “It’s not about collecting notes; it’s about cultivating understanding.”
+    ["not-about-reframe", new RegExp(`\\b(?:it|this|that)(?:\\s+(?:is|was)n${apostrophe}t|\\s+(?:is|was)\\s+not|${apostrophe}s\\s+not)\\s+(?:(?:just|only|really)\\s+)?about\\s+(${clause}{1,80}?)${pivot}(?:${pronounCopula}|but|rather|instead)\\s+(?:(?:really|all|more|actually)\\s+)?about\\s+${payoff}`, "giu")],
+    // Fixed cliché pairs only; “a warning, not an error” is ordinary technical contrast.
+    ["cliche-aphorism", /\b(?:an?|the)\s+(journey|marathon),?\s+not\s+(?:an?|the)\s+(destination|sprint)\b|\bnot\s+(?:an?|the)\s+(destination|sprint),?\s+but\s+(?:an?|the)\s+(journey|marathon)\b/giu],
+    // “In today’s fast-paced digital landscape” (+ a directly following “it’s worth noting that”).
+    ["stock-opener", new RegExp(`\\bIn\\s+(?:today${apostrophe}s\\s+(?:(?:TREND)[\\s,]+){0,3}(?:world|landscape|age|era)|today${apostrophe}s\\s+(?:(?:TREND)[\\s,]+){1,3}(?:environment|society|economy|climate|marketplace|market|business\\s+(?:world|landscape|environment))|(?:an?|this|the)\\s+(?:(?:TREND)[\\s,]+){1,3}(?:world|landscape|age|era|environment|marketplace))\\b(?:,\\s*(?:it${apostrophe}s|it\\s+is)\\s+(?:worth\\s+(?:noting|mentioning)|important\\s+to\\s+(?:note|remember))(?:\\s+that)?)?`.replaceAll("TREND", [
+      "ever[- ](?:changing|evolving|shifting)",
+      "fast[- ]paced",
+      "(?:rapidly|constantly)[- ](?:changing|evolving|shifting)",
+      "digital",
+      "modern",
+      "competitive",
+      "hyper[- ]connected",
+      "interconnected",
+      "always[- ]on",
+      "dynamic",
+      "data[- ]driven",
+      "increasingly\\s+(?:digital|connected|complex|competitive)"
+    ].join("|")), "giu")],
+    // “The result? A graveyard of forgotten thoughts.” Only at a sentence start and answered on the same line.
+    ["fragment-question", /(?<=^|[.!?]["”’)]?[ \t\n]+)(?:(?:And|So|But)[ \t]+)?(?:The|Your|My|Our|Their|His|Her)[ \t]+(?:(?:real|only|final|big|biggest|hidden|main)[ \t]+)?(?:result|catch|answer|problem|kicker|twist|secret|truth|reason|outcome|takeaway|verdict|upshot|payoff|solution|irony|lesson|(?:best|worst|hard|hardest)[ \t]+part|bottom[ \t]+line)\?(?=[ \t]+["“]?\p{Lu})/gu]
+  ];
+
   // frontend/js/core/writingSloplessModel.js
   var writingSloplessVersion = "0.2.38";
   var writingSloplessRules = Object.freeze({
@@ -4876,7 +4923,8 @@
     "repeated-sentence-starts": "sentence-starts",
     "empty-emphasis": "emphasis",
     "superficial-analysis": "analysis",
-    "semantic-thinness": "abstract"
+    "semantic-thinness": "abstract",
+    "llm-vocabulary-density": "vocabulary"
   });
   var guidance = {
     "stock-phrase": ["Consider more specific wording", "This expression can sound clich\xE9d or like corporate jargon. Consider saying concretely what you mean.", "Let\u2019s get the ball rolling.", "Let\u2019s start the project."],
@@ -4901,6 +4949,8 @@
     "sentence-starts": ["Review repeated sentence openings", "Several nearby sentences share an opening. Consider combining related points or varying the openings; deliberate repetition can be effective.", "We can save time. We can reduce errors. We can finish sooner.", "We can save time and reduce errors, helping us finish sooner."],
     emphasis: ["Review empty emphasis", "Consider replacing this emphasis with the specific point it is meant to emphasize.", "That changes everything.", "That reduces the time needed to review each invoice."],
     analysis: ["Review added significance claim", "This ending matches a pattern that announces significance. Consider explaining what the result shows and why; the rule does not evaluate your evidence.", "The team met, underscoring its commitment to excellence.", "The team met to agree on the next inspection date."],
+    vocabulary: ["Review clustered stock vocabulary", "Several broad, promotional words appear close together. Consider replacing some with the concrete action, result, or detail you mean. Single words are never flagged; keep terms your readers rely on.", "Seamless workflows unlock transformative insights and empower every team.", "Linked notes let the team find earlier decisions in seconds."],
+    "fragment-question": ["Review rhetorical question", "A short question answered by the next fragment can sound staged. Consider stating the point directly; keep the question if it suits your voice.", "The result? A backlog nobody reads.", "The result is a backlog nobody reads."],
     abstract: ["Review abstract statement", "This sentence matches a broad rhetorical template. Consider adding the concrete action, outcome, or evidence that gives it meaning.", "This marks a new era.", "The new service begins accepting applications on Monday."]
   };
   var writingSloplessConcepts = Object.freeze(Object.fromEntries(Object.entries(guidance).map(([id, [title, message]]) => [
@@ -4908,18 +4958,21 @@
     { lens: "formulaic", category: "style", title, message }
   ])));
   var sharedKinds = { "stock-phrase": "style.stock-phrase", wordiness: "style.wordiness" };
-  var writingSloplessKinds = Object.freeze(Object.fromEntries(Object.entries(writingSloplessRules).map(([rule2, kind]) => [`slopless/${rule2}`, sharedKinds[kind] || `formulaic.${kind}`])));
+  var writingSloplessKinds = Object.freeze(Object.fromEntries([
+    ...Object.entries(writingSloplessRules).map(([rule2, kind]) => [`slopless/${rule2}`, sharedKinds[kind] || `formulaic.${kind}`]),
+    ...Object.entries(writingFormulaicFrameRules).map(([rule2, kind]) => [`figaro-formulaic/${rule2}`, `formulaic.${kind}`])
+  ]));
   function writingSloplessExample(kind) {
     const entry = guidance[kind?.replace(/^formulaic\./u, "")];
     return entry ? [{ label: "Example", before: entry[2], after: entry[3] }] : [];
   }
 
   // frontend/js/core/spellingVocabulary.js
-  var spellingVocabularyVersion = "5";
+  var spellingVocabularyVersion = "6";
   var terminologyWords = new Set(writingTerminology);
 
   // frontend/js/core/writingAnalysisModel.js
-  var writingMappingVersion = "25";
+  var writingMappingVersion = "27";
   var writingEngineConfiguration = Object.freeze({
     mapping: writingMappingVersion,
     grammar: writingGrammarVersion,
@@ -4942,6 +4995,7 @@
     readabilityOptions,
     textlint: writingTextlintVersions,
     slopless: { version: writingSloplessVersion, rules: writingSloplessRules },
+    formulaicFrames: { version: writingFormulaicFramesVersion, rules: writingFormulaicFrameRules },
     terminology: writingTerminology,
     familiarAcronyms: familiarWritingAcronyms,
     ordinaryCapitalWords: "dictionary-en-4.0.0",
@@ -4952,7 +5006,8 @@
   var concepts = {
     ...writingSloplessConcepts,
     ...Object.fromEntries(Object.values(writingGrammarKinds).map((kind) => [kind, { lens: "grammar", category: "grammar", title: "Check grammar", message: "Review this construction in context." }])),
-    "style.modifier": { lens: "direct", category: "directness", title: "Review vague modifier", message: "Consider a specific description if this modifier adds little. Keep it when the degree or emphasis matters." },
+    "style.modifier": { lens: "direct", category: "directness", title: "Review filler word", message: "Consider removing this word if it adds nothing, or replacing it with the detail it stands for." },
+    "style.vague-quantity": { lens: "direct", category: "directness", title: "Be specific", message: "How much, how often, or according to what? If you have a number, a date, or a source, consider stating it instead." },
     "syntax.indirect-opening": { lens: "direct", category: "directness", title: "Review indirect opening", message: "Consider leading with the subject instead of \u201Cthere is\u201D or \u201Cthere are\u201D if that makes the point clearer." },
     "style.opening-transition": { lens: "direct", category: "directness", title: "Review opening transition", message: "Keep \u201Cso\u201D when it expresses a useful connection; consider removing it when it only delays the point." },
     "style.archaism": { lens: "plain", category: "clarity", title: "Review old-fashioned wording", message: "Consider a familiar contemporary expression for a general audience. Keep period language when it serves your purpose." },
@@ -5045,6 +5100,44 @@
 
   // frontend/js/core/writingReviewModel.js
   var writingReviewPageSize = 4;
+  var correctionLenses = new Set(writingLensGroups.find((group) => group.id === "proofreading").checks);
+  function writingFindingTier(finding) {
+    const lenses = finding?.spanMembers?.map((member) => member.lens) || [finding?.lens];
+    return lenses.some((lens) => correctionLenses.has(lens)) ? "correction" : "suggestion";
+  }
+  var tierRank = (finding) => writingFindingTier(finding) === "correction" ? 0 : 1;
+  function mergeWritingFindingsBySpan(findings) {
+    const spans = /* @__PURE__ */ new Map();
+    for (const [index, finding] of findings.entries()) {
+      const key = Number.isInteger(finding.from) && Number.isInteger(finding.to) ? `${finding.from}:${finding.to}` : `unplaced:${index}`;
+      if (!spans.has(key)) spans.set(key, []);
+      spans.get(key).push(finding);
+    }
+    return [...spans.values()].map((members) => {
+      if (members.length === 1) return members[0];
+      const ordered = [...members].sort((a, b) => tierRank(a) - tierRank(b));
+      const reasons = [];
+      for (const member of ordered) {
+        if (!reasons.some((reason) => reason.title === member.title && reason.message === member.message)) {
+          reasons.push({ id: member.id, kind: member.kind, lens: member.lens, title: member.title, message: member.message });
+        }
+      }
+      const fixes = [];
+      for (const member of ordered) {
+        member.fixes.forEach((fix, index) => {
+          if (!fixes.some((other) => other.replacement === fix.replacement)) fixes.push({ ...fix, findingId: member.id, index });
+        });
+      }
+      const [first] = ordered;
+      return {
+        ...first,
+        displayId: `span:${first.from}:${first.to}:${first.displayId || first.id}`,
+        spanMembers: ordered,
+        reasons,
+        fixes
+      };
+    });
+  }
   var bulkKinds = /* @__PURE__ */ new Set([
     "style.terminology",
     "grammar.spelling",
@@ -5056,21 +5149,22 @@
   ]);
   function writingReviewCards(groups) {
     const cards = /* @__PURE__ */ new Map();
-    for (const finding of groups.flatMap((group) => group.findings)) {
+    for (const finding of mergeWritingFindingsBySpan(groups.flatMap((group) => group.findings))) {
+      const reasons = finding.reasons?.map((reason) => [reason.kind, reason.message]) || finding.message;
       const key = JSON.stringify([
         finding.kind,
         finding.intent,
         finding.actual,
-        finding.message,
+        reasons,
         finding.fixes.map((fix) => [fix.expected, fix.replacement])
       ]);
-      if (!cards.has(key)) cards.set(key, { key, findings: [] });
+      if (!cards.has(key)) cards.set(key, { key, tier: writingFindingTier(finding), findings: [] });
       cards.get(key).findings.push(finding);
     }
-    return [...cards.values()];
+    return [...cards.values()].sort((a, b) => (a.tier === b.tier ? 0 : a.tier === "correction" ? -1 : 1) || a.findings[0].from - b.findings[0].from);
   }
   function writingBulkAvailable(card) {
-    return card.findings.length > 1 && bulkKinds.has(card.findings[0].kind) && card.findings.every((finding) => finding.fixes.length === 1 && (finding.kind !== "grammar.spelling" || finding.bulkSafe === true));
+    return card.findings.length > 1 && !card.findings[0].spanMembers && bulkKinds.has(card.findings[0].kind) && card.findings.every((finding) => finding.fixes.length === 1 && (finding.kind !== "grammar.spelling" || finding.bulkSafe === true));
   }
 
   // frontend/js/core/writingSuggestionModel.js
@@ -5088,6 +5182,7 @@
       "style.terminology": "This is one of the bundled technical names. Use its canonical spelling when you mean that product or technology. Names outside the reviewed list are not checked.",
       "lexicon.complex-word": "This word matches a plain-language pattern. Only reviewed replacements offer Apply; other matches need manual editing. Keep the original if the distinction matters in this context. A shorter word is not automatically more precise.",
       "style.wordiness": "This phrase matches a plain-language pattern. Only reviewed replacements offer Apply; other matches need manual editing. Compare the meaning in the sentence before applying it; the check does not evaluate your argument.",
+      "style.vague-quantity": "Words such as \u201Cslowly\u201D, \u201Cgenerally\u201D or \u201Coften\u201D stand in for a number, a rate, a date or a source. When you have that detail, stating it lets readers judge the claim; keep the word when the degree is genuinely unknown or unimportant.",
       "style.hedging": "Qualifiers can accurately communicate uncertainty. Keep them in scientific claims, estimates, or other statements where removing them would overstate confidence.",
       "style.hyperbole": "Repeated marks create emphasis. This is optional tone advice; expressive or quoted writing may need that emphasis.",
       "style.stock-phrase": "This expression matches a selected clich\xE9 or jargon rule. Familiar phrasing can be appropriate for your audience. The example is illustrative and does not rewrite your sentence.",
@@ -5127,6 +5222,7 @@
       "style.wordiness": { before: "We left in order to catch the train.", after: "We left to catch the train." },
       "lexicon.complex-word": { before: "We utilize this tool.", after: "We use this tool." },
       "style.modifier": { before: "The file is very large.", after: "The file contains 800 pages." },
+      "style.vague-quantity": { before: "The backlog is slowly growing.", after: "The backlog grew from 40 to 55 items in March." },
       "syntax.indirect-opening": { before: "There are three tests that still fail.", after: "Three tests still fail." },
       "style.opening-transition": { before: "So, the draft is ready.", after: "The draft is ready." },
       "style.archaism": { before: "Please find enclosed the invoice.", after: "The invoice is attached." },
@@ -5149,28 +5245,27 @@
     return (finding.fixes || []).map((fix) => ({ label: "Suggested wording", before: fix.expected, after: fix.replacement }));
   }
 
-  // frontend/js/views/writingDetailsView.js
-  function createWritingDetailsView(finding) {
-    const element = document.createElement("div");
-    element.className = "writing-details";
-    const explanation = document.createElement("p");
-    explanation.className = "writing-lenses-description";
-    explanation.textContent = writingSuggestionExplanation(finding);
-    const evidence = document.createElement("pre");
-    evidence.className = "writing-result-evidence";
-    evidence.hidden = true;
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "ui-button";
-    toggle.textContent = "Technical diagnostics";
-    toggle.setAttribute("aria-expanded", "false");
-    toggle.addEventListener("click", () => {
-      evidence.hidden = !evidence.hidden;
-      if (!evidence.hidden && !evidence.textContent) evidence.textContent = JSON.stringify({ kind: finding.kind, range: [finding.from, finding.to], sources: finding.sources }, null, 2);
-      toggle.setAttribute("aria-expanded", String(!evidence.hidden));
-    });
-    element.append(explanation, toggle, evidence);
-    return element;
+  // frontend/js/views/writingExamplesView.js
+  function createWritingExamplesView(finding) {
+    return createWritingExampleList(writingSuggestionExamples(finding).slice(0, 1));
+  }
+  function createWritingExampleList(examples) {
+    const list = document.createElement("div");
+    list.className = "writing-examples";
+    for (const example of examples) {
+      const item = document.createElement("div");
+      item.className = "writing-example";
+      const label = document.createElement("strong");
+      label.textContent = example.label;
+      const before = document.createElement("p");
+      before.textContent = `Before: ${example.before}`;
+      const after = document.createElement("p");
+      after.textContent = `After: ${example.after}`;
+      item.append(label, before, after);
+      list.append(item);
+    }
+    list.hidden = !list.childElementCount;
+    return list;
   }
 
   // frontend/js/views/writingAlternativesView.js
@@ -5195,6 +5290,169 @@
       if (expanded) extra[0].focus();
     });
     actions.append(toggle);
+  }
+
+  // frontend/js/views/writingInlineView.js
+  function writingFindingReasons(finding) {
+    return finding.reasons?.length ? finding.reasons : [{ title: finding.title, message: finding.message }];
+  }
+  function writingFindingMembers(finding) {
+    return finding.spanMembers || [finding];
+  }
+  function writingFindingExamples(finding) {
+    const seen = /* @__PURE__ */ new Set();
+    return writingFindingMembers(finding).filter((member) => !seen.has(member.kind) && seen.add(member.kind)).map((member) => createWritingExamplesView(member));
+  }
+  function ignoreWritingFinding(finding, ignore) {
+    const members = writingFindingMembers(finding);
+    if (members.length === 1) return ignore(members[0].id);
+    return members.reduce((previous, member) => previous.then(() => ignore(member.id)), Promise.resolve());
+  }
+  function createWritingInlineView({ findings, stale = false, onApply, onApplyAll, bulkCount = () => 0, onIgnore, onAcceptAcronym, onAddWord, onClose }) {
+    const dom = document.createElement("div");
+    dom.className = "ui-menu cm-writing-tooltip";
+    dom.setAttribute("role", "dialog");
+    dom.setAttribute("aria-label", "Writing suggestions");
+    const status = document.createElement("p");
+    status.className = "writing-lenses-description";
+    status.setAttribute("role", "status");
+    status.hidden = true;
+    if (stale) {
+      status.hidden = false;
+      status.textContent = "Refreshing suggestions. Actions will return when checks finish.";
+    }
+    const button = (text, label, action) => {
+      const control = document.createElement("button");
+      control.type = "button";
+      control.className = "ui-button";
+      control.textContent = text;
+      control.setAttribute("aria-label", label);
+      control.disabled = stale;
+      control.addEventListener("click", (event) => {
+        if (!stale) action(event);
+      });
+      return control;
+    };
+    for (const finding of findings) {
+      const section = document.createElement("section");
+      section.className = "writing-inline-finding";
+      const members = writingFindingMembers(finding);
+      const reasons = writingFindingReasons(finding).flatMap((reason) => {
+        const title = document.createElement("strong");
+        title.textContent = reason.title;
+        const message = document.createElement("p");
+        message.className = "writing-lenses-description";
+        message.textContent = reason.message;
+        return [title, message];
+      });
+      const actions = document.createElement("div");
+      actions.className = "writing-result-actions";
+      finding.fixes.forEach((fix, index) => actions.append(button(
+        `Apply \u201C${fix.replacement}\u201D`,
+        `Replace \u201C${fix.expected}\u201D with \u201C${fix.replacement}\u201D`,
+        () => onApply(fix.findingId ?? finding.id, fix.index ?? index)
+      )));
+      limitWritingAlternatives(actions, [...actions.children]);
+      const remember = (text, label, action) => button(text, label, async () => {
+        const controls = [...actions.querySelectorAll("button")];
+        controls.forEach((control) => {
+          control.disabled = true;
+        });
+        actions.setAttribute("aria-busy", "true");
+        status.hidden = false;
+        status.textContent = "Saving review decision\u2026";
+        try {
+          await action();
+          status.textContent = "";
+          status.hidden = true;
+        } catch (error) {
+          status.textContent = error.message || "Couldn\u2019t save the review decision. Try again.";
+          status.classList.add("ui-notice", "ui-notice--warning");
+        } finally {
+          controls.forEach((control) => {
+            control.disabled = false;
+          });
+          actions.removeAttribute("aria-busy");
+        }
+      });
+      actions.append(remember(
+        "Ignore this occurrence",
+        `Ignore ${finding.title} in this document`,
+        () => ignoreWritingFinding(finding, onIgnore)
+      ));
+      const count2 = finding.spanMembers ? 0 : bulkCount(finding.id);
+      if (count2 > 1 && onApplyAll) actions.append(button(
+        `Apply \u201C${finding.fixes[0].replacement}\u201D to all ${count2} occurrences`,
+        `Apply to all ${count2} occurrences in this document`,
+        () => onApplyAll(finding.id)
+      ));
+      const acronym = members.find((member) => member.kind === "clarity.undefined-acronym");
+      if (acronym && onAcceptAcronym) {
+        actions.append(remember(`Accept \u201C${finding.actual}\u201D in this document`, `Accept \u201C${finding.actual}\u201D in this document`, () => onAcceptAcronym(acronym.id)));
+      }
+      const spelling = members.find((member) => member.lens === "spelling");
+      if (spelling && onAddWord) {
+        const add = button("Add to dictionary", `Add \u201C${finding.actual}\u201D to this vault\u2019s dictionary`, async () => {
+          add.disabled = true;
+          add.setAttribute("aria-busy", "true");
+          status.hidden = false;
+          status.textContent = "Saving word\u2026";
+          try {
+            await onAddWord(spelling);
+          } catch (_) {
+            status.textContent = "Couldn\u2019t add this word. Nothing was changed. Try again.";
+            status.classList.add("ui-notice", "ui-notice--warning");
+          } finally {
+            add.disabled = false;
+            add.removeAttribute("aria-busy");
+          }
+        });
+        actions.append(add);
+      }
+      section.append(...reasons, actions, ...writingFindingExamples(finding));
+      dom.append(section);
+    }
+    dom.append(status);
+    dom.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      }
+      if (event.key === "Tab") {
+        const controls = [...dom.querySelectorAll("button:not(:disabled)")].filter((button2) => !button2.closest("[hidden]"));
+        const index = controls.indexOf(document.activeElement);
+        if (event.shiftKey && index === 0 || !event.shiftKey && index === controls.length - 1) {
+          event.preventDefault();
+          onClose();
+        }
+      }
+    });
+    return dom;
+  }
+
+  // frontend/js/views/writingDetailsView.js
+  function createWritingDetailsView(finding) {
+    const element = document.createElement("div");
+    element.className = "writing-details";
+    const explanation = document.createElement("p");
+    explanation.className = "writing-lenses-description";
+    explanation.textContent = writingSuggestionExplanation(finding);
+    const evidence = document.createElement("pre");
+    evidence.className = "writing-result-evidence";
+    evidence.hidden = true;
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "ui-button";
+    toggle.textContent = "Technical diagnostics";
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.addEventListener("click", () => {
+      evidence.hidden = !evidence.hidden;
+      if (!evidence.hidden && !evidence.textContent) evidence.textContent = JSON.stringify({ kind: finding.kind, range: [finding.from, finding.to], sources: finding.sources }, null, 2);
+      toggle.setAttribute("aria-expanded", String(!evidence.hidden));
+    });
+    element.append(explanation, toggle, evidence);
+    return element;
   }
 
   // frontend/js/core/tooltipModel.js
@@ -5521,29 +5779,6 @@
     return controller;
   }
 
-  // frontend/js/views/writingExamplesView.js
-  function createWritingExamplesView(finding) {
-    return createWritingExampleList(writingSuggestionExamples(finding).slice(0, 1));
-  }
-  function createWritingExampleList(examples) {
-    const list = document.createElement("div");
-    list.className = "writing-examples";
-    for (const example of examples) {
-      const item = document.createElement("div");
-      item.className = "writing-example";
-      const label = document.createElement("strong");
-      label.textContent = example.label;
-      const before = document.createElement("p");
-      before.textContent = `Before: ${example.before}`;
-      const after = document.createElement("p");
-      after.textContent = `After: ${example.after}`;
-      item.append(label, before, after);
-      list.append(item);
-    }
-    list.hidden = !list.childElementCount;
-    return list;
-  }
-
   // frontend/js/views/writingResultsView.js
   function node(tag, className, text) {
     const value = document.createElement(tag);
@@ -5571,7 +5806,7 @@
       limit += writingReviewPageSize;
       signature = "";
       api.update(lastValue);
-      (list.children[previous]?.querySelector("button") || element).focus();
+      (list.querySelectorAll(".writing-result-group")[previous]?.querySelector("button") || element).focus();
     });
     element.append(status, retry, list, more);
     let signature = "", disclosure = /* @__PURE__ */ new Set();
@@ -5648,8 +5883,15 @@
         list.replaceChildren();
         more.hidden = cards.length <= limit;
         more.textContent = `Show more suggestions (${Math.min(limit, cards.length)} of ${cards.length} shown)`;
+        let tier = null;
         for (const card of cards.slice(0, limit)) {
+          if (card.tier !== tier) {
+            tier = card.tier;
+            const total = cards.filter((candidate) => candidate.tier === tier).length;
+            list.append(node("h4", "writing-results-tier", `${tier === "correction" ? "Corrections" : "Suggestions"} (${total})`));
+          }
           const section = node("section", "writing-result-group");
+          section.dataset.tier = card.tier;
           const position = Math.min(positions.get(card.key) || 0, card.findings.length - 1);
           for (const finding of [card.findings[position]]) {
             const displayId = finding.displayId || finding.id;
@@ -5659,7 +5901,13 @@
             heading2.classList.add("ui-button--quiet", "writing-result-location");
             setTooltip(heading2, `Go to \u201C${finding.actual}\u201D in the document`);
             heading2.insertAdjacentHTML("afterbegin", '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 .2l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.2l-3 3a5 5 0 0 0 7 7l2-2"/></svg>');
-            row.append(heading2, node("p", "writing-lenses-description", finding.message));
+            const [firstReason, ...moreReasons] = writingFindingReasons(finding);
+            row.append(heading2, node("p", "writing-lenses-description", firstReason.message));
+            for (const reason of moreReasons) {
+              const extra = node("p", "writing-lenses-description");
+              extra.append(node("strong", "", `${reason.title}. `), document.createTextNode(reason.message));
+              row.append(extra);
+            }
             if (card.findings.length > 1) {
               const occurrences = node("div", "writing-result-actions");
               occurrences.append(node("span", "writing-lenses-description", `Occurrence ${position + 1} of ${card.findings.length}`));
@@ -5675,7 +5923,7 @@
               row.append(occurrences);
             }
             const actions = node("div", "writing-result-actions");
-            finding.fixes.forEach((fix, index) => actions.append(button(`Apply \u201C${fix.replacement}\u201D`, `Replace \u201C${fix.expected}\u201D with \u201C${fix.replacement}\u201D`, () => onApply(finding.id, index, value.analyzed), `${displayId}:apply:${index}`)));
+            finding.fixes.forEach((fix, index) => actions.append(button(`Apply \u201C${fix.replacement}\u201D`, `Replace \u201C${fix.expected}\u201D with \u201C${fix.replacement}\u201D`, () => onApply(fix.findingId ?? finding.id, fix.index ?? index, value.analyzed), `${displayId}:apply:${index}`)));
             limitWritingAlternatives(actions, [...actions.children]);
             const remember = (text, label, action, key) => button(text, label, async () => {
               const controls = [...actions.querySelectorAll("button")];
@@ -5696,12 +5944,19 @@
                 actions.removeAttribute("aria-busy");
               }
             }, key);
-            actions.append(remember("Ignore this occurrence", `Ignore ${finding.title}`, () => onDismiss(finding.id, value.analyzed), `${displayId}:dismiss`));
-            if (finding.kind === "clarity.undefined-acronym" && onAcceptAcronym) {
+            const members = writingFindingMembers(finding);
+            actions.append(remember(
+              "Ignore this occurrence",
+              `Ignore ${finding.title}`,
+              () => ignoreWritingFinding(finding, (id) => onDismiss(id, value.analyzed)),
+              `${displayId}:dismiss`
+            ));
+            const acronym = members.find((member) => member.kind === "clarity.undefined-acronym");
+            if (acronym && onAcceptAcronym) {
               actions.append(remember(
                 `Accept \u201C${finding.actual}\u201D in this document`,
                 `Accept \u201C${finding.actual}\u201D in this document`,
-                () => onAcceptAcronym(finding.id, value.analyzed),
+                () => onAcceptAcronym(acronym.id, value.analyzed),
                 `${displayId}:accept-acronym`
               ));
             }
@@ -5721,7 +5976,7 @@
             }, `${displayId}:details`);
             details.setAttribute("aria-expanded", String(!evidence.hidden));
             actions.append(details);
-            row.append(actions, createWritingExamplesView(finding), evidence);
+            row.append(actions, ...writingFindingExamples(finding), evidence);
             section.append(row);
           }
           list.append(section);
@@ -6294,120 +6549,6 @@
     return api;
   }
 
-  // frontend/js/views/writingInlineView.js
-  function createWritingInlineView({ findings, stale = false, onApply, onApplyAll, bulkCount = () => 0, onIgnore, onAcceptAcronym, onAddWord, onClose }) {
-    const dom = document.createElement("div");
-    dom.className = "ui-menu cm-writing-tooltip";
-    dom.setAttribute("role", "dialog");
-    dom.setAttribute("aria-label", "Writing suggestions");
-    const status = document.createElement("p");
-    status.className = "writing-lenses-description";
-    status.setAttribute("role", "status");
-    status.hidden = true;
-    if (stale) {
-      status.hidden = false;
-      status.textContent = "Refreshing suggestions. Actions will return when checks finish.";
-    }
-    const button = (text, label, action) => {
-      const control = document.createElement("button");
-      control.type = "button";
-      control.className = "ui-button";
-      control.textContent = text;
-      control.setAttribute("aria-label", label);
-      control.disabled = stale;
-      control.addEventListener("click", (event) => {
-        if (!stale) action(event);
-      });
-      return control;
-    };
-    for (const finding of findings) {
-      const section = document.createElement("section");
-      section.className = "writing-inline-finding";
-      const title = document.createElement("strong");
-      title.textContent = finding.title;
-      const message = document.createElement("p");
-      message.className = "writing-lenses-description";
-      message.textContent = finding.message;
-      const actions = document.createElement("div");
-      actions.className = "writing-result-actions";
-      finding.fixes.forEach((fix, index) => actions.append(button(
-        `Apply \u201C${fix.replacement}\u201D`,
-        `Replace \u201C${fix.expected}\u201D with \u201C${fix.replacement}\u201D`,
-        () => onApply(finding.id, index)
-      )));
-      limitWritingAlternatives(actions, [...actions.children]);
-      const remember = (text, label, action) => button(text, label, async () => {
-        const controls = [...actions.querySelectorAll("button")];
-        controls.forEach((control) => {
-          control.disabled = true;
-        });
-        actions.setAttribute("aria-busy", "true");
-        status.hidden = false;
-        status.textContent = "Saving review decision\u2026";
-        try {
-          await action();
-          status.textContent = "";
-          status.hidden = true;
-        } catch (error) {
-          status.textContent = error.message || "Couldn\u2019t save the review decision. Try again.";
-          status.classList.add("ui-notice", "ui-notice--warning");
-        } finally {
-          controls.forEach((control) => {
-            control.disabled = false;
-          });
-          actions.removeAttribute("aria-busy");
-        }
-      });
-      actions.append(remember("Ignore this occurrence", `Ignore ${finding.title} in this document`, () => onIgnore(finding.id)));
-      const count2 = bulkCount(finding.id);
-      if (count2 > 1 && onApplyAll) actions.append(button(
-        `Apply \u201C${finding.fixes[0].replacement}\u201D to all ${count2} occurrences`,
-        `Apply to all ${count2} occurrences in this document`,
-        () => onApplyAll(finding.id)
-      ));
-      if (finding.kind === "clarity.undefined-acronym" && onAcceptAcronym) {
-        actions.append(remember(`Accept \u201C${finding.actual}\u201D in this document`, `Accept \u201C${finding.actual}\u201D in this document`, () => onAcceptAcronym(finding.id)));
-      }
-      if (finding.lens === "spelling" && onAddWord) {
-        const add = button("Add to dictionary", `Add \u201C${finding.actual}\u201D to this vault\u2019s dictionary`, async () => {
-          add.disabled = true;
-          add.setAttribute("aria-busy", "true");
-          status.hidden = false;
-          status.textContent = "Saving word\u2026";
-          try {
-            await onAddWord(finding);
-          } catch (_) {
-            status.textContent = "Couldn\u2019t add this word. Nothing was changed. Try again.";
-            status.classList.add("ui-notice", "ui-notice--warning");
-          } finally {
-            add.disabled = false;
-            add.removeAttribute("aria-busy");
-          }
-        });
-        actions.append(add);
-      }
-      section.append(title, message, actions, createWritingExamplesView(finding));
-      dom.append(section);
-    }
-    dom.append(status);
-    dom.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        onClose();
-      }
-      if (event.key === "Tab") {
-        const controls = [...dom.querySelectorAll("button:not(:disabled)")].filter((button2) => !button2.closest("[hidden]"));
-        const index = controls.indexOf(document.activeElement);
-        if (event.shiftKey && index === 0 || !event.shiftKey && index === controls.length - 1) {
-          event.preventDefault();
-          onClose();
-        }
-      }
-    });
-    return dom;
-  }
-
   // frontend/js/icons.js
   var svg = (size, viewBox, strokeWidth, inner) => `<svg width="${size}" height="${size}" viewBox="${viewBox}" fill="none" stroke="currentColor" stroke-width="${strokeWidth}">${inner}</svg>`;
   var s = (size, sw, inner) => svg(size, "0 0 24 24", sw, inner);
@@ -6513,11 +6654,11 @@
       ]
     },
     directness: {
-      coverage: "Reviews possible passive constructions, indirect openings, modifiers, hedging, and wording that assumes readers find a task easy or already know the answer.",
-      limits: "Passive voice can be appropriate when the actor is unknown or unimportant. Qualifiers can express real uncertainty; removing them can overstate a claim. Words such as \u201Csimple\u201D and \u201Cjust\u201D are reviewed only in instructions or sentences addressed to the reader; describing something as simple is not flagged. Examples require your judgment.",
+      coverage: "Reviews passives that name their actor or cluster together, indirect openings, filler words, vague amounts, rates and generalisations, hedging, and wording that assumes readers find a task easy or already know the answer.",
+      limits: "A single passive without a named actor is not flagged; passive voice can be appropriate when the actor is unknown or unimportant. Qualifiers can express real uncertainty; removing them can overstate a claim. Words such as \u201Csimple\u201D and \u201Cjust\u201D are reviewed only in instructions or sentences addressed to the reader; describing something as simple is not flagged. Examples require your judgment.",
       examples: [
         { label: "Name the actor", before: "The report was written by Maya.", after: "Maya wrote the report." },
-        { label: "Direct opening", before: "There are three tests that still fail.", after: "Three tests still fail." },
+        { label: "Be specific", before: "The backlog is slowly growing.", after: "The backlog grew from 40 to 55 items in March." },
         { label: "Review hedging", before: "I would argue that the instructions need an example.", after: "The instructions need an example." },
         { label: "Reader assumption", before: "Simply run the installer.", after: "Run the installer." }
       ]

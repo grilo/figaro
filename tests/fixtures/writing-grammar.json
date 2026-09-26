@@ -889,7 +889,13 @@
       "Its going to be carefully watched worried us.",
       "Its going to be late worried us.",
       "Its going to be ready surprised us.",
-      "Its going to have already been served surprised us."
+      "Its going to have already been served surprised us.",
+      "Its clear glass is fragile.",
+      "Its not-for-profit status is confirmed.",
+      "Its worth increased this year.",
+      "Its worth is hard to measure.",
+      "Its obvious flaws annoyed us.",
+      "Its owner left."
     ],
     "additional": [
       {
@@ -1010,6 +1016,34 @@
         "replacements": [
           "It's"
         ]
+      },
+      {
+        "source": "Its not clear who owns the old API.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its clear that we need help.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its unclear which option is better.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
+      },
+      {
+        "source": "Its worth noting that the API changed.",
+        "actual": "Its",
+        "replacements": [
+          "It's"
+        ]
       }
     ]
   },
@@ -1072,7 +1106,9 @@
       "Their will should be respected.",
       "Their is. A warning follows.",
       "Their should be. A warning follows.",
-      "Their are\n\nchanges."
+      "Their are\n\nchanges.",
+      "The migration is almost done; their team is still working.",
+      "They finished their part, theirs is done."
     ],
     "additional": [
       {
@@ -1175,6 +1211,13 @@
       },
       {
         "source": "The answer is right their in the first paragraph.",
+        "actual": "their",
+        "replacements": [
+          "there"
+        ]
+      },
+      {
+        "source": "Bruno said the migration is almost done, their is one table left.",
         "actual": "their",
         "replacements": [
           "there"
@@ -1703,7 +1746,14 @@
       "That decision will effect change.",
       "The patient showed a strong affect on his face.",
       "The order will effect everyone's release.",
-      "The medicine affects everyone."
+      "The medicine affects everyone.",
+      "The sound effects everyone loved were removed.",
+      "The special effects people remember most are simple.",
+      "The side effects the team saw were mild.",
+      "The bank effects the transfer on Monday.",
+      "The change had an effect on everyone.",
+      "The effects of the change were small.",
+      "It effects a change in policy."
     ],
     "additional": [
       {
@@ -1925,6 +1975,27 @@
       },
       {
         "source": "This could effect somebody.",
+        "actual": "effect",
+        "replacements": [
+          "affect"
+        ]
+      },
+      {
+        "source": "The new design effects everyone who uses the app.",
+        "actual": "effects",
+        "replacements": [
+          "affects"
+        ]
+      },
+      {
+        "source": "The outage effected users in Europe.",
+        "actual": "effected",
+        "replacements": [
+          "affected"
+        ]
+      },
+      {
+        "source": "These changes effect everyone.",
         "actual": "effect",
         "replacements": [
           "affect"
@@ -5785,7 +5856,12 @@
       "If calling the function fails, it then retries the operation.",
       "Until the last retry is reached, it then tries the next item.",
       "The gate had been repaired, the tools were clean, and the sacks of fallen leaves could wait until tomorrow.",
-      "The system is ready, it has loaded the files, the workers have started the checks, and the queue is empty."
+      "The system is ready, it has loaded the files, the workers have started the checks, and the queue is empty.",
+      "When it failed, it was restarted.",
+      "He said, it's fine.",
+      "The final report submitted, we moved to the next task.",
+      "The dishes washed and dried, we sat down.",
+      "The changes introduced the day before, however, broke the build."
     ],
     "additional": [
       {
@@ -5796,6 +5872,248 @@
       {
         "source": "She has finished the report, he has already sent the letter.",
         "actual": ",",
+        "replacements": []
+      },
+      {
+        "source": "The deploy failed twice, it was caused by a missing variable.",
+        "actual": ",",
+        "replacements": []
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.WeatherWhether",
+    "source": "We need to decide weather to keep the old API.",
+    "actual": "weather",
+    "replacements": [
+      "whether"
+    ],
+    "valid": [
+      "The weather is nice today.",
+      "Check the weather before the trip.",
+      "Check weather reports before leaving.",
+      "They know weather patterns well.",
+      "Weather permitting, we will leave at noon.",
+      "I checked weather conditions this morning.",
+      "We consider weather to be the main risk.",
+      "We know weather to be unpredictable.",
+      "We can't decide weather or climate matters more.",
+      "They asked weather experts for advice.",
+      "We discussed the weather to pass the time.",
+      "We decided whether to keep the old API."
+    ],
+    "additional": [
+      {
+        "source": "I don't know weather it will rain.",
+        "actual": "weather",
+        "replacements": [
+          "whether"
+        ]
+      },
+      {
+        "source": "Ask weather they can join the call.",
+        "actual": "weather",
+        "replacements": [
+          "whether"
+        ]
+      },
+      {
+        "source": "We are not sure weather the build passes on Windows.",
+        "actual": "weather",
+        "replacements": [
+          "whether"
+        ]
+      },
+      {
+        "source": "Check weather or not the file exists.",
+        "actual": "weather",
+        "replacements": [
+          "whether"
+        ]
+      },
+      {
+        "source": "It doesn't matter weather we win.",
+        "actual": "weather",
+        "replacements": [
+          "whether"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CompoundObjectMe",
+    "source": "Chen will send the report to Ana and I on Friday.",
+    "actual": "and I",
+    "replacements": [
+      "and me"
+    ],
+    "valid": [
+      "Chen will send the report to Ana and me on Friday.",
+      "Between you and me, the plan is late.",
+      "Ana and I will send it.",
+      "I wrote to Ana and I will call Bruno.",
+      "I gave it to Ana and I think she liked it.",
+      "She is taller than Ana and I.",
+      "Chen helped Ana and I finish the report.",
+      "I spoke to Ana, and I said hello.",
+      "We left early, for Ana and I were tired.",
+      "The CEO and I met on Friday.",
+      "Both Ana and I agreed.",
+      "My wife and I are grateful."
+    ],
+    "additional": [
+      {
+        "source": "Between you and I, the plan is late.",
+        "actual": "and I",
+        "replacements": [
+          "and me"
+        ]
+      },
+      {
+        "source": "The manager thanked Ana and I.",
+        "actual": "and I",
+        "replacements": [
+          "and me"
+        ]
+      },
+      {
+        "source": "This means a lot to my wife and I.",
+        "actual": "and I",
+        "replacements": [
+          "and me"
+        ]
+      },
+      {
+        "source": "Please send it to Ana Silva and I for review.",
+        "actual": "and I",
+        "replacements": [
+          "and me"
+        ]
+      },
+      {
+        "source": "It was written by Ana and I.",
+        "actual": "and I",
+        "replacements": [
+          "and me"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.LessFewer",
+    "source": "Less queries hit the database now that the cache is warm.",
+    "actual": "Less",
+    "replacements": [
+      "Fewer"
+    ],
+    "valid": [
+      "Fewer queries hit the database now.",
+      "We need less water.",
+      "It takes less time and less money.",
+      "The less people know, the better.",
+      "It costs less than ten dollars.",
+      "We spent less hours on it than planned.",
+      "More or less people agree.",
+      "We pay less sales tax here.",
+      "Less expensive options exist."
+    ],
+    "additional": [
+      {
+        "source": "There were less people at the meeting than usual.",
+        "actual": "less",
+        "replacements": [
+          "fewer"
+        ]
+      },
+      {
+        "source": "We had far less users this month.",
+        "actual": "less",
+        "replacements": [
+          "fewer"
+        ]
+      },
+      {
+        "source": "We made less mistakes this time.",
+        "actual": "less",
+        "replacements": [
+          "fewer"
+        ]
+      },
+      {
+        "source": "There are less bugs now.",
+        "actual": "less",
+        "replacements": [
+          "fewer"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.TimePossessive",
+    "source": "Ana will compare the quote with last years prices.",
+    "actual": "years",
+    "replacements": [
+      "year's"
+    ],
+    "valid": [
+      "Ana will compare the quote with last year's prices.",
+      "The last years of his life were quiet.",
+      "In the last years we grew quickly.",
+      "Last years were hard.",
+      "Last years saw strong growth.",
+      "These batteries last years longer than expected.",
+      "Good tools last years.",
+      "We spent last years building the app.",
+      "Over the next months budgets will shrink.",
+      "This years-long effort is done."
+    ],
+    "additional": [
+      {
+        "source": "Last years results were strong.",
+        "actual": "years",
+        "replacements": [
+          "year's"
+        ]
+      },
+      {
+        "source": "This years budget is tight.",
+        "actual": "years",
+        "replacements": [
+          "year's"
+        ]
+      },
+      {
+        "source": "We reviewed next months plan.",
+        "actual": "months",
+        "replacements": [
+          "month's"
+        ]
+      },
+      {
+        "source": "We compared data from last years report.",
+        "actual": "years",
+        "replacements": [
+          "year's"
+        ]
+      }
+    ]
+  },
+  {
+    "rule": "FigaroGrammar.CouldCareLess",
+    "source": "I could care less about the old logo.",
+    "actual": "could care less",
+    "replacements": [],
+    "valid": [
+      "I couldn't care less about the old logo.",
+      "I could not care less.",
+      "I could care less about the logo than about the colors.",
+      "Who could care less?",
+      "You could take care of less urgent tasks."
+    ],
+    "additional": [
+      {
+        "source": "Honestly, they could care less.",
+        "actual": "could care less",
         "replacements": []
       }
     ]

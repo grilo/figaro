@@ -10,6 +10,7 @@ import terminology from 'textlint-rule-terminology';
 import { writingTerminology, writingTextlintProjection, writingTextlintNeeded, textlintWritingObservations } from './core/writingTextlintModel.js';
 import { writingSloplessRuntimeRules } from './writingSloplessRuntime.js';
 import { sloplessWritingObservations } from './core/writingSloplessModel.js';
+import { formulaicFrameMessages } from './core/writingFormulaicFrames.js';
 
 const kernel = new TextlintKernel();
 // The maintained parser publishes its default plugin through CommonJS.
@@ -22,6 +23,8 @@ const options = {
     ],
 };
 const sloplessOptions = { ...options, rules: writingSloplessRuntimeRules };
+// Figaro-local Formulaic frames share the Slopless message path and paragraph cache.
+const formulaicMessages = text => kernel.lintText(text, sloplessOptions).then(value => [...value.messages, ...formulaicFrameMessages(text)]);
 // Exercise rule registration and parser initialization before worker readiness.
 export const writingTextlintReady = Promise.all([options, sloplessOptions].map(value => kernel.lintText('', value))).then(() => undefined);
 export async function analyzeWritingTextlint(projection) {
@@ -31,7 +34,7 @@ export async function analyzeWritingTextlint(projection) {
     try {
         const results = await Promise.all([
             writingTextlintNeeded(input) ? kernel.lintText(input.text, options).then(result => textlintWritingObservations(result.messages, input)) : [],
-            /\p{L}/u.test(input.text) ? kernel.lintText(input.text, sloplessOptions).then(result => sloplessWritingObservations(result.messages, input)) : [],
+            /\p{L}/u.test(input.text) ? formulaicMessages(input.text).then(messages => sloplessWritingObservations(messages, input)) : [],
         ]);
         return results.flat();
     } finally { writingSloplessCache.clear(); }
@@ -46,7 +49,7 @@ export function createIncrementalWritingTextlint() {
         try {
             return await Promise.all([
                 writingTextlintNeeded({ text }) ? kernel.lintText(text, options).then(value => value.messages) : [],
-                /\p{L}/u.test(text) ? kernel.lintText(text, sloplessOptions).then(value => value.messages) : [],
+                /\p{L}/u.test(text) ? formulaicMessages(text) : [],
             ]);
         } finally { writingSloplessCache.clear(); }
     } });

@@ -1,8 +1,8 @@
 import { writingReviewCards, writingReviewPageSize, writingBulkAvailable } from '../core/writingReviewModel.js';
+import { ignoreWritingFinding, writingFindingExamples, writingFindingMembers, writingFindingReasons } from './writingInlineView.js';
 import { createWritingDetailsView } from './writingDetailsView.js';
 import { limitWritingAlternatives } from './writingAlternativesView.js';
 import { setTooltip } from '../tooltip.js';
-import { createWritingExamplesView } from './writingExamplesView.js';
 import { writingLensSupportsLanguage } from '../core/writingLensesModel.js';
 import { selectedWritingLenses } from '../core/writingAnalysisModel.js';
 
@@ -22,7 +22,7 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
         if (invalidated) return;
         const previous = limit;
         limit += writingReviewPageSize; signature = ''; api.update(lastValue);
-        (list.children[previous]?.querySelector('button') || element).focus();
+        (list.querySelectorAll('.writing-result-group')[previous]?.querySelector('button') || element).focus();
     });
     element.append(status, retry, list, more);
     let signature = '', disclosure = new Set();
@@ -82,8 +82,16 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
             list.replaceChildren();
             more.hidden = cards.length <= limit;
             more.textContent = `Show more suggestions (${Math.min(limit, cards.length)} of ${cards.length} shown)`;
+            let tier = null;
             for (const card of cards.slice(0, limit)) {
+                // Corrections are listed before suggestions under their own heading.
+                if (card.tier !== tier) {
+                    tier = card.tier;
+                    const total = cards.filter(candidate => candidate.tier === tier).length;
+                    list.append(node('h4', 'writing-results-tier', `${tier === 'correction' ? 'Corrections' : 'Suggestions'} (${total})`));
+                }
                 const section = node('section', 'writing-result-group');
+                section.dataset.tier = card.tier;
                 const position = Math.min(positions.get(card.key) || 0, card.findings.length - 1);
                 for (const finding of [card.findings[position]]) {
                     const displayId = finding.displayId || finding.id;
@@ -92,7 +100,13 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
                     heading.classList.add('ui-button--quiet', 'writing-result-location');
                     setTooltip(heading, `Go to “${finding.actual}” in the document`);
                     heading.insertAdjacentHTML('afterbegin', '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 .2l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.2l-3 3a5 5 0 0 0 7 7l2-2"/></svg>');
-                    row.append(heading, node('p', 'writing-lenses-description', finding.message));
+                    const [firstReason, ...moreReasons] = writingFindingReasons(finding);
+                    row.append(heading, node('p', 'writing-lenses-description', firstReason.message));
+                    for (const reason of moreReasons) {
+                        const extra = node('p', 'writing-lenses-description');
+                        extra.append(node('strong', '', `${reason.title}. `), document.createTextNode(reason.message));
+                        row.append(extra);
+                    }
                     if (card.findings.length > 1) {
                         const occurrences = node('div', 'writing-result-actions');
                         occurrences.append(node('span', 'writing-lenses-description', `Occurrence ${position + 1} of ${card.findings.length}`));
@@ -106,7 +120,7 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
                         row.append(occurrences);
                     }
                     const actions = node('div', 'writing-result-actions');
-                    finding.fixes.forEach((fix, index) => actions.append(button(`Apply “${fix.replacement}”`, `Replace “${fix.expected}” with “${fix.replacement}”`, () => onApply(finding.id, index, value.analyzed), `${displayId}:apply:${index}`)));
+                    finding.fixes.forEach((fix, index) => actions.append(button(`Apply “${fix.replacement}”`, `Replace “${fix.expected}” with “${fix.replacement}”`, () => onApply(fix.findingId ?? finding.id, fix.index ?? index, value.analyzed), `${displayId}:apply:${index}`)));
                     limitWritingAlternatives(actions, [...actions.children]);
                     const remember = (text, label, action, key) => button(text, label, async () => {
                         const controls = [...actions.querySelectorAll('button')]; controls.forEach(control => { control.disabled = true; });
@@ -115,10 +129,13 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
                         catch (error) { api.announce(error.message || 'Couldn’t save the review decision. Try again.'); status.classList.add('ui-notice', 'ui-notice--warning'); }
                         finally { controls.forEach(control => { control.disabled = invalidated; }); actions.removeAttribute('aria-busy'); }
                     }, key);
-                    actions.append(remember('Ignore this occurrence', `Ignore ${finding.title}`, () => onDismiss(finding.id, value.analyzed), `${displayId}:dismiss`));
-                    if (finding.kind === 'clarity.undefined-acronym' && onAcceptAcronym) {
+                    const members = writingFindingMembers(finding);
+                    actions.append(remember('Ignore this occurrence', `Ignore ${finding.title}`,
+                        () => ignoreWritingFinding(finding, id => onDismiss(id, value.analyzed)), `${displayId}:dismiss`));
+                    const acronym = members.find(member => member.kind === 'clarity.undefined-acronym');
+                    if (acronym && onAcceptAcronym) {
                         actions.append(remember(`Accept “${finding.actual}” in this document`, `Accept “${finding.actual}” in this document`,
-                            () => onAcceptAcronym(finding.id, value.analyzed), `${displayId}:accept-acronym`));
+                            () => onAcceptAcronym(acronym.id, value.analyzed), `${displayId}:accept-acronym`));
                     }
                     if (onApplyAll && writingBulkAvailable(card)) {
                         const bulk = button(`Apply “${finding.fixes[0].replacement}” to all ${card.findings.length} occurrences`, `Apply to all ${card.findings.length} occurrences in this document`, () => onApplyAll(finding.id, value.analyzed), `${displayId}:apply-all`);
@@ -130,7 +147,7 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
                         evidence.hidden = !evidence.hidden; details.setAttribute('aria-expanded', String(!evidence.hidden));
                         if (evidence.hidden) disclosure.delete(displayId); else disclosure.add(displayId);
                     }, `${displayId}:details`);
-                    details.setAttribute('aria-expanded', String(!evidence.hidden)); actions.append(details); row.append(actions, createWritingExamplesView(finding), evidence); section.append(row);
+                    details.setAttribute('aria-expanded', String(!evidence.hidden)); actions.append(details); row.append(actions, ...writingFindingExamples(finding), evidence); section.append(row);
                 }
                 list.append(section);
             }

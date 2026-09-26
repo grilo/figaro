@@ -37,7 +37,7 @@ test('writing review distinguishes English-only prose checks from Spanish spelli
 test('writing review bounds individual cards within and across passages without losing counts or keyboard access to later results', () => {
     const view = createWritingResultsView({ onRetry: jest.fn() });
     document.body.replaceChildren(view.element);
-    const groups = Array.from({ length: 8 }, (_, index) => ({ text: `Passage ${index}`, findings: [{ ...finding, id: `f${index}`, actual: `different${index}` }] }));
+    const groups = Array.from({ length: 8 }, (_, index) => ({ text: `Passage ${index}`, findings: [{ ...finding, id: `f${index}`, actual: `different${index}`, from: 3 + index * 20, to: 10 + index * 20 }] }));
     view.update({ current, count: 8, states: { retext: 'complete' }, groups });
     expect(view.element.querySelectorAll('[data-finding]')).toHaveLength(4);
     expect(view.element.querySelector('[role="status"]').textContent).toBe('8 suggestions');
@@ -87,7 +87,7 @@ test('a dense passage groups identical suggestions, cycles source occurrences, a
 
 test('one passage with many different findings obeys the same four-card budget', () => {
     const view = createWritingResultsView({ onRetry() {} });
-    const findings = Array.from({ length: 120 }, (_, i) => ({ ...finding, id: `f${i}`, actual: `word${i}` }));
+    const findings = Array.from({ length: 120 }, (_, i) => ({ ...finding, id: `f${i}`, actual: `word${i}`, from: 3 + i * 20, to: 10 + i * 20 }));
     view.update({ current, count: 120, groups: [{ findings }] });
     expect(view.element.querySelectorAll('[data-finding]')).toHaveLength(4);
     expect(view.element.textContent).toContain('Show more suggestions (4 of 120 shown)');
@@ -121,4 +121,28 @@ test('refresh keeps the same cards visible with disabled stale actions and resto
     expect(fresh.disabled).toBe(false); fresh.click(); expect(onApply).toHaveBeenCalledTimes(1);
     view.update({ current: { ...current, id: 'other' }, resultVersion: 3, count: 0, groups: [] });
     expect(view.element.querySelector('[data-finding]')).toBeNull();
+});
+
+test('lists corrections before suggestions and reviews a word flagged by two lenses once', async () => {
+    const onApply = jest.fn(), onDismiss = jest.fn().mockResolvedValue(undefined);
+    const view = createWritingResultsView({ onApply, onDismiss, onNavigate: jest.fn(), onRetry: jest.fn() });
+    document.body.replaceChildren(view.element);
+    const plain = { ...finding, id: 'plain-very', actual: 'very', kind: 'lexicon.complex-word', lens: 'plain', title: 'Simpler word', message: 'Consider a simpler word.', from: 20, to: 24, fixes: [] };
+    const direct = { ...plain, id: 'direct-very', kind: 'style.adverb', lens: 'direct', title: 'Review modifier', message: 'Consider a specific description.', fixes: [{ expected: 'very', replacement: '' }] };
+    const spelling = { ...finding, id: 'teh', actual: 'teh', kind: 'grammar.spelling', lens: 'spelling', title: 'Spelling', message: 'Unknown word.', from: 40, to: 43, fixes: [{ expected: 'teh', replacement: 'the' }] };
+    view.update({ current, count: 3, states: { retext: 'complete' }, groups: [{ findings: [plain, direct, spelling] }] });
+
+    expect([...view.element.querySelectorAll('.writing-results-tier')].map(item => item.textContent))
+        .toEqual(['Corrections (1)', 'Suggestions (1)']);
+    const [correction, suggestion] = view.element.querySelectorAll('.writing-result-group');
+    expect(correction.dataset.tier).toBe('correction');
+    expect(correction.textContent).toContain('Spelling');
+    expect(suggestion.textContent).toContain('Consider a simpler word.');
+    expect(suggestion.textContent).toContain('Review modifier. Consider a specific description.');
+
+    suggestion.querySelector('[aria-label="Replace “very” with “”"]').click();
+    expect(onApply).toHaveBeenCalledWith('direct-very', 0, undefined);
+    suggestion.querySelector('[aria-label="Ignore Simpler word"]').click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(onDismiss.mock.calls.map(call => call[0])).toEqual(['plain-very', 'direct-very']);
 });

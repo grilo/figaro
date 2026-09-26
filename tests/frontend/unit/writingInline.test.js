@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { EditorState } from '@codemirror/state';
 import { EditorView, hasHoverTooltips } from '@codemirror/view';
 import { inlineWritingState, writingInlineExtension, updateInlineWriting, openInlineWriting } from '../../../frontend/js/writingInline.js';
@@ -124,13 +125,18 @@ test('Readability underlines a full sentence across Markdown formatting with a g
     const current = { id: 'memo', revision: 1, configuration: 'readability', source };
     const result = resolveWritingFindings({ source, ...analyzeRetext(source), preferences: { lenses: ['readability'] } });
     const snapshot = { ...result, current, analyzed: current };
-    expect(inlineWritingFindings(snapshot)).toHaveLength(2);
+    // Both readability checks cover the same sentence, so they share one entry listing both reasons.
+    const [merged, ...others] = inlineWritingFindings(snapshot);
+    expect(others).toEqual([]);
+    expect(merged.reasons.map(reason => reason.kind)).toEqual(['readability.complex-sentence', 'readability.long-sentence']);
     expect(inlineWritingFindings({ ...snapshot, current: { ...current, source: source.replace('report', 'letter') } })).toEqual([]);
     const parent = document.body.appendChild(document.createElement('div'));
     const view = new EditorView({ parent, state: EditorState.create({ doc: source, extensions: [writingInlineExtension] }) });
     try {
         updateInlineWriting(view, snapshot, {});
         expect(parent.querySelector('.cm-writing-range').textContent).toBe(source);
+        // Readability is a suggestion: the dotted underline, not the correction line.
+        expect(parent.querySelector('.cm-writing-range').classList.contains('cm-writing-range--suggestion')).toBe(true);
         view.dispatch({ selection: { anchor: source.indexOf('final') } });
         expect(openInlineWriting(view)).toBe(true);
         expect(parent.querySelector('.cm-writing-tooltip').textContent).toContain('where the idea changes');
@@ -220,4 +226,27 @@ test.each(['```\n', '[target]: /url\n', '---\n'])('structural Markdown insertion
         view.dispatch({ changes: { from: 0, insert } });
         expect(view.state.field(inlineWritingState).findings).toEqual([]);
     } finally { view.destroy(); }
+});
+
+test('Proofreading findings are marked as corrections in the editor', () => {
+    const source = 'We saw teh cat.';
+    const current = { id: 'memo', revision: 1, configuration: 'spelling', source };
+    const typo = { id: 'teh', kind: 'grammar.spelling', lens: 'spelling', title: 'Spelling', message: 'Unknown word.',
+        actual: 'teh', sourceText: 'teh', from: 7, to: 10, fixes: [], intent: 'review' };
+    const parent = document.body.appendChild(document.createElement('div'));
+    const view = new EditorView({ parent, state: EditorState.create({ doc: source, extensions: [writingInlineExtension] }) });
+    try {
+        updateInlineWriting(view, { groups: [{ findings: [typo] }], current, analyzed: current }, {});
+        const mark = parent.querySelector('.cm-writing-range');
+        expect(mark.textContent).toBe('teh');
+        expect(mark.classList.contains('cm-writing-range--correction')).toBe(true);
+    } finally { view.destroy(); parent.remove(); }
+});
+
+test('corrections differ from suggestions by line pattern, not only color', () => {
+    const css = readFileSync('frontend/styles/editor.css', 'utf8');
+    const rule = css.match(/\.cm-editor \.cm-lintRange\.cm-writing-range--correction \{([^}]*)\}/u)?.[1] || '';
+    // A continuous line (full-width gradient) instead of the dotted suggestion dashes.
+    expect(rule).toMatch(/background-size:\s*100% 2px/u);
+    expect(rule).toMatch(/var\(--warning-color\)/u);
 });

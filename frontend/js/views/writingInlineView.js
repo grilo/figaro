@@ -1,5 +1,29 @@
 import { createWritingExamplesView } from './writingExamplesView.js';
 import { limitWritingAlternatives } from './writingAlternativesView.js';
+
+/** A merged entry lists each reason; its first reason is the heading. */
+export function writingFindingReasons(finding) {
+    return finding.reasons?.length ? finding.reasons : [{ title: finding.title, message: finding.message }];
+}
+
+/** The findings an action on this entry covers, with the member that owns each capability. */
+export function writingFindingMembers(finding) {
+    return finding.spanMembers || [finding];
+}
+
+/** One example per distinct concern an entry covers. */
+export function writingFindingExamples(finding) {
+    const seen = new Set();
+    return writingFindingMembers(finding).filter(member => !seen.has(member.kind) && seen.add(member.kind))
+        .map(member => createWritingExamplesView(member));
+}
+
+/** Ignore every finding an entry covers; one finding keeps the direct call. */
+export function ignoreWritingFinding(finding, ignore) {
+    const members = writingFindingMembers(finding);
+    if (members.length === 1) return ignore(members[0].id);
+    return members.reduce((previous, member) => previous.then(() => ignore(member.id)), Promise.resolve());
+}
 /** Compose the approved menu surface and standard buttons for an inline review. */
 export function createWritingInlineView({ findings, stale = false, onApply, onApplyAll, bulkCount = () => 0, onIgnore, onAcceptAcronym, onAddWord, onClose }) {
     const dom = document.createElement('div');
@@ -17,11 +41,15 @@ export function createWritingInlineView({ findings, stale = false, onApply, onAp
     };
     for (const finding of findings) {
         const section = document.createElement('section'); section.className = 'writing-inline-finding';
-        const title = document.createElement('strong'); title.textContent = finding.title;
-        const message = document.createElement('p'); message.className = 'writing-lenses-description'; message.textContent = finding.message;
+        const members = writingFindingMembers(finding);
+        const reasons = writingFindingReasons(finding).flatMap(reason => {
+            const title = document.createElement('strong'); title.textContent = reason.title;
+            const message = document.createElement('p'); message.className = 'writing-lenses-description'; message.textContent = reason.message;
+            return [title, message];
+        });
         const actions = document.createElement('div'); actions.className = 'writing-result-actions';
         finding.fixes.forEach((fix, index) => actions.append(button(`Apply “${fix.replacement}”`,
-            `Replace “${fix.expected}” with “${fix.replacement}”`, () => onApply(finding.id, index))));
+            `Replace “${fix.expected}” with “${fix.replacement}”`, () => onApply(fix.findingId ?? finding.id, fix.index ?? index))));
         limitWritingAlternatives(actions, [...actions.children]);
         const remember = (text, label, action) => button(text, label, async () => {
             const controls = [...actions.querySelectorAll('button')]; controls.forEach(control => { control.disabled = true; });
@@ -30,18 +58,21 @@ export function createWritingInlineView({ findings, stale = false, onApply, onAp
             catch (error) { status.textContent = error.message || 'Couldn’t save the review decision. Try again.'; status.classList.add('ui-notice', 'ui-notice--warning'); }
             finally { controls.forEach(control => { control.disabled = false; }); actions.removeAttribute('aria-busy'); }
         });
-        actions.append(remember('Ignore this occurrence', `Ignore ${finding.title} in this document`, () => onIgnore(finding.id)));
-        const count = bulkCount(finding.id);
+        actions.append(remember('Ignore this occurrence', `Ignore ${finding.title} in this document`,
+            () => ignoreWritingFinding(finding, onIgnore)));
+        const count = finding.spanMembers ? 0 : bulkCount(finding.id);
         if (count > 1 && onApplyAll) actions.append(button(`Apply “${finding.fixes[0].replacement}” to all ${count} occurrences`,
             `Apply to all ${count} occurrences in this document`, () => onApplyAll(finding.id)));
-        if (finding.kind === 'clarity.undefined-acronym' && onAcceptAcronym) {
-            actions.append(remember(`Accept “${finding.actual}” in this document`, `Accept “${finding.actual}” in this document`, () => onAcceptAcronym(finding.id)));
+        const acronym = members.find(member => member.kind === 'clarity.undefined-acronym');
+        if (acronym && onAcceptAcronym) {
+            actions.append(remember(`Accept “${finding.actual}” in this document`, `Accept “${finding.actual}” in this document`, () => onAcceptAcronym(acronym.id)));
         }
-        if (finding.lens === 'spelling' && onAddWord) {
+        const spelling = members.find(member => member.lens === 'spelling');
+        if (spelling && onAddWord) {
             const add = button('Add to dictionary', `Add “${finding.actual}” to this vault’s dictionary`, async () => {
                 add.disabled = true; add.setAttribute('aria-busy', 'true');
                 status.hidden = false; status.textContent = 'Saving word…';
-                try { await onAddWord(finding); }
+                try { await onAddWord(spelling); }
                 catch (_) {
                     status.textContent = 'Couldn’t add this word. Nothing was changed. Try again.';
                     status.classList.add('ui-notice', 'ui-notice--warning');
@@ -49,7 +80,7 @@ export function createWritingInlineView({ findings, stale = false, onApply, onAp
             });
             actions.append(add);
         }
-        section.append(title, message, actions, createWritingExamplesView(finding)); dom.append(section);
+        section.append(...reasons, actions, ...writingFindingExamples(finding)); dom.append(section);
     }
     dom.append(status);
     dom.addEventListener('keydown', event => {

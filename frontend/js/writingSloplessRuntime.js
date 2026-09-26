@@ -29,6 +29,7 @@ import exclamationDensity from 'slopless/rules/orthography/exclamation-density';
 import wordRepetition from 'slopless/rules/metrics/word-repetition';
 import hedgeStacking from 'slopless/rules/words/hedge-stacking';
 import softeningLanguage from 'slopless/rules/syntactic-patterns/generalization/softening-language';
+import llmVocabularyDensity from 'slopless/rules/words/llm-vocabulary-density';
 
 const rules = { 'cliches': cliches, 'corporate-speak': corporateSpeak, 'wordiness': wordiness, 'simplicity': simplicity, 'redundancy': redundancy, 'exclamation-density': exclamationDensity, 'word-repetition': wordRepetition, 'hedge-stacking': hedgeStacking, 'softening-language': softeningLanguage, 'em-dashes': emDashes,
     'boilerplate-framing': boilerplateFraming, 'generic-signposting': genericSignposting,
@@ -38,5 +39,5 @@ const rules = { 'cliches': cliches, 'corporate-speak': corporateSpeak, 'wordines
     'lesson-framing': lessonFraming, 'observer-guidance': observerGuidance, 'response-wrapper': responseWrapper,
     'llm-disclaimer': llmDisclaimer, 'formal-transition-density': formalTransitionDensity,
     'repeated-sentence-starts': repeatedSentenceStarts, 'empty-emphasis': emptyEmphasis,
-    'superficial-analysis': superficialAnalysis, 'semantic-thinness': semanticThinness };
+    'superficial-analysis': superficialAnalysis, 'semantic-thinness': semanticThinness, 'llm-vocabulary-density': llmVocabularyDensity };
 export const writingSloplessRuntimeRules = Object.entries(rules).map(([name, rule]) => ({ ruleId: `slopless/${name}`, rule }));

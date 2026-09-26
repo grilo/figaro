@@ -56,6 +56,14 @@ func (s *grammarScan) initial(i int) bool {
 	return strings.ContainsAny(gap, ".!?") || strings.Contains(gap, "\n\n") || strings.Contains(gap, "\r\n\r\n")
 }
 
+// afterComma reports a clause that begins directly after a comma.
+func (s *grammarScan) afterComma(i int) bool {
+	if i <= 0 || i >= len(s.tokens) || s.tokens[i-1].clause == s.tokens[i].clause {
+		return false
+	}
+	return strings.TrimSpace(string(s.chars[s.tokens[i-1].to:s.tokens[i].from])) == ","
+}
+
 func (s *grammarScan) subjectPosition(i int) bool {
 	return s.initial(i) || in(s.at(i, -1).word, "if unless because although while when that and but whether think thinks thought believe believes suppose suspect assume guess hope know knows knew")
 }
@@ -131,6 +139,7 @@ func (s *grammarScan) expand() error {
 		s.wordChoices(i)
 		s.nounVerbConfusions(i)
 		s.pronounConstructions(i)
+		s.commonErrors(i)
 		if len(s.findings) > MaxFindings {
 			return ErrWorkLimit
 		}

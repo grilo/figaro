@@ -2,6 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import { Decoration, EditorView, activateHover, closeHoverTooltip, hoverTooltip, keymap, tooltips } from '@codemirror/view';
 import { inlineWritingFindings, writingFindingsAt, writingTooltipBounds } from './core/writingInlineModel.js';
 import { createWritingInlineView } from './views/writingInlineView.js';
+import { writingFindingTier } from './core/writingReviewModel.js';
 import { createWritingLinkHints } from './writingLinkHints.js';
 import { writingFindingDependsOnDocument, writingEditChangesStructure } from './core/writingRetentionModel.js';
 
@@ -71,7 +72,8 @@ export const inlineWritingState = StateField.define({
             if (snapshot?.stale) continue;
             const findings = inlineWritingFindings(snapshot);
             const ranges = findings.map(finding => Decoration.mark({ finding,
-                class: 'cm-lintRange cm-writing-range', attributes: { 'data-writing-id': finding.id },
+                class: `cm-lintRange cm-writing-range cm-writing-range--${writingFindingTier(finding)}`,
+                attributes: { 'data-writing-id': finding.id },
             }).range(finding.from, finding.to));
             value = inlineState(Decoration.set(ranges, true),
                 Decoration.set(ranges.filter(range => !writingFindingDependsOnDocument(range.value.spec.finding)), true), actions);

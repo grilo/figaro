@@ -5,7 +5,7 @@ import { resolveWritingFindings, writingEngineConfiguration, validateWritingFix 
 import { writingPackageObservation, readabilityOptions } from '../../../frontend/js/core/writingPackagePolicy.js';
 import { writingSuggestionExamples } from '../../../frontend/js/core/writingSuggestionModel.js';
 
-const complex = 'The implementation of multidisciplinary institutional reorganization necessitates comprehensive consideration of interconnected administrative responsibilities and organizational communication requirements.';
+const complex = 'The implementation of multidisciplinary institutional reorganization necessitates comprehensive consideration of interconnected administrative responsibilities, organizational communication requirements, and departmental accountability mechanisms across numerous international subsidiaries of the organization.';
 const long = 'Before we publish the final report, we need to review the examples with the team, check every figure against the source material, explain the remaining limitations to our readers, and decide which recommendations should appear in the introduction.';
 function review(source, lenses = ['consistency', 'readability']) {
     return resolveWritingFindings({ source, ...analyzeRetext(source), preferences: { lenses, language: 'en-US' } });
@@ -138,7 +138,7 @@ test('new package pins and conservative readability policy participate in snapsh
     for (const [name, key] of [['sentence-spacing', 'sentenceSpacing'], ['diacritics', 'diacritics'], ['readability', 'readability']]) {
         expect(writingEngineConfiguration[key]).toBe(pkg.dependencies[`retext-${name}`]);
     }
-    expect(writingEngineConfiguration.mapping).toBe('25');
+    expect(writingEngineConfiguration.mapping).toBe('27');
     expect(writingEngineConfiguration.readabilityOptions).toEqual(readabilityOptions);
-    expect(readabilityOptions).toEqual({ age: 16, minWords: 15, threshold: 5 / 7 });
+    expect(readabilityOptions).toEqual({ age: 16, minWords: 25, threshold: 5 / 7 });
 });

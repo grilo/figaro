@@ -69,7 +69,11 @@ test.each([
     ['The report was checked by the deadline reviewer.', 'was checked'],
     ['He accepts two parameters and is expected to return tomorrow.', 'is expected'],
 ])('actor, sentence, protected-text and unsupported-context boundaries retain advice: %s', (source, actual) => {
-    expect(visible(review(source, actual, 'Microsoft.Passive'))).toHaveLength(1);
+    const result = review(source, actual, 'Microsoft.Passive');
+    expect(result.evidence[0].suppressed).toBe('');
+    // Context keeps the advice; a lone passive is shown only when it names its actor.
+    if (/\bby\b/u.test(source)) expect(visible(result)).toHaveLength(1);
+    else expect(result.findings[0].suppressed).toBe('Single passive without a named actor');
 });
 
 test.each([

@@ -307,3 +307,43 @@ test('mouse-opened writing pane preserves editor focus while keyboard activation
         expect(view.state.doc.toString()).toBe('Draft text.');
     } finally { controller.destroy(); view.destroy(); }
 });
+
+test('vault note titles and saved tags are accepted spelling words without joining the personal dictionary', async () => {
+    const { EditorState } = await import('@codemirror/state');
+    const { EditorView } = await import('@codemirror/view');
+    const { writingSpellingObservations } = await import('../../../frontend/js/spellcheck.js');
+    jest.useFakeTimers(); resetRightPaneModesForTests();
+    document.body.innerHTML = '<div id="app"><button id="writing-lenses-toggle"></button><button id="writing-lenses-quick-toggle"></button><aside id="right-sidebar"><span id="right-sidebar-title"></span><div id="right-sidebar-content"></div></aside></div>';
+    const view = new EditorView({ parent: document.body, state: EditorState.create({ doc: 'We use postgres with zettelflow and teh team.' }) });
+    const known = new Set(['we', 'use', 'with', 'and', 'the', 'team']);
+    const checker = { correct: word => known.has(word.toLowerCase()), spell: word => ({ correct: known.has(word.toLowerCase()) }), suggest: () => [] };
+    const spelling = jest.fn((text, language) => writingSpellingObservations(text, language, async () => checker));
+    let vault = { tree: [{ type: 'directory', name: 'Notes', children: [{ type: 'file', name: 'Postgres setup.md' }] }], tags: [] };
+    let notify;
+    const vaultVocabulary = { read: jest.fn(() => vault), subscribe: listener => { notify = listener; return () => { notify = null; }; } };
+    const dictionary = { words: () => [], add: jest.fn(), restore: async () => [] };
+    const setSpelling = jest.fn();
+    let controller = initWritingLenses({ getActiveTab: () => ({ id: 'memo', path: 'Memo.md', type: 'file' }), getEditorDocumentTabId: () => 'memo', getView: () => view,
+        loadPreferences: async () => ({ lenses: ['spelling'], language: 'en-US' }), savePreferences: async () => {}, dictionary, setSpelling, vaultVocabulary,
+        analysisPorts: { ...writingTestPorts, retext: { cancel() {} }, vale: { cancel() {} }, spelling, destroy() {} } });
+    // Three words are unknown to the stub dictionary: postgres, zettelflow and teh.
+    const flagged = () => document.querySelectorAll('#writing-lenses-panel [data-finding]').length;
+    try {
+        await controller.ready; controller.toggle(); await jest.advanceTimersByTimeAsync(0);
+        expect(flagged()).toBe(2);
+        expect(setSpelling).toHaveBeenLastCalledWith(expect.objectContaining({ words: ['postgres', 'setup'] }));
+        // Tree and tag changes are debounced away from typing, then re-review once.
+        vault = { ...vault, tags: ['zettelflow'] }; notify(); notify();
+        await jest.advanceTimersByTimeAsync(999);
+        expect(flagged()).toBe(2);
+        await jest.advanceTimersByTimeAsync(1);
+        expect(vaultVocabulary.read).toHaveBeenCalledTimes(2);
+        await jest.advanceTimersByTimeAsync(600);
+        expect(flagged()).toBe(1);
+        expect(document.querySelector('[aria-label="Replace “teh” with “the”"]')).not.toBeNull();
+        expect(setSpelling).toHaveBeenLastCalledWith(expect.objectContaining({ words: ['postgres', 'setup', 'zettelflow'] }));
+        expect(dictionary.add).not.toHaveBeenCalled();
+        controller.destroy(); controller = null;
+        expect(notify).toBeNull();
+    } finally { controller?.destroy(); view.destroy(); jest.useRealTimers(); }
+});

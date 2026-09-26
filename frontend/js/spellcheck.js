@@ -6,7 +6,7 @@
  */
 
 import nspell from 'nspell';
-import { spellcheckWordRanges } from './core/spellingModel.js';
+import { spellcheckWordRanges, spellingSentenceStart } from './core/spellingModel.js';
 import { matchSuggestionCase, isCorrectlySpelledProseWord, highConfidenceSuggestions, reviewedSpellingCorrection } from './core/spellingSuggestionsModel.js';
 import { canonicalSpellcheckLanguage, spellcheckLanguages } from './spellcheckPreference.js';
 import { filterAcceptedSpelling, acceptedSpelling } from './core/spellingDictionaryModel.js';
@@ -47,6 +47,11 @@ export async function loadSpellchecker(language) {
     return promise;
 }
 
+/** Only a capitalized word's suggestions depend on where its sentence starts. */
+function suggestionContext(source, range) {
+    return { sentenceStart: !/\p{Lu}/u.test(range.word) || spellingSentenceStart(source, range.from) };
+}
+
 /**
  * Resolve local Hunspell replacements for an unknown prose word. This is kept
  * separate from diagnostics because context menus need the word and replacement
@@ -66,7 +71,7 @@ export async function spellcheckSuggestionsAtPosition(source, position, defaultL
     }
     if (isCorrectlySpelledProseWord(wordRange.word, checkers, config.languages)) return null;
 
-    const suggestions = wordRange.editable === false ? [] : highConfidenceSuggestions(wordRange.word, checkers, config.languages)
+    const suggestions = wordRange.editable === false ? [] : highConfidenceSuggestions(wordRange.word, checkers, config.languages, suggestionContext(source, wordRange))
         .map(suggestion => matchSuggestionCase(suggestion, wordRange.word));
     return { ...wordRange, suggestions };
 }
@@ -115,11 +120,12 @@ export async function writingSpellingObservations(source, defaultLanguage, getCh
     let checked = 0;
     for (const range of spellcheckWordRanges(source)) {
         if (checked++ % 32 === 0) await checkpoint();
-        const key = `${languageKey}:${range.word}`;
+        const context = suggestionContext(source, range);
+        const key = `${languageKey}:${context.sentenceStart ? '' : 'inside:'}${range.word}`;
         if (!suggestions.has(key)) {
             if (suggestions.size >= 4096) suggestions.delete(suggestions.keys().next().value);
             suggestions.set(key, isCorrectlySpelledProseWord(range.word, checkers, config.languages) ? null
-                : highConfidenceSuggestions(range.word, checkers, config.languages).map(value => matchSuggestionCase(value, range.word)));
+                : highConfidenceSuggestions(range.word, checkers, config.languages, context).map(value => matchSuggestionCase(value, range.word)));
         }
         const candidates = suggestions.get(key);
         suggestions.delete(key); suggestions.set(key, candidates);

@@ -753,7 +753,7 @@ Writing review preparation runs `scripts/vendor-writing.mjs` for the pinned
 remark/retext runtime and notices, then bundles the writing and activity workers.
 Vale's adapted source is vendored in `third_party/vale` and compiled by Go; its
 42 YAML rules and the pinned grammar dictionary are embedded from
-`internal/writing/styles`; 162 pure Go grammar checks are compiled from
+`internal/writing/styles`; 167 pure Go grammar checks are compiled from
 `internal/writing/grammar`. Native and cross builds
 need no Vale executable download or target preparation. Generated browser workers
 remain ignored; obsolete local CLI `.gz` files are ignored but never bundled.

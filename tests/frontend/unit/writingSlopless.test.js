@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { analyzeWriting, analyzeWritingFull, prepareWritingSource, writingRuntimeReady } from '../../../frontend/vendored/writing/runtime.js';
 import { resolveWritingFindings, writingEngineConfiguration } from '../../../frontend/js/core/writingAnalysisModel.js';
-import { writingSloplessRules, writingSloplessVersion, sloplessWritingObservations } from '../../../frontend/js/core/writingSloplessModel.js';
+import { writingSloplessRules, writingSloplessVersion, sloplessWritingObservations, writingSloplessVocabularyCluster } from '../../../frontend/js/core/writingSloplessModel.js';
+import { formulaicFrameMessages, writingFormulaicFrameRules, writingFormulaicFramesVersion } from '../../../frontend/js/core/writingFormulaicFrames.js';
 import { writingSuggestionExamples, writingSuggestionExplanation } from '../../../frontend/js/core/writingSuggestionModel.js';
 import { writingReviewCards, writingBulkAvailable } from '../../../frontend/js/core/writingReviewModel.js';
 import { createWritingInlineView } from '../../../frontend/js/views/writingInlineView.js';
@@ -38,6 +39,7 @@ const fixtures = {
     'empty-emphasis': 'That part matters.',
     'superficial-analysis': 'The team met, underscoring its commitment to excellence.',
     'semantic-thinness': 'The lesson is clear.',
+    'llm-vocabulary-density': 'Seamless workflows unlock transformative insights and empower every team.',
 };
 async function review(source, lenses = ['formulaic'], decisions = []) {
     const data = await analyzeWriting(source);
@@ -62,7 +64,7 @@ test('Formulaic writing documents every included and excluded public Slopless ru
     const excluded = names(docs.split('## Excluded rules')[1].split('## Integration')[0]);
     expect(included.sort()).toEqual(Object.keys(writingSloplessRules).sort());
     expect([...included, ...excluded].sort()).toEqual(publicRules);
-    expect(excluded).toHaveLength(48);
+    expect(excluded).toHaveLength(47);
 });
 
 test.each(Object.entries(fixtures))('Formulaic writing executes real Slopless %s with full-scan equivalence, exact source and advisory examples', async (rule, text) => {
@@ -179,4 +181,81 @@ test('one emphatic run gets one Formulaic finding; separate exclamations keep de
     expect(spread.some(f => f.kind === 'formulaic.exclamation-density')).toBe(true);
     const mixed = (await review('Wow!!! Great!')).findings;
     expect(mixed.some(f => f.kind === 'formulaic.exclamation-density')).toBe(true);
+});
+
+const frames = {
+    'not-just-reframe': ['A personal knowledge garden isn’t just a tool — it’s a mindset.', 'isn’t just a tool — it’s a mindset'],
+    'not-about-reframe': ['It\'s not about collecting notes; it\'s about cultivating understanding.', 'It\'s not about collecting notes; it\'s about cultivating understanding'],
+    'cliche-aphorism': ['Remember that it\'s a journey, not a destination.', 'a journey, not a destination'],
+    'stock-opener': ['In today\'s fast-paced digital landscape, it\'s worth noting that notes matter.', 'In today\'s fast-paced digital landscape, it\'s worth noting that'],
+    'fragment-question': ['They capture everything. The result? A graveyard of forgotten thoughts.', 'The result?'],
+};
+
+test('local Formulaic frames report exact paragraph-local ranges in the textlint message shape', () => {
+    expect(Object.keys(frames).sort()).toEqual(Object.keys(writingFormulaicFrameRules).sort());
+    for (const [rule, [text, actual]] of Object.entries(frames)) {
+        const source = `Intro line.\n\n${text}`;
+        const [message, ...rest] = formulaicFrameMessages(source);
+        expect(rest).toEqual([]);
+        expect(message).toMatchObject({ ruleId: `figaro-formulaic/${rule}`, line: 3, index: message.range[0] });
+        expect(source.slice(...message.range)).toBe(actual);
+    }
+    // Soft line breaks stay inside a paragraph; blank lines end it.
+    expect(formulaicFrameMessages('It is not just a tool —\nit is a mindset.')).toHaveLength(1);
+    expect(formulaicFrameMessages('It is not just a tool —\n\nit is a mindset.')).toEqual([]);
+});
+
+test.each([
+    'It\'s not red; it\'s orange.',
+    'The fix isn\'t just faster — it\'s also safer.',
+    'This isn\'t just a bug in Safari; it\'s a spec change from 2024.',
+    'The meeting isn\'t about the Q3 budget; it\'s about hiring.',
+    'Not only is it fast, it\'s cheap.',
+    'It\'s a warning, not an error.',
+    'The release is a process, not an event.',
+    'In today\'s meeting we reviewed the plan.',
+    'In today\'s market, prices fell 3%.',
+    'It\'s worth noting that the API returns null.',
+    'What was the result? The file was empty.',
+    'We tried twice.\n\nThe result?',
+    'The workflow runs nightly. When the workflow fails, the workflow retries once. Check the workflow log afterwards.',
+    'Next week we will scale the import job. The new approach improved confidence in the totals, and the impact on AI costs was small.',
+    'We use a robust approach to scale the service. The next generation of workers will ship in May.',
+    'Moreover, it fosters serendipity. Furthermore, it empowers you to make meaningful connections.',
+])('Formulaic frames and vocabulary clusters stay quiet on ordinary prose: %s', async source => {
+    const { findings } = await review(source);
+    expect(findings.filter(f => ['formulaic.contrast', 'formulaic.framing', 'formulaic.fragment-question', 'formulaic.vocabulary'].includes(f.kind))).toEqual([]);
+});
+
+test.each(Object.entries(frames))('local Formulaic frame %s joins the Formulaic lens with full-scan equivalence, examples and Ignore', async (rule, [text, actual]) => {
+    const source = `😀 Intro.\n\n${text}\n\nAnother paragraph.`;
+    const { data, findings } = await review(source);
+    expect(data).toEqual(await analyzeWritingFull(source));
+    const shifted = `A new introduction.\n\n${source}`;
+    expect(await analyzeWriting(shifted)).toEqual(await analyzeWritingFull(shifted));
+    const [finding, ...others] = findings.filter(f => f.sources.some(raw => raw.rule === `figaro-formulaic/${rule}`));
+    expect(others).toEqual([]);
+    expect(finding).toMatchObject({ lens: 'formulaic', severity: 'advisory', fixes: [], sourceText: actual, kind: `formulaic.${writingFormulaicFrameRules[rule]}` });
+    expect(finding.sources.every(raw => raw.package === 'figaro-formulaic' && raw.version === writingFormulaicFramesVersion)).toBe(true);
+    expect(writingSuggestionExamples(finding)[0]).toMatchObject({ label: 'Example', before: expect.any(String), after: expect.any(String) });
+    expect(writingSuggestionExplanation(finding)).toContain('not evidence of AI authorship');
+    const saved = JSON.parse(JSON.stringify([createWritingDecision(finding, source, 'en-US', 'occurrence', 'formulaic-frame')]));
+    expect((await review(source, ['formulaic'], saved)).findings.some(f => f.id === finding.id)).toBe(false);
+    expect((await review(source, ['spelling'])).findings).toEqual([]);
+});
+
+test('package contrast findings win over an overlapping local frame for the same concern', async () => {
+    const { findings } = await review('A garden is not just a tool — it is a mindset.');
+    const contrast = findings.filter(f => f.kind === 'formulaic.contrast');
+    expect(contrast).toHaveLength(1);
+    expect(contrast[0].sources.map(raw => raw.rule)).toEqual(['slopless/negation-reframe']);
+});
+
+test('vocabulary clusters need four different listed words, two of them promotional', () => {
+    const message = words => `LLM abstraction vocabulary density: 4 contextual stock words in a short span (${words}). Replace stock wording with concrete language.`;
+    expect(writingSloplessVocabularyCluster(message('unlock, seamless, insights, navigate, empowers'))).toBe(true);
+    expect(writingSloplessVocabularyCluster(message('workflow'))).toBe(false);
+    expect(writingSloplessVocabularyCluster(message('next, scale, approach, confidence, impact, ai'))).toBe(false);
+    expect(writingSloplessVocabularyCluster(message('seamless, next, scale, approach'))).toBe(false);
+    expect(writingSloplessVocabularyCluster('Unexpected native wording')).toBe(false);
 });

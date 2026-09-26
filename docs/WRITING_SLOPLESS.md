@@ -1,7 +1,8 @@
 # Formulaic writing: Slopless rule selection
 
-Figaro pins **Slopless 0.2.38** (MIT) and enables **29 of its 77 exported rules**.
-The remaining **48 rules** are listed below. The package is an English textlint
+Figaro pins **Slopless 0.2.38** (MIT) and enables **30 of its 77 exported rules**.
+The remaining **47 rules** are listed below, followed by five
+[Figaro-local frames](#figaro-local-frames) that fill measured gaps. The package is an English textlint
 provider; it runs locally in the existing eager prose worker after debounce.
 This is an optional lens, disabled on new notes until selected, and available
 for English (US) and English (UK). Selecting Spanish or None unchecks it.
@@ -60,6 +61,7 @@ authorship or produce an AI probability score.
 - `empty-emphasis`
 - `superficial-analysis`
 - `semantic-thinness`
+- `llm-vocabulary-density`
 
 ## Excluded rules
 
@@ -95,9 +97,13 @@ These broad vocabulary lists and frequency policies remain deferred. Their indiv
 thresholds, and explanations need further evaluation before presenting them as useful
 formulaic-writing advice. A word’s presence alone does not establish a formulaic passage. This is a
 coverage limitation, not a claim that other lenses cover every entry or that intentional style
-should never be flagged.
+should never be flagged. The broader vocabulary list counts one repeated technical word (“key”
+three times) as a cluster, and its span nests inside the included density rule's reports. The SEO
+filler rule has no public rule module, and several of its phrases (“this guide will cover”) are
+ordinary in guides. The prohibited-phrase list repeats the summative closer for “in conclusion”.
+[Local frames](#figaro-local-frames) cover the stock openers these lists would have caught.
 
-`actually-overuse`, `llm-vocabulary`, `llm-vocabulary-density`, `prohibited-words`,
+`actually-overuse`, `llm-vocabulary`, `prohibited-words`,
 `quietly-filler`, `quietly-overuse`, `silently-filler`, `jargon-faker`, `skunked-terms`,
 `uncomparables`, `humble-bragger`, `prohibited-phrases`, `seo-filler`.
 
@@ -155,7 +161,8 @@ Ignore choices for a curly apostrophe continue to apply to the matching
 apostrophe-style finding.
 
 `core/writingSloplessModel.js` owns the selection, neutral presentation,
-examples, UTF-16 range validation and repeated-word anchors.
+examples, UTF-16 range validation, repeated-word anchors, the vocabulary-cluster
+guard and package-first merging of local frames.
 Mapping/configuration version 25 includes the package pin and exact selected
 rule map. No CLI, runtime configuration files, model API, network service or
 interaction-triggered module import is used. Package upgrades require another
@@ -167,7 +174,10 @@ with complete full-scan/incremental equivalence before and after prepending pros
 protected Markdown, CRLF/Unicode/encoded source, exact typography marks,
 same-concern deduplication, distinct-concern retention, examples, independent selection, preserved
 Consistency behavior,
-and reversible serialized Ignore. Shared use-case/worker tests cover debounce,
+and reversible serialized Ignore. The same file runs each local frame through the pipeline with
+the same equivalence, examples and Ignore checks, keeps a list of ordinary contrasts, openers and
+technical vocabulary quiet, and covers the vocabulary-cluster guard and package-first merging.
+Shared use-case/worker tests cover debounce,
 late-result rejection, cancellation and retry. Component tests cover the Formulaic writing
 control and the existing inline buttons; rooted Go tests cover preference
 save/restart and Apply to all documents. The production browser startup check
@@ -193,3 +203,49 @@ equivalence is checked by `node scripts/verify-writing-performance.mjs`. See
 [long-note
 evidence](WRITING_ENGINE.md#rename-continuity-and-long-note-performance--7-september-2026)
 and the separate [usefulness corpus proposal](WRITING_CORPUS.md).
+
+## Vocabulary clusters and local frames
+
+### Vocabulary clusters
+
+`llm-vocabulary-density` reports four listed words within one paragraph (at most 90 words) or a
+two-to-four-sentence window (at most 65 words). The package accepts no word list or threshold
+options. Its list mixes promotional words (“seamless”, “unlock”, “empower”, “ecosystem”) with
+words that technical, planning and research notes use literally (“workflow”, “next”, “scale”,
+“approach”, “confidence”, “impact”, “insights”, “navigate”, “AI”). Unfiltered, it flagged
+“the workflow” repeated four times and ordinary planning notes. Figaro therefore reports a cluster
+only when it contains at least four *different* listed words, including at least two outside that
+reviewed literal-use set; a single word, or one repeated term, is never flagged. The finding offers
+no Apply, and the explanation states that it does not identify AI authorship.
+
+### Figaro-local frames
+
+`core/writingFormulaicFrames.js` is a pure detector for five frames the pinned rules miss. It
+emits textlint-shaped messages through the Slopless path, so projection, protected content,
+paragraph caching and Ignore are unchanged. A package finding for the same concern and span wins.
+
+| Frame | Example | Concept | Precision guards |
+| --- | --- | --- | --- |
+| `not-just-reframe` | “isn’t just a tool — it’s a mindset” | contrast | Needs “just/merely/simply” and a following copula; “it’s also”, “not only” and clauses with numbers or names stay quiet. |
+| `not-about-reframe` | “It’s not about notes; it’s about understanding” | contrast | Pronoun subject and “about … about”; numbers or names stay quiet. |
+| `cliche-aphorism` | “a journey, not a destination” | contrast | Only journey/destination and marathon/sprint. |
+| `stock-opener` | “In today’s fast-paced digital landscape” | framing | Trend adjective and world/landscape/age noun; “In today’s meeting” and “In today’s market, prices fell” stay quiet. A directly following “it’s worth noting that” joins the finding. |
+| `fragment-question` | “The result? A graveyard…” | rhetorical question | Sentence-initial stock noun answered on the same line. |
+
+Upstream `negation-reframe` recognizes uncontracted “is not just X — it is Y” and two-sentence
+reframes, but not the contracted “it’s” payoff; its semicolon form is limited to evaluative
+metaphors. No included rule covers stock openers or fragment questions. Bare corrections such as
+“It’s not red; it’s orange.” are not flagged. Standalone “It’s worth noting that…” is a common
+human caveat and stays quiet. `formal-transition-density` keeps its three-transition threshold, so
+two consecutive “Moreover… Furthermore…” sentences are not reported.
+
+### Evaluation
+
+On the AI-style usefulness draft, Formulaic writing reports 10 concerns instead of 4: the stock
+opener with “it’s worth noting”, both negation frames, the fragment question, the vocabulary
+cluster, and the journey aphorism, alongside the existing wrapper, framing, conclusion and
+“game-changer” findings. Two-word clusters (“living, breathing ecosystem”, “truly transformative”)
+and the two-transition chain stay quiet by design. The whole-document evaluator reports no new
+Formulaic finding on the four user guides, the two drafted human notes, or either frozen corpus.
+Raw runs over the living documentation and 480 dependency READMEs produced no local-frame or
+vocabulary-cluster hit.

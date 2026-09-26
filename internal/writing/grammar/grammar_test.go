@@ -101,3 +101,24 @@ func TestGrammarUnicodeCRLFRepeatAndExplicitWorkLimit(t *testing.T) {
 		t.Fatal("missing bound", err)
 	}
 }
+
+// Policy 9 cues never cross protected text or paragraph breaks, and the
+// comma-joined existential keeps its correction when the comma ends a line.
+func TestCommonErrorBoundaries(t *testing.T) {
+	lex := testLexicon(t)
+	for _, source := range []string{
+		"We need to decide weather ￼ to keep it.", "We need to decide\n\nweather to keep it.",
+		"Send it to Ana and\n\nI on Friday.", "Send it to Ana ￼ and I on Friday.",
+		"Less\n\nqueries hit the database.", "Compare last years. Prices rose.",
+		"I could care\n\nless.", "The migration is done.\n\nTheir is. A warning follows.",
+		"The new design effects ￼ everyone.",
+	} {
+		if got, err := lex.Analyze(source); err != nil || len(got) > 0 {
+			t.Errorf("boundary %q: %+v %v", source, got, err)
+		}
+	}
+	got, err := lex.Analyze("The migration is almost done,\ntheir is one table left.")
+	if err != nil || len(got) != 1 || got[0].Rule != "TheirToThere" || got[0].Replacement != "there" {
+		t.Fatalf("comma-joined existential: %+v %v", got, err)
+	}
+}

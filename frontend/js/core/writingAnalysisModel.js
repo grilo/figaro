@@ -6,22 +6,25 @@ import { additionalWritingRulesVersion, longSentenceWordLimit, writingSentenceWo
 import { readabilityOptions, writingEditorialPolicyVersion } from './writingPackagePolicy.js';
 import { writingTerminology, writingTextlintVersions, writingAcronymDefined, familiarWritingAcronyms } from './writingTextlintModel.js';
 import { writingSloplessVersion, writingSloplessRules, writingSloplessKinds, writingSloplessConcepts } from './writingSloplessModel.js';
+import { writingFormulaicFramesVersion, writingFormulaicFrameRules } from './writingFormulaicFrames.js';
 import { spellingVocabularyVersion } from './spellingVocabulary.js';
-import { writingAdvisoryContext, writingSingleExclamationRun } from './writingContextModel.js';
+import { writingAdvisoryContext, writingModifierConcern, writingPassiveNamesActor, writingSingleExclamationRun } from './writingContextModel.js';
 
-export const writingMappingVersion = '25';
+export const writingMappingVersion = '27';
 export const writingEngineConfiguration = Object.freeze({ mapping: writingMappingVersion, grammar: writingGrammarVersion, spellingVocabulary: spellingVocabularyVersion, vale: '3.20.0',
     writeGood: 'c9ceca7f574248a201d5524b001099c5626c7519', proselint: '8e24adbaa5dc6593b331f8bfab23c9af044af406',
     passive: '5.0.0', simplify: '8.0.0', repetition: '5.0.0', spelling: 'nspell-2.1.5', article: '5.0.0',
     contractions: '6.0.0', redundantAcronyms: '5.0.0', quotes: '6.0.2', equality: '7.1.0',
     sentenceSpacing: '6.0.0', diacritics: '5.0.0', readability: '8.0.0', readabilityOptions,
     textlint: writingTextlintVersions, slopless: { version: writingSloplessVersion, rules: writingSloplessRules },
+    formulaicFrames: { version: writingFormulaicFramesVersion, rules: writingFormulaicFrameRules },
     terminology: writingTerminology, familiarAcronyms: familiarWritingAcronyms, ordinaryCapitalWords: 'dictionary-en-4.0.0',
     microsoft: '8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e', additionalRules: additionalWritingRulesVersion, editorial: writingEditorialPolicyVersion });
 const concepts = {
     ...writingSloplessConcepts,
     ...Object.fromEntries(Object.values(writingGrammarKinds).map(kind => [kind, { lens: 'grammar', category: 'grammar', title: 'Check grammar', message: 'Review this construction in context.' }])),
-    'style.modifier': { lens: 'direct', category: 'directness', title: 'Review vague modifier', message: 'Consider a specific description if this modifier adds little. Keep it when the degree or emphasis matters.' },
+    'style.modifier': { lens: 'direct', category: 'directness', title: 'Review filler word', message: 'Consider removing this word if it adds nothing, or replacing it with the detail it stands for.' },
+    'style.vague-quantity': { lens: 'direct', category: 'directness', title: 'Be specific', message: 'How much, how often, or according to what? If you have a number, a date, or a source, consider stating it instead.' },
     'syntax.indirect-opening': { lens: 'direct', category: 'directness', title: 'Review indirect opening', message: 'Consider leading with the subject instead of “there is” or “there are” if that makes the point clearer.' },
     'style.opening-transition': { lens: 'direct', category: 'directness', title: 'Review opening transition', message: 'Keep “so” when it expresses a useful connection; consider removing it when it only delays the point.' },
     'style.archaism': { lens: 'plain', category: 'clarity', title: 'Review old-fashioned wording', message: 'Consider a familiar contemporary expression for a general audience. Keep period language when it serves your purpose.' },
@@ -85,8 +88,21 @@ const rules = {
     'Microsoft.Passive': 'syntax.passive', 'Microsoft.SentenceLength': 'readability.long-sentence', 'Microsoft.Wordiness': 'style.wordiness',
     'Microsoft.Acronyms': 'clarity.undefined-acronym',
 };
-const advisoryOnly = new Set(['style.reader-assumption', 'syntax.passive', 'readability.long-sentence', 'readability.complex-sentence', 'style.stock-phrase', 'style.hedging', 'style.hyperbole', 'grammar.unmatched-pair', 'clarity.undefined-acronym']);
+const advisoryOnly = new Set(['style.reader-assumption', 'style.vague-quantity', 'syntax.passive', 'readability.long-sentence', 'readability.complex-sentence', 'style.stock-phrase', 'style.hedging', 'style.hyperbole', 'grammar.unmatched-pair', 'clarity.undefined-acronym']);
 const reviewed = new Set(['in order to', 'due to the fact that', 'at this point in time', 'utilize', 'utilizes', 'utilized', 'utilizing']);
+// Plain-language matches without a reviewed replacement are shown only when the
+// wording is genuinely wordy: a multi-word phrase, or a formal single word.
+// Everyday words such as “previous”, “require” or “delete” are already plain.
+const formalWords = new Set(['facilitate', 'facilitates', 'facilitated', 'facilitating', 'commence', 'commences', 'commenced',
+    'endeavor', 'endeavour', 'endeavors', 'endeavours', 'ascertain', 'ascertained', 'terminate', 'terminated', 'initiate',
+    'initiated', 'utilise', 'utilises', 'utilised', 'numerous', 'subsequently', 'aforementioned', 'henceforth', 'heretofore',
+    'whereby', 'therein', 'notwithstanding', 'pursuant', 'expedite', 'expedited', 'remuneration', 'cognizant', 'disseminate',
+    'disseminated', 'procure', 'procured', 'inception', 'whilst', 'prior']);
+function plainAdviceUseful(actual) {
+    const words = clean(actual).split(' ');
+    if (words.length === 1) return formalWords.has(words[0]);
+    return !/^(?:it|this|that|there) (?:is|was)$/u.test(words.join(' '));
+}
 const clean = text => text.toLowerCase().replace(/\s+/g, ' ').trim();
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 export const selectedWritingLenses = preferences => {
@@ -193,12 +209,16 @@ function normalizeObservation(raw, source, projection, spelling) {
     // Reader-assumption tone is directness advice; saved inclusive decisions still apply.
     const readerAssumption = kind === 'language.inclusive' && raw.adviceType === 'reader-assumption';
     if (readerAssumption) kind = 'style.reader-assumption';
+    // Vague degree and frequency ask for the missing number or source.
+    const vagueQuantity = kind === 'style.modifier' && writingModifierConcern(actual) === 'precision';
+    if (vagueQuantity) kind = 'style.vague-quantity';
     if (kind === 'clarity.undefined-acronym' && !spelling.acronyms.has(actual)) spelling.acronyms.set(actual, writingAcronymDefined(actual, projection));
+    const phraseNeedsReview = ['style.wordiness', 'lexicon.complex-word'].includes(kind) && !reviewed.has(clean(actual));
     const suppressed = kind === 'clarity.undefined-acronym' && (familiarWritingAcronyms.includes(actual) || projection.ordinaryCapitals?.includes(actual)) ? 'Familiar acronym or ordinary word'
         : kind === 'clarity.undefined-acronym' && spelling.acronyms.get(actual) ? 'Acronym defined in prose'
             : kind === 'formulaic.exclamation-density' && writingSingleExclamationRun(raw, projection) ? 'Covered by emphatic punctuation advice'
-                : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context' : '';
-    const phraseNeedsReview = ['style.wordiness', 'lexicon.complex-word'].includes(kind) && !reviewed.has(clean(actual));
+                : writingAdvisoryContext(kind, raw, projection) ? 'Wording has an established meaning in this context'
+                    : phraseNeedsReview && !plainAdviceUseful(actual) ? 'Already plain wording' : '';
     const fixes = referenceLabel || raw.package === 'slopless' || phraseNeedsReview ? [] : kind === 'style.quotation' ? quotationFix(raw, range, source, projection)
         : !suppressed && range.editable && !advisoryOnly.has(kind) && !kind.startsWith('formulaic.')
             && (!writingGrammarRules[raw.rule] || !/[\r\n]/u.test(source.slice(range.from, range.to)))
@@ -215,6 +235,8 @@ function normalizeObservation(raw, source, projection, spelling) {
     return { ...range, raw, kind, actual, sourceText: source.slice(range.from, range.to), suppressed, severity: 'advisory', intent: raw.intent || 'review', fixes,
         ...(kind === 'syntax.indirect-opening' && /^there (?:is|are)$/iu.test(actual) ? { legacyKind: 'style.wordiness' } : {}),
         ...(readerAssumption ? { legacyKind: 'language.inclusive' } : {}),
+        // Saved Ignore decisions made while these were “vague modifier” advice still apply.
+        ...(vagueQuantity ? { legacyKind: 'style.modifier' } : {}),
         // Apostrophes were also reported by the former Formulaic curly-punctuation rule.
         ...(kind === 'style.apostrophe' ? { legacyKind: 'formulaic.curly-punctuation' } : {}),
         ...(kind === 'grammar.spelling' ? { bulkSafe: raw.bulkSafe === true } : {}), ...presentation };
@@ -251,6 +273,27 @@ function commaSpacingEditKey(entry) {
     if (start === end && start === replacementEnd) return null;
     return JSON.stringify([from + start, from + end, replacement.slice(start, replacementEnd)]);
 }
+// A single actorless passive is usually a fine choice. Keep passive advice
+// where it is actionable: the sentence names its actor (“…by Maya”), or
+// passives cluster so that nobody acts across a sentence or paragraph.
+const passiveSentenceCluster = 2, passiveParagraphCluster = 3;
+function focusPassiveFindings(findings, source, regions, sentences) {
+    const passives = findings.filter(finding => finding.kind === 'syntax.passive' && !finding.suppressed);
+    const count = (ranges, finding) => {
+        const range = ranges.find(item => item.from <= finding.from && item.to >= finding.to);
+        return range ? passives.filter(other => other.from >= range.from && other.to <= range.to).length : 1;
+    };
+    for (const finding of passives) {
+        if (writingPassiveNamesActor(source.slice(finding.to, finding.to + 256))) {
+            finding.message = 'This sentence names who acts. Consider making that actor the subject.';
+        } else if (count(sentences, finding) >= passiveSentenceCluster || count(regions, finding) >= passiveParagraphCluster) {
+            finding.message = 'Several passive constructions close together can hide who does what. Consider naming the actor in at least one.';
+        } else {
+            finding.suppressed = 'Single passive without a named actor';
+        }
+    }
+}
+
 export function resolveWritingFindings({ source, projection = { units: [], regions: [], sentences: [] }, observations = [], preferences, decisions = [], language = preferences?.language }) {
     const p = normalizeWritingLenses(preferences);
     const selected = selectedWritingLenses(p);
@@ -306,11 +349,12 @@ export function resolveWritingFindings({ source, projection = { units: [], regio
         }
         finding.fixes.sort((a, b) => compare(a.replacement, b.replacement));
     }
+    const sentenceRanges = (projection.sentences || []).map(item => mapWritingRange(projection, item.start, item.end)).filter(Boolean);
+    focusPassiveFindings(findings, source, projection.regions || [], sentenceRanges);
     applyWritingDecisions(findings, decisions, source, language);
     const visible = findings.filter(item => !item.suppressed && item.lenses.some(lens => selected.includes(lens)));
     for (const item of visible) item.lens = item.lenses.find(lens => selected.includes(lens));
     const groups = new Map();
-    const sentenceRanges = (projection.sentences || []).map(item => mapWritingRange(projection, item.start, item.end)).filter(Boolean);
     for (const finding of visible) {
         const region = projection.regions.find(item => item.from <= finding.from && item.to >= finding.to) || { from: finding.from, to: finding.to };
         const sentence = sentenceRanges.find(item => item && item.from >= region.from && item.to <= region.to && item.from <= finding.from && item.to >= finding.to);

@@ -747,7 +747,19 @@ export async function initApp() {
         writingLensesController = initWritingLenses({
             dictionary: spellingDictionary,
             dictionaryReady,
-            setSpelling: setSpellcheck,
+            setSpelling: spelling => {
+                setSpellcheck(spelling);
+                // Context-menu spelling accepts the same personal and vault words as review.
+                if (Array.isArray(spelling?.words)) setSpellingWords(spelling.words);
+            },
+            // Note titles and saved tags are the vault's vocabulary for spelling.
+            vaultVocabulary: {
+                read: () => ({ tree: getState('fileTreeData') || [], tags: getState('kanbanCompletionColumns') || [] }),
+                subscribe(listener) {
+                    const stops = ['fileTreeData', 'kanbanCompletionColumns'].map(key => subscribe(key, listener, 'writing-vocabulary'));
+                    return () => stops.forEach(stop => stop());
+                },
+            },
             getActiveTab,
             getEditorDocumentTabId,
             getView: getEditorView,

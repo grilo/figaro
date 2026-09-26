@@ -431,41 +431,56 @@ describe('live PDF preview', () => {
         const { frame, postMessage, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
         const token = render().token;
         postMessage.mockClear();
+        // The throttle window is measured on the monotonic clock. Drive that
+        // clock explicitly so a busy runner cannot stretch a gap past it.
+        let clock = 10_000;
+        const now = jest.spyOn(globalThis.performance, 'now').mockImplementation(() => clock);
+        const previousAnimationFrame = globalThis.requestAnimationFrame;
+        const frames = [];
+        globalThis.requestAnimationFrame = callback => frames.push(callback);
+        const scrollEditorTo = top => {
+            editorScroller.scrollTop = top;
+            editorScroller.dispatchEvent(new Event('scroll'));
+            for (const callback of frames.splice(0)) callback();
+        };
 
-        editorScroller.scrollTop = 100;
-        editorScroller.dispatchEvent(new Event('scroll'));
-        await waitForPreview(20);
-        editorScroller.scrollTop = 220;
-        editorScroller.dispatchEvent(new Event('scroll'));
-        await waitForPreview(5);
-        editorScroller.scrollTop = 320;
-        editorScroller.dispatchEvent(new Event('scroll'));
-        await waitForPreview(5);
-        editorScroller.scrollTop = 420;
-        editorScroller.dispatchEvent(new Event('scroll'));
-        await waitForPreview(70);
+        try {
+            scrollEditorTo(100);
+            for (const top of [220, 320, 420]) {
+                clock += 8;
+                scrollEditorTo(top);
+            }
+            // Only the trailing flush remains; its timer is due well before this wait ends.
+            clock += 40;
+            await waitForPreview(70);
 
-        const updates = postedBridgeMessages(postMessage)
-            .filter(message => message.type === 'set-content-progress');
-        expect(updates.length).toBeLessThanOrEqual(2);
-        expect(updates.at(-1)).toEqual(expect.objectContaining({
-            token,
-            progress: 0.7,
-        }));
+            const updates = postedBridgeMessages(postMessage)
+                .filter(message => message.type === 'set-content-progress');
+            expect(updates).toHaveLength(2);
+            expect(updates.at(-1)).toEqual(expect.objectContaining({
+                token,
+                progress: 0.7,
+            }));
 
-        postMessage.mockClear();
-        dispatchBridgeMessage(frame, {
-            type: 'scroll',
-            token,
-            documentProgress: 0.7,
-            contentProgress: 0.2,
-            programmatic: false,
-        });
-        await waitForPreview(20);
-        editorScroller.dispatchEvent(new Event('scroll'));
-        await waitForPreview(40);
-        expect(postedBridgeMessages(postMessage)
-            .filter(message => message.type === 'set-content-progress')).toHaveLength(0);
+            postMessage.mockClear();
+            clock += 100;
+            dispatchBridgeMessage(frame, {
+                type: 'scroll',
+                token,
+                documentProgress: 0.7,
+                contentProgress: 0.2,
+                programmatic: false,
+            });
+            await waitForPreview(20);
+            clock += 20;
+            scrollEditorTo(editorScroller.scrollTop);
+            await waitForPreview(40);
+            expect(postedBridgeMessages(postMessage)
+                .filter(message => message.type === 'set-content-progress')).toHaveLength(0);
+        } finally {
+            globalThis.requestAnimationFrame = previousAnimationFrame;
+            now.mockRestore();
+        }
     });
 
     test('routes bridge link requests without allowing the iframe to navigate', async () => {

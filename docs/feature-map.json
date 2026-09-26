@@ -566,7 +566,8 @@
       "frontend/js/core/writingPackagePolicy.js",
       "frontend/js/core/writingDecisionsModel.js",
       "frontend/js/core/writingSloplessModel.js",
-      "frontend/js/core/writingTypographyModel.js"
+      "frontend/js/core/writingTypographyModel.js",
+      "frontend/js/core/writingFormulaicFrames.js"
     ],
     "docs": [
       "docs/WRITING_CORPUS_FIXES.md#september-quality-follow-up",
@@ -593,6 +594,8 @@
       "frontend/js/core/writingContextModel.js": [
         "writingWordinessContext",
         "writingAdvisoryContext",
+        "writingModifierConcern",
+        "writingPassiveNamesActor",
         "writingInclusiveContext"
       ],
       "frontend/js/core/writingAnalysisModel.js": [
@@ -606,6 +609,9 @@
       ],
       "frontend/js/core/writingDecisionsModel.js": [
         "applyWritingDecisions"
+      ],
+      "frontend/js/core/writingFormulaicFrames.js": [
+        "formulaicFrameMessages"
       ]
     },
     "extraChecks": [
@@ -646,7 +652,8 @@
       "internal/writing/grammar/prepositions.go",
       "internal/writing/grammar/usage_words.go",
       "internal/writing/grammar/noun_agreement.go",
-      "internal/writing/grammar/clauses.go"
+      "internal/writing/grammar/clauses.go",
+      "internal/writing/grammar/common_errors.go"
     ],
     "docs": [
       "docs/WRITING_HARPER.md#scope",
@@ -659,7 +666,8 @@
       "docs/WRITING_HARPER.md#broad-phrase-and-mechanics-coverage",
       "docs/WRITING_HARPER.md#contextual-usage-and-noun-subjects",
       "docs/WRITING_HARPER.md#broader-contexts-and-quality-follow-up",
-      "docs/WRITING_HARPER.md#document-gap-corrections"
+      "docs/WRITING_HARPER.md#document-gap-corrections",
+      "docs/WRITING_HARPER.md#common-errors-from-the-proofreading-review"
     ],
     "history": [
       "docs/benchmarks/writing-grammar-expansion-2026-09-19.md#behavioral-comparison-with-native-harper",
@@ -768,7 +776,8 @@
     "docs": [
       "docs/WRITING_ENGINE.md#editorial-scope-and-source-safety",
       "docs/WRITING_ENGINE.md#inline-review-and-personal-spelling-words",
-      "docs/WRITING_CORPUS_FIXES.md#september-quality-follow-up"
+      "docs/WRITING_CORPUS_FIXES.md#september-quality-follow-up",
+      "docs/WRITING_ENGINE.md#spelling-dictionary-policy"
     ],
     "tests": [
       "tests/frontend/unit/writingSpelling.test.js",
@@ -779,7 +788,8 @@
       "tests/frontend/unit/writingTechnicalModel.test.js",
       "tests/frontend/unit/writingCorpusSafety.test.js",
       "tests/frontend/unit/writingQuality.test.js",
-      "tests/frontend/unit/spellingDictionarySettings.test.js"
+      "tests/frontend/unit/spellingDictionarySettings.test.js",
+      "tests/frontend/unit/writingLenses.test.js"
     ],
     "extraChecks": [
       "Personal-word resolution and shared technical masking also need writing. Persistence changes need go test ./internal/settings ./internal/desktop -run SpellingDictionary. Package mapping changes need the existing productionBundle boundary."
@@ -787,7 +797,8 @@
     "symbols": {
       "frontend/js/core/spellingModel.js": [
         "spellingSource",
-        "spellcheckWordRanges"
+        "spellcheckWordRanges",
+        "spellingSentenceStart"
       ],
       "frontend/js/core/writingFootnoteModel.js": [
         "writingFootnoteRanges"
@@ -796,7 +807,8 @@
         "spellingWordKey",
         "acceptedSpelling",
         "filterAcceptedSpelling",
-        "personalDictionaryList"
+        "personalDictionaryList",
+        "vaultSpellingWords"
       ],
       "frontend/js/usecases/spellingDictionary.js": [
         "createSpellingDictionary"
@@ -866,7 +878,9 @@
       "frontend/js/views/writingInlineView.js",
       "frontend/js/core/writingInlineModel.js",
       "frontend/js/writingLinkHints.js",
-      "frontend/js/core/writingLinkModel.js"
+      "frontend/js/core/writingLinkModel.js",
+      "frontend/js/core/writingReviewModel.js",
+      "frontend/js/views/writingResultsView.js"
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#inline-review-and-personal-spelling-words",
@@ -879,7 +893,9 @@
     "tests": [
       "tests/frontend/unit/writingInline.test.js",
       "tests/frontend/unit/writingLinkHints.test.js",
-      "tests/frontend/unit/editorTypingInventory.test.js"
+      "tests/frontend/unit/editorTypingInventory.test.js",
+      "tests/frontend/unit/writingReviewModel.test.js",
+      "tests/frontend/unit/writingResultsView.test.js"
     ],
     "extraChecks": [
       "Changes to real hover, focus, or cursor geometry require the existing editorUX and packaged-native checks."
@@ -901,6 +917,11 @@
       "frontend/js/core/writingLinkModel.js": [
         "indexWritingLinkFindings",
         "writingLinkFindingsInRange"
+      ],
+      "frontend/js/core/writingReviewModel.js": [
+        "mergeWritingFindingsBySpan",
+        "writingFindingTier",
+        "writingReviewCards"
       ]
     }
   },

@@ -1447,7 +1447,9 @@ corrections explicitly; the pure bulk planner requires this flag for spelling.
 `core/writingContextModel.js` bounds phrase context to nearby prose in the same
 block, guarding technical noun senses, familiar vocabulary, meaningful modifiers,
 acronym-definition wording and Directness reader-assumption advice (instructions
-or reader-addressed sentences only). Technical passive guards use nearby subject and
+or reader-addressed sentences only). It also classifies modifiers as filler or
+vague quantity and detects a named passive actor; `writingAnalysisModel.js`
+applies the passive cluster rule after findings are built. Technical passive guards use nearby subject and
 predicate evidence; descriptive guards use bounded time, location, physical
 state and possessive-gerund cues. Passive context reads at most 256 projected
 characters on each side and does not cross sentence/block boundaries. Explicit
@@ -1487,8 +1489,8 @@ to meaningful adjacent words without crossing protected content or line breaks.
 The same pure policy restricts equality advice to reviewed generic expressions
 and handles reviewed/uncertain article pronunciations; exact source mapping is
 separate from editorial suitability.
-Mapping version 25 includes curated grammar policy 8, package pins, reviewed terms/acronym
-exceptions, editorial policy version 9, spelling vocabulary version 5, and formula options in
+Mapping version 27 includes curated grammar policy 9, the local formulaic frames, package pins, reviewed terms/acronym
+exceptions, editorial policy version 10, spelling vocabulary version 6, and formula options in
 snapshot
 identity. The resolver keeps formula and length advice distinct, merging only equivalent
 concerns and retaining every contributing lens and native source. A pure comma-spacing
@@ -1527,9 +1529,12 @@ prose without opening marks or reviewed names skips punctuation/terminology exec
 the dependencies remain eager. Build adapters disable terminology's optional
 Node file loaders with explicit errors; browser `assert`/`process` dependencies
 support the real kernel. No runtime filesystem or dynamic import is introduced.
-`writingSloplessRuntime.js` statically imports 29 public Slopless 0.2.38 rule modules
-into this worker. Its CLI is not bundled. `core/writingSloplessModel.js` owns
-selection, neutral messages/examples, native-range validation
+`writingSloplessRuntime.js` statically imports 30 public Slopless 0.2.38 rule modules
+into this worker. Its CLI is not bundled. The pure `core/writingFormulaicFrames.js`
+detects five Figaro-local frames; the textlint adapter appends its messages to each
+Slopless paragraph result, so they share the paragraph cache. `core/writingSloplessModel.js` owns
+selection, neutral messages/examples, native-range validation, the vocabulary-cluster guard,
+package-first merging of local frames
 and first-occurrence anchors for each verified repeated word. All selected rules
 use protected prose; quote style comes from `retext-quotes` instead. Snapshot configuration includes
 the exact rule map.
@@ -2591,7 +2596,11 @@ Proofreading owns local spelling checks through its dedicated spelling worker an
 shared inline findings. Its English US/UK and Spanish Hunspell assets are bundled
 and cached locally. The document’s lens combination and analysis language are
 authoritative for spelling enablement and language; Settings manages accepted personal words and
-frontmatter no longer configures spelling. Legacy
+frontmatter no longer configures spelling. The composition root also injects a
+read/subscribe port over the file tree and saved tag vocabulary; the writing-lens
+adapter derives in-memory vault words from note titles and tags with pure
+`vaultSpellingWords` and adds them to the job's accepted words without
+persisting them. Legacy
 settings/YAML are preserved without effect. A hyphenated prose compound
 is accepted when every component is recognized by the same active dictionary,
 so terms such as `faster-than-usual` remain unmarked despite dictionary

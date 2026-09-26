@@ -1,10 +1,15 @@
-/** Visible, current occurrences only; display grouping never authorizes an edit. */
+import { mergeWritingFindingsBySpan } from './writingReviewModel.js';
+
+/**
+ * Visible, current occurrences only; display grouping never authorizes an
+ * edit. Findings on the same text share one mark and one tooltip entry.
+ */
 export function inlineWritingFindings(snapshot) {
     const { current, analyzed, groups = [] } = snapshot || {};
     if (!current || !analyzed || current.id !== analyzed.id || current.revision !== analyzed.revision
         || current.configuration !== analyzed.configuration) return [];
     if (snapshot.inlineFindings) return snapshot.inlineFindings;
-    return groups.flatMap(group => group.findings).filter(finding => Number.isInteger(finding.from)
+    return mergeWritingFindingsBySpan(groups.flatMap(group => group.findings)).filter(finding => Number.isInteger(finding.from)
         && Number.isInteger(finding.to) && finding.from >= 0 && finding.to > finding.from
         && finding.to <= current.source.length && current.source.slice(finding.from, finding.to) === (finding.sourceText ?? finding.actual));
 }

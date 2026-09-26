@@ -64,8 +64,10 @@ test('Proofreading spelling hover and right-click replacements preserve native k
     await expect(misspelling).toBeVisible();
     await misspelling.hover();
     await expect(page.getByRole('dialog', { name: 'Writing suggestions', exact: true })).toContainText('selected dictionaries');
-    await page.evaluate(() => document.documentElement.style.setProperty('--link-color', 'rgb(18, 160, 176)'));
-    await expect(misspelling).toHaveCSS('background-size', '4px 2px');
+    await page.evaluate(() => document.documentElement.style.setProperty('--warning-color', 'rgb(18, 160, 176)'));
+    // Spelling is a Proofreading correction: a continuous line, not the dotted suggestion dashes.
+    await expect(misspelling).toHaveClass(/cm-writing-range--correction/);
+    await expect(misspelling).toHaveCSS('background-size', '100% 2px');
     expect(await misspelling.evaluate(element => getComputedStyle(element).backgroundImage)).toContain('rgb(18, 160, 176)');
 
     const misspelledWord = page.locator('.cm-writing-range').filter({ hasText: 'teh' });

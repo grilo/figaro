@@ -111,9 +111,9 @@ then select any combination of lenses:
 | --- | --- |
 | Proofreading | Spelling, repeated words, terminology, term consistency, and selected grammar and punctuation |
 | Clarity | Wordy phrases, jargon, clichés, unexplained acronyms, and long or complex sentences |
-| Directness | Possible passive constructions, qualifying phrases, and instructions that assume a task is easy or already known |
+| Directness | Passives that name their actor or cluster together, filler words, vague amounts and generalisations, qualifying phrases, and instructions that assume a task is easy or already known |
 | Inclusive language | Generic roles, exclusionary expressions, and accessibility wording |
-| Formulaic writing | Stock phrasing, rhetorical patterns, repetition, emphatic punctuation, and quote, apostrophe, and em-dash style |
+| Formulaic writing | Stock phrasing, rhetorical patterns, clustered stock vocabulary, repetition, emphatic punctuation, and quote, apostrophe, and em-dash style |
 
 Proofreading includes selected English verb agreement, infinitive, auxiliary,
 possessive, number, homophone, and phrase checks: for example, “She go” →
@@ -123,7 +123,10 @@ me went,” and questions such as “Has we finished?” and “Do I ready yet?�
 Selected prepositions and word choices also cover “good in swimming,” “a friend
 of me,” and “safe the file.” Noun-subject and amount checks catch “The chairs
 is ready” and “fewer time,” while preserving “fewer time slots.”
-These include 15 reviewed Harper-port rules and 160 Figaro checks. Apply checks the exact current text and can
+It also flags “weather” for “whether”, “Its not clear”, “to Ana and I” (→ “and
+me”), “less” with countable nouns (→ “fewer”), “last years prices” (→ “year’s”)
+and “effects” used as a verb; “could care less” gets an explanation without an
+edit. These include 15 reviewed Harper-port rules and 167 Figaro checks. Apply checks the exact current text and can
 be undone; Ignore remembers only that rule at that occurrence. Uncertain cases
 and paragraphs with masked quoted/code context are left alone. See the
 [curated grammar scope](WRITING_HARPER.md) for examples and limits. When local
@@ -143,6 +146,19 @@ Checks now follow a noun subject across one prepositional modifier, such as
 advice so you can choose the connection between the clauses. API members,
 PascalCase identifiers and reviewed technical abbreviations avoid unrelated
 spelling guesses. Literal timing, bird food and adjectival states are preserved.
+
+Spelling knows common software, keyboard and note-taking terms (Cmd, macOS,
+Kanban, backlinks, frontmatter) and treats words from your note titles and tags
+as correct while the vault is open, without adding them to your personal
+dictionary. A lowercase day or month gets its capital (“friday” → “Friday”),
+“alot” becomes “a lot”, and a capitalised name in mid-sentence is marked so you
+can add it, without a guess at a different word.
+
+Formulaic writing points out several promotional words close together (such as
+“seamless”, “unlock” and “empower”), stock openings like “In today’s
+fast-paced world”, rhetorical fragments like “The result?”, and “isn’t just X —
+it’s Y” contrasts. A single word or an ordinary contrast is not flagged, and
+none of this identifies AI authorship.
 
 English US and UK support spelling and prose checks. Spanish supports spelling
 only under Proofreading. Changing the language clears unsupported checks.
@@ -164,9 +180,13 @@ frontmatter stays as ordinary metadata.
 ## Review suggestions
 
 Analysis runs locally in background workers after a typing pause and uses
-unsaved text. Dotted underlines mark eligible words and phrases. Hover one, or
-place the caret inside it and press **Ctrl/Cmd+.**, to see an explanation and
-available actions. Escape returns to editing.
+unsaved text. A solid amber underline marks a likely **correction** from
+Proofreading (spelling, grammar, repetition, consistency); a dotted underline
+marks a **suggestion** from the other lenses, which you may reasonably decline.
+Hover one, or place the caret inside it and press **Ctrl/Cmd+.**, to see an
+explanation and available actions. When several checks flag the same words, they
+share one entry that lists every reason, and Ignore covers them all. Escape
+returns to editing.
 
 - **Apply** offers a reviewed replacement when available. Other hints give
   examples for manual revision, such as naming the actor in a passive sentence.
@@ -183,7 +203,8 @@ available actions. Escape returns to editing.
   analysis language, including future occurrences.
 - **Details** explains the rule and when keeping your wording may be appropriate.
 
-In the pane, the link icon jumps to the relevant passage. Identical advice
+In the pane, corrections are listed first, under **Corrections**, then
+**Suggestions**. The link icon jumps to the relevant passage. Identical advice
 shares one card with occurrence navigation. **Show more suggestions** reveals
 more cards. Suitable repeated replacements offer **Apply to all occurrences**
 within the current document as one Undo/Redo action. Other suggestions remain
@@ -225,9 +246,19 @@ expansion is correct. Code, math, metadata, and link destinations are protected;
 prose lenses also skip quoted passages. Number/unit spacing is not checked.
 
 Writing review avoids synonym-only advice for familiar words such as “remain,”
-“contains” and “however,” and preserves reviewed descriptions of manner,
-frequency and degree. Directness leaves reviewed technical process descriptions
-alone while retaining actor-focused passive advice. Timed maintenance, reviewed
+“contains” and “however.” Clarity offers plain-language advice without a
+ready replacement only for wordy phrases such as “with the exception of” and
+formal words such as “facilitate”; everyday words such as “previous,” “delete”
+and “require” are left alone. Complex-sentence estimates start at 25 words.
+
+Directness flags a passive when it names its actor (“was written by Maya”) or
+when passives cluster: two in one sentence or three in one paragraph. A single
+passive without an actor is left alone. Filler words such as “very” and
+“really” get remove-if-empty advice. Vague amounts, rates and generalisations
+such as “generally,” “usually” and “often” get **Be specific**, which asks for
+the number, date or source behind the claim, whether it describes a change
+(“slowly building up”) or an action (“reading slowly”). Directness also leaves
+reviewed technical process descriptions alone. Timed maintenance, reviewed
 physical states, elliptical API descriptions and possessive-gerund reactions
 also stay unmarked. Concrete “there is/are” statements about location, quantity
 or availability, such as “there is still time,” remain unchanged. Weak

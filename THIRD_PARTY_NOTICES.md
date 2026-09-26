@@ -420,7 +420,7 @@ limitations under the License.
 Source: https://github.com/vale-cli/Harper
 
 Harper is Copyright (c) Automattic, Inc. and contributors.
-Selected rules and dictionary derive from Harper 2.7.0. Figaro grammar policy 8
+Selected rules and dictionary derive from Harper 2.7.0. Figaro grammar policy 9
 includes pure Go implementations reviewed against Harper 2.10.0 and phrase
 mappings adapted from that version. Reference source/test hashes and the
 additional-rule inventory are recorded in `internal/writing/grammar/SOURCE.json`. The

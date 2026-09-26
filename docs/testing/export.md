@@ -33,7 +33,8 @@ adapter owns actual internal-link destination resolution.
 Preview scroll synchronization: `pdfPreview.test.js` sweeps a multi-line widget
 monotonically with content padding and requires the inverse to land on the
 same position, and keeps CodeMirror's own correction scrolls from echoing
-while a wheel gesture takes over. `pdfPreviewFrame.test.js` covers gap
+while a wheel gesture takes over. Its editor-scroll coalescing case drives the
+monotonic clock and animation frames explicitly rather than timing real waits. `pdfPreviewFrame.test.js` covers gap
 interpolation, programmatic echoes without lookups, the host lease against
 layout scrolls, footnote exclusion, and source-position restore on re-render.
 The `pdfPreviewFrame.spec.js` browser check confirms the same mapping with

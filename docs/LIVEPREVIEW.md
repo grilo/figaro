@@ -6,7 +6,7 @@ after those shifts. Structural edits and changes inside the projected line refre
 the preview; geometry and configuration changes refresh indentation metrics.
 
 Writing lenses analyze the owned unsaved Markdown snapshot and review suggestions
-in the shared pane and on dotted inline marks, including in Pure mode. The
+in the shared pane and on inline marks (a continuous line for corrections, dotted for suggestions), including in Pure mode. The
 footnote identifiers themselves never receive writing or spelling marks, even
 without definitions; actual footnote prose remains eligible. The
 marks decorate only visible existing text without added padding; they add no replacement or block
@@ -894,7 +894,7 @@ bridge.
 #### Writing review marks and right-pane controls
 
 Writing review uses the note’s independent lens combination and language. The
-spelling checks under Proofreading feed the same viewport-only dotted marks; no standalone spelling
+spelling checks under Proofreading feed the same viewport-only marks (the continuous correction line); no standalone spelling
 compartment or frontmatter switch competes with it. Tooltip examples and sidebar
 suggestion backgrounds do not alter source decoration geometry. Rendered
 ordinary links, explicit wiki aliases and reference labels carry the same dotted

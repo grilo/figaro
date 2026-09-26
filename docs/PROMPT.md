@@ -899,9 +899,15 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
 - **Offline spelling**: the spelling checks in per-document **Proofreading** and **Analysis
   language** are the controls for enabling spellchecking and choosing its language. Settings manages
   the vault’s personal dictionary; Properties exposes no spelling controls. English US, English UK,
-  and Spanish use bundled Hunspell dictionaries plus this vault’s accepted personal words. Legacy
+  and Spanish use bundled Hunspell dictionaries plus this vault’s accepted personal words. Words from
+  the vault’s Markdown note titles and saved tags are also accepted in memory (at most 5,000; chunks
+  with digits, words under three letters and reviewed typos are skipped) and never written to the
+  personal dictionary. English recognition adds regular plurals, un-/re-/multi-/-able derivations of
+  known words and accent folding. Suggestions offer only the capitalised form for a dictionary proper
+  noun (“friday” → “Friday”), reviewed splits for missing spaces (“alot” → “a lot”), and no
+  different-word guess for a capitalised word that does not start a sentence (a likely name). Legacy
   `spellcheck` and `writing-language` YAML and old global settings remain untouched but have no
-  effect. Unknown-word findings use the shared dotted writing marks, hover Apply/Ignore/Add to
+  effect. Unknown-word findings use the shared writing marks (the continuous correction line), hover Apply/Ignore/Add to
   dictionary, and the same keyboard/mouse/drag contract as other lenses. Frontmatter (including
   unfinished YAML), fenced/inline/indented code, URLs, email, explicit link-reference
   identifiers/definitions, footnote markers (including unresolved ones), and link destinations are
@@ -2187,8 +2193,15 @@ once at its earliest matching line, and save/move projections refresh targets.
   clears all its members. No rule, saved Ignore, dictionary word, or analyzer identity is removed by
   consolidation. There is no primary lens, redundant note-name heading, or writing profile.
   Selecting Directness enables advisory passive-construction checks directly, with bounded guards
-  for reviewed technical process descriptions and meaningful modifiers; explicit actors remain
-  reviewable.
+  for reviewed technical process descriptions and meaningful modifiers. A passive that names its
+  actor (“by X” in the same sentence) is always shown. Other passives are shown only when they
+  cluster: at least two in one sentence or three in one paragraph region. A lone actorless passive
+  is suppressed as “Single passive without a named actor”. Modifier advice has two concerns. Filler
+  intensifiers (“very”, “really”, “quite”) are **Review filler word**. Vague degree, rate,
+  frequency and generalisation words become **Be specific** (`style.vague-quantity`, legacy kind
+  `style.modifier`), which asks for a number, date or source. Generalisation, frequency and rate
+  words (“generally”, “usually”, “often”, “slowly”, “quickly”) are always reviewed, whether they
+  describe a change or an action.
 
 #### 7.7a.2 Proofreading, clarity, and inclusive checks
 
@@ -2214,7 +2227,7 @@ once at its earliest matching line, and save/move projections refresh targets.
   (4,096 entries, 2 MiB estimated weight), returning independent token copies and clearing on
   completion/failure. The pinned punctuation rule receives paragraph-local coordinates and reports
   against the original paragraph, avoiding document-prefix padding while retaining its exact
-  relative findings. All 29 Slopless rules and other package coverage remain available. Exact
+  relative findings. All 30 Slopless rules and other package coverage remain available. Exact
   paragraph-local retext/textlint results are reused across edits in worker caches capped at 8,192
   entries and 4 MiB each. The worker retains one note’s unchanged Markdown block maps, reparses safe
   paragraph/heading edits locally, and rebases UTF-16 positions. Structural changes parse the
@@ -2234,8 +2247,8 @@ once at its earliest matching line, and save/move projections refresh targets.
   withholds uncertain pronunciation/dialect families rather than guessing.
 - **Clarity — readability** uses the existing parser’s sentence boundaries for paragraph
   sentence-length advice above 30 words and pinned `retext-readability` 8.0.0 for complex prose.
-  Formula options are `age: 16`, `minWords: 15`, and `threshold: 5/7`; at least five formulas must
-  agree before advising on a sentence of at least 15 words. Both checks omit headings, table cells,
+  Formula options are `age: 16`, `minWords: 25`, and `threshold: 5/7`; at least five formulas must
+  agree before advising on a sentence of at least 25 words. Both checks omit headings, table cells,
   and sentences spanning excluded content. Length and formula estimates are separate concerns even
   on the same sentence; equivalent length observations merge with their sources retained. The pinned
   Microsoft sentence-length rule uses the same threshold; its anchor expands only to an eligible
@@ -2245,8 +2258,11 @@ once at its earliest matching line, and save/move projections refresh targets.
   splitting or simpler wording, with no Apply action, generated rewrite, or reading-grade score.
   Markdown formatting may split the projected text from the exact source; underline freshness uses
   the captured source slice while analysis retains the prose text.
-- **Clarity — plain language** reviews all native simplification matches as contextual advice; only
-  the seven reviewed phrase forms offer automatic simplification edits. It also uses
+- **Clarity — plain language** reviews native simplification matches as contextual advice; only
+  the seven reviewed phrase forms offer automatic simplification edits. Matches without a reviewed
+  replacement are shown only for multi-word phrases (except bare “it is/was”) and a reviewed list of
+  formal single words (“facilitate”, “commence”, “numerous”); everyday single words are suppressed
+  as “Already plain wording”. It also uses
   redundant-acronym fixes and broader cliché, jargon, archaic-wording, ambiguity, and word-choice
   advice. **Directness** adds optional opening, modifier, qualifying-phrase, and reader-assumption
   review. Difficulty words (easy/easily/simple/simply/just/basically/straightforward) are reviewed
@@ -2305,9 +2321,12 @@ once at its earliest matching line, and save/move projections refresh targets.
   occupational, expression, and accessibility checks. Existing safe alternatives remain individually
   applicable; personal pronouns, neutral identity descriptions, and diagnoses are not inferred or
   rewritten.
-- **Formulaic writing** is an opt-in English lens using Slopless 0.2.38 with 29 explicitly selected
-  rules; the [complete inventory](WRITING_SLOPLESS.md) records all 48 exclusions. It reviews stock
-  rhetoric, clichés, wordiness, complex-word density, redundancy, repeated
+- **Formulaic writing** is an opt-in English lens using Slopless 0.2.38 with 30 explicitly selected
+  rules plus five Figaro-local frames; the [complete inventory](WRITING_SLOPLESS.md) records all 47
+  exclusions. It reviews stock rhetoric, clichés, clustered promotional vocabulary (at least four
+  different listed words close together, never a single word), contracted “isn’t just … it’s” and
+  “not about … about” reframes, journey/marathon aphorisms, “In today’s fast-paced …” openers,
+  rhetorical fragment questions (“The result?”), wordiness, complex-word density, redundancy, repeated
   openings/transitions/words, layered qualifications, exclamation density, em dashes with no
   whitespace on either side, emphatic punctuation from proselint, and `retext-quotes` quotation
   marks and apostrophes that differ from the note’s prevailing straight or curly style. Consistent
@@ -2326,7 +2345,7 @@ once at its earliest matching line, and save/move projections refresh targets.
   (4,096 entries, 2 MiB estimated weight), returning independent token copies and clearing on
   completion/failure. The pinned punctuation rule receives paragraph-local coordinates and reports
   against the original paragraph, avoiding document-prefix padding while retaining its exact
-  relative findings. All 29 Slopless rules and other package coverage remain available. Exact
+  relative findings. All 30 Slopless rules and other package coverage remain available. Exact
   paragraph-local retext/textlint results are reused across edits in worker caches capped at 8,192
   entries and 4 MiB each. The worker retains one note’s unchanged Markdown block maps, reparses safe
   paragraph/heading edits locally, and rebases UTF-16 positions. Structural changes parse the
@@ -2357,7 +2376,7 @@ once at its earliest matching line, and save/move projections refresh targets.
   labelled general example and Ignore, never a guessed expansion or automatic replacement. No
   number/unit spacing rule is bundled; `8.1Mib`, `10MB`, and `20ms` remain untouched.
 - Vale is compiled from adapted, pinned source into the Go backend. Its 42 bundled YAML rules,
-  pinned grammar dictionary, 162 pure Go grammar checks, and local sentence model initialize eagerly
+  pinned grammar dictionary, 167 pure Go grammar checks, and local sentence model initialize eagerly
   in memory; no executable extraction, helper process, host configuration, or vault text file is
   needed. Initialization never gates typing or shutdown.
 - Eager local workers run the pinned retext/textlint checks and existing conservative nspell logic;
@@ -2381,10 +2400,10 @@ once at its earliest matching line, and save/move projections refresh targets.
 
 #### 7.7a.5 Configuration signature and prose projection
 
-- The mapping/configuration signature is version 25 and includes package pins, editorial policy
-  version 9, spelling vocabulary version 5, reviewed terminology/acronym exceptions, and readability
-  thresholds. The signature also pins curated Harper 0.1.0 and Figaro grammar policy 8. Fifteen
-  reviewed Vale-port rules and 162 conservative Go checks are enabled under Proofreading; original
+- The mapping/configuration signature is version 27 and includes package pins, editorial policy
+  version 10, spelling vocabulary version 6, reviewed terminology/acronym exceptions, and readability
+  thresholds. The signature also pins curated Harper 0.1.0 and Figaro grammar policy 9. Fifteen
+  reviewed Vale-port rules and 167 conservative Go checks are enabled under Proofreading; original
   Harper Rust/Wasm is not bundled. The [grammar contract](WRITING_HARPER.md) defines the selected
   inventory, adapted participle, suppose, and modal rules, morphology, exact-span actions, per-rule
   Ignore identity, duplicate-article suppression, and whole-block withholding around masked
@@ -2443,9 +2462,11 @@ once at its earliest matching line, and save/move projections refresh targets.
   Safe explicit aliases remain prose. Spelling applies the same wiki protection alongside its
   independent exclusions. Source ranges are half-open UTF-16 offsets; Vale's one-based inclusive
   code-point spans are converted explicitly. CRLF, entities, escapes, and markup keep source
-  mappings; discontinuous or ambiguous phrase mappings never offer edits. A separate typography
-  projection exposes quotation delimiters only to quote-style review; its special fix validates
-  every changed delimiter and leaves enclosed source bytes untouched.
+  mappings. Text that GFM splits after parsing, such as a bare URL in square brackets, has its
+  source positions recovered from the surrounding source; text that cannot be recovered is left
+  out of review rather than guessed. Discontinuous or ambiguous phrase mappings never offer edits.
+  A separate typography projection exposes quotation delimiters only to quote-style review; its
+  special fix validates every changed delimiter and leaves enclosed source bytes untouched.
 - Exact equivalent observations merge while retaining provenance. Native and local comma-spacing
   observations with the same minimal source edit share the local occurrence identity and one Apply
   action even when their surrounding text ranges differ; distinct replacements or intentions remain
@@ -2458,8 +2479,14 @@ once at its earliest matching line, and save/move projections refresh targets.
 
 #### 7.7a.6 Editor underlines and ignore or accept decisions
 
-- Current eligible words/phrases receive dotted editor underlines using the existing spelling
-  treatment. Hover opens the approved menu surface with an explanation, readable before/after
+- Current eligible words/phrases receive editor underlines in two tiers. Proofreading findings
+  (spelling, repetition, consistency, grammar) are corrections and use a continuous
+  `--warning-color` line; findings from the other lenses are suggestions and keep the dotted
+  link-color treatment, so the tiers differ by pattern as well as color. A range covering a
+  correction is a correction. Findings on exactly the same text become one mark and one entry that
+  lists each reason (title and message) with one example per concern; each **Apply** routes to the
+  finding that offered it, **Ignore this occurrence** records every covered finding, and such an
+  entry never offers **Apply to all**. Per-lens counts still count each underlying finding. Hover opens the approved menu surface with an explanation, readable before/after
   wording for available fixes, verified **Apply** choices, and **Ignore this occurrence** saved for
   this document. Actions precede one before/after comparison. The first two replacement choices are
   visible; **More alternatives** reveals the rest and focuses the first newly exposed choice. Hidden
@@ -2503,6 +2530,15 @@ once at its earliest matching line, and save/move projections refresh targets.
   External filesystem renames are not inferred.
 
 #### 7.7a.7 Grammar-gap policy, saved decisions, and dictionary
+
+- **Common-error policy:** Grammar policy 9 adds independently authored WeatherWhether,
+  CompoundObjectMe (“to Ana and I” → “and me”), LessFewer (plural count nouns only; mass nouns,
+  measures and “less” meaning minus stay unchanged), TimePossessive (“last years prices” →
+  “year’s”, following the note’s apostrophe style) and advisory-only CouldCareLess. It broadens
+  ItsContraction (clausal “Its not clear/obvious/worth”), TheirToThere (“their is/are” opening a
+  clause after a comma, including list items), NounVerbConfusion (finite “effects/effected” with a
+  person or performance object) and CommaSplice (regular past verbs followed by an adverb or
+  object). Each keeps the minimal-pair guards recorded in `docs/WRITING_HARPER.md`.
 
 - **Document-gap policy:** Grammar policy 8 adds independently authored CountableAmount and
   advisory-only CommaSplice checks. CountableAmount spans the complete visible “amount of
@@ -2571,6 +2607,8 @@ once at its earliest matching line, and save/move projections refresh targets.
 
 - Findings group by sentence within a prose block, falling back to the block. Groups follow source
   order; findings are advisory and ordered by position, kind, and deterministic occurrence key.
+  Cards list corrections before suggestions under quiet **Corrections (N)** and **Suggestions (N)**
+  headings, each tier in document order.
   Counts include unique eligible findings, independent of evidence count. Each suggestion uses the
   approved rounded, borderless `.ui-suggestion` background, with shared standard buttons for its
   actions. The presentation combines identical kind/intent/text/message/replacement sets into one

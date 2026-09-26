@@ -1,4 +1,6 @@
 /** Reviewed Slopless policy. Package execution belongs to the textlint adapter. */
+import { writingFormulaicFrameRules, writingFormulaicFramesVersion } from './writingFormulaicFrames.js';
+
 export const writingSloplessVersion = '0.2.38';
 export const writingSloplessRules = Object.freeze({
     cliches: 'stock-phrase', 'corporate-speak': 'stock-phrase', wordiness: 'wordiness',
@@ -13,6 +15,7 @@ export const writingSloplessRules = Object.freeze({
     'response-wrapper': 'assistant', 'llm-disclaimer': 'assistant',
     'formal-transition-density': 'transitions', 'repeated-sentence-starts': 'sentence-starts',
     'empty-emphasis': 'emphasis', 'superficial-analysis': 'analysis', 'semantic-thinness': 'abstract',
+    'llm-vocabulary-density': 'vocabulary',
 });
 
 const guidance = {
@@ -38,6 +41,8 @@ const guidance = {
     'sentence-starts': ['Review repeated sentence openings', 'Several nearby sentences share an opening. Consider combining related points or varying the openings; deliberate repetition can be effective.', 'We can save time. We can reduce errors. We can finish sooner.', 'We can save time and reduce errors, helping us finish sooner.'],
     emphasis: ['Review empty emphasis', 'Consider replacing this emphasis with the specific point it is meant to emphasize.', 'That changes everything.', 'That reduces the time needed to review each invoice.'],
     analysis: ['Review added significance claim', 'This ending matches a pattern that announces significance. Consider explaining what the result shows and why; the rule does not evaluate your evidence.', 'The team met, underscoring its commitment to excellence.', 'The team met to agree on the next inspection date.'],
+    vocabulary: ['Review clustered stock vocabulary', 'Several broad, promotional words appear close together. Consider replacing some with the concrete action, result, or detail you mean. Single words are never flagged; keep terms your readers rely on.', 'Seamless workflows unlock transformative insights and empower every team.', 'Linked notes let the team find earlier decisions in seconds.'],
+    'fragment-question': ['Review rhetorical question', 'A short question answered by the next fragment can sound staged. Consider stating the point directly; keep the question if it suits your voice.', 'The result? A backlog nobody reads.', 'The result is a backlog nobody reads.'],
     abstract: ['Review abstract statement', 'This sentence matches a broad rhetorical template. Consider adding the concrete action, outcome, or evidence that gives it meaning.', 'This marks a new era.', 'The new service begins accepting applications on Monday.'],
 };
 export const writingSloplessConcepts = Object.freeze(Object.fromEntries(Object.entries(guidance).map(([id, [title, message]]) => [
@@ -45,18 +50,36 @@ export const writingSloplessConcepts = Object.freeze(Object.fromEntries(Object.e
 ])));
 // Share concepts only when the advice is the same; density and phrase-level advice differ.
 const sharedKinds = { 'stock-phrase': 'style.stock-phrase', wordiness: 'style.wordiness' };
-export const writingSloplessKinds = Object.freeze(Object.fromEntries(Object.entries(writingSloplessRules).map(([rule, kind]) => [`slopless/${rule}`, sharedKinds[kind] || `formulaic.${kind}`])));
+export const writingSloplessKinds = Object.freeze(Object.fromEntries([
+    ...Object.entries(writingSloplessRules).map(([rule, kind]) => [`slopless/${rule}`, sharedKinds[kind] || `formulaic.${kind}`]),
+    ...Object.entries(writingFormulaicFrameRules).map(([rule, kind]) => [`figaro-formulaic/${rule}`, `formulaic.${kind}`]),
+]));
 export function writingSloplessExample(kind) {
     const entry = guidance[kind?.replace(/^formulaic\./u, '')];
     return entry ? [{ label: 'Example', before: entry[2], after: entry[3] }] : [];
 }
 
+// Words in the package's density list that ordinary technical, planning and
+// research notes use literally. They still count toward the package threshold,
+// but a cluster needs at least two other, promotional words to be reported.
+const ordinaryVocabulary = new Set(['ai', 'approach', 'approaches', 'causal', 'complexities', 'complexity', 'confidence',
+    'correlate', 'correlated', 'correlates', 'correlating', 'empirical', 'engagement', 'generation', 'impact', 'impacts',
+    'insight', 'insights', 'native', 'navigate', 'navigates', 'navigating', 'next', 'robust', 'scalable', 'scale', 'scales',
+    'stakeholder', 'stakeholders', 'strategic', 'strategies', 'strategy', 'sustainable', 'transform', 'transformation',
+    'workflow', 'workflows']);
+/** A vocabulary cluster needs four different listed words, two of them promotional; repeating one term never qualifies. */
+export function writingSloplessVocabularyCluster(message) {
+    const labels = message?.match(/\(([\p{L}’' ,-]+)\)\. Replace stock wording/u)?.[1].split(', ') || [];
+    return new Set(labels).size >= 4 && labels.filter(word => !ordinaryVocabulary.has(word)).length >= 2;
+}
+
 /** Native ranges are UTF-16 offsets into the projected text, never Markdown source. */
 export function sloplessWritingObservations(messages, projection) {
-    return messages.flatMap(message => {
+    const observations = messages.flatMap(message => {
         if (!Object.hasOwn(writingSloplessKinds, message.ruleId)) return [];
         const [from, to] = message.range || [];
         if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to <= from || to > projection.units.length) return [];
+        if (message.ruleId === 'slopless/llm-vocabulary-density' && !writingSloplessVocabularyCluster(message.message)) return [];
         let detail = '';
         let ranges = [[from, to]];
         if (message.ruleId === 'slopless/word-repetition') {
@@ -69,12 +92,17 @@ export function sloplessWritingObservations(messages, projection) {
             ranges = [[start, start + matches[0][0].length]];
             detail = `“${word}” appears ${matches.length} times in this paragraph.`;
         }
+        const local = message.ruleId.startsWith('figaro-formulaic/');
         return ranges.flatMap(([start, end]) => {
             if (projection.units.slice(start, end).some(unit => unit.from < 0 || unit.hidden)) return [];
-            return [{ engine: 'textlint', package: 'slopless', version: writingSloplessVersion,
+            return [{ engine: 'textlint', package: local ? 'figaro-formulaic' : 'slopless', version: local ? writingFormulaicFramesVersion : writingSloplessVersion,
                 rule: message.ruleId, ruleId: message.ruleId, from: start, to: end,
                 actual: projection.text.slice(start, end), replacements: [], severity: 'suggestion',
-                evidenceFamily: 'unknown', message: message.message, detail, native: message }];
+                evidenceFamily: local ? 'local-rule' : 'unknown', message: message.message, detail, native: message }];
         });
     });
+    // Local frames only fill package gaps: the package finding wins when both report the same concern.
+    const packaged = observations.filter(raw => raw.package === 'slopless');
+    return observations.filter(raw => raw.package === 'slopless' || !packaged.some(other => writingSloplessKinds[other.rule] === writingSloplessKinds[raw.rule]
+        && other.from < raw.to && raw.from < other.to));
 }

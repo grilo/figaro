@@ -662,6 +662,13 @@
     background-size: 4px 2px !important;
 }
 .cm-editor .cm-lintRange.cm-spellcheck-range { padding-bottom: 1px; }
+/* Corrections (Proofreading: spelling, grammar, repetition, consistency) use a
+   continuous warning-colored line, so they differ from dotted suggestions by
+   pattern as well as color. */
+.cm-editor .cm-lintRange.cm-writing-range--correction {
+    background-image: linear-gradient(var(--warning-color), var(--warning-color)) !important;
+    background-size: 100% 2px !important;
+}
 
 /* Layout only; the existing menu and button primitives own interaction paint. */
 .cm-writing-tooltip {

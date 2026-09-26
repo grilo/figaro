@@ -3,7 +3,7 @@
 ## Scope
 
 Proofreading adds 15 reviewed rules from **vale-cli/Harper 0.1.0** (derived from
-Harper 2.7) and 162 conservative Figaro grammar checks: 177 rule IDs in total.
+Harper 2.7) and 167 conservative Figaro grammar checks: 182 rule IDs in total.
 The second batch added 28 independent implementations reviewed against native
 Harper 2.10.0; the third expands their context and adds five pronoun/question
 checks. Policy 5 added 60 phrase, construction, word-boundary, and punctuation
@@ -265,8 +265,8 @@ controls, and separates those development examples from the fresh documents.
 
 ## Document gap corrections
 
-Policy 8 has **177 rule IDs**: 15 Vale-port rules and 162 pure Go checks. It
-closes the five errors identified in the later document review:
+Policy 8 had **177 rule IDs**: 15 Vale-port rules and 162 pure Go checks. It
+closed the five errors identified in the later document review:
 
 - NounSubjectAgreement follows the original noun across one bounded
   prepositional modifier: “The box of tools were” → “was,” and “The instruments
@@ -284,11 +284,50 @@ closes the five errors identified in the later document review:
   a conjunction, semicolon or sentence break. Dependent clauses, parenthetical
   “I think,” short rhetorical lists and serial coordination remain unchanged.
 
-The corpus now has **573 positives and 1,041 valid/ambiguous examples**. Native
+That corpus had 573 positives and 1,041 valid/ambiguous examples. Native
 bridge fixtures cover Markdown emphasis, Unicode/CRLF and protected contexts;
 Apply/Undo tests cover all three new correction shapes. Comma-splice advice has
 rule-specific Ignore and no Apply action. [The gap report](benchmarks/writing-gaps-2026-09-20.md)
 replays the reviewed documents; they are now regression material, not holdout gold.
+
+### Common errors from the proofreading review
+
+Policy 9 has **182 rule IDs**: 15 Vale-port rules and 167 pure Go checks. A
+later review of ordinary paragraphs and meeting notes found common errors with
+no finding. Five independently authored checks and four broadened families
+close them. Each requires a reviewed cue on both sides of the word.
+
+| Check | Reviewed example | Boundary | Apply |
+| --- | --- | --- | --- |
+| WeatherWhether | decide weather to keep → whether | A choosing/knowing verb before it and “to” + verb, “or not,” or a pronoun or noun subject with a verb; preserve “the weather,” “weather reports” and “consider weather to be a risk” | Yes |
+| CompoundObjectMe | to Ana and I on Friday → Ana and me | A name, object pronoun or short noun phrase after a preposition or reviewed verb, followed by a boundary or time/place adjunct; any “between … and I”; preserve “Ana and I will,” “to Ana and I will call,” and “taller than Ana and I” | Yes |
+| LessFewer | less queries hit → fewer queries | An adjacent plural count noun; preserve mass nouns, measures such as “less money/years,” “less expensive options,” “the less people know,” “less sales tax,” “more or less,” “watcher-less” and “the price less fees” | Yes |
+| TimePossessive | last years prices → last year's prices | Undetermined last/next/this before years/weeks/months/nights/quarters and a noun; preserve “the last years of his life,” “last years saw,” and the verb in “batteries last years longer” | Yes |
+| CouldCareLess | I could care less | A pronoun subject; comparisons with “than” abstain. The informal idiom is common, so the explanation names “couldn't care less” without an edit | Advice only |
+
+Broadened families use the same rule IDs:
+
+- ItsContraction accepts “Its not clear who…,” “Its obvious that…” and “Its
+  worth noting…” while preserving “its clear glass,” “its not-for-profit status”
+  and “its worth increased.”
+- TheirToThere corrects the existential “their is/are” in a clause after a
+  comma, as in a list item “…almost done, their is one table left.” Earlier the
+  same clause was reviewed only at a sentence start or after a reporting verb.
+- NounVerbConfusion changes finite *effects/effected/effect* to *affects/affected/affect*
+  between a bounded subject and a person or performance object. It preserves
+  “the effects of,” “an effect on,” “effect a change,” “the bank effects the
+  transfer,” and noun compounds with a relative clause such as “the sound
+  effects everyone loved.”
+- CommaSplice recognizes regular past verbs the dictionary labels only as base
+  forms when an adverb or object follows: “The deploy failed twice, it was
+  caused…”. A bare participle before the comma may begin an absolute phrase
+  (“The final report submitted, we…”) and still abstains.
+
+The corpus now has **606 positives and 1,109 valid/ambiguous examples**. Bridge
+probes cover the list-item existential, an object pronoun across emphasis, a
+curly-apostrophe possessive, a masked-code block and advisory Ignore. Replaying
+the reviewed manifests adds only the intended findings; the rules found no new
+matches in the repository's Markdown or about 1,000 dependency READMEs.
 
 ## Source and execution contract
 

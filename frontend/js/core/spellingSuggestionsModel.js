@@ -30,7 +30,16 @@ const reviewedEnglishCorrections = new Map([
     ['recieved', 'received'], ['recieving', 'receiving'], ['definately', 'definitely'],
     ['seperate', 'separate'], ['seperately', 'separately'], ['occured', 'occurred'],
     ['usres', 'users'], ['chidl', 'child'],
+    // Familiar missing spaces. Each has one standard spelling; ambiguous forms
+    // such as “incase” (also an old spelling of encase) stay uncorrected.
+    ['alot', 'a lot'], ['atleast', 'at least'], ['aswell', 'as well'], ['eachother', 'each other'],
+    ['infact', 'in fact'], ['noone', 'no one'],
 ]);
+const englishLanguages = languages => languages.some(language => language === 'en-US' || language === 'en-GB');
+// A pronoun or adverb whose 's form is a contraction is not evidence of a noun:
+// “thats” and “everyones” are missing apostrophes, not plurals.
+const contractionStems = new Set(['that', 'what', 'there', 'here', 'where', 'when', 'everyone', 'everybody', 'someone',
+    'somebody', 'anyone', 'anybody', 'nobody', 'everything', 'something', 'anything', 'nothing', 'today', 'tomorrow', 'yesterday']);
 
 export function reviewedSpellingCorrection(word, languages) {
     word = word.normalize('NFC');
@@ -58,24 +67,61 @@ function isDictionarySuggestion(checker, suggestion) {
     return checker.correct?.(suggestion) === true;
 }
 
+const verbEvidence = (knows, verb) => knows(verb + 'ed') || knows(verb + 'd') || knows(verb + verb.at(-1) + 'ed');
+
+/**
+ * The small bundled English dictionaries enumerate only some regular forms.
+ * Recognize a few productive derivations when the dictionary itself supplies
+ * evidence for the base: a noun’s plural (the base takes a possessive), un- on a
+ * known past participle, re-/-able on a known verb, and multi- on a known word.
+ * Accented English loanwords also match their unaccented dictionary spelling.
+ * Every rule requires a known base, so a misspelled base stays flagged.
+ */
+function knownEnglishDerivation(knows, word) {
+    if (!/^\p{Lu}?\p{Ll}+$/u.test(word)) return false;
+    const lower = word.toLocaleLowerCase();
+    const folded = lower.normalize('NFD').replace(/\p{M}/gu, '');
+    if (folded !== lower) return /^[a-z]+$/u.test(folded) && (knows(folded) || knownEnglishDerivation(knows, folded));
+    let match = /^([a-z]{4,})s$/u.exec(lower);
+    if (match && !/(?:[sxzy]|ch|sh)$/u.test(match[1]) && !contractionStems.has(match[1])
+        && knows(match[1]) && knows(match[1] + '\'s')) return true;
+    match = /^un([a-z]{3,}ed)$/u.exec(lower);
+    if (match && knows(match[1])) return true;
+    match = /^re([a-z]{4,})$/u.exec(lower);
+    if (match && knows(match[1]) && (match[1].endsWith('ed') || verbEvidence(knows, match[1]))) return true;
+    match = /^multi([a-z]{4,})$/u.exec(lower);
+    if (match && knows(match[1])) return true;
+    match = /^([a-z]{4,})able$/u.exec(lower);
+    // Soft c/g keep their e (noticeable), and an -ible word (accessible)
+    // makes its -able spelling a misspelling rather than a derivation.
+    if (match && !knows(match[1] + 'ible')) {
+        const stem = match[1];
+        return knows(stem) && verbEvidence(knows, stem)
+            || !/[cg]$/u.test(stem) && knows(stem + 'e') && verbEvidence(knows, stem + 'e');
+    }
+    return false;
+}
+
 export function isCorrectlySpelledProseWord(word, checkers, languages) {
     word = word.normalize('NFC');
     const possessive = spellingPossessive(word, languages);
     if (reviewedSpellingWord(word, languages) || possessive && reviewedSpellingWord(possessive.stem, languages)) return true;
+    const english = englishLanguages(languages);
     return checkers.some(checker => {
+        const knows = value => checker.correct(value) || english && knownEnglishDerivation(value => checker.correct(value), value);
         const acronym = /^([A-Z]{2,})s$/u.exec(possessive?.stem || word);
         if (acronym && checker.correct(acronym[1])) return true;
-        if (checker.correct(word)) return true;
+        if (knows(word)) return true;
         if (possessive) {
             // Dictionaries often omit terminal apostrophes on valid plurals/names.
-            return checker.correct(possessive.plural ? possessive.stem : possessive.stem + '\'s');
+            return possessive.plural ? knows(possessive.stem) : checker.correct(possessive.stem + '\'s');
         }
         // Hunspell dictionaries do not consistently enumerate otherwise valid
         // compounds. Treat a hyphenated word as correct when every component
         // belongs to the same active dictionary, while still flagging a typo
         // in any component.
         const components = word.split('-');
-        return components.length > 1 && components.every(component => checker.correct(component) || reviewedSpellingWord(component, languages));
+        return components.length > 1 && components.every(component => knows(component) || reviewedSpellingWord(component, languages));
     });
 }
 
@@ -145,19 +191,26 @@ function sharedBoundaryLetters(left, right) {
     return prefix + suffix;
 }
 
-export function highConfidenceSuggestions(word, checkers, languages) {
+/**
+ * `sentenceStart` says whether a capitalized word begins a sentence or block.
+ * Elsewhere a capital usually marks a name, brand or product, so an unknown
+ * capitalized word keeps its finding (and Add to dictionary) but is offered
+ * only a case change or an adjacent-letter transposition, never a different word.
+ */
+export function highConfidenceSuggestions(word, checkers, languages, { sentenceStart = true } = {}) {
     word = word.normalize('NFC');
     if (reviewedSpellingWord(word, languages)) return [];
     const possessive = spellingPossessive(word, languages);
     if (possessive) {
-        return highConfidenceSuggestions(possessive.stem, checkers, languages)
+        return highConfidenceSuggestions(possessive.stem, checkers, languages, { sentenceStart })
             .filter(value => !/['’]/u.test(value) && (!possessive.plural || /s$/iu.test(value)))
             .map(value => value + possessive.suffix)
             .filter(value => isCorrectlySpelledProseWord(value, checkers, languages));
     }
     const normalizedWord = String(word || '').toLocaleLowerCase();
     const reviewed = reviewedSpellingCorrection(word, languages);
-    if (reviewed && checkers.some(checker => isDictionarySuggestion(checker, reviewed))) return [reviewed];
+    // Reviewed corrections may restore a missing space; every word must be valid.
+    if (reviewed && checkers.some(checker => reviewed.split(' ').every(part => isDictionarySuggestion(checker, part)))) return [reviewed];
     // A three-letter typo is too ambiguous for generated corrections: “ete”
     // could plausibly mean several unrelated words. Only retain a tiny,
     // explicit set of familiar transposition mistakes at this length.
@@ -168,8 +221,16 @@ export function highConfidenceSuggestions(word, checkers, languages) {
         return direct && checkers.some(checker => isDictionarySuggestion(checker, direct)) ? [direct] : [];
     }
 
+    // A word whose capitalized form is a dictionary word (friday, english)
+    // needs only that capital, not a different word such as “Fridays”.
+    // Short words stop above: “dir” is not a miscased “Dir”.
+    const titled = normalizedWord.charAt(0).toLocaleUpperCase() + normalizedWord.slice(1);
+    if (titled !== word && /\p{L}/u.test(titled) && checkers.some(checker => isDictionarySuggestion(checker, titled))) return [titled];
+
     const maximumDistance = Array.from(normalizedWord).length >= 7 ? 2 : 1;
     const ordinaryCase = /^\p{Lu}\p{Ll}+$/u.test(word) || word === word.toLocaleUpperCase();
+    const lowercase = word === normalizedWord;
+    const nameLike = !lowercase && word !== word.toLocaleUpperCase() && !sentenceStart;
     const query = ordinaryCase ? normalizedWord : word;
     const candidates = new Map();
     for (const checker of checkers) {
@@ -194,6 +255,11 @@ export function highConfidenceSuggestions(word, checkers, languages) {
             // that an unfamiliar author's name was a typo.
             if (/\p{Lu}/u.test(word) && (!ordinaryCase || !isDictionarySuggestion(checker, value.toLowerCase()))
                 && !isSingleAdjacentTransposition(word, value)) continue;
+            // A capital inside a sentence marks a likely name: Postgres is not
+            // a typo for postures. Lowercase prose likewise gets name-only
+            // entries (Boone for noone) only as an adjacent transposition.
+            if ((nameLike || lowercase && value !== key && !isDictionarySuggestion(checker, key))
+                && !isSingleAdjacentTransposition(normalizedWord, key)) continue;
             candidates.set(key, {
                 value,
                 distance,

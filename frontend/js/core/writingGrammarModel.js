@@ -1,6 +1,6 @@
 // Reviewed grammar policy. Adding a native rule never implicitly enables its
 // diagnostics or replacement actions in the editor.
-export const writingGrammarVersion = 'harper-0.1.0-curated-1+figaro-8';
+export const writingGrammarVersion = 'harper-0.1.0-curated-1+figaro-9';
 const rule = (title, fixes = true, context = 'block') => Object.freeze({ title, fixes, context });
 export const writingGrammarRules = Object.freeze({
     'Harper.BetterOffWith': rule('Check “better off with”'),
@@ -182,6 +182,12 @@ export const writingGrammarRules = Object.freeze({
     'FigaroGrammar.HowDoesCompared': rule('Check verb after “do/does”'),
     'FigaroGrammar.NounSubjectAgreement': rule('Check noun and verb agreement'),
     'FigaroGrammar.UseToUsedTo': rule('Check “used to”'),
+    'FigaroGrammar.WeatherWhether': rule('Check “weather/whether”'),
+    'FigaroGrammar.CompoundObjectMe': rule('Check object pronoun “me”'),
+    'FigaroGrammar.LessFewer': rule('Check “fewer” with countable nouns'),
+    'FigaroGrammar.TimePossessive': rule('Check possessive time expression'),
+    // The informal idiom is common; explain the literal meaning, never rewrite it.
+    'FigaroGrammar.CouldCareLess': rule('Review “could care less”', false),
 });
 
 export const writingGrammarKinds = Object.freeze(Object.fromEntries(Object.keys(writingGrammarRules)

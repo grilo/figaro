@@ -68,8 +68,8 @@ same threshold. Protected text and unmappable spans remain rejected. Slopless fr
 identify the first occurrence of each repeated word and its verified count, so separate words can be
 ignored independently.
 
-Current mapping version **24**, editorial policy **8**, spelling vocabulary **4**, with curated
-grammar policy **8** (the initial package review used mapping 10 / policy 3). Dependency versions
+Current mapping version **27**, editorial policy **10**, spelling vocabulary **6**, with curated
+grammar policy **9** (the initial package review used mapping 10 / policy 3). Dependency versions
 and upstream revisions are unchanged. The 29 canonical names are defined in
 `frontend/js/core/writingTextlintModel.js`; the 43 additional Inclusive advisory IDs are in
 `frontend/js/core/writingPackagePolicy.js` and have individual real-adapter fixtures.

@@ -8,7 +8,49 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- Spelling recognizes common software, keyboard and note-taking terms (Cmd,
+  macOS, Kanban, Gantt, backlinks, frontmatter, tooltip) and accepts words from
+  your note titles and tags without adding them to your personal dictionary.
+- Formulaic writing points out clusters of promotional vocabulary (such as
+  "seamless", "unlock", "empower"), stock openings like "In today's fast-paced
+  world", rhetorical fragments like "The result?", and more "isn't just X —
+  it's Y" and "it's not about X; it's about Y" contrasts. Single words and
+  ordinary contrasts are not flagged.
+
+### Changed
+
+- Writing review separates likely corrections from suggestions: Proofreading
+  findings get a solid amber underline and are listed first under
+  **Corrections**; the other lenses keep the dotted underline under
+  **Suggestions**.
+- When several checks flag the same words, they share one entry that lists
+  every reason, instead of one card per check. Ignore covers them all.
+- Directness and Clarity flag less: a single passive is shown only when it
+  names its actor or several passives cluster together, everyday words such as
+  "previous" or "delete" no longer get plain-language advice, and
+  complex-sentence estimates start at 25 words.
+- Vague words such as "generally", "usually", or "slowly" now ask
+  you to **Be specific** with a number, date, or source; filler words such as
+  "very" keep their own advice.
+
+### Fixed
+
+- Writing review no longer fails on notes that contain a bare web address in
+  square brackets, such as `[https://example.com]`. Previously the whole note
+  showed "Some checks are unavailable" and Retry could not recover.
+- Proofreading now catches more common errors: "weather" for "whether", "Its
+  not clear", "to Ana and I", "less" with countable nouns, "last years prices",
+  "effects" used as a verb, and a comma joining two full sentences. It explains
+  "could care less" without rewriting it, and corrects "their is" after a comma,
+  as in list items.
+- Spelling suggestions are more accurate: "friday" → "Friday", "alot" →
+  "a lot", and a capitalized name inside a sentence (such as "Postgres") is no
+  longer "corrected" to a different word.
+- Spelling no longer flags regular English forms missing from the bundled
+  dictionary, such as "durations", "clichés", "resizable", "untagged" and
+  "rescan".
 
 ## [1.44.0] - 2026-09-26
 

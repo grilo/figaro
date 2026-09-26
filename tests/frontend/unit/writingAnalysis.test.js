@@ -143,7 +143,7 @@ test('adding a base word refreshes personal plurals and possessives in pane and 
 
 test('writing lens changes reuse current evidence while display identity follows unchanged prose', async () => {
     const { controller, retext } = harness();
-    const initial = snapshot({ source: 'The report was written. We utilize it.', preferences: { lenses: ['plain'] } });
+    const initial = snapshot({ source: 'The report was written by Maya. We utilize it.', preferences: { lenses: ['plain'] } });
     controller.update(initial, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
     const word = controller.snapshot().findings.find(item => item.actual === 'utilize');
     const ignored = await ignore(controller, word);
@@ -195,7 +195,7 @@ test.each([
 
 test('enabling Directness reuses Vale evidence already fetched for grammar', async () => {
     const { controller, vale } = harness();
-    const initial = snapshot({ source: 'A example was written.', preferences: { lenses: ['grammar'] } });
+    const initial = snapshot({ source: 'A example was written by Maya.', preferences: { lenses: ['grammar'] } });
     controller.update(initial, { immediate: true }); await jest.advanceTimersByTimeAsync(0);
     expect(vale.analyze).toHaveBeenCalledTimes(1);
     controller.update({ ...initial, configuration: 'with-direct', preferences: { lenses: ['grammar', 'direct'] } }, { immediate: true });

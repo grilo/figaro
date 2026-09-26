@@ -60,19 +60,72 @@ const typographyProcessors = new Map(['smart', 'straight'].flatMap(preferred => 
 const excluded = new Set(['blockquote', 'code', 'inlineCode', 'math', 'inlineMath', 'yaml', 'html', 'image', 'imageReference']);
 const blocks = new Set(['paragraph', 'heading', 'tableCell']);
 
+const escapedCharacter = /\\[!"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~]/y;
+const characterReference = /&(?:#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]+);/y;
+// One source character, escape or character reference and the text it spells.
+function markdownTextPiece(raw, at) {
+    escapedCharacter.lastIndex = at; characterReference.lastIndex = at;
+    const escaped = escapedCharacter.exec(raw)?.[0], entity = !escaped && characterReference.exec(raw)?.[0];
+    const encoded = escaped || entity || (raw.slice(at, at + 2) === '\r\n' ? '\r\n' : raw[at]);
+    const decoded = encoded === '\r\n' || encoded === '\r' ? '\n' : decodeString(encoded);
+    return { encoded, decoded, escaped: Boolean(escaped) };
+}
 function textUnits(node, source) {
+    // A node whose source cannot be recovered is left out rather than guessed.
+    if (!node.position) return [];
     const start = node.position.start.offset;
     const raw = source.slice(start, node.position.end.offset);
     const units = [];
     for (let at = 0; at < raw.length;) {
-        const escaped = raw.slice(at).match(/^\\[!"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~]/);
-        const entity = raw.slice(at).match(/^&(?:#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]+);/);
-        const encoded = escaped?.[0] || entity?.[0] || (raw.slice(at, at + 2) === '\r\n' ? '\r\n' : raw[at]);
-        const decoded = encoded === '\r\n' || encoded === '\r' ? '\n' : decodeString(encoded);
-        for (let i = 0; i < decoded.length; i++) units.push({ char: decoded[i], from: start + at, to: start + at + encoded.length, safe: decoded === encoded, escaped: Boolean(escaped) });
+        const { encoded, decoded, escaped } = markdownTextPiece(raw, at);
+        for (let i = 0; i < decoded.length; i++) units.push({ char: decoded[i], from: start + at, to: start + at + encoded.length, safe: decoded === encoded, escaped });
         at += encoded.length;
     }
     return units.map(unit => unit.char).join('') === node.value.replace(/\r\n?/g, '\n') ? units : [];
+}
+// The end offset where source text starting at `from` spells `value`, or -1.
+function markdownTextEnd(source, from, to, value) {
+    const expected = value.replace(/\r\n?/gu, '\n');
+    let at = from, text = '';
+    while (text.length < expected.length && at < to) {
+        const piece = markdownTextPiece(source, at);
+        text += piece.decoded; at += piece.encoded.length;
+        if (!expected.startsWith(text)) return -1;
+    }
+    return text === expected ? at : -1;
+}
+// Source ranges for consecutive nodes starting exactly at `from`, or null.
+function placeMarkdownNodes(nodes, source, from, to, placed = []) {
+    let at = from;
+    for (const node of nodes) {
+        const start = at;
+        if (node.type === 'text') at = markdownTextEnd(source, at, to, node.value);
+        else if (node.children?.length) at = placeMarkdownNodes(node.children, source, at, to, placed)?.end ?? -1;
+        else return null;
+        if (at < 0) return null;
+        placed.push({ node, start, end: at });
+    }
+    return { end: at, placed };
+}
+// GFM finds some URLs only after parsing, such as “[https://example.com]”, and
+// splits the surrounding text into new nodes without source positions. Recover
+// each run from the source between its positioned neighbours.
+function restoreSourcePositions(parent, source) {
+    const children = parent.children || [];
+    for (let index = 0; index < children.length; index++) {
+        if (children[index].position) { restoreSourcePositions(children[index], source); continue; }
+        let last = index;
+        while (children[last + 1] && !children[last + 1].position) last++;
+        const from = children[index - 1]?.position?.end.offset ?? parent.position?.start.offset;
+        const to = children[last + 1]?.position?.start.offset ?? parent.position?.end.offset;
+        for (let start = from; Number.isInteger(start) && start < to; start++) {
+            const run = placeMarkdownNodes(children.slice(index, last + 1), source, start, to);
+            if (!run) continue;
+            for (const { node, start: begin, end } of run.placed) node.position = { start: { offset: begin }, end: { offset: end } };
+            break;
+        }
+        index = last;
+    }
 }
 function collectInline(node, source, units) {
     if (excluded.has(node.type)) { units.push({ char: '\uFFFC', from: -1, to: -1, safe: false }); return; }
@@ -90,6 +143,7 @@ function hideTechnicalSyntax(units) {
     }
 }
 function projectWritingTree(root, source, { wiki, footnotes }) {
+    restoreSourcePositions(root, source);
     const result = { text: '', units: [], regions: [], quotationSpans: [], typography: { text: '', units: [] } };
     function visit(node) {
         if (excluded.has(node.type)) return;
