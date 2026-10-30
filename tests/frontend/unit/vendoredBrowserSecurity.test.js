@@ -66,4 +66,26 @@ describe('vendored browser security policy', () => {
         expect(index).toContain('window.EXCALIDRAW_ASSET_PATH = "/vendored/excalidraw/";');
         expect(index.indexOf('/vendored/excalidraw/excalidraw.min.js')).toBeLessThan(index.indexOf('/app.bundle.js'));
     });
+
+    test('maps every CodeMirror and Lezer package the vendored modules import', () => {
+        // Upstream splits packages (for example @codemirror/streamparser in
+        // @codemirror/language 6.13); an unmapped import breaks the build.
+        const index = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
+        const maps = {
+            source: JSON.parse(index.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]).imports,
+            production: JSON.parse(fs.readFileSync(path.resolve('frontend/vendored/importmap.json'), 'utf8')).imports,
+        };
+        const files = ['codemirror', 'lezer']
+            .flatMap(directory => fs.readdirSync(path.resolve('frontend/vendored', directory), { recursive: true })
+                .filter(file => file.endsWith('.js'))
+                .map(file => path.resolve('frontend/vendored', directory, file)));
+        const specifiers = new Set(files.flatMap(file => [...fs.readFileSync(file, 'utf8')
+            .matchAll(/\bfrom\s*['"]((?:@codemirror|@lezer)\/[^'"]+)['"]/g)].map(match => match[1])));
+        expect(specifiers.has('@codemirror/state')).toBe(true);
+        const mapped = imports => specifier => specifier in imports
+            || Object.keys(imports).some(prefix => prefix.endsWith('/') && specifier.startsWith(prefix));
+        for (const [name, imports] of Object.entries(maps)) {
+            expect([name, [...specifiers].filter(specifier => !mapped(imports)(specifier))]).toEqual([name, []]);
+        }
+    });
 });

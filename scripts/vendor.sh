@@ -11,7 +11,7 @@ VENDOR_DIR="$(pwd)/frontend/vendored"
 TEMP_DIR=$(mktemp -d)
 
 echo "Creating vendor directory structure..."
-mkdir -p "$VENDOR_DIR/codemirror"/{state,view,commands,autocomplete,language,language-data,lang-markdown,lint,search,theme-one-dark,lang-html,lang-css,lang-javascript,lang-angular,lang-cpp,lang-go,lang-java,lang-jinja,lang-json,lang-less,lang-liquid,lang-php,lang-python,lang-rust,lang-sass,lang-sql,lang-vue,lang-wast,lang-xml,lang-yaml,legacy-modes}
+mkdir -p "$VENDOR_DIR/codemirror"/{state,view,commands,autocomplete,language,language-data,streamparser,lang-markdown,lint,search,theme-one-dark,lang-html,lang-css,lang-javascript,lang-angular,lang-cpp,lang-go,lang-java,lang-jinja,lang-json,lang-less,lang-liquid,lang-php,lang-python,lang-rust,lang-sass,lang-sql,lang-vue,lang-wast,lang-xml,lang-yaml,legacy-modes}
 mkdir -p "$VENDOR_DIR/lezer"/{highlight,common,lr,markdown,html,css,javascript,cpp,go,java,json,php,python,rust,sass,xml,yaml}
 mkdir -p "$VENDOR_DIR/@marijn/find-cluster-break"
 mkdir -p "$VENDOR_DIR"/{w3c-keyname,style-mod}
@@ -30,6 +30,7 @@ cat > package.json << 'EOF'
     "@codemirror/commands": "*",
     "@codemirror/language": "*",
     "@codemirror/language-data": "*",
+    "@codemirror/streamparser": "*",
     "@codemirror/autocomplete": "*",
     "@codemirror/lang-markdown": "*",
     "@codemirror/lint": "*",
@@ -144,6 +145,8 @@ copy_dist "@codemirror/lang-markdown" "$VENDOR_DIR/codemirror/lang-markdown"
 copy_dist "@codemirror/autocomplete" "$VENDOR_DIR/codemirror/autocomplete"
 copy_dist "@codemirror/language" "$VENDOR_DIR/codemirror/language"
 copy_dist "@codemirror/language-data" "$VENDOR_DIR/codemirror/language-data"
+# @codemirror/language 6.13 moved StreamLanguage/StringStream into this package.
+copy_dist "@codemirror/streamparser" "$VENDOR_DIR/codemirror/streamparser"
 copy_dist "@codemirror/lint" "$VENDOR_DIR/codemirror/lint"
 copy_dist "@codemirror/theme-one-dark" "$VENDOR_DIR/codemirror/theme-one-dark"
 
@@ -260,6 +263,7 @@ cat > "$VENDOR_DIR/importmap.json" << 'EOF'
     "@codemirror/autocomplete": "./codemirror/autocomplete/index.js",
     "@codemirror/language": "./codemirror/language/index.js",
     "@codemirror/language-data": "./codemirror/language-data/index.js",
+    "@codemirror/streamparser": "./codemirror/streamparser/index.js",
     "@codemirror/lint": "./codemirror/lint/index.js",
     "@codemirror/search": "./codemirror/search/index.js",
     "@codemirror/theme-one-dark": "./codemirror/theme-one-dark/index.js",

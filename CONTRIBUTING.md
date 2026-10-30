@@ -845,6 +845,9 @@ root npm dependency graph and may embed their own packages. After changing a
 vendored bundle, run `tests/frontend/unit/vendoredBrowserSecurity.test.js` as
 well as `npm audit`; the former inventories known embedded versions and proves
 that vulnerable Mermaid YAML releases remain behind Figaro's pre-parse guard.
+`scripts/vendor.sh` installs the latest CodeMirror and Lezer packages, so the
+same test also fails when one of them imports a package that neither import map
+names; vendor and map the new package (as for `@codemirror/streamparser`).
 The vendor script also pins `@mermaid-js/examples` 1.3.0 and checks its browser
 ES module plus MIT license into `frontend/vendored/mermaid-examples/`. Keep that
 catalogue version aligned with the bundled Mermaid parser and run the Mermaid

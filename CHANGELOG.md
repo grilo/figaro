@@ -16,6 +16,11 @@ remain as originally published.
   save and autosave like notes, and the saved file is an ordinary SVG that any
   app can display and Figaro can reopen for editing.
 
+### Fixed
+
+- Building Figaro from source works again with the latest CodeMirror release,
+  which moved part of its language support into a new package.
+
 ## [1.45.0] - 2026-09-26
 
 ### Added
