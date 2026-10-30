@@ -9,7 +9,14 @@ import { setState, getState, subscribe } from './state.js';
 import { saveSession, scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
-import { isEditableDiagramPath, isEditableCodeMirrorFile } from './languageSupport.js';
+import { isEditableCodeMirrorFile } from './languageSupport.js';
+import {
+    diagramFileName,
+    editableDiagramKind,
+    editableDiagramSpec,
+    isEditableDiagramPath,
+    isPathTabType,
+} from './core/editableDiagramModel.js';
 import { renderLucideIcon } from './lucideIcons.js';
 import { confirmExternalTreeImport, importDroppedExternalPaths, openDroppedMarkdownFiles } from './externalFiles.js';
 import { externalDropAction } from './core/externalFileModel.js';
@@ -301,6 +308,11 @@ const fileTreeContextMenuActions = [
         icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="m9.5 9.5 5 5"/>',
     },
     {
+        action: 'new-excalidraw',
+        label: 'New Excalidraw Drawing',
+        icon: '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>',
+    },
+    {
         action: 'new-folder',
         label: 'New Folder',
         icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>',
@@ -390,6 +402,7 @@ export function buildFileTreeContextMenuHTML({
         paste: !external && Boolean(clipboardPath),
         'new-file': !external,
         'new-drawio': !external,
+        'new-excalidraw': !external,
         'new-folder': !external,
         rename: !external && isTarget && isSingleTarget,
         'customize-style': !external && isTarget && isSingleTarget,
@@ -437,7 +450,7 @@ export function initFileTree() {
         const activeId = getState('activeTabId');
         const activeTab = tabs.find(t => t.id === activeId);
         const activePath = activeTab
-            && (activeTab.type === 'file' || activeTab.type === 'drawio')
+            && isPathTabType(activeTab.type)
             && activeTab.path
             ? activeTab.path
             : null;
@@ -821,8 +834,8 @@ export function buildTreeHTML(items, expandedDirs, focusPath, selectedPaths = []
         const isSelected = selectedPaths.includes(item.path);
         const isCutMarked = cutPathSet.has(item.path);
         const hasChildren = isDir && item.children && item.children.length > 0;
-        const isDrawioDiagram = !isDir && isEditableDiagramPath(item.path);
-        const isManagedOnly = !isDir && !isExternal && !isEditableCodeMirrorFile(item.path) && !isDrawioDiagram;
+        const isDiagram = !isDir && isEditableDiagramPath(item.path);
+        const isManagedOnly = !isDir && !isExternal && !isEditableCodeMirrorFile(item.path) && !isDiagram;
         const isPinned = !isExternal && isFileTreeEntryPinned(item, styles);
         const filePresentation = isDir ? null : fileTreeFilePresentation(item.path);
         const appearance = styles?.[item.path] || {};
@@ -1135,7 +1148,7 @@ function initFileTreeEvents() {
                         externalFileId,
                     });
                 } else if (isDiagram) {
-                    openTab(path, path.split('/').pop(), 'drawio', { path });
+                    openTab(path, path.split('/').pop(), editableDiagramKind(path), { path });
                 } else if (isEditable) {
                     handleFileOpen(path);
                 }
@@ -2137,7 +2150,7 @@ function handleContextMenu(e) {
                         }, true);
                     }
                 } else if (isEditableDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath)) {
-                    openTab(targetPath, targetPath.split('/').pop(), isEditableDiagramPath(targetPath) ? 'drawio' : 'file', { path: targetPath }, true);
+                    openTab(targetPath, targetPath.split('/').pop(), editableDiagramKind(targetPath) || 'file', { path: targetPath }, true);
                 } else {
                     await openManagedFileWithDefaultApplication(targetPath);
                 }
@@ -2171,7 +2184,11 @@ function handleContextMenu(e) {
             break;
 
         case 'new-drawio':
-            await createNewDrawioDiagramIn(getState('contextTargetPath'), getState('contextTargetType'));
+            await createNewDiagramIn('drawio', getState('contextTargetPath'), getState('contextTargetType'));
+            break;
+
+        case 'new-excalidraw':
+            await createNewDiagramIn('excalidraw', getState('contextTargetPath'), getState('contextTargetType'));
             break;
 
         case 'rename':
@@ -2363,7 +2380,9 @@ async function createNewFileIn(targetPath, targetType) {
     }
 }
 
-async function createNewDrawioDiagramIn(targetPath, targetType) {
+async function createNewDiagramIn(kind, targetPath, targetType) {
+    const spec = editableDiagramSpec(kind);
+    const noun = spec.noun;
     let parentDir = '';
     if (targetType === 'directory') {
         parentDir = targetPath;
@@ -2371,19 +2390,20 @@ async function createNewDrawioDiagramIn(targetPath, targetType) {
         parentDir = targetPath.substring(0, targetPath.lastIndexOf('/'));
     }
 
-    const name = await promptDialog('New Draw.io diagram', 'Create an editable diagram in this folder.', 'Untitled.drawio.svg', {
+    const name = await promptDialog(`New ${spec.editorName} ${noun}`, `Create an editable ${noun} in this folder.`, `Untitled${spec.suffix}`, {
         icon: 'file-add',
-        label: 'Diagram name',
-        confirmLabel: 'Create diagram',
+        label: `${noun.charAt(0).toUpperCase()}${noun.slice(1)} name`,
+        confirmLabel: `Create ${noun}`,
         context: parentDir ? parentDir + '/' : 'Vault root',
-        help: 'The .drawio.svg extension is added automatically when needed.',
+        help: `The ${spec.suffix} extension is added automatically when needed.`,
         validate: validateTreeItemName,
     });
     if (!name?.trim()) return;
 
-    let fileName = name.trim();
-    if (!isEditableDiagramPath(fileName)) {
-        fileName = fileName.replace(/\.svg$/i, '').replace(/\.drawio$/i, '') + '.drawio.svg';
+    const fileName = diagramFileName(kind, name);
+    if (!fileName) {
+        await errorDialog(`Couldn’t create ${noun}`, null, `Choose a valid ${noun} name.`);
+        return;
     }
 
     try {
@@ -2392,15 +2412,15 @@ async function createNewDrawioDiagramIn(targetPath, targetType) {
             ''
         );
         if (!result.success) {
-            await errorDialog('Couldn’t create diagram', result.error, 'The diagram could not be created.');
+            await errorDialog(`Couldn’t create ${noun}`, result.error, `The ${noun} could not be created.`);
             return;
         }
 
         await refreshFileTree();
-        openTab(result.path, fileName, 'drawio', { path: result.path, mtime: result.mtime });
+        openTab(result.path, fileName, kind, { path: result.path, mtime: result.mtime });
     } catch (err) {
-        log.error('Create draw.io diagram failed:', err);
-        await errorDialog('Couldn’t create diagram', err, 'The diagram could not be created.');
+        log.error(`Create ${spec.editorName} ${noun} failed:`, err);
+        await errorDialog(`Couldn’t create ${noun}`, err, `The ${noun} could not be created.`);
     }
 }
 

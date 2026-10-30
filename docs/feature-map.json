@@ -1508,7 +1508,7 @@
     ],
     "extraChecks": [
       "Run tests/e2e/mermaidEditor.spec.js for Mermaid drawing size, box height across source reveal, and the resize handle.",
-      "Use charts for Vega/Vega-Lite editing. Add affected Draw.io/table tests for those formats; frame, geometry, or printable changes need existing browser boundaries."
+      "Use charts for Vega/Vega-Lite editing and drawings for Draw.io and Excalidraw. Add affected table tests for tables; frame, geometry, or printable changes need existing browser boundaries."
     ],
     "symbols": {
       "frontend/js/mermaidEditor.js": [
@@ -1563,7 +1563,7 @@
       "frontend/js/core/vegaLiteChartEditorModel.js"
     ],
     "docs": [
-      "docs/DIAGRAMS_AND_EXPORT.md#charts-and-drawio",
+      "docs/DIAGRAMS_AND_EXPORT.md#charts",
       "docs/PROMPT.md#3032-diagram-actions-and-the-chart-editor",
       "ARCHITECTURE.md#mermaid-and-chart-editors",
       "docs/testing/workspace.md#chart-heavy-editing-performance-verification"
@@ -1579,6 +1579,70 @@
     "symbols": {
       "frontend/js/vegaLiteChartEditor.js": [
         "openVegaLiteChartEditor"
+      ]
+    }
+  },
+  {
+    "id": "drawings",
+    "title": "Draw.io diagrams and Excalidraw drawings",
+    "sources": [
+      "frontend/js/core/editableDiagramModel.js",
+      "frontend/js/core/diagramImageCreationModel.js",
+      "frontend/js/usecases/createDiagramImage.js",
+      "frontend/js/core/excalidrawDrawingModel.js",
+      "frontend/js/excalidraw.js",
+      "frontend/js/drawio.js",
+      "scripts/vendor-excalidraw.mjs",
+      "scripts/vendor/excalidraw-entry.js",
+      "internal/desktop/drawio.go"
+    ],
+    "docs": [
+      "docs/DIAGRAMS_AND_EXPORT.md#drawio-diagrams-and-excalidraw-drawings",
+      "docs/PROMPT.md#306-drawio-svg-diagrams-and-excalidraw-drawings",
+      "ARCHITECTURE.md#drawio-editing-and-image-creation",
+      "ARCHITECTURE.md#excalidraw-drawings",
+      "docs/testing/editor.md#excalidraw-drawing-regressions"
+    ],
+    "tests": [
+      "tests/frontend/unit/editableDiagramModel.test.js",
+      "tests/frontend/unit/diagramImageCreationModel.test.js",
+      "tests/frontend/unit/createDiagramImage.test.js",
+      "tests/frontend/unit/diagramImageGuide.test.js",
+      "tests/frontend/unit/excalidrawDrawingModel.test.js",
+      "tests/frontend/unit/excalidrawEditor.test.js",
+      "tests/frontend/unit/drawio.test.js",
+      "tests/frontend/unit/drawioEditor.test.js",
+      "tests/frontend/unit/vendoredBrowserSecurity.test.js"
+    ],
+    "extraChecks": [
+      "Run tests/e2e/excalidraw.spec.js for the real bundle, theme mapping, Ctrl+S save and scene round-trip; tests/e2e/drawio.spec.js needs network access to diagrams.net.",
+      "Run go test ./internal/desktop ./internal/mutations -run 'Diagram|Excalidraw' for diagram reads, compound-suffix copies and session restore.",
+      "Saving, closing and session restore are shared with notes; use tabs for those paths and files for compound-suffix copies."
+    ],
+    "symbols": {
+      "frontend/js/core/editableDiagramModel.js": [
+        "editableDiagramKind",
+        "editableDiagramSpec",
+        "isPathTabType",
+        "diagramFileName"
+      ],
+      "frontend/js/core/diagramImageCreationModel.js": [
+        "diagramImageCreationTarget",
+        "localDiagramMarkdownImageKind"
+      ],
+      "frontend/js/usecases/createDiagramImage.js": [
+        "createDiagramImage"
+      ],
+      "frontend/js/excalidraw.js": [
+        "renderExcalidrawTab",
+        "configureExcalidrawWorkspace"
+      ],
+      "frontend/js/core/excalidrawDrawingModel.js": [
+        "shouldReloadDrawing"
+      ],
+      "frontend/js/drawio.js": [
+        "renderDrawioTab",
+        "isDrawioDarkTheme"
       ]
     }
   },

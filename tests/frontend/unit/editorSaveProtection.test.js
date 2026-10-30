@@ -60,3 +60,14 @@ test('quitting a clean workspace still persists in-memory cursors', async () => 
     expect(h.ports.saveSession).toHaveBeenCalledTimes(1);
     expect(h.ports.close).toHaveBeenCalledTimes(1);
 });
+
+test('quitting with an unsaved drawing asks first and saves it through its editor', async () => {
+    const drawing = { id: 'board.excalidraw.svg', path: 'board.excalidraw.svg', type: 'excalidraw', title: 'board.excalidraw.svg', dirty: true };
+    const saveDrawing = jest.fn(async tab => { tab.dirty = false; return { success: true }; });
+    const h = harness({ tabs: () => [drawing], saveDrawing });
+    await h.close();
+    expect(h.ports.confirmClose).toHaveBeenCalledWith([drawing]);
+    expect(saveDrawing).toHaveBeenCalledWith(drawing, { failurePrompt: 'always' });
+    expect(h.ports.save).not.toHaveBeenCalled();
+    expect(h.ports.close).toHaveBeenCalled();
+});

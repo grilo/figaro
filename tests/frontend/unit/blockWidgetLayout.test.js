@@ -215,7 +215,7 @@ describe('CodeMirror block-widget layout contract', () => {
             .toMatch(/min-height:\s*var\(--cm-image-source-height\)\s*!important/);
         expect(declarationsFor('.cm-editor .cm-image-widget.is-resizing .cm-image-resize-readout'))
             .toMatch(/display:\s*block/);
-        const drawioAction = declarationsFor('.cm-editor .cm-drawio-action-button');
+        const drawioAction = declarationsFor('.cm-editor .cm-diagram-action-button');
         expect(drawioAction).toMatch(/height:\s*1\.65em/);
         expect(drawioAction).toMatch(/width:\s*100%/);
     });

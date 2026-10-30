@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -44,5 +45,25 @@ describe('vendored browser security policy', () => {
             .filter(file => /window\.mermaid\.render\s*\(/.test(fs.readFileSync(file, 'utf8')))
             .map(file => path.relative(path.resolve('frontend/js'), file));
         expect(mermaidRenderCallers).toEqual(['diagramRenderer.js']);
+    });
+
+    test('keeps the vendored Excalidraw editor offline and free of runtime imports', () => {
+        const directory = path.resolve('frontend/vendored/excalidraw');
+        const bundle = fs.readFileSync(path.join(directory, 'excalidraw.min.js'), 'utf8');
+        // Excalidraw would otherwise retry missing fonts from esm.sh.
+        expect(bundle).not.toMatch(/\.push\(new URL\(\w+,\w+\.ASSETS_FALLBACK_URL\)\)/);
+        expect(bundle).not.toMatch(/\bimport\(/);
+        // The bundle must be rebuilt (npm run vendor:excalidraw) whenever its entry changes.
+        const entryHash = crypto.createHash('sha256')
+            .update(fs.readFileSync(path.resolve('scripts/vendor/excalidraw-entry.js')))
+            .digest('hex');
+        expect(bundle.slice(0, 200)).toContain(`figaro-excalidraw-entry sha256:${entryHash}`);
+        expect(fs.existsSync(path.join(directory, 'fonts/Excalifont'))).toBe(true);
+        expect(fs.existsSync(path.join(directory, 'fonts/Xiaolai'))).toBe(false);
+        expect(fs.readFileSync(path.join(directory, 'LICENSES.txt'), 'utf8')).toMatch(/^## @excalidraw\/excalidraw 0\.18\.1 \(MIT\)$/m);
+
+        const index = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
+        expect(index).toContain('window.EXCALIDRAW_ASSET_PATH = "/vendored/excalidraw/";');
+        expect(index.indexOf('/vendored/excalidraw/excalidraw.min.js')).toBeLessThan(index.indexOf('/app.bundle.js'));
     });
 });

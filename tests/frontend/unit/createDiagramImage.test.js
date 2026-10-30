@@ -1,11 +1,11 @@
-import { createDrawioImage } from '../frontend/js/usecases/createDrawioImage.js';
+import { createDiagramImage } from '../frontend/js/usecases/createDiagramImage.js';
 
-const target = { path: 'Notes/flow.drawio.svg', title: 'flow.drawio.svg' };
+const target = { kind: 'drawio', path: 'Notes/flow.drawio.svg', title: 'flow.drawio.svg' };
 
 describe('Draw.io image creation use case', () => {
     test('creates an empty file, opens the diagram, and then refreshes the tree', async () => {
         const calls = [];
-        const result = await createDrawioImage({
+        const result = await createDiagramImage({
             target,
             createFile: async (path, content) => {
                 calls.push(['create', path, content]);
@@ -25,7 +25,7 @@ describe('Draw.io image creation use case', () => {
 
     test('inserts a macro reference after creation and before opening the diagram', async () => {
         const calls = [];
-        const result = await createDrawioImage({
+        const result = await createDiagramImage({
             target,
             createFile: async () => {
                 calls.push('create');
@@ -51,7 +51,7 @@ describe('Draw.io image creation use case', () => {
     test('keeps a created asset discoverable when the source token changed before insertion', async () => {
         const refreshTree = jest.fn();
         const openDiagram = jest.fn();
-        await expect(createDrawioImage({
+        await expect(createDiagramImage({
             target,
             createFile: async () => ({ success: true, path: target.path }),
             insertReference: async () => false,
@@ -65,7 +65,7 @@ describe('Draw.io image creation use case', () => {
     test('does not refresh or open when creation fails', async () => {
         const refreshTree = jest.fn();
         const openDiagram = jest.fn();
-        await expect(createDrawioImage({
+        await expect(createDiagramImage({
             target,
             createFile: async () => ({ success: false, error: 'Destination exists' }),
             refreshTree,
@@ -78,7 +78,7 @@ describe('Draw.io image creation use case', () => {
     test('opens a created diagram before a pending tree refresh settles', async () => {
         const openDiagram = jest.fn();
         let releaseRefresh;
-        const result = await createDrawioImage({
+        const result = await createDiagramImage({
             target,
             createFile: async () => ({ success: true, path: target.path }),
             refreshTree: () => new Promise(resolve => { releaseRefresh = resolve; }),
@@ -93,7 +93,7 @@ describe('Draw.io image creation use case', () => {
         const openDiagram = jest.fn();
         const reportRefreshFailure = jest.fn();
         const refreshError = new Error('tree unavailable');
-        await expect(createDrawioImage({
+        await expect(createDiagramImage({
             target,
             createFile: async () => ({ success: true, path: target.path }),
             refreshTree: async () => { throw refreshError; },
@@ -109,7 +109,7 @@ describe('Draw.io image creation use case', () => {
     test('refreshes discovery after a created diagram cannot be opened', async () => {
         const refreshTree = jest.fn();
         const openError = new Error('tab unavailable');
-        await expect(createDrawioImage({
+        await expect(createDiagramImage({
             target,
             createFile: async () => ({ success: true, path: target.path }),
             refreshTree,

@@ -22,14 +22,15 @@ const source = 'Before\n![Flow](flow.drawio.svg)\nAfter';
 function createView({
     documentSource = source,
     imageResult = { loaded: false },
-    resolveDrawioState = jest.fn(async () => ({ kind: 'create' })),
-    onCreateDrawio = jest.fn(async () => false),
-    onOpenDrawio = jest.fn(async () => false),
+    resolveDiagramState = jest.fn(async () => ({ kind: 'create' })),
+    onCreateDiagram = jest.fn(async () => false),
+    onOpenDiagram = jest.fn(async () => false),
 } = {}) {
     const loadImage = jest.fn(async () => imageResult);
-    const drawioTarget = jest.fn(path => path.endsWith('.drawio.svg')
-        ? { path: `Notes/${path}`, title: path }
-        : null);
+    const diagramTarget = jest.fn(path => {
+        const kind = path.endsWith('.drawio.svg') ? 'drawio' : path.endsWith('.excalidraw.svg') ? 'excalidraw' : null;
+        return kind ? { kind, path: `Notes/${path}`, title: path } : null;
+    });
     const view = new EditorView({
         parent: document.body,
         state: EditorState.create({
@@ -42,10 +43,10 @@ function createView({
                 mouseSelectingField,
                 createMarkdownImageField({
                     loadImage,
-                    drawioTarget,
-                    resolveDrawioState,
-                    onCreateDrawio,
-                    onOpenDrawio,
+                    diagramTarget,
+                    resolveDiagramState,
+                    onCreateDiagram,
+                    onOpenDiagram,
                 }),
             ],
         }),
@@ -53,10 +54,10 @@ function createView({
     return {
         view,
         loadImage,
-        drawioTarget,
-        resolveDrawioState,
-        onCreateDrawio,
-        onOpenDrawio,
+        diagramTarget,
+        resolveDiagramState,
+        onCreateDiagram,
+        onOpenDiagram,
     };
 }
 
@@ -141,7 +142,7 @@ describe('actionable Draw.io Markdown images', () => {
         const compartment = new Compartment();
         const load = jest.fn(async src => ({ loaded: true, src, width: 240, height: 153 }));
         const field = () => createMarkdownImageField({ loadImage: load,
-            drawioTarget: src => src.endsWith('.drawio.svg') ? { path: 'Notes/flow.drawio.svg' } : null });
+            diagramTarget: src => src.endsWith('.drawio.svg') ? { kind: 'drawio', path: 'Notes/flow.drawio.svg' } : null });
         const view = new EditorView({ state: EditorState.create({ doc: source,
             extensions: [markdown(), collapseOnSelectionFacet.of(true), mouseSelectingField, compartment.of(field())] }), parent: document.body });
         try {
@@ -314,16 +315,42 @@ describe('actionable Draw.io Markdown images', () => {
         view.destroy();
     });
 
+    test('names the Excalidraw action and marks the drawing for dark-surface treatment', async () => {
+        const documentSource = 'Before\n![Board](board.excalidraw.svg)\nAfter';
+        const onCreateDiagram = jest.fn(async () => true);
+        const { view } = createView({ documentSource, onCreateDiagram });
+        await settle();
+        const widget = view.dom.querySelector('.cm-image-widget');
+        expect(widget.classList.contains('cm-image-widget--excalidraw')).toBe(true);
+        const button = view.dom.querySelector('.cm-diagram-action-button');
+        expect(button.textContent).toBe('Create Excalidraw drawing');
+        expect(button.getAttribute('aria-label')).toBe('Create Excalidraw drawing board.excalidraw.svg');
+
+        button.click();
+        expect(button.textContent).toBe('Creating drawing…');
+        await settle();
+        expect(onCreateDiagram).toHaveBeenCalledWith({ kind: 'excalidraw', path: 'Notes/board.excalidraw.svg', title: 'board.excalidraw.svg' });
+        expect(button.textContent).toBe('Open Excalidraw drawing');
+        view.destroy();
+    });
+
+    test('leaves Draw.io and ordinary images without the Excalidraw treatment', async () => {
+        const { view } = createView();
+        await settle();
+        expect(view.dom.querySelector('.cm-image-widget--excalidraw')).toBeNull();
+        view.destroy();
+    });
+
     test('offers one accessible action and keeps the source unchanged while creating', async () => {
         const {
             view,
             loadImage,
-            drawioTarget,
-            resolveDrawioState,
-            onCreateDrawio,
+            diagramTarget,
+            resolveDiagramState,
+            onCreateDiagram,
         } = createView();
         await settle();
-        const button = view.dom.querySelector('.cm-drawio-action-button');
+        const button = view.dom.querySelector('.cm-diagram-action-button');
         expect(button).not.toBeNull();
         expect(button.classList.contains('ui-button--accent')).toBe(true);
         expect(button.getAttribute('aria-label')).toBe('Create Draw.io diagram flow.drawio.svg');
@@ -337,12 +364,14 @@ describe('actionable Draw.io Markdown images', () => {
             expect.stringMatching(/^\/vault\/Notes\/flow\.drawio\.svg\?figaro-preview=\d+$/),
             { basePath: '' },
         );
-        expect(drawioTarget).toHaveBeenCalledWith('flow.drawio.svg');
-        expect(resolveDrawioState).toHaveBeenCalledWith({
+        expect(diagramTarget).toHaveBeenCalledWith('flow.drawio.svg');
+        expect(resolveDiagramState).toHaveBeenCalledWith({
+            kind: 'drawio',
             path: 'Notes/flow.drawio.svg',
             title: 'flow.drawio.svg',
         });
-        expect(onCreateDrawio).toHaveBeenCalledWith({
+        expect(onCreateDiagram).toHaveBeenCalledWith({
+            kind: 'drawio',
             path: 'Notes/flow.drawio.svg',
             title: 'flow.drawio.svg',
         });
@@ -354,15 +383,15 @@ describe('actionable Draw.io Markdown images', () => {
     });
 
     test('turns a successful mounted creation action into a reusable Open action', async () => {
-        const onCreateDrawio = jest.fn(async () => true);
-        const onOpenDrawio = jest.fn(async () => true);
-        const { view } = createView({ onCreateDrawio, onOpenDrawio });
+        const onCreateDiagram = jest.fn(async () => true);
+        const onOpenDiagram = jest.fn(async () => true);
+        const { view } = createView({ onCreateDiagram, onOpenDiagram });
         await settle();
-        const button = view.dom.querySelector('.cm-drawio-action-button');
+        const button = view.dom.querySelector('.cm-diagram-action-button');
 
         button.click();
         await settle();
-        expect(onCreateDrawio).toHaveBeenCalledTimes(1);
+        expect(onCreateDiagram).toHaveBeenCalledTimes(1);
         expect(button.disabled).toBe(false);
         expect(button.hasAttribute('aria-busy')).toBe(false);
         expect(button.textContent).toBe('Open Draw.io diagram');
@@ -370,7 +399,8 @@ describe('actionable Draw.io Markdown images', () => {
 
         button.click();
         await settle();
-        expect(onOpenDrawio).toHaveBeenCalledWith({
+        expect(onOpenDiagram).toHaveBeenCalledWith({
+            kind: 'drawio',
             path: 'Notes/flow.drawio.svg',
             title: 'flow.drawio.svg',
         });
@@ -380,47 +410,47 @@ describe('actionable Draw.io Markdown images', () => {
     });
 
     test('offers Open when the failed preview belongs to an existing blank diagram', async () => {
-        const resolveDrawioState = jest.fn(async () => ({ kind: 'open' }));
-        const onCreateDrawio = jest.fn(async () => true);
-        const onOpenDrawio = jest.fn(async () => true);
-        const { view } = createView({ resolveDrawioState, onCreateDrawio, onOpenDrawio });
+        const resolveDiagramState = jest.fn(async () => ({ kind: 'open' }));
+        const onCreateDiagram = jest.fn(async () => true);
+        const onOpenDiagram = jest.fn(async () => true);
+        const { view } = createView({ resolveDiagramState, onCreateDiagram, onOpenDiagram });
         await settle();
-        const button = view.dom.querySelector('.cm-drawio-action-button');
+        const button = view.dom.querySelector('.cm-diagram-action-button');
 
         expect(button.getAttribute('aria-label')).toBe('Open Draw.io diagram flow.drawio.svg');
         button.click();
         await settle();
-        expect(onOpenDrawio).toHaveBeenCalledTimes(1);
-        expect(onCreateDrawio).not.toHaveBeenCalled();
+        expect(onOpenDiagram).toHaveBeenCalledTimes(1);
+        expect(onCreateDiagram).not.toHaveBeenCalled();
         view.destroy();
     });
 
     test('restores a saved SVG preview when the vault image request previously failed', async () => {
         const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"></svg>';
         const sourceURL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-        const resolveDrawioState = jest.fn(async () => ({
+        const resolveDiagramState = jest.fn(async () => ({
             kind: 'preview',
             source: sourceURL,
         }));
-        const { view } = createView({ resolveDrawioState });
+        const { view } = createView({ resolveDiagramState });
         await settle();
 
         const image = view.dom.querySelector('.cm-image-widget img');
         expect(image).not.toBeNull();
         expect(image.getAttribute('src')).toBe(sourceURL);
-        expect(view.dom.querySelector('.cm-drawio-action-button')).toBeNull();
+        expect(view.dom.querySelector('.cm-diagram-action-button')).toBeNull();
         view.destroy();
     });
 
     test('remounts the failed image when file activation changes it from blank to saved SVG', async () => {
         const field = new Compartment();
         const loadImage = jest.fn(async () => ({ loaded: false }));
-        const drawioTarget = path => ({ path: `Notes/${path}`, title: path });
-        let drawioState = { kind: 'open' };
+        const diagramTarget = path => ({ kind: 'drawio', path: `Notes/${path}`, title: path });
+        let diagramState = { kind: 'open' };
         const extension = () => createMarkdownImageField({
             loadImage,
-            drawioTarget,
-            resolveDrawioState: async () => drawioState,
+            diagramTarget,
+            resolveDiagramState: async () => diagramState,
         });
         const view = new EditorView({
             parent: document.body,
@@ -436,10 +466,10 @@ describe('actionable Draw.io Markdown images', () => {
             }),
         });
         await settle();
-        expect(view.dom.querySelector('.cm-drawio-action-button')).not.toBeNull();
+        expect(view.dom.querySelector('.cm-diagram-action-button')).not.toBeNull();
 
         const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"></svg>';
-        drawioState = {
+        diagramState = {
             kind: 'preview',
             source: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
         };
@@ -447,7 +477,7 @@ describe('actionable Draw.io Markdown images', () => {
         await settle();
 
         expect(view.dom.querySelector('.cm-image-widget img')).not.toBeNull();
-        expect(view.dom.querySelector('.cm-drawio-action-button')).toBeNull();
+        expect(view.dom.querySelector('.cm-diagram-action-button')).toBeNull();
         view.destroy();
     });
 
@@ -468,7 +498,7 @@ describe('actionable Draw.io Markdown images', () => {
         });
         await settle();
         expect(view.dom.querySelector('.cm-image-error')).not.toBeNull();
-        expect(view.dom.querySelector('.cm-drawio-action-button')).toBeNull();
+        expect(view.dom.querySelector('.cm-diagram-action-button')).toBeNull();
         view.dispatch({ selection: { anchor: ordinary.indexOf('missing.png') } });
         await settle();
         expect(view.dom.querySelector('.cm-image-error')).toBeNull();

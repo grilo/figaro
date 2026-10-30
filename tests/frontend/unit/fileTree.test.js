@@ -74,7 +74,7 @@ jest.mock('../frontend/js/editor.js', () => ({
 import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
-import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from '../frontend/js/dialogs.js';
 import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 import { focusEditor } from '../frontend/js/editor.js';
@@ -654,6 +654,28 @@ describe('File Tree', () => {
             'architecture.drawio.svg',
             'drawio',
             { path: 'Diagrams/architecture.drawio.svg' }
+        );
+    });
+
+    test('opens an Excalidraw SVG in its own drawing tab', () => {
+        state.fileTreeData = [{
+            name: 'board.excalidraw.svg',
+            path: 'Sketches/board.excalidraw.svg',
+            type: 'file',
+            mtime: 100,
+        }];
+        initFileTree();
+        renderFileTree();
+
+        const node = document.querySelector('.file-tree-node');
+        expect(node.classList.contains('non-md')).toBe(false);
+        node.click();
+
+        expect(openTab).toHaveBeenCalledWith(
+            'Sketches/board.excalidraw.svg',
+            'board.excalidraw.svg',
+            'excalidraw',
+            { path: 'Sketches/board.excalidraw.svg' }
         );
     });
 
@@ -1253,7 +1275,7 @@ describe('File Tree', () => {
         expect([...menu.querySelectorAll('[data-action]')].map(item => item.dataset.action)).toEqual([
             'open-new-tab', 'merge-notes',
             'cut', 'copy', 'paste',
-            'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
+            'new-file', 'new-drawio', 'new-excalidraw', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
         ]);
         expect(menu.querySelector('[data-action="new-file"]').classList.contains('disabled')).toBe(false);
         for (const action of ['open-new-tab', 'merge-notes', 'cut', 'copy', 'paste', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete']) {
@@ -1527,7 +1549,7 @@ describe('File Tree', () => {
         const expectedActions = [
             'open-new-tab', 'merge-notes',
             'cut', 'copy', 'paste',
-            'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
+            'new-file', 'new-drawio', 'new-excalidraw', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
         ];
 
         expect(actionsFor({ type: 'root' })).toEqual(expectedActions);
@@ -1816,6 +1838,33 @@ describe('File Tree', () => {
 
         expect(window.go.desktop.App.CreateFile).toHaveBeenCalledWith('print.css', '');
         expect(handleFileOpen).toHaveBeenCalledWith('print.css');
+    });
+
+    test('creates a named Excalidraw drawing from the context menu and opens it', async () => {
+        state.fileTreeData = [];
+        promptDialog.mockResolvedValueOnce('whiteboard');
+        window.go.desktop.App.CreateFile.mockResolvedValueOnce({ success: true, path: 'whiteboard.excalidraw.svg', mtime: 7 });
+        initFileTree();
+
+        const tree = document.getElementById('file-tree');
+        tree.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+        document.querySelector('.context-menu [data-action="new-excalidraw"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(promptDialog).toHaveBeenCalledWith(
+            'New Excalidraw drawing',
+            expect.any(String),
+            'Untitled.excalidraw.svg',
+            expect.objectContaining({ confirmLabel: 'Create drawing' }),
+        );
+        expect(window.go.desktop.App.CreateFile).toHaveBeenCalledWith('whiteboard.excalidraw.svg', '');
+        expect(openTab).toHaveBeenCalledWith(
+            'whiteboard.excalidraw.svg',
+            'whiteboard.excalidraw.svg',
+            'excalidraw',
+            { path: 'whiteboard.excalidraw.svg', mtime: 7 },
+        );
     });
 
     test('opens a same-folder punctuation variant instead of creating it by default', async () => {

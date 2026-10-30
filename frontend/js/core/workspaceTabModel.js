@@ -1,3 +1,10 @@
+import { isPathTabType } from './editableDiagramModel.js';
+
+// Tabs whose unsaved edits are tracked by generation: notes and Excalidraw drawings.
+function isEditableBufferTab(tab) {
+    return tab.type === 'file' || tab.type === 'excalidraw';
+}
+
 function unchanged(tabs, tab = null) {
     return { tabs, tab, previous: tab, changed: false };
 }
@@ -26,7 +33,7 @@ export function updateWorkspaceTab(tabs, tabId, update, knownIndex) {
 }
 
 export function recordWorkspaceTabEdit(tabs, tabId, knownIndex, content) {
-    const result = updateWorkspaceTab(tabs, tabId, tab => tab.type === 'file' ? {
+    const result = updateWorkspaceTab(tabs, tabId, tab => isEditableBufferTab(tab) ? {
         dirty: true,
         ...(content === undefined ? {} : { _content: content }),
         _editGeneration: (tab._editGeneration || 0) + 1,
@@ -111,7 +118,7 @@ export function finishWorkspaceFileLoad(tabs, loading, file, activeId) {
 export function acknowledgeWorkspaceFileSave(tabs, snapshot, result) {
     let changed = false;
     const next = tabs.map(tab => {
-        if ((tab.type !== 'file' && tab.type !== 'drawio') || tab.path !== snapshot.path
+        if (!isPathTabType(tab.type) || tab.path !== snapshot.path
             || (tab.externalFileId || null) !== (snapshot.externalFileId || null) || tab.mtime === result.mtime) return tab;
         changed = true;
         return { ...tab, mtime: result.mtime };
@@ -127,7 +134,7 @@ export function moveWorkspaceTabPaths(tabs, oldPath, newPath) {
     let changed = false;
     if (!oldBase || !nextBase) return { tabs, idChanges, changed };
     const next = tabs.map(tab => {
-        if (!tab.path || !['file', 'drawio'].includes(tab.type)) return tab;
+        if (!tab.path || !isPathTabType(tab.type)) return tab;
         const path = normalize(tab.path);
         const moved = path === oldBase ? nextBase
             : path.startsWith(oldBase + '/') ? nextBase + path.slice(oldBase.length) : null;

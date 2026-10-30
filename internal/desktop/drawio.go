@@ -4,22 +4,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"figaro/internal/mutations"
 )
 
-// isDrawioDiagramPath identifies Figaro's canonical editable SVG format. The
-// double extension makes editable draw.io diagrams distinguishable from normal
-// SVG assets while preserving normal image rendering in Markdown.
-func isDrawioDiagramPath(path string) bool {
-	lower := strings.ToLower(filepath.ToSlash(path))
-	return strings.HasSuffix(lower, ".drawio.svg") || strings.HasSuffix(lower, ".excalidraw.svg")
+// isEditableDiagramPath identifies Figaro's editable SVG formats: Draw.io
+// (.drawio.svg) and Excalidraw (.excalidraw.svg). The double extension makes
+// them distinguishable from normal SVG assets while preserving normal image
+// rendering in Markdown.
+func isEditableDiagramPath(path string) bool {
+	return mutations.EditableDiagramSuffix(filepath.ToSlash(path)) != ""
 }
 
-// ReadDiagram reads an editable draw.io SVG. Markdown files continue to use
-// ReadFile; the separate method avoids treating arbitrary SVGs as text notes.
+// ReadDiagram reads an editable Draw.io or Excalidraw SVG. Markdown files
+// continue to use ReadFile; the separate method avoids treating arbitrary SVGs
+// as text notes.
 func (a *App) ReadDiagram(relPath string) (*ReadFileResult, error) {
-	if !isDrawioDiagramPath(relPath) {
-		return nil, fmt.Errorf("not a draw.io SVG: %s", relPath)
+	if !isEditableDiagramPath(relPath) {
+		return nil, fmt.Errorf("not an editable diagram SVG: %s", relPath)
 	}
 
 	a.vaultMu.RLock()

@@ -1,3 +1,5 @@
+import { diagramMarkdownReference } from './editableDiagramModel.js';
+
 export const basicMarkdownTable = [
     '| Column 1 | Column 2 |',
     '| --- | --- |',
@@ -6,43 +8,14 @@ export const basicMarkdownTable = [
 
 export const emptyMermaidBlock = '```mermaid\n\n```';
 
-export const defaultDrawioMacroName = 'diagram1';
-
 export const authoringMacros = Object.freeze([
     { name: 'date', detail: 'Insert date link; set deadline on tasks', action: 'date-picker' },
     { name: 'table', detail: 'Insert a table and open its editor', action: 'table-editor' },
     { name: 'todo', detail: 'Start a task list', action: 'insert' },
     { name: 'mermaid', detail: 'Insert a diagram and open its editor', action: 'mermaid-editor' },
-    { name: 'drawio', detail: 'Create a sibling Draw.io diagram', action: 'drawio-create' },
+    { name: 'drawio', detail: 'Create a sibling Draw.io diagram', action: 'diagram-create', kind: 'drawio' },
+    { name: 'excalidraw', detail: 'Create a sibling Excalidraw drawing', action: 'diagram-create', kind: 'excalidraw' },
 ]);
-
-export function drawioMacroNameError(value) {
-    const name = String(value || '').trim();
-    if (!name) return 'Enter a diagram name.';
-    if (/[\\/]/u.test(name)) return 'Choose a name, not a path.';
-    if (/^\.+$/u.test(name)) return 'Choose a name other than dots.';
-    if (Array.from(name).some(character => character.charCodeAt(0) < 0x20)) {
-        return 'The name contains an unsupported control character.';
-    }
-    const stem = name
-        .replace(/\.drawio\.svg$/iu, '')
-        .replace(/\.svg$/iu, '')
-        .replace(/\.drawio$/iu, '')
-        .trim();
-    return stem ? '' : 'Enter a name before the .drawio.svg extension.';
-}
-
-export function drawioMacroFileName(value) {
-    if (drawioMacroNameError(value)) return '';
-    const name = String(value).trim();
-    if (/\.drawio\.svg$/iu.test(name)) return name;
-    return `${name.replace(/\.svg$/iu, '').replace(/\.drawio$/iu, '')}.drawio.svg`;
-}
-
-export function drawioMacroMarkdown(value) {
-    const fileName = drawioMacroFileName(value);
-    return fileName ? `![Diagram](./${encodeURIComponent(fileName)})` : '';
-}
 
 /** Match a whitespace-delimited Figaro macro at the caret. */
 export function authoringMacroCompletionPlan(lineBeforeCaret) {
@@ -99,7 +72,7 @@ function blockInsertion(documentText, range, block, cursorInBlock = block.length
  * Plan one atomic macro replacement without touching CodeMirror or opening UI.
  * Block macros add portable blank-line boundaries when surrounding prose exists.
  */
-export function authoringMacroInsertionPlan(name, documentText, range, { drawioName = '' } = {}) {
+export function authoringMacroInsertionPlan(name, documentText, range, { diagramName = '' } = {}) {
     const source = String(documentText || '');
     const from = Math.max(0, Math.min(Number(range?.from) || 0, source.length));
     const to = Math.max(from, Math.min(Number(range?.to) || from, source.length));
@@ -115,8 +88,9 @@ export function authoringMacroInsertionPlan(name, documentText, range, { drawioN
             '```mermaid\n'.length,
         );
     }
-    if (name === 'drawio') {
-        const image = drawioMacroMarkdown(drawioName);
+    const macro = authoringMacros.find(candidate => candidate.name === name);
+    if (macro?.action === 'diagram-create') {
+        const image = diagramMarkdownReference(macro.kind, diagramName);
         return image ? blockInsertion(source, boundedRange, image) : null;
     }
     return null;

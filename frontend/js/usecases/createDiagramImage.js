@@ -1,5 +1,5 @@
-/** Coordinate creation of a Draw.io asset referenced by the active Markdown note. */
-export async function createDrawioImage({
+/** Coordinate creation of an editable diagram asset referenced by the active Markdown note. */
+export async function createDiagramImage({
     target,
     createFile,
     refreshTree,
@@ -9,10 +9,10 @@ export async function createDrawioImage({
 }) {
     if (!target?.path || !target?.title) return { kind: 'invalid' };
     if (![createFile, refreshTree, openDiagram].every(port => typeof port === 'function')) {
-        throw new TypeError('Draw.io image creation requires file, tree, and tab ports');
+        throw new TypeError('Diagram image creation requires file, tree, and tab ports');
     }
     if (insertReference !== null && typeof insertReference !== 'function') {
-        throw new TypeError('Draw.io reference insertion must be a function or null');
+        throw new TypeError('Diagram reference insertion must be a function or null');
     }
 
     let created;
@@ -24,6 +24,7 @@ export async function createDrawioImage({
     if (!created?.success) return { kind: 'failed', error: created?.error };
 
     const diagram = {
+        kind: target.kind,
         path: created.path || target.path,
         title: target.title,
         mtime: created.mtime,

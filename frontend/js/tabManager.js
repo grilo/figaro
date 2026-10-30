@@ -35,7 +35,7 @@ import {
 import { renderVaultHealth } from './vaultHealth.js';
 import { renderDrawioTab } from './drawio.js';
 import { renderExcalidrawTab } from './excalidraw.js';
-import { isExcalidrawDiagramPath } from './languageSupport.js';
+import { isPathTabType } from './core/editableDiagramModel.js';
 import { createGraphView } from './graphView.js';
 import { initSettingsPanel } from './theme.js';
 import { isDiskFullError, isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
@@ -253,7 +253,7 @@ function setTabDragSelectionGuard(active) {
 }
 
 function isFileBackedTab(tab) {
-    return Boolean(tab?.path) && (tab.type === 'file' || tab.type === 'drawio');
+    return Boolean(tab?.path) && isPathTabType(tab.type);
 }
 
 function snapshotActiveFileTab(tab) {
@@ -779,6 +779,7 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
         tab.externalFileId = data.externalFileId || null;
         break;
     case 'drawio':
+    case 'excalidraw':
         tab.path = data.path;
         tab.mtime = data.mtime;
         break;
@@ -1012,6 +1013,7 @@ async function renderTabContent(
         case 'settings': renderSettingsTab(panel, tab); break;
         case 'health': renderVaultHealthTab(panel); break;
         case 'drawio': renderDrawioDiagramTab(panel, tab); break;
+        case 'excalidraw': renderExcalidrawDiagramTab(panel, tab); break;
         }
     }
 }
@@ -1256,10 +1258,27 @@ function renderVaultHealthTab(panel) {
     });
 }
 
+function renderExcalidrawDiagramTab(panel, tab) {
+    if (tab.id !== getState('activeTabId') || !panel.isConnected) return;
+    renderExcalidrawTab(panel, tab).catch(error => {
+        log.error('Failed to render Excalidraw tab:', error);
+    });
+}
+
+/** Save an open Excalidraw drawing through its mounted editor session. */
+export function saveDrawingTab(tabId, options = {}) {
+    return excalidrawSessionForTab(tabId)?.save(options) || Promise.resolve(null);
+}
+
+function excalidrawSessionForTab(tabId) {
+    const panel = [...document.querySelectorAll('.tab-panel')]
+        .find(candidate => candidate.dataset.tabId === tabId);
+    return panel?._excalidrawSession || null;
+}
+
 function renderDrawioDiagramTab(panel, tab) {
     if (tab.id !== getState('activeTabId') || !panel.isConnected) return;
-    const render = isExcalidrawDiagramPath(tab.path) ? renderExcalidrawTab : renderDrawioTab;
-    render(panel, tab).catch(error => {
+    renderDrawioTab(panel, tab).catch(error => {
         log.error('Failed to render draw.io tab:', error);
         panel.innerHTML = '<div class="drawio-view"><p class="drawio-error">Diagram editor is unavailable right now.</p></div>';
     });
@@ -1272,7 +1291,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
     if (!tab) return false;
     if (isSidebarWorkspaceTab(tab)) return false;
     
-    if (tab.dirty && (tab.type === 'file' || tab.type === 'drawio')) {
+    if (tab.dirty && isPathTabType(tab.type)) {
         const shouldClose = await confirmTabAction(
             'Discard unsaved changes?',
             `“${tab.title}” has changes that have not been saved. Closing it will discard them.`,
@@ -1301,6 +1320,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         panel._graphViewSession?.dispose?.();
         panel._kanbanSession?.dispose?.();
         panel._drawioSession?.dispose?.();
+        panel._excalidrawSession?.dispose?.();
         panel.remove();
     }
     removeTabFromActivationHistory(tabId);
@@ -1408,6 +1428,13 @@ export function updateTabsForMovedPath(oldPath, newPath) {
     });
 
     for (const tab of tabs) {
+        if (tab.type === 'excalidraw' && tab.path) {
+            // Keep the mounted drawing (and any unsaved edits) across the move.
+            const panel = [...document.querySelectorAll('.tab-panel')]
+                .find(candidate => candidate.dataset.tabId === tab.id);
+            if (panel?._excalidrawSession) panel._excalidrawPath = tab.path;
+            continue;
+        }
         if (tab.type !== 'drawio' || !tab.path) continue;
         const panel = [...document.querySelectorAll('.tab-panel')]
             .find(candidate => candidate.dataset.tabId === tab.id);
@@ -1481,6 +1508,14 @@ async function persistTabsBeforePathOperation(tabsToPrepare, operation) {
                 .find(candidate => candidate.dataset.tabId === tab.id);
             if (tab.dirty || panel?._drawioSession?.saving) {
                 return { success: false, error: `Save "${tab.title}" before ${operation} it` };
+            }
+            continue;
+        }
+        if (tab.type === 'excalidraw') {
+            if (!tab.dirty) continue;
+            const result = await excalidrawSessionForTab(tab.id)?.save().catch(() => null);
+            if (!result?.success || getState('openTabs').find(candidate => candidate.id === tab.id)?.dirty) {
+                return { success: false, error: `Could not save "${tab.title}" before ${operation} it` };
             }
             continue;
         }
@@ -1590,6 +1625,7 @@ export function closeTabsForDeletedPath(deletedPath) {
         if (!closingIds.has(panel.dataset.tabId)) return;
         panel._settingsPanelDisposed = false;
         panel._drawioSession?.dispose?.();
+        panel._excalidrawSession?.dispose?.();
         panel.remove();
     });
 
@@ -1779,6 +1815,7 @@ function getTabIcon(type) {
     switch (type) {
     case 'file': return fileIcon(14, 2);
     case 'drawio': return fileIcon(14, 2);
+    case 'excalidraw': return fileIcon(14, 2);
     case 'calendar': return calendarIcon(14, 2);
     case 'backlinks': return backlinksIcon(14, 2);
     case 'kanban': return kanbanIcon(14, 2);
@@ -1845,6 +1882,9 @@ function handleTabContextMenu(e) {
 
 export function saveActiveFile(options = {}) {
     const activeTab = getActiveTab();
+    if (activeTab?.type === 'excalidraw') {
+        return excalidrawSessionForTab(activeTab.id)?.save(options) || Promise.resolve(null);
+    }
     if (!activeTab || activeTab.type !== 'file' || !getEditorView()) return Promise.resolve(null);
     return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab), options);
 }
@@ -2034,7 +2074,7 @@ async function applySaveSuccess(snapshot, result, {
 
     const latestEdit = savedLatestEdit(tab, snapshot);
     const nextTabs = getState('openTabs').map(candidate => {
-        if ((candidate.type !== 'file' && candidate.type !== 'drawio') || candidate.path !== snapshot.path) {
+        if (!isPathTabType(candidate.type) || candidate.path !== snapshot.path) {
             return candidate;
         }
         const patch = {};

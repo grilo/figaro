@@ -71,9 +71,9 @@ viewport-bound syntax tree parsing (`@lezer/markdown`):
   clears that state. Folded controls remain visible and operable until expanded. Headings use
   `h1`–`h6`; a typed fence uses the normalized first language token such as `yaml`, while an untyped
   fence uses `code`; tables use `table`; ordinary images use `image`; and editable images use
-  `drawio`. The left rail is right-aligned just outside the centered writing surface. Mermaid and
-  Draw.io use a fold/`editor` stack; sized images use `image`/`original size`; tables use
-  `table`/`editor`/`chart`/`delete`; and managed Vega-Lite charts use `vega-lite`/`editor`/`table`.
+  `drawio` or `excalidraw`. The left rail is right-aligned just outside the centered writing
+  surface. Mermaid, Draw.io, and Excalidraw use a fold/`editor` stack; sized images use
+  `image`/`original size`; tables use `table`/`editor`/`chart`/`delete`; and managed Vega-Lite charts use `vega-lite`/`editor`/`table`.
   **original size** is disabled when no authored image size exists and otherwise removes only the
   size hint. Each secondary action sits directly beneath its fold control, inherits the same helper
   primitive, and remains outside the writing surface. A hidden spacer reserves the longest label
@@ -85,9 +85,9 @@ viewport-bound syntax tree parsing (`@lezer/markdown`):
   remeasurement. Hover/focus never resize the lane, and disabling guides removes it. Every guide
   aligns with the top of its corresponding line or rendered block. Activating a fence, table, or
   image guide makes its live-preview provider yield to CodeMirror's native fold row; expanding
-  restores the rendered widget whenever the cursor remains outside that source. A Draw.io `editor`
+  restores the rendered widget whenever the cursor remains outside that source. A diagram `editor`
   action resolves the authored note-relative or vault-root destination and opens the existing
-  diagram directly, creating it through the same safe workflow when absent; a table `editor` action
+  diagram in its kind's tab directly, creating it through the same safe workflow when absent; a table `editor` action
   opens the isolated transactional grid, `chart` opens the reversible Chart Editor, and the managed
   Vega-Lite `table` action restores its embedded original after confirmation. Activating a heading
   guide folds its complete section through the last block before the next peer or ancestor, so
@@ -249,7 +249,7 @@ viewport-bound syntax tree parsing (`@lezer/markdown`):
   list immediately. It must not require a second Enter or disturb Arrow Up/Down, mouse placement, or
   bidirectional drag selection across the boundary.
 
-### Figaro authoring macros (`@date`, `@table`, `@todo`, `@mermaid`, `@drawio`)
+### Figaro authoring macros (`@date`, `@table`, `@todo`, `@mermaid`, `@drawio`, `@excalidraw`)
 * **Portable source first:** Accepting `@todo` inserts `- [ ] ` and leaves the caret after its
   trailing space. `@table` and `@mermaid` insert complete portable block source with safe blank-line
   boundaries, then open the existing focused editor for that exact new range. Cancelling a
@@ -263,10 +263,12 @@ viewport-bound syntax tree parsing (`@lezer/markdown`):
   before attaching metadata, and an untagged checklist item joins TODO. A changed buffer or failed
   save attaches no deadline. Source undo does not undo metadata. Editor focus returns after the
   operation.
-* **Draw.io creation:** Accepting `@drawio` keeps the token intact while a name prompt defaults to
+* **Draw.io and Excalidraw creation:** Accepting `@drawio` keeps the token intact while a name prompt defaults to
   `diagram1`. Confirmation creates the normalized `.drawio.svg` file beside the active note,
   atomically replaces the unchanged token with an explicit `![Diagram](./name.drawio.svg)` sibling
-  reference, and opens the existing Draw.io Editor. Cancelling or a create failure leaves the source
+  reference, and opens the existing Draw.io Editor. `@excalidraw` follows the same contract with
+  `drawing1`, `.excalidraw.svg`, `![Drawing](./name.excalidraw.svg)`, and the Excalidraw editor.
+  Cancelling or a create failure leaves the source
   untouched; if the token changes while creation is pending, the created file remains discoverable
   but is not opened or linked.
 * **Cursor and selection contract:** Macro completion is a normal CodeMirror history transaction.
@@ -319,17 +321,18 @@ viewport-bound syntax tree parsing (`@lezer/markdown`):
   border, accent, and danger tokens, with animation disabled for reduced motion. Its complete
   measured placeholder remains exactly one source line high, so moving the cursor into the source
   does not shift the next line.
-* **Missing Draw.io action and preview recovery:** When a failed local destination ends in
-  `.drawio.svg`, Figaro inspects the exact vault target. Valid saved SVG is rendered directly as the
+* **Missing diagram action and preview recovery:** When a failed local destination ends in
+  `.drawio.svg` or `.excalidraw.svg`, Figaro inspects the exact vault target. Valid saved SVG is rendered directly as the
   normal image preview, recovering from an earlier blank-file or cached failed request; an absent
-  target gives the one-line placeholder the approved accent **Create Draw.io diagram** action, while
-  an empty or otherwise non-renderable file gives **Open Draw.io diagram**. Returning to a Markdown
+  target gives the one-line placeholder the approved accent **Create Draw.io diagram** or **Create Excalidraw
+  drawing** action, while an empty or otherwise non-renderable file gives the matching **Open**
+  action. Returning to a Markdown
   file deliberately remounts its image widgets, while ordinary selection changes reuse them, so a
-  Draw.io save is re-read without polling. Every image-field generation uses a local cache-busting
+  diagram save is re-read without polling. Every image-field generation uses a local cache-busting
   preview URL; a successful file-tree deletion emits an immediate path-deleted signal, so the active
   note remounts and cannot retain an image-loader cache entry for the removed SVG. The action
   consumes its own pointer/keyboard activation rather than revealing source, keeps the Markdown
-  unchanged, and opens the vault file in the Draw.io tab. A successful Create action changes to Open
+  unchanged, and opens the vault file in its Draw.io or Excalidraw tab. A successful Create action changes to Open
   even while the hidden note editor remains mounted, so closing an unchanged blank diagram cannot
   expose a stale busy state. Ordinary failures still reveal source on pointer placement; Arrow
   Up/Down and bidirectional drag selection around either replacement remain native CodeMirror
@@ -462,7 +465,7 @@ Markdown/cell reconstruction. Images retain up to 16 loaded elements under a
 32 MiB estimate that includes decoded pixels. Current wrappers recreate controls
 and source mappings; connected geometry is measured/fitted again where needed.
 Changed source/renderers invalidate reuse; tables containing images or math
-errors stay fresh. Image source/base-path/activation identity preserves Draw.io
+errors stay fresh. Image source/base-path/activation identity preserves diagram
 refreshes and file-deletion behavior. Failed or oversized content is not retained,
 and a removed image mount discards late loader/inspection results. Ordinary
 returns remain immediate; the separate Mermaid repeat guard is unchanged.
@@ -678,7 +681,7 @@ images use the separate authored-geometry/source-placeholder contract above;
 frontmatter/Properties,
 links, task checkboxes, inline math, and other inline replacements must not
 receive the `cm-source-footprint` marker. Loading, missing-image, and
-missing-Draw.io action placeholders use their own one-source-line continuity
+missing-diagram action placeholders use their own one-source-line continuity
 rule without joining the generalized footprint allowlist. Raw Text Preview and both printable
 surfaces keep
 their independent natural layout. Raw Text Preview nevertheless follows the

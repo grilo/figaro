@@ -40,10 +40,10 @@ import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from '
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
 import { createAuthoringMacroCompletionSource } from './authoringMacroCompletions.js';
 import {
-    defaultDrawioMacroName,
-    drawioMacroFileName,
-    drawioMacroNameError,
-} from './core/authoringMacroModel.js';
+    diagramFileName,
+    diagramNameError,
+    editableDiagramSpec,
+} from './core/editableDiagramModel.js';
 import { createTaskDueDateCompletionSource } from './taskDueDateCompletions.js';
 import {
     taskItemActionPlan,
@@ -82,12 +82,12 @@ import {
     markdownPresentationStagePlan,
 } from './core/editorDocumentMountModel.js';
 import { createLinkedNoteFromCompletion } from './usecases/createLinkedNoteFromCompletion.js';
-import { createDrawioImage } from './usecases/createDrawioImage.js';
+import { createDiagramImage } from './usecases/createDiagramImage.js';
 import {
-    drawioImageCreationTarget,
-    drawioImageStateForRead,
+    diagramImageCreationTarget,
+    diagramImageStateForRead,
     parseMarkdownImageSyntax,
-} from './core/drawioImageCreationModel.js';
+} from './core/diagramImageCreationModel.js';
 import { reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
 import {
     markdownEditorNavigationAtPosition,
@@ -1056,7 +1056,7 @@ const markdownBlockGuidesExtension = createMarkdownBlockGuidesExtension({
         ));
         openMermaidBlockEditor(view, block);
     },
-    openDrawioEditor: (view, guide) => openDrawioImageFromGuide(view, guide),
+    openDiagramEditor: (view, guide) => openDiagramImageFromGuide(view, guide),
     openTableEditor: (view, guide, returnFocusTarget) => {
         const block = scanMarkdownTables(view.state).find(candidate => (
             candidate.from === guide.from && candidate.to === guide.to
@@ -1992,8 +1992,9 @@ function createEditorView() {
             ));
             openMermaidBlockEditor(view, block);
         },
-        openDrawioCreator: ({ view, insertReference }) => createDrawioImageFromMacro(
+        openDiagramCreator: ({ view, kind, insertReference }) => createDiagramImageFromMacro(
             view,
+            kind,
             insertReference,
         ),
         contextAllowed: hashtagCompletionContextAllowed,
@@ -2535,110 +2536,117 @@ function setEditorContent(content, tabId = undefined, cursorState = null) {
 
 function getEditorDocumentTabId() { return editorDocumentSession.documentTabId(); }
 
-async function activateDrawioImageTarget(target) {
-    const tab = openTab(target.path, target.title, 'drawio', {
+async function activateDiagramImageTarget(target) {
+    const tab = openTab(target.path, target.title, target.kind, {
         path: target.path,
         mtime: target.mtime,
         activate: false,
     });
     if (!tab || !await switchTab(tab.id)) {
-        throw new Error('The Draw.io tab could not be activated');
+        throw new Error(`The ${editableDiagramSpec(target.kind).editorName} tab could not be activated`);
     }
 }
 
-async function createAndOpenDrawioImageTarget(target, { insertReference = null } = {}) {
-    const result = await createDrawioImage({
+async function createAndOpenDiagramImageTarget(target, { insertReference = null } = {}) {
+    const spec = editableDiagramSpec(target.kind);
+    const result = await createDiagramImage({
         target,
         createFile: (path, content) => backend().CreateFile(path, content),
         refreshTree: refreshFileTree,
-        openDiagram: activateDrawioImageTarget,
+        openDiagram: activateDiagramImageTarget,
         insertReference,
         reportRefreshFailure: error => log.warn(
-            'Created Draw.io diagram but could not refresh the file tree:',
+            `Created ${spec.editorName} ${spec.noun} but could not refresh the file tree:`,
             error,
         ),
     });
     if (result.kind === 'failed') {
-        await errorDialog('Couldn’t create diagram', result.error, 'The diagram could not be created.');
+        await errorDialog(`Couldn’t create ${spec.noun}`, result.error, `The ${spec.noun} could not be created.`);
         return false;
     }
     if (result.kind === 'created-open-failed') {
-        await errorDialog('Diagram created but not opened', result.error, `The diagram was created at ${result.path}.`);
+        await errorDialog(`${capitalized(spec.noun)} created but not opened`, result.error, `The ${spec.noun} was created at ${result.path}.`);
         return false;
     }
     if (result.kind === 'created-reference-failed') {
         await errorDialog(
-            'Diagram created but not linked',
+            `${capitalized(spec.noun)} created but not linked`,
             result.error,
-            `The note changed before its reference could be inserted. The diagram remains at ${result.path}.`,
+            `The note changed before its reference could be inserted. The ${spec.noun} remains at ${result.path}.`,
         );
         return false;
     }
     return result.kind === 'created';
 }
 
-async function createDrawioImageFromMacro(view, insertReference) {
+function capitalized(word) {
+    return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+async function createDiagramImageFromMacro(view, kind, insertReference) {
+    const spec = editableDiagramSpec(kind);
     const tab = getActiveTab();
-    if (tab?.type !== 'file' || getEditorDocumentTabId() !== tab.id || typeof insertReference !== 'function') {
+    if (!spec || tab?.type !== 'file' || getEditorDocumentTabId() !== tab.id || typeof insertReference !== 'function') {
         return false;
     }
     const notePath = tab.path;
     const separator = notePath.lastIndexOf('/');
     const parentDirectory = separator >= 0 ? notePath.slice(0, separator) : '';
     const requestedName = await promptDialog(
-        'New Draw.io diagram',
-        'Create an editable diagram beside this Markdown note.',
-        defaultDrawioMacroName,
+        `New ${spec.editorName} ${spec.noun}`,
+        `Create an editable ${spec.noun} beside this Markdown note.`,
+        spec.defaultName,
         {
             icon: 'file-add',
-            label: 'Diagram name',
-            confirmLabel: 'Create diagram',
+            label: `${capitalized(spec.noun)} name`,
+            confirmLabel: `Create ${spec.noun}`,
             context: parentDirectory ? `${parentDirectory}/` : 'Vault root',
-            help: 'The .drawio.svg extension is added automatically.',
-            validate: drawioMacroNameError,
+            help: `The ${spec.suffix} extension is added automatically.`,
+            validate: value => diagramNameError(kind, value),
         },
     );
     if (requestedName === null || view.isDestroyed
         || getActiveTab()?.id !== tab.id || getEditorDocumentTabId() !== tab.id) return false;
 
-    const fileName = drawioMacroFileName(requestedName);
-    const target = drawioImageCreationTarget({ imageSource: fileName, notePath });
+    const fileName = diagramFileName(kind, requestedName);
+    const target = diagramImageCreationTarget({ imageSource: fileName, notePath });
     if (!target) {
-        await errorDialog('Couldn’t create diagram', null, 'Choose a valid diagram name without a path.');
+        await errorDialog(`Couldn’t create ${spec.noun}`, null, `Choose a valid ${spec.noun} name without a path.`);
         return false;
     }
-    return createAndOpenDrawioImageTarget(target, {
+    return createAndOpenDiagramImageTarget(target, {
         insertReference: () => insertReference(fileName),
     });
 }
 
-async function openDrawioImageFromGuide(view, guide) {
+async function openDiagramImageFromGuide(view, guide) {
     const tab = getActiveTab();
     if (tab?.type !== 'file' || getEditorDocumentTabId() !== tab.id) return false;
     const image = parseMarkdownImageSyntax(view.state.sliceDoc(guide.from, guide.to));
-    const target = drawioImageCreationTarget({
+    const target = diagramImageCreationTarget({
         imageSource: image?.src,
         notePath: tab.path,
     });
     if (!target) {
-        await errorDialog('Couldn’t open diagram', null, 'The Draw.io image does not resolve to a safe vault file.');
+        await errorDialog('Couldn’t open diagram', null, 'The image does not resolve to a safe vault file.');
         return false;
     }
+    const spec = editableDiagramSpec(target.kind);
 
     let existing;
     try {
         existing = await backend().ReadDiagram(target.path);
     } catch (error) {
-        await errorDialog('Couldn’t open diagram', error, 'The Draw.io diagram could not be read.');
+        await errorDialog(`Couldn’t open ${spec.noun}`, error, `The ${spec.editorName} ${spec.noun} could not be read.`);
         return false;
     }
-    if (!existing) return createAndOpenDrawioImageTarget(target);
+    if (!existing) return createAndOpenDiagramImageTarget(target);
 
     try {
-        await activateDrawioImageTarget({ ...target, mtime: existing.mtime });
+        await activateDiagramImageTarget({ ...target, mtime: existing.mtime });
         return true;
     } catch (error) {
-        await errorDialog('Couldn’t open diagram', error, 'The Draw.io diagram could not be opened.');
+        await errorDialog(`Couldn’t open ${spec.noun}`, error, `The ${spec.editorName} ${spec.noun} could not be opened.`);
         return false;
     }
 }
@@ -2647,22 +2655,23 @@ function imageFieldForPath(docPath) {
     const dir = docPath ? docPath.substring(0, docPath.lastIndexOf('/') + 1) : '';
     return createMarkdownImageField({
         basePath: '/vault/' + dir,
-        drawioTarget: imageSource => drawioImageCreationTarget({ imageSource, notePath: docPath }),
-        resolveDrawioState: async target => {
+        diagramTarget: imageSource => diagramImageCreationTarget({ imageSource, notePath: docPath }),
+        resolveDiagramState: async target => {
             try {
-                return drawioImageStateForRead(await backend().ReadDiagram(target.path));
+                return diagramImageStateForRead(await backend().ReadDiagram(target.path));
             } catch (error) {
-                log.warn('Could not inspect Draw.io image target:', error);
-                return drawioImageStateForRead(null, error);
+                log.warn('Could not inspect editable diagram image target:', error);
+                return diagramImageStateForRead(null, error);
             }
         },
-        onCreateDrawio: createAndOpenDrawioImageTarget,
-        onOpenDrawio: async target => {
+        onCreateDiagram: createAndOpenDiagramImageTarget,
+        onOpenDiagram: async target => {
             try {
-                await activateDrawioImageTarget(target);
+                await activateDiagramImageTarget(target);
                 return true;
             } catch (error) {
-                await errorDialog('Couldn’t open diagram', error, 'The Draw.io diagram could not be opened.');
+                const spec = editableDiagramSpec(target.kind);
+                await errorDialog(`Couldn’t open ${spec.noun}`, error, `The ${spec.editorName} ${spec.noun} could not be opened.`);
                 return false;
             }
         },

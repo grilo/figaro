@@ -1039,9 +1039,9 @@ Run the focused contract with:
 go test . -run 'TestSaveClipboardImage'
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/clipboardImage.test.js \
-  tests/frontend/unit/createDrawioImage.test.js \
-  tests/frontend/unit/drawioImageCreationModel.test.js \
-  tests/frontend/unit/drawioImageGuide.test.js \
+  tests/frontend/unit/createDiagramImage.test.js \
+  tests/frontend/unit/diagramImageCreationModel.test.js \
+  tests/frontend/unit/diagramImageGuide.test.js \
   tests/frontend/unit/editor.test.js \
   tests/frontend/unit/editorLinkCompletions.test.js \
   tests/frontend/unit/fileTree.test.js \
@@ -1358,8 +1358,8 @@ case folds and expands the Draw.io image, opens its editor from the left guide,
 and publishes the exact file-tree deletion signal; the versioned preview must
 disappear and the safe Create action must return.
 
-The `@drawio` authoring macro reuses those boundaries instead of adding another
-browser workflow. `authoringMacroModel.test.js` owns the `diagram1` default,
+The `@drawio` and `@excalidraw` authoring macros reuse those boundaries instead
+of adding another browser workflow. `authoringMacroModel.test.js` owns the `diagram1` default,
 suffix normalization, explicit sibling reference, validation, and insertion
 plan; `authoringMacroCompletions.test.js` owns retention of the token through
 the name/create effect and exact unchanged-token replacement. The Draw.io use
@@ -1443,3 +1443,41 @@ opening (an earlier version passed by measuring mid-animation): more than
 230px of stable prose through the compact helper rail, a contained helper rail, and
 no overlap with source. Its existing Arrow Up/Down, pointer, and drag checks
 remain required. Repeat these boundaries in the packaged native webview.
+
+## Excalidraw drawing regressions
+
+Excalidraw shares the editable-diagram boundaries above, so its kind is a case
+in the existing Draw.io tests rather than a parallel suite:
+`editableDiagramModel.test.js` owns suffix detection, tab types, and name
+normalization for both kinds; `diagramImageCreationModel.test.js`,
+`markdownImagePlugin.test.js`, `markdownBlockGuides.test.js`, and the macro and
+file-tree tests each cover the Excalidraw labels and tab type.
+
+`excalidrawDrawingModel.test.js` owns the edit and reload decisions.
+`excalidrawEditor.test.js` drives the tab session against a fake vendored
+editor: opening without marking the tab dirty, keeping the mounted editor on
+reactivation, saving with the edit generation captured before export, skipping
+a clean save, saving to a moved path, reloading only clean changed drawings,
+following the appearance, and refusing an SVG without a scene.
+`tabManager.test.js`, `windowClose.test.js`, and
+`editorSaveProtection.test.js` own the shared dirty-tab save, close, and exit
+paths. `vendoredBrowserSecurity.test.js` keeps the bundle free of the remote
+font fallback and runtime imports, and rebuilt from the current entry file. Go tests own `ReadDiagram`, compound-suffix
+copy names, and session restore.
+
+`tests/e2e/excalidraw.spec.js` is the one browser boundary: the real bundle
+mounts in Figaro, its toolbar uses the theme's `--panel-bg`, its canvas stays
+transparent, More tools hides the offline-unavailable items, a drawn rectangle
+marks the tab dirty, Ctrl+S saves once, the saved SVG's embedded scene reopens,
+and no request leaves the app. Check the native WebKitGTK webview by hand after
+upgrading the bundle.
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/editableDiagramModel.test.js \
+  tests/frontend/unit/excalidrawDrawingModel.test.js \
+  tests/frontend/unit/excalidrawEditor.test.js \
+  tests/frontend/unit/vendoredBrowserSecurity.test.js
+go test ./internal/desktop ./internal/mutations -run 'Diagram|Excalidraw'
+npx playwright test tests/e2e/excalidraw.spec.js
+```

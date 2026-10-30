@@ -1433,6 +1433,34 @@ func TestSaveAndLoadSession(t *testing.T) {
 	}
 }
 
+func TestLoadSessionRestoresExcalidrawTab(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "Sketches/board.excalidraw.svg", "<svg/>")
+
+	if _, err := app.SaveSession(map[string]interface{}{
+		"openTabs": []map[string]interface{}{
+			{"id": "Sketches/board.excalidraw.svg", "type": "excalidraw", "path": "Sketches/board.excalidraw.svg"},
+		},
+		"activeTabId": "Sketches/board.excalidraw.svg",
+	}); err != nil {
+		t.Fatalf("SaveSession error: %v", err)
+	}
+
+	loaded, err := app.LoadSession()
+	if err != nil {
+		t.Fatalf("LoadSession error: %v", err)
+	}
+	tabs, _ := loaded["openTabs"].([]interface{})
+	if len(tabs) != 1 {
+		t.Fatalf("expected the Excalidraw tab to be restored, got %#v", loaded["openTabs"])
+	}
+	tab, _ := tabs[0].(map[string]interface{})
+	if tab["type"] != "excalidraw" || tab["path"] != "Sketches/board.excalidraw.svg" {
+		t.Fatalf("unexpected restored tab: %#v", tab)
+	}
+}
+
 func TestLoadSession_Empty(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

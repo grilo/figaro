@@ -1,9 +1,9 @@
 import { readTabContent } from './tabContent.js';
-import { saveDirtyDocumentsBeforeExit } from './windowClose.js';
+import { isUnsavedDocumentTab, saveDirtyDocumentsBeforeExit } from './windowClose.js';
 
 /** Install loss-prevention handlers synchronously; restore the timer alongside
  * essential startup settings. Optional writing/index services are not ports. */
-export function installEditorSaveProtection({ listen, registerClose, loadInterval, configureInterval, tabs, activeId, activeContent, confirmClose, save, close, saveSession }) {
+export function installEditorSaveProtection({ listen, registerClose, loadInterval, configureInterval, tabs, activeId, activeContent, confirmClose, save, saveDrawing = async () => null, close, saveSession }) {
     let intervalChanged = false;
     listen('figaro:auto-save-interval', event => {
         intervalChanged = true;
@@ -14,14 +14,14 @@ export function installEditorSaveProtection({ listen, registerClose, loadInterva
         if (closing) return;
         closing = true;
         try {
-            const dirty = tabs().filter(tab => tab.dirty && tab.type === 'file');
+            const dirty = tabs().filter(isUnsavedDocumentTab);
             // Note content is settled first; the workspace session follows.
             const finish = async () => { await saveSession(); close(); };
             if (!dirty.length) { await finish(); return; }
             const choice = await confirmClose(dirty);
             if (choice === 'extra') { await finish(); return; }
             if (choice !== 'confirm') return;
-            const saved = await saveDirtyDocumentsBeforeExit({ tabs: dirty, activeId: activeId(), activeContent, save, currentTabs: tabs });
+            const saved = await saveDirtyDocumentsBeforeExit({ tabs: dirty, activeId: activeId(), activeContent, save, saveDrawing, currentTabs: tabs });
             if (saved) await finish();
         } finally { closing = false; }
     });

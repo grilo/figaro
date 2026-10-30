@@ -767,6 +767,17 @@ based on explicit clipboard structure rather than vendor names or broad prose
 regular expressions; exact plain/internal fallback is part of the behavior
 contract.
 
+The Excalidraw editor bundle in `frontend/vendored/excalidraw/` is checked in,
+because its build installs pinned Excalidraw, React, and ReactDOM packages that
+are not project dependencies. Regenerate it only when upgrading them, by editing
+the pinned versions in `scripts/vendor-excalidraw.mjs` and running
+`npm run vendor:excalidraw`. The script fails if Excalidraw's remote font
+fallback cannot be removed or the bundle contains a runtime `import(`; update
+its guarded rewrite after reading the new upstream code rather than relaxing
+the check. The bundle records a hash of `scripts/vendor/excalidraw-entry.js`, and
+a unit test fails when the entry changes without a rebuild. Commit the bundle,
+stylesheet, fonts, and regenerated `LICENSES.txt` together.
+
 The printable Markdown renderer currently targets Markdown-It 15.0.0. All ten
 bundled `@mdit` packages declare `markdown-it ^15.0.0`: the direct anchor,
 footnote, KaTeX, mark, subscript, superscript, and task-list plugins, together

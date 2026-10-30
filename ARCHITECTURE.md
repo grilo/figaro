@@ -205,12 +205,13 @@ be audited directly against their command sources.
 
 Structured authoring macros keep their deterministic policy below the browser
 layer. `core/authoringMacroModel.js` owns whitespace-delimited matching, exact
-portable Markdown, Draw.io name/reference normalization, block-boundary
+portable Markdown, Draw.io and Excalidraw name/reference normalization
+(through `core/editableDiagramModel.js`), block-boundary
 planning, and cursor/target offsets. `authoringMacroCompletions.js` executes one
 CodeMirror transaction for direct insertions, or retains an effectful token
-until an injected Calendar or Draw.io callback can replace that exact unchanged
+until an injected Calendar or diagram-creation callback can replace that exact unchanged
 range. It then hands structured ranges to the injected table or Mermaid editor.
-`editor.js` wires those callbacks to already eager date-picker, Draw.io creator,
+`editor.js` wires those callbacks to already eager date-picker, diagram creator,
 and modal modules and re-scans the exact range before any delayed replacement or
 editor handoff, so the pure model has no DOM, CodeMirror, timer, or modal
 dependency.
@@ -514,32 +515,39 @@ export clears the iframe spinner, reports a retryable failure, and never starts
 a filesystem write, so a service-side interruption cannot leave a diagram tab
 permanently locked in Saving state.
 
-Markdown can also initiate this workflow from a not-yet-created local
-`.drawio.svg` image. `core/drawioImageCreationModel.js` resolves and validates
+`core/editableDiagramModel.js` is the registry of editable SVG kinds: Draw.io
+(`.drawio.svg`) and Excalidraw (`.excalidraw.svg`). Each kind's id is also its
+tab type and block-guide label, and the registry owns suffix detection, name
+validation, and sibling-reference text. Go mirrors the suffix list in
+`mutations.EditableDiagramSuffix` so copies keep the compound extension and
+`ReadDiagram` accepts both kinds.
+
+Markdown can also initiate either workflow from a not-yet-created local
+editable SVG image. `core/diagramImageCreationModel.js` resolves and validates
 the authored destination without I/O, including note-relative, vault-root,
 encoded, and escape-rejection rules, and classifies a backend read as Create,
 Open, recovered SVG preview, or inspection error without conflating an empty
 file with absence. A recovered preview uses the already-read SVG as a data URL,
 so browser caching of the earlier failed blank-file request cannot hide a later
-successful Draw.io save. Each deliberate image-field reconfiguration carries a
+successful diagram save. Each deliberate image-field reconfiguration carries a
 new render token: CodeMirror may reuse widgets during normal selection changes,
 but returning to a file tab remounts them so that fallback state is re-read.
-The token also versions Draw.io's local `/vault/` preview URL, bypassing the
+The token also versions the diagram's local `/vault/` preview URL, bypassing the
 image loader's successful cache after a mutation. File-tree deletion publishes
 `vault-path-deleted` immediately after backend success, before discovery
 refresh; the mounted editor reconfigures its image field on that signal and on
 ordinary tree publication, so a removed SVG cannot survive as a cached image.
-`usecases/createDrawioImage.js` coordinates the injected create, optional
+`usecases/createDiagramImage.js` coordinates the injected create, optional
 Markdown-reference insertion, tab-opening, and tree-refresh ports. It creates
 first, inserts the macro reference only while its original token is unchanged,
-and activates the new blank diagram before starting a non-blocking discovery
+and activates the new blank diagram in its kind's tab before starting a non-blocking discovery
 refresh. A slow or failed refresh therefore cannot strand the originating
 widget, while a stale token leaves a recoverable vault asset without opening an
 unlinked tab. `core/markdownImageModel.js` independently parses the optional
 trailing `|WIDTHxHEIGHT` alt-text hint, serializes size/reset edits, and plans
 width, height, and proportional constraints without DOM or CodeMirror access.
 `markdownImagePlugin.js` owns only the CodeMirror widget, approved resize
-handle and Draw.io button interactions, pointer capture, available-edge
+handle and diagram button interactions, pointer capture, available-edge
 measurements, source transaction, and mounted Create-to-Open state transition.
 Pointer moves update only the mounted frame and readout. Pointer release sends
 changed final geometry through one `image.resize` source transaction; a release
@@ -551,17 +559,54 @@ feature-specific grouping layer or typed-input side effects.
 guide-reset, and tab adapters.
 
 `core/markdownBlockGuideModel.js` classifies every complete standalone image
-line as an `image` whole-source fold, specializing local Draw.io images as
-`drawio`. The CodeMirror guide adapter also scans exact Image nodes because
-Markdown may keep a standalone-looking line inside a larger Paragraph node.
+line as an `image` whole-source fold, specializing local editable SVG images
+with their kind (`drawio` or `excalidraw`) and the `diagram` guide type. The
+CodeMirror guide adapter also scans exact Image nodes because Markdown may keep
+a standalone-looking line inside a larger Paragraph node.
 Ordinary images reuse the approved block-guide stack for `image` and the
-injected **original size** source transformation; Draw.io reuses `drawio` and
-`editor`. The injected editor composition resolves the current note path,
-reads or creates a Draw.io target through existing ports, and activates its
-tab. Fold state stays editor-only and makes the image field yield its
+injected **original size** source transformation; editable diagrams reuse their
+kind label and `editor`. The injected editor composition resolves the current
+note path, reads or creates the target through existing ports, and activates
+its kind's tab. Fold state stays editor-only and makes the image field yield its
 replacement and source-height line decoration to the native CodeMirror fold
 placeholder. Source-height continuity belongs only to an intentionally revealed
 image source, never to a folded range.
+
+### Excalidraw drawings
+
+Excalidraw runs inside Figaro rather than in a hosted iframe.
+`scripts/vendor-excalidraw.mjs` (`npm run vendor:excalidraw`) bundles pinned
+Excalidraw, React, and ReactDOM with the small imperative entry in
+`scripts/vendor/excalidraw-entry.js` into one IIFE that exposes
+`window.FigaroExcalidraw` (`mount`, `loadSceneFromSVG`). First-party code never
+imports React. The build stubs Mermaid conversion and non-English locales,
+removes Excalidraw's remote font fallback with a guarded exact-match rewrite,
+rejects any runtime `import(`, copies the fonts except the CJK Xiaolai family,
+stamps the bundle with a hash of its entry, and writes `LICENSES.txt`. `index.html` loads the stylesheet and bundle eagerly
+and sets `EXCALIDRAW_ASSET_PATH`, so fonts load from `/vendored/excalidraw/`.
+The entry disables file, export, background, theme, and web-embed actions that
+would bypass Figaro or reach the network.
+
+`excalidraw.js` owns one session per tab panel. It reads the file with
+`ReadDiagram`, refuses an SVG without an embedded scene instead of opening it
+blank, and mounts the editor with a transparent canvas over Figaro's surface.
+Pure decisions live in `core/excalidrawDrawingModel.js`: a new scene version
+after the loaded baseline is an edit, and a clean, not-saving drawing whose path
+is in a `vault-filesystem-changed` scope reloads. Edits go through the injected
+`recordTabEdit` port, so drawings share the note tab's dirty state, edit
+generation, close prompt, autosave, window-close save, and move/rename
+persistence. Saving captures the edit generation before exporting the SVG with
+its embedded scene and the light export theme, then writes through the same
+`saveFileSnapshot` path as notes, so mtime conflicts and auto-commit behave
+identically. The session finds its tab through `panel.dataset.tabId` because
+tab ids follow moved paths.
+
+The editor theme follows the rendered surface on `figaro:appearance-changed`.
+`embedded-widgets.css` maps Excalidraw's chrome variables to Figaro theme
+tokens, so islands, buttons, accents, and borders match every theme. The drawing
+palette and Excalidraw's dark-mode canvas inversion remain Excalidraw's own,
+which keeps saved colors portable. Embedded images in a dark surface use the
+same inversion filter.
 
 ## Dependency direction and I/O boundaries
 
@@ -1884,7 +1929,7 @@ retaining its scroll position and focused row; `selectedTreePath` remains the
 state-owned source of truth for roving focus, `selectedTreePaths` is the
 internal file/folder operation selection that exclusively owns `aria-selected`
 and the shared selected surface, and `selectedFilePath` is the active
-file/Draw.io tab retained as non-visual `aria-current` state. Unsupported files
+file, Draw.io, or Excalidraw tab retained as non-visual `aria-current` state. Unsupported files
 remain in the same operable internal-entry domain as editable files, use normal
 row opacity, and expose their managed-only capability without changing the
 active buffer. Ordinary activation remains selection-only; double-click and the
@@ -2125,7 +2170,7 @@ wrapper. The vendored code adapter receives the narrow preview-reuse port from
 editor composition, retaining its pure-only first-party imports.
 
 Image signatures include source URL, base path and the field's activation
-generation. Draw.io keeps its fresh URL on file activation; source changes and
+generation. Editable diagram images keep their fresh URL on file activation; source changes and
 deletion-triggered reconfiguration cannot return an old node. Cached images
 attach in a microtask after the wrapper connects so width clamping is current.
 Cancelled mounts return transferred content to the cache, while late loading
@@ -2224,8 +2269,8 @@ authored/intrinsic fit and resize limits; the DOM adapter measures the writing
 surface's right edge and editor bottom, applies the frame, and gives revealed
 source a geometry-matched placeholder so only a real size edit moves following
 text. The image adapter gives only loading,
-error, and missing-Draw.io Create/Open placeholders a fixed one-source-line measured
-root, using semantic theme tokens and the approved accent button. Its Draw.io
+error, and missing-diagram Create/Open placeholders a fixed one-source-line measured
+root, using semantic theme tokens and the approved accent button. Its diagram
 action consumes only its own activation; ordinary failed-image pointer
 placement still reveals source. This keeps local reflow stable without
 admitting images to the general footprint allowlist. The independent printable

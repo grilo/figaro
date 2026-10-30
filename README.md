@@ -71,9 +71,9 @@ UK) has spelling and prose checks; Spanish has spelling.
 
 ## Turn a draft into a document
 
-Build a table, sketch a Mermaid diagram, turn a table into a chart, or add math
-without leaving your note. Figaro draws them beside your writing and carries
-them into the PDF.
+Build a table, draw a Mermaid diagram or an Excalidraw sketch, turn a table
+into a chart, or add math without leaving your note. Figaro draws them beside
+your writing and carries them into the PDF.
 
 ![A library proposal beside its styled PDF preview in Figaro](docs/images/figaro-pdf.png)
 

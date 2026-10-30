@@ -28,6 +28,17 @@ describe('workspace tab model', () => {
         expect(recordWorkspaceTabContent(content.tabs, 'note.md', 2, 'stale').changed).toBe(false);
     });
 
+    test('tracks Excalidraw edits by generation but never Draw.io or other tabs', () => {
+        const tabs = [
+            { id: 'board.excalidraw.svg', type: 'excalidraw', path: 'board.excalidraw.svg', dirty: false },
+            { id: 'flow.drawio.svg', type: 'drawio', path: 'flow.drawio.svg', dirty: false },
+        ];
+        const drawing = recordWorkspaceTabEdit(tabs, 'board.excalidraw.svg');
+        expect(drawing.tab).toEqual(expect.objectContaining({ dirty: true, _editGeneration: 1 }));
+        expect(drawing.becameDirty).toBe(true);
+        expect(recordWorkspaceTabEdit(tabs, 'flow.drawio.svg').changed).toBe(false);
+    });
+
     test('an edit captures its immutable lazy buffer in the same generation without reading it', () => {
         const readContent = jest.fn(() => 'latest');
         const original = [{ id: 'note', type: 'file', dirty: false, _content: 'saved' }];

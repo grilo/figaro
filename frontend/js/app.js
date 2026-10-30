@@ -29,6 +29,7 @@ import {
     updateTabTitle,
     saveActiveFile as saveActiveTabFile,
     saveFileSnapshot,
+    saveDrawingTab,
     showWorkspaceHome,
     toggleWorkspaceTab,
     prepareTabsForVaultLinkRewrite,
@@ -108,7 +109,13 @@ configureBacklinksWorkspace({
 configureCalendarWorkspace({ openTab });
 configureClipboardImageWorkspace({ refreshFileTree });
 configureDrawioWorkspace({ markTabDirty, recordTabMtime, saveFileSnapshot, refreshFileTree });
-configureExcalidrawWorkspace({ markTabDirty, recordTabMtime, saveFileSnapshot, refreshFileTree });
+configureExcalidrawWorkspace({
+    findTab: tabId => getState('openTabs').find(tab => tab.id === tabId) || null,
+    recordTabEdit,
+    recordTabMtime,
+    saveFileSnapshot,
+    refreshFileTree,
+});
 trackExcalidrawSurface();
 configureEditorWorkspace({
     closeTab,
@@ -244,7 +251,7 @@ function configureAutoSave(seconds) {
 
     autoSaveTimer = setInterval(() => {
         const activeTab = getActiveTab();
-        if (activeTab && activeTab.dirty && activeTab.type === 'file') {
+        if (activeTab && activeTab.dirty && (activeTab.type === 'file' || activeTab.type === 'excalidraw')) {
             void saveActiveTabFile().catch(() => {});
         }
     }, seconds * 1000);
@@ -628,6 +635,7 @@ function installStartupSaveProtection() {
         activeId: () => getState('activeTabId'),
         activeContent: getEditorContent,
         save: (tab, content, options) => saveFileSnapshot(tab, content, { ...options, durabilityOnly: true }),
+        saveDrawing: (tab, options) => saveDrawingTab(tab.id, options),
         close: closeNativeWindow,
         // Quitting persists in-memory cursors, but a slow disk cannot hold the
         // window open: session state is recoverable, unlike note content.

@@ -450,12 +450,12 @@ vocabulary until save. Keep these in
 `tests/frontend/unit/authoringMacroModel.test.js`,
 `tests/frontend/unit/authoringMacroCompletions.test.js`,
 `tests/frontend/unit/authoringMacroEditor.test.js`,
-`tests/frontend/unit/createDrawioImage.test.js`, `tests/frontend/unit/kanban.test.js`,
+`tests/frontend/unit/createDiagramImage.test.js`, `tests/frontend/unit/kanban.test.js`,
 `tests/frontend/unit/home.test.js`, and
 `tests/frontend/unit/calendarCache.test.js`. The static discoverability
 contract belongs in `tests/frontend/unit/markdownCheatsheet.test.js`: it keeps
 ordinary Markdown free of Figaro semantic rows, inventories every supported
-relative-date, Calendar-link, structured editor, sibling-Draw.io, task-list,
+relative-date, Calendar-link, structured editor, sibling-Draw.io and Excalidraw, task-list,
 Kanban-column, and due-date macro, inventories
 the application shortcuts, and proves the three-topic tablist's
 selected/tabbable/panel state plus click, arrow, F1, and Escape behavior with

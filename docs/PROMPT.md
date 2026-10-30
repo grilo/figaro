@@ -21,7 +21,7 @@ app session; they show actual product behavior.
 figaro is a desktop Markdown workspace with vault-based file management, quick-note capture, a
 hashtag-driven Kanban board, a date-aware calendar, backlinks, sticky heading hierarchy and a
 contextual document Outline, session-persistent tabs, local Git history, eighteen themes, sixteen
-bundled fonts, optional Vim mode, KaTeX math, live diagrams, editable Draw.io SVGs, and interactive
+bundled fonts, optional Vim mode, KaTeX math, live diagrams, editable Draw.io and Excalidraw SVGs, and interactive
 browser-backed PDF export. All content lives in a folder chosen by the user: no accounts, cloud
 service, sync engine, or proprietary note database.
 
@@ -311,6 +311,7 @@ stale replies and replies after dismissal cannot replace or reopen the popup.
   - **Settings view** — typography, editor, automation preferences, and
     packaged application information.
   - **Draw.io view** — the embedded diagrams.net editor for `.drawio.svg` files.
+  - **Excalidraw view** — the bundled, offline Excalidraw editor for `.excalidraw.svg` files.
 
 ### 1.5 Theming
 - **Theme engine**: 18 built-in themes selectable from the Settings tab (Figaro Dark, Figaro Light,
@@ -436,6 +437,7 @@ or another workspace panel must keep the writing edge stable from the first fram
 |------|-----------|---------|
 | **File** | `path/to/note.md` | Opens a Markdown or CodeMirror-supported source file for editing |
 | **Draw.io** | `path/to/diagram.drawio.svg` | Opens an editable Draw.io SVG diagram |
+| **Excalidraw** | `path/to/drawing.excalidraw.svg` | Opens an editable Excalidraw SVG drawing; dirty state, saving, autosave, and session restore match a file tab |
 | **Calendar date results** | `calendar-YYYY-MM-DD` | Shows Markdown notes that mention a specific date |
 | **Calendar workspace** | `calendar-workspace` | One sidebar-owned central Month/Timeline workspace; the persistent control reuses it without adding a title-bar tab |
 | **Relationships** | `backlinks-path/to/note.md` | Shows contextual backlinks and unlinked plain-text mentions for a note |
@@ -643,7 +645,7 @@ ignores superseded list reads and reads completing after unmount.
 | **Save file** | Writes content to disk. Accepts expected last-modified timestamp for conflict detection, incrementally replaces only that note's search, Kanban, tag, and Calendar contributions, and projects its final Kanban cards locally instead of reloading the complete board when the native watcher acknowledges the same save. |
 | **Create file** | Creates a `.md` file with a `# Title` header and incrementally adds it to discovery data. Before writing, a same-folder Markdown name that differs only by spacing, punctuation, or capitalization offers **Open existing**, **Create anyway**, or cancellation. An exact case-insensitive name offers no overwrite path. |
 | **Create directory** | Creates a new folder. |
-| **Delete** | After confirmation, saves dirty open files under the target, captures the exact current path in local Git history, durably registers it in `.config/recently-deleted.json`, then removes the target recursively without moving it to the system Trash. A dirty Draw.io editor, failed archive, or failed recovery-record write leaves the target untouched. Successful deletion refreshes discovery data without stale cards, search results, backlinks, or dates and shows **Deleted “name” · Undo** for ten seconds. Restore publishes a complete staged reconstruction atomically, refuses to replace an occupied path, and removes only the restored recovery record. |
+| **Delete** | After confirmation, saves dirty open files under the target, captures the exact current path in local Git history, durably registers it in `.config/recently-deleted.json`, then removes the target recursively without moving it to the system Trash. A dirty Draw.io editor or Excalidraw drawing that cannot be saved, failed archive, or failed recovery-record write leaves the target untouched. Successful deletion refreshes discovery data without stale cards, search results, backlinks, or dates and shows **Deleted “name” · Undo** for ten seconds. Restore publishes a complete staged reconstruction atomically, refuses to replace an occupied path, and removes only the restored recovery record. |
 | **Move** | Moves a file or folder to a target directory. The live status bar immediately names the item being moved, the file tree is marked busy, and another drag cannot start the same operation until it settles. It prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. A validated warm index limits rewrite planning and moved projections to affected paths; any stale snapshot selects the complete root-scoped scan/rebuild before correctness can be traded for speed. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. |
 | **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. A current warm index and file-tree projection retain unrelated entries and add only the copied subtree, while exact watcher acknowledgements prevent a second refresh; unobserved external Markdown changes select the complete rebuild fallback. Copying a folder into itself or one of its descendants is refused because it would recurse. |
 | **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline and disables an unchanged rename. After dirty source buffers are safely saved, Figaro previews exact incoming Markdown references. If any other notes reference the file, a second dialog reports their count and offers **Update references**, **Keep references unchanged**, or **Cancel rename**; no incoming references means no second question. The selected policy and filesystem rename are executed together before open-tab paths and affected notes refresh. A same-folder Markdown name variant still offers **Open existing**, **Rename anyway**, or cancellation before any open tab is saved or path is moved. Folder renames retain automatic link preservation. |
@@ -689,8 +691,9 @@ those workflows, and Figaro never merges notes automatically.
   warming all bundled language parsers immediately without holding the restored Markdown buffer
   behind that work, and waits for the warm-up before `window._appReady`, so the first post-ready
   switch to a source file does not trigger feature-code loading.
-- Editable Draw.io diagrams use the .drawio.svg suffix. They open in the Draw.io editor while
-  remaining normal SVG assets when embedded in Markdown. Renaming a referenced diagram uses the same
+- Editable Draw.io diagrams use the .drawio.svg suffix and Excalidraw drawings use
+  .excalidraw.svg. They open in their editors while remaining normal SVG assets when embedded in
+  Markdown. A move or rename saves a dirty open drawing first. Renaming a referenced diagram uses the same
   update/keep/cancel reference review as every other referenced file.
 - **Ctrl/Cmd+Click** or keyboard **Space** adds/removes any internal vault file or folder from the
   operation selection. Every member uses the same accent-tinted background and heavier label without
@@ -712,7 +715,8 @@ those workflows, and Figaro never merges notes automatically.
   independent explicit save first.
 - Pasting into the source's parent creates a sibling copy. Names use a descriptive suffix before a
   file extension: `Archive` becomes `Archive copy`, then `Archive copy 2`; `report.md` becomes
-  `report copy.md`. Draw.io copies retain the complete `.drawio.svg` suffix.
+  `report copy.md`. Draw.io and Excalidraw copies retain the complete `.drawio.svg` or
+  `.excalidraw.svg` suffix.
 - Links are rewritten only within copied Markdown. A link to another copied item follows that new
   counterpart; a relative link leaving the copied tree is recalculated so it still reaches the
   original external vault item. Root-relative Markdown links and wiki links receive the copied path
@@ -734,7 +738,7 @@ those workflows, and Figaro never merges notes automatically.
 - Any internal file or directory can be right-clicked and assigned a searchable Lucide icon plus a
   shared Kanban-palette color, including managed-only assets. The picker shows up to ten recently
   used icons and a **Reset** action. Without an override, common Markdown/text, PDF, image,
-  code/config, JSON, spreadsheet, archive, audio, video, shell, and Draw.io types receive semantic
+  code/config, JSON, spreadsheet, archive, audio, video, shell, Draw.io, and Excalidraw types receive semantic
   Lucide glyphs; unrecognized extensions use the generic File icon. The top-level `Inbox` has a
   default Mail icon. An explicit custom icon always wins. Appearance is persisted in the vault and
   follows rename, move, copy, merge, and delete operations.
@@ -782,6 +786,7 @@ those workflows, and Figaro never merges notes automatically.
 | Copy | File or Directory | Places the selected internal set on Figaro's repeatable copy clipboard without changing the sources. Shortcut hint: Ctrl/Cmd+C. |
 | Paste | File, Directory, or vault root (after Cut/Copy) | Moves a cut set or copies a copied set into a focused directory, beside a focused file, or into the vault root. Copy collisions receive a `copy` suffix and never overwrite existing content; moved/copied Markdown links preserve their resolved targets. Shortcut hint: Ctrl/Cmd+V. |
 | New Draw.io Diagram | File, folder, or vault root | Creates an editable .drawio.svg diagram in the selected location. |
+| New Excalidraw Drawing | File, folder, or vault root | Creates an editable .excalidraw.svg drawing in the selected location and opens it. |
 | Reveal in File Explorer | File or Directory | Opens the containing folder with the native Linux, macOS, or Windows file manager |
 | New Note | File or Directory | Prompts for name, creates `.md` file in that directory, opens it |
 | New Folder | File or Directory | Prompts for name, creates folder |
@@ -831,7 +836,7 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   identify only top-level headings, fenced code blocks, tables, and standalone image lines,
   including an image line within a multi-line Markdown Paragraph node. Headings use `h1`–`h6`; a
   fence uses its bounded, normalized first language token such as `yaml`, or `code` when it has no
-  type; tables use `table`; ordinary images use `image`; editable images use `drawio`. Hovered
+  type; tables use `table`; ordinary images use `image`; editable images use `drawio` or `excalidraw`. Hovered
   guides and their secondary actions stay continuously visible while typing elsewhere in the note,
   including edits that shift their source positions. Leaving the block and its approach lane
   restores the quiet state unless the caret, keyboard focus, or a fold still requires the controls.
@@ -844,11 +849,11 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   background parsing change its label width, the gutter reservation must match the installed labels
   before the next paint; the centered text must not jump and then recover on refocus or a later
   measurement. Focus changes must also preserve Activity dates and Pure/typewriter layout classes.
-  Mermaid and Draw.io use a fold/`editor` stack, sized images use `image`/`original size`, tables
+  Mermaid, Draw.io, and Excalidraw use a fold/`editor` stack, sized images use `image`/`original size`, tables
   use `table`/`editor`/`chart`/`delete`, and managed Vega-Lite charts use
   `vega-lite`/`editor`/`table`; each secondary action sits beneath its fold control with the same
   shared typography and remains outside the writing surface. **original size** is disabled when no
-  authored image size exists and otherwise removes only the trailing hint. Draw.io `editor` resolves
+  authored image size exists and otherwise removes only the trailing hint. A diagram `editor` resolves
   the current note's safe destination, opens the existing editable SVG without file-tree navigation,
   and uses the normal create/open workflow if the target is absent. Table `chart` opens the
   reversible Chart Editor; Vega-Lite `editor` reopens a managed chart and `table` restores its
@@ -1111,7 +1116,7 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   quiet and an idle slot. Inline math, frontmatter/Properties, links, tasks/checkboxes, and all
   other inline replacements deliberately retain their existing intrinsic behavior. Successfully
   loaded images use the separate authored-geometry and source-placeholder contract below rather than
-  joining this generalized policy. A loading image, missing image, or missing-Draw.io Create/Open
+  joining this generalized policy. A loading image, missing image, or missing-diagram Create/Open
   action is the narrow exception: its themed placeholder stays at one source-line height so
   revealing the raw image syntax does not move following content. Raw Text Preview keeps its own
   natural source layout and aligns through source offsets rather than inheriting footprint geometry;
@@ -1270,25 +1275,28 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   occupies exactly one source-line footprint. PDF Preview resolves every safe note-relative or
   vault-root local source to an explicit encoded `/vault/…` URL before sending the printable
   document into its opaque-origin sandbox; remote, data, and blob sources remain unchanged, and
-  authored dimensions remain intact. When a local `.drawio.svg` fails to render, Figaro reads the
+  authored dimensions remain intact. When a local `.drawio.svg` or `.excalidraw.svg` fails to
+  render, Figaro reads the
   exact vault target: valid saved SVG becomes a direct data-backed image preview so an earlier
   blank-file or cached failed request cannot suppress it; an absent file uses the approved accent
-  **Create Draw.io diagram** action; and an existing empty or otherwise non-renderable file uses
-  **Open Draw.io diagram**. Activation resolves relative destinations from the note and
+  **Create Draw.io diagram** or **Create Excalidraw drawing** action; and an existing empty or
+  otherwise non-renderable file uses **Open Draw.io diagram** or **Open Excalidraw drawing**.
+  Activation resolves relative destinations from the note and
   leading-slash destinations from the vault root, rejects remote, fragmented, malformed, or
   vault-escaping targets, creates an empty file without changing the Markdown, immediately activates
-  the normal Draw.io tab, and refreshes the tree in the background so vault discovery cannot gate
+  the normal Draw.io or Excalidraw tab, and refreshes the tree in the background so vault discovery cannot gate
   editing. A successful mounted Create action always becomes Open; closing a blank unchanged diagram
   therefore restores a ready action rather than **Creating diagram…**, while returning after a save
   restores the preview. Each file activation creates a new local preview URL; ordinary
   source/preview returns reuse the loaded image while its activation remains current. Successful
   file-tree deletion announces the removed path before discovery refresh, immediately remounting the
-  active note's images so a deleted Draw.io SVG becomes Create instead of surviving from cache.
+  active note's images so a deleted diagram SVG becomes Create instead of surviving from cache.
   Creation failure restores Create and shows a themed error dialog; an inspection failure shows a
   themed error; ordinary missing images retain their source-reveal behavior. `@drawio` prompts with
   `diagram1`, normalizes a stem or `.svg`/`.drawio` suffix to `.drawio.svg`, creates that asset
   beside the active Markdown note, inserts an explicit same-directory image reference, and opens the
-  Draw.io tab. Cancelling or creation failure leaves the token untouched; a stale token leaves the
+  Draw.io tab; `@excalidraw` does the same with `drawing1`, `.excalidraw.svg`, and the Excalidraw
+  tab. Cancelling or creation failure leaves the token untouched; a stale token leaves the
   successfully created asset in the vault without inserting a reference or opening it. Pasting a
   raster image from the system clipboard into an open Markdown note writes `image1.<ext>`,
   `image2.<ext>`, and so on beside that note, inserts note-relative Markdown such as
@@ -1589,10 +1597,11 @@ and the Mermaid Editor; the existing template browser supplies its normal starti
 the modal. `@drawio` leaves its token intact while a name prompt defaults to `diagram1`;
 confirmation creates `name.drawio.svg` beside the active note, replaces the unchanged token with
 `![Diagram](./name.drawio.svg)`, and opens the Draw.io Editor. It accepts a stem or `.svg`/`.drawio`
-suffix and normalizes the result to `.drawio.svg`. Accept a completion with Enter, Tab, or Space.
-Cancelling the calendar or Draw.io prompt leaves the typed token intact, while cancelling either
+suffix and normalizes the result to `.drawio.svg`. `@excalidraw` works the same way with
+`drawing1`, `![Drawing](./name.excalidraw.svg)`, and the Excalidraw editor. Accept a completion with Enter, Tab, or Space.
+Cancelling the calendar or diagram-name prompt leaves the typed token intact, while cancelling either
 structured editor leaves its newly inserted portable Markdown block intact and unapplied modal edits
-discarded. If Draw.io creation fails, the token remains; if the token changes before creation
+discarded. If diagram creation fails, the token remains; if the token changes before creation
 completes, the created asset remains in the vault but Figaro neither links nor opens it.
 
 The generic `@date` picker is announced as **Choose date**, its shortcut group
@@ -1666,7 +1675,7 @@ copying, Undo/Redo and skipped diagram languages preserve existing behavior.
 | `widgetPlugin` | ViewPlugin | Bullet list markers → Unicode glyphs; `[ ]`/`[x]` → interactive checkboxes |
 | `extrasPlugin` | ViewPlugin | `==highlight==`, `[^footnote]`, HRs (`cm-hr-passive`/`cm-hr-active`), callouts |
 | `dateShortcutCompletions` | Completion source | `@today`/`@tomorrow`/`@yesterday` date-link suggestions |
-| `authoringMacroCompletions` | Completion source | Pure-plan-backed `@date`, `@table`, `@todo`, `@mermaid`, and `@drawio` insertion plus handoff to existing pickers, creators, and editors |
+| `authoringMacroCompletions` | Completion source | Pure-plan-backed `@date`, `@table`, `@todo`, `@mermaid`, `@drawio`, and `@excalidraw` insertion plus handoff to existing pickers, creators, and editors |
 | `taskDueDateCompletions` + `hashtagCompletionActivator` | Completion source + ViewPlugin | Suggests saved Kanban hashtags while typing; Space after a completed hashtag remains ordinary text input |
 | `taskItemActionModel` + `taskItemActionCompletions` | Pure transformation + completion adapter | Plans canonical unfinished-task tag/due writes and opens the existing column suggestions from the left action |
 | `headingLinkCompletions` + `headingLinkCompletionActivator` | Completion source + ViewPlugin | Starts and supplies current-note heading targets after `](#`, including stable duplicate slugs |
@@ -2847,7 +2856,7 @@ OS clipboard. Named and numbered Vim registers remain available normally.
   admonitions/callouts, code blocks, Mermaid, Vega/Vega-Lite, Draw.io SVGs, math, horizontal rules,
   footnotes, and tables. It contains no Calendar, Kanban, or due-date semantic rows.
 - **Macros** inventories every Figaro-specific authoring macro currently supported: `@today`,
-  `@tomorrow`, and `@yesterday`; `@date`, `@table`, `@todo`, `@mermaid`, and `@drawio` with their
+  `@tomorrow`, and `@yesterday`; `@date`, `@table`, `@todo`, `@mermaid`, `@drawio`, and `@excalidraw` with their
   picker/editor/caret/create outcomes; preferred-style `[YYYY-MM-DD](YYYY-MM-DD.md)` /
   `[[YYYY-MM-DD]]` Calendar-link output; the `#todo`, `#wip`, `#done`, and `#custom-column` Kanban
   forms; the `Task #todo @date` date-link-plus-deadline command; the unfinished-task left
@@ -2921,7 +2930,7 @@ OS clipboard. Named and numbered Vim registers remain available normally.
   remains visible and editable. After a referenced file name is accepted, a backdrop-stable
   three-action confirmation reports how many other Markdown notes contain exact links that would
   change and offers update, keep unchanged, or cancel.
-- New-file, new-folder, Draw.io, PDF-stylesheet, and Kanban-column prompts use the same field and
+- New-file, new-folder, Draw.io, Excalidraw, PDF-stylesheet, and Kanban-column prompts use the same field and
   validation language.
 
 ### 11.4 Message, Error, Merge, and Recovery Dialogs
@@ -3119,6 +3128,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 | `@todo` | Markdown editor | Insert the first unchecked task-list item and place the caret after its marker |
 | `@table` / `@mermaid` | Markdown editor | Insert the portable block and open its focused editor |
 | `@drawio` | Markdown editor | Name, create, link, and open a Draw.io diagram beside the active note |
+| `@excalidraw` | Markdown editor | Name, create, link, and open an Excalidraw drawing beside the active note |
 | `#` + text after whitespace | Markdown editor | Suggest saved Kanban columns while typing |
 | `[` + text | Editor | Suggest existing notes and, without an exact same-folder target, an explicit new-note action |
 | `](#` + text | Markdown-link destination | Suggest current-note heading fragments |
@@ -3217,6 +3227,8 @@ browser debugging fallback is installed explicitly with the same method shape.
 15. Block math (`$$...$$`) may cause cursor navigation issues within the containing document.
 16. Draw.io editing uses the hosted diagrams.net editor, so opening an editable diagram requires
     network access; saved .drawio.svg files still render offline.
+17. The Excalidraw editor omits collaboration, the shared library, web embeds, text-to-diagram, and
+    Mermaid conversion, and does not bundle CJK handwriting fonts.
 
 ---
 
@@ -4113,7 +4125,7 @@ content was permanently lost.
 - **Avoid outgoing presentation work**: Markdown presentation and history are removed together
   before the source replacement. The target's pure stage plan prioritizes only syntax present in its
   source; helpers for syntax typed later attach after the ready boundary.
-- **Refresh panel-edited images**: Returning from a Draw.io panel to the same
+- **Refresh panel-edited images**: Returning from a Draw.io or Excalidraw panel to the same
   editor-owned Markdown document remounts its image presentation after the
   note is current, so a saved SVG replaces the prior Create/Open state without
   triggering an outgoing-document scan.
@@ -4459,7 +4471,7 @@ graph TD
 
 ---
 
-### 30.6 Draw.io SVG diagrams
+### 30.6 Draw.io SVG diagrams and Excalidraw drawings
 
 - A File Tree context action creates an editable .drawio.svg diagram.
 - `@drawio` creates the normalized `.drawio.svg` target beside the active Markdown note, inserts an
@@ -4490,6 +4502,22 @@ graph TD
 - Saving asks the hosted editor to export its current SVG state, then waits up to 30 seconds for the
   result. An export error or timeout clears its spinner, keeps the editor open, explains the
   failure, and leaves **Save** available for a retry; no partial file is written.
+- Excalidraw drawings use the `.excalidraw.svg` suffix, the `@excalidraw` macro (default name
+  `drawing1`, alt text `Drawing`), the **New Excalidraw Drawing** File Tree action, and the same
+  missing-image Create/Open actions and `excalidraw`/`editor` guide as Draw.io.
+- The Excalidraw editor is bundled and runs offline; its fonts load from Figaro, and it makes no
+  network requests. File open/save, export, canvas background, theme toggle, the shared library,
+  and web embeds are removed so the vault file stays the only document.
+- Opening reads the scene embedded in the SVG. An empty file opens a blank drawing; an SVG without
+  an embedded Excalidraw scene shows an error notice and is never overwritten.
+- Drawings follow the note save contract: an edit marks the tab dirty, `Ctrl/Cmd+S`, autosave,
+  window close, and tab close save or prompt as for notes, and each save writes through the same
+  conflict check and auto-commit. A save exports the scene into a light, transparent SVG; an edit
+  made while it exports keeps the tab dirty. A clean drawing changed on disk reloads and clears its
+  undo history; a dirty or saving drawing is never replaced.
+- The editor theme follows Figaro's light or dark surface, and its toolbar, panels, buttons,
+  accent, and borders use the active theme's colors. The drawing palette stays Excalidraw's. In a
+  dark theme, an embedded drawing image is inverted to match Excalidraw's dark canvas.
 
 ### 30.7 Print output
 

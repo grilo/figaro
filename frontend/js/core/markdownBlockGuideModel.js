@@ -1,4 +1,5 @@
-import { isLocalDrawioMarkdownImage } from './drawioImageCreationModel.js';
+import { localDiagramMarkdownImageKind } from './diagramImageCreationModel.js';
+import { editableDiagramKinds } from './editableDiagramModel.js';
 import { parseMarkdownImageSyntax } from './markdownImageModel.js';
 
 const headingPattern = /^(?:ATX|Setext)Heading([1-6])$/;
@@ -13,7 +14,7 @@ export function markdownBlockGuideSpacerLength(guides, { showImageReset = false 
     return guides.reduce((length, guide) => Math.max(
         length,
         guide.label.length,
-        showImageReset && (guide.type === 'image' || guide.type === 'drawio') ? 'original size'.length : 0,
+        showImageReset && (guide.type === 'image' || guide.type === 'diagram') ? 'original size'.length : 0,
     ), 6);
 }
 
@@ -41,7 +42,7 @@ export function markdownBlockGuideKind({ name, info = '', source = '' } = {}) {
         return 'table';
     default: {
         if (name !== 'Paragraph' || !parseMarkdownImageSyntax(source)) return null;
-        return isLocalDrawioMarkdownImage(source) ? 'drawio' : 'image';
+        return localDiagramMarkdownImageKind(source) || 'image';
     }
     }
 }
@@ -50,8 +51,8 @@ export function markdownBlockGuidePlan(descriptor) {
     const level = markdownHeadingLevel(descriptor?.name);
     const label = markdownBlockGuideKind(descriptor);
     if (!label) return null;
-    const drawio = label === 'drawio';
-    const image = drawio || label === 'image';
+    const diagram = editableDiagramKinds.includes(label) && descriptor.name === 'Paragraph';
+    const image = diagram || label === 'image';
     const parsedImage = image ? parseMarkdownImageSyntax(descriptor?.source) : null;
     return {
         label,
@@ -60,7 +61,7 @@ export function markdownBlockGuidePlan(descriptor) {
             ? 'heading'
             : descriptor.name === 'FencedCode'
                 ? 'code'
-                : image ? label : 'table',
+                : diagram ? 'diagram' : image ? 'image' : 'table',
         rangeStrategy: level ? 'heading-section' : image ? 'whole-block' : 'block-after-first-line',
         imageSized: Boolean(parsedImage?.width && parsedImage?.height),
     };

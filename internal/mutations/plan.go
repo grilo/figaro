@@ -88,11 +88,27 @@ func collisionName(name string, isDirectory bool, index int, parenthesized bool)
 		return name + suffix
 	}
 	extension := filepath.Ext(name)
-	if strings.HasSuffix(strings.ToLower(name), ".drawio.svg") {
-		extension = name[len(name)-len(".drawio.svg"):]
+	if diagramSuffix := EditableDiagramSuffix(name); diagramSuffix != "" {
+		extension = name[len(name)-len(diagramSuffix):]
 	}
 	if extension == "" || extension == name {
 		return name + suffix
 	}
 	return strings.TrimSuffix(name, extension) + suffix + extension
+}
+
+// editableDiagramSuffixes are the double extensions of Figaro's editable SVG
+// formats. Copies and collisions keep them whole so a copy stays editable.
+var editableDiagramSuffixes = []string{".drawio.svg", ".excalidraw.svg"}
+
+// EditableDiagramSuffix returns the editable diagram suffix of name, matched
+// case-insensitively, or "" for any other file.
+func EditableDiagramSuffix(name string) string {
+	lower := strings.ToLower(name)
+	for _, suffix := range editableDiagramSuffixes {
+		if strings.HasSuffix(lower, suffix) {
+			return suffix
+		}
+	}
+	return ""
 }

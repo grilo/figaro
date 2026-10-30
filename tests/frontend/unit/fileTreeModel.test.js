@@ -78,6 +78,7 @@ describe('file tree model', () => {
         expect(fileTreeFilePresentation('data/items.csv')).toEqual({ icon: 'FileSpreadsheet', label: 'Spreadsheet file' });
         expect(fileTreeFilePresentation('scripts/build.sh')).toEqual({ icon: 'FileTerminal', label: 'Script file' });
         expect(fileTreeFilePresentation('diagrams/system.drawio.svg')).toEqual({ icon: 'Workflow', label: 'Draw.io diagram' });
+        expect(fileTreeFilePresentation('sketches/board.excalidraw.svg')).toEqual({ icon: 'PenTool', label: 'Excalidraw drawing' });
         expect(fileTreeFilePresentation('attachments/blob.unknown')).toEqual({ icon: 'File', label: 'UNKNOWN file' });
     });
 
@@ -141,8 +142,9 @@ describe('file tree model', () => {
             { type: 'file', path: 'clean.md', dirty: false },
             { type: 'file', path: 'draft.md', dirty: true },
             { type: 'drawio', path: 'diagram.drawio.svg', dirty: true },
+            { type: 'excalidraw', path: 'board.excalidraw.svg', dirty: true },
             { type: 'settings', path: 'ignored.md', dirty: true },
-        ])]).toEqual(['active.md', 'draft.md', 'diagram.drawio.svg']);
+        ])]).toEqual(['active.md', 'draft.md', 'diagram.drawio.svg', 'board.excalidraw.svg']);
     });
 
     test('plans every ancestor needed to reveal a nested folder', () => {

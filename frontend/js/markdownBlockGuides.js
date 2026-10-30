@@ -18,6 +18,7 @@ import {
     markdownHeadingLevel,
     markdownBlockGuidePlan,
 } from './core/markdownBlockGuideModel.js';
+import { editableDiagramSpec } from './core/editableDiagramModel.js';
 import { markdownFoldAnchorPlan } from './core/markdownFoldAnchorModel.js';
 import { markdownTableMetadataEnd } from './core/markdownTableEditorModel.js';
 import { taskItemActionPlan } from './core/taskItemActionModel.js';
@@ -51,7 +52,7 @@ export function mapMarkdownBlockGuides(update) {
     const regions = canMapMarkdownProseEdit(update) ? [] : markdownProjectionEdit(update);
     if (!regions || regions.some(region => region.name === 'Table')) return false;
     // Image guides depend on the complete containing line, including whitespace.
-    if (regions.some(region => cached.guides.some(guide => (guide.type === 'image' || guide.type === 'drawio')
+    if (regions.some(region => cached.guides.some(guide => (guide.type === 'image' || guide.type === 'diagram')
         && guide.from < region.to && guide.to > region.from))) return false;
     let containsImage = false;
     for (const region of regions) syntaxTree(update.state).iterate({ from: region.nextFrom, to: region.nextTo,
@@ -181,14 +182,14 @@ export function buildMarkdownBlockGuides(state) {
             if (node.to > line.to) return;
             const imageSource = state.sliceDoc(node.from, node.to);
             if (line.text.trim() !== imageSource || guides.some(guide => (
-                (guide.type === 'drawio' || guide.type === 'image')
+                (guide.type === 'diagram' || guide.type === 'image')
                 && guide.from === node.from && guide.to === node.to
             ))) return;
             const plan = markdownBlockGuidePlan({
                 name: 'Paragraph',
                 source: imageSource,
             });
-            if (plan?.type !== 'drawio' && plan?.type !== 'image') return;
+            if (plan?.type !== 'diagram' && plan?.type !== 'image') return;
             guides.push({
                 ...plan,
                 from: node.from,
@@ -243,7 +244,7 @@ class MarkdownBlockGuideMarker extends GutterMarker {
         guide,
         folded,
         showMermaidEditor = false,
-        showDrawioEditor = false,
+        showDiagramEditor = false,
         showTableEditor = false,
         showImageReset = false,
         showChartEditor = false,
@@ -253,7 +254,7 @@ class MarkdownBlockGuideMarker extends GutterMarker {
         this.guide = guide;
         this.folded = folded;
         this.showMermaidEditor = showMermaidEditor;
-        this.showDrawioEditor = showDrawioEditor;
+        this.showDiagramEditor = showDiagramEditor;
         this.showTableEditor = showTableEditor;
         this.showImageReset = showImageReset;
         this.showChartEditor = showChartEditor;
@@ -268,7 +269,7 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             && this.guide.foldable === other.guide.foldable
             && this.folded === other.folded
             && this.showMermaidEditor === other.showMermaidEditor
-            && this.showDrawioEditor === other.showDrawioEditor
+            && this.showDiagramEditor === other.showDiagramEditor
             && this.showTableEditor === other.showTableEditor
             && this.showImageReset === other.showImageReset
             && this.showChartEditor === other.showChartEditor
@@ -285,8 +286,8 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             subject = `${this.guide.label} ${this.guide.title} section`;
         } else if (this.guide.type === 'code') {
             subject = this.guide.label === 'code' ? 'code block' : `${this.guide.label} code block`;
-        } else if (this.guide.type === 'drawio') {
-            subject = 'Draw.io image';
+        } else if (this.guide.type === 'diagram') {
+            subject = `${editableDiagramSpec(this.guide.label)?.editorName || 'diagram'} image`;
         } else if (this.guide.type === 'image') {
             subject = 'image';
         }
@@ -344,15 +345,16 @@ class MarkdownBlockGuideMarker extends GutterMarker {
                 tableControl.dataset.chartTo = String(this.guide.to);
                 actionControls.push(tableControl);
             }
-        } else if (this.showDrawioEditor && this.guide.type === 'drawio') {
+        } else if (this.showDiagramEditor && this.guide.type === 'diagram') {
             const actionControl = document.createElement('button');
             actionControl.type = 'button';
-            actionControl.className = 'ui-editor-block-guide drawio-editor-guide';
+            const spec = editableDiagramSpec(this.guide.label);
+            actionControl.className = 'ui-editor-block-guide diagram-editor-guide';
             actionControl.textContent = 'editor';
-            actionControl.setAttribute('aria-label', 'Open Draw.io editor for this diagram');
-            actionControl.title = 'Open Draw.io editor';
-            actionControl.dataset.drawioFrom = String(this.guide.from);
-            actionControl.dataset.drawioTo = String(this.guide.to);
+            actionControl.setAttribute('aria-label', `Open ${spec?.editorName} editor for this ${spec?.noun}`);
+            actionControl.title = `Open ${spec?.editorName} editor`;
+            actionControl.dataset.diagramFrom = String(this.guide.from);
+            actionControl.dataset.diagramTo = String(this.guide.to);
             actionControls.push(actionControl);
         } else if (this.guide.type === 'table') {
             if (this.showTableEditor) {
@@ -391,7 +393,7 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             deleteControl.dataset.tableTo = String(this.guide.to);
             actionControls.push(deleteControl);
         }
-        if (this.showImageReset && (this.guide.type === 'image' || this.guide.type === 'drawio')) {
+        if (this.showImageReset && (this.guide.type === 'image' || this.guide.type === 'diagram')) {
             const originalControl = document.createElement('button');
             originalControl.type = 'button';
             originalControl.className = 'ui-editor-block-guide markdown-image-original-guide';
@@ -571,7 +573,7 @@ function applyFoldAnchorPlan(view, guide, targetGuideTop, correctionPass = 0) {
  */
 export function createMarkdownBlockGuidesExtension({
     openMermaidEditor,
-    openDrawioEditor,
+    openDiagramEditor,
     openTableEditor,
     openChartEditor,
     convertChartToTable,
@@ -580,7 +582,7 @@ export function createMarkdownBlockGuidesExtension({
     openTaskCalendar,
 } = {}) {
     const showMermaidEditor = typeof openMermaidEditor === 'function';
-    const showDrawioEditor = typeof openDrawioEditor === 'function';
+    const showDiagramEditor = typeof openDiagramEditor === 'function';
     const showTableEditor = typeof openTableEditor === 'function';
     const showChartEditor = typeof openChartEditor === 'function';
     const showChartConversion = typeof convertChartToTable === 'function';
@@ -644,7 +646,7 @@ export function createMarkdownBlockGuidesExtension({
                         guide,
                         exactFoldExists(view.state, guide),
                         showMermaidEditor,
-                        showDrawioEditor,
+                        showDiagramEditor,
                         showTableEditor,
                         showImageReset,
                         showChartEditor,
@@ -674,7 +676,7 @@ export function createMarkdownBlockGuidesExtension({
                 guide,
                 exactFoldExists(view.state, guide),
                 showMermaidEditor,
-                showDrawioEditor,
+                showDiagramEditor,
                 showTableEditor,
                 showImageReset,
                 showChartEditor,
@@ -731,11 +733,11 @@ export function createMarkdownBlockGuidesExtension({
                         const requestedFrom = Number(imageOriginalControl.dataset.imageFrom);
                         const requestedTo = Number(imageOriginalControl.dataset.imageTo);
                         const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
-                            (candidate.type === 'image' || candidate.type === 'drawio')
+                            (candidate.type === 'image' || candidate.type === 'diagram')
                             && candidate.from === requestedFrom
                             && candidate.to === requestedTo
                         )) || guideOnLine(view.state, line.from);
-                        if (guide?.type === 'image' || guide?.type === 'drawio') {
+                        if (guide?.type === 'image' || guide?.type === 'diagram') {
                             resetImageSize?.(view, guide, imageOriginalControl);
                         }
                         return true;
@@ -826,22 +828,22 @@ export function createMarkdownBlockGuidesExtension({
                         return true;
                     }
 
-                    const drawioControl = event.target?.closest?.('.drawio-editor-guide');
-                    if (drawioControl) {
-                        const requestedFrom = Number(drawioControl.dataset.drawioFrom);
-                        const requestedTo = Number(drawioControl.dataset.drawioTo);
+                    const diagramControl = event.target?.closest?.('.diagram-editor-guide');
+                    if (diagramControl) {
+                        const requestedFrom = Number(diagramControl.dataset.diagramFrom);
+                        const requestedTo = Number(diagramControl.dataset.diagramTo);
                         const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
-                            candidate.type === 'drawio'
+                            candidate.type === 'diagram'
                             && candidate.from === requestedFrom
                             && candidate.to === requestedTo
                         )) || guideOnLine(view.state, line.from);
-                        if (guide?.type !== 'drawio') return true;
-                        drawioControl.disabled = true;
-                        drawioControl.setAttribute('aria-busy', 'true');
-                        Promise.resolve(openDrawioEditor?.(view, guide)).catch(() => {}).finally(() => {
-                            if (!drawioControl.isConnected) return;
-                            drawioControl.disabled = false;
-                            drawioControl.removeAttribute('aria-busy');
+                        if (guide?.type !== 'diagram') return true;
+                        diagramControl.disabled = true;
+                        diagramControl.setAttribute('aria-busy', 'true');
+                        Promise.resolve(openDiagramEditor?.(view, guide)).catch(() => {}).finally(() => {
+                            if (!diagramControl.isConnected) return;
+                            diagramControl.disabled = false;
+                            diagramControl.removeAttribute('aria-busy');
                         });
                         return true;
                     }

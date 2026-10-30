@@ -57,15 +57,6 @@ export function isDrawioDiagramPath(path) {
     return /\.drawio\.svg$/i.test(String(path || ''));
 }
 
-export function isExcalidrawDiagramPath(path) {
-    return /\.excalidraw\.svg$/i.test(String(path || ''));
-}
-
-// Editable SVG diagrams open in a diagram tab rather than as files.
-export function isEditableDiagramPath(path) {
-    return isDrawioDiagramPath(path) || isExcalidrawDiagramPath(path);
-}
-
 export async function loadLanguageSupport(path) {
     const language = getFileLanguage(path);
     if (language.kind !== 'code' || !language.description) return null;

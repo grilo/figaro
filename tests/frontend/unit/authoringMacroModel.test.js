@@ -2,10 +2,6 @@ import {
     authoringMacroCompletionPlan,
     authoringMacroInsertionPlan,
     basicMarkdownTable,
-    defaultDrawioMacroName,
-    drawioMacroFileName,
-    drawioMacroMarkdown,
-    drawioMacroNameError,
     emptyMermaidBlock,
 } from '../../../frontend/js/core/authoringMacroModel.js';
 
@@ -49,19 +45,29 @@ describe('Figaro authoring macro plans', () => {
         expect(mermaid.targetLength).toBe(emptyMermaidBlock.length);
     });
 
-    test('normalizes safe Draw.io names and creates an encoded sibling image reference', () => {
-        expect(defaultDrawioMacroName).toBe('diagram1');
-        expect(drawioMacroFileName('system map')).toBe('system map.drawio.svg');
-        expect(drawioMacroFileName('system.drawio')).toBe('system.drawio.svg');
-        expect(drawioMacroFileName('system.drawio.svg')).toBe('system.drawio.svg');
-        expect(drawioMacroMarkdown('system map')).toBe('![Diagram](./system%20map.drawio.svg)');
-        expect(drawioMacroNameError('../system')).toMatch(/name, not a path/i);
-        expect(drawioMacroNameError('.drawio.svg')).toMatch(/name before/i);
+    test('inserts the sibling image reference of a named Draw.io or Excalidraw file', () => {
         expect(authoringMacroInsertionPlan('drawio', '@drawio', { from: 0, to: 7 }, {
-            drawioName: 'diagram1',
+            diagramName: 'diagram1',
         })).toMatchObject({
             insert: '![Diagram](./diagram1.drawio.svg)',
             cursorOffset: '![Diagram](./diagram1.drawio.svg)'.length,
         });
+        expect(authoringMacroInsertionPlan('excalidraw', 'See @excalidraw', { from: 4, to: 15 }, {
+            diagramName: 'whiteboard',
+        })).toMatchObject({
+            insert: '\n\n![Drawing](./whiteboard.excalidraw.svg)',
+        });
+        expect(authoringMacroInsertionPlan('excalidraw', '@excalidraw', { from: 0, to: 11 }, {
+            diagramName: '../escape',
+        })).toBeNull();
+    });
+
+    test('offers @excalidraw beside @drawio as diagram creators', () => {
+        expect(authoringMacroCompletionPlan('@ex').macros).toEqual([
+            expect.objectContaining({ name: 'excalidraw', action: 'diagram-create', kind: 'excalidraw' }),
+        ]);
+        expect(authoringMacroCompletionPlan('@dr').macros).toEqual([
+            expect.objectContaining({ name: 'drawio', action: 'diagram-create', kind: 'drawio' }),
+        ]);
     });
 });

@@ -25,6 +25,22 @@ func TestReadDiagramReadsCanonicalDrawioSVG(t *testing.T) {
 	}
 }
 
+func TestReadDiagramReadsExcalidrawSVG(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg"><!-- payload-type:application/vnd.excalidraw+json --></svg>`
+	writeTestFile(t, vaultPath, "Sketches/board.excalidraw.svg", svg)
+
+	result, err := app.ReadDiagram("Sketches/board.excalidraw.svg")
+	if err != nil {
+		t.Fatalf("ReadDiagram returned an error: %v", err)
+	}
+	if result == nil || result.Content != svg {
+		t.Fatalf("unexpected drawing result: %#v", result)
+	}
+}
+
 func TestReadDiagramRejectsPlainSVG(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
@@ -37,11 +53,17 @@ func TestReadDiagramRejectsPlainSVG(t *testing.T) {
 	}
 }
 
-func TestIsDrawioDiagramPath(t *testing.T) {
-	if !isDrawioDiagramPath("Diagrams/FLOW.DRAWIO.SVG") {
+func TestIsEditableDiagramPath(t *testing.T) {
+	if !isEditableDiagramPath("Diagrams/FLOW.DRAWIO.SVG") {
 		t.Fatal("expected canonical draw.io SVG path to be recognized")
 	}
-	if isDrawioDiagramPath("Diagrams/flow.svg") {
+	if !isEditableDiagramPath("Sketches/Whiteboard.Excalidraw.SVG") {
+		t.Fatal("expected Excalidraw SVG path to be recognized")
+	}
+	if isEditableDiagramPath("Sketches/whiteboard.excalidraw") {
+		t.Fatal("bare .excalidraw JSON is not an editable SVG")
+	}
+	if isEditableDiagramPath("Diagrams/flow.svg") {
 		t.Fatal("plain SVG must remain a normal image asset")
 	}
 }

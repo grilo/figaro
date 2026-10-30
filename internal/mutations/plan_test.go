@@ -38,3 +38,12 @@ func TestCollisionNamesPreserveCompoundDrawioExtension(t *testing.T) {
 		t.Fatalf("merge name = %q", got)
 	}
 }
+
+func TestCollisionNamesPreserveCompoundExcalidrawExtension(t *testing.T) {
+	if got := CopyCollisionName("Board.Excalidraw.svg", false, 2); got != "Board copy 2.Excalidraw.svg" {
+		t.Fatalf("copy name = %q", got)
+	}
+	if got := ParenthesizedCopyCollisionName("board.excalidraw.svg", false, 1); got != "board (copy).excalidraw.svg" {
+		t.Fatalf("merge name = %q", got)
+	}
+}

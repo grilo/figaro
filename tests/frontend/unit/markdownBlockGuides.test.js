@@ -7,6 +7,7 @@ import {
     leadingFrontmatterEnd,
     MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH,
     markdownBlockGuideKind,
+    markdownBlockGuidePlan,
     markdownBlockGuideSpacerLength,
 } from '../../../frontend/js/core/markdownBlockGuideModel.js';
 import { markdownFoldAnchorPlan } from '../../../frontend/js/core/markdownFoldAnchorModel.js';
@@ -130,6 +131,14 @@ describe('Markdown block guide model', () => {
         })).toBe('drawio');
         expect(markdownBlockGuideKind({
             name: 'Paragraph',
+            source: '![Board](Sketches/board.excalidraw.svg)',
+        })).toBe('excalidraw');
+        expect(markdownBlockGuidePlan({
+            name: 'Paragraph',
+            source: '![Board](Sketches/board.excalidraw.svg)',
+        })).toMatchObject({ label: 'excalidraw', type: 'diagram', rangeStrategy: 'whole-block' });
+        expect(markdownBlockGuideKind({
+            name: 'Paragraph',
             source: 'Text ![Flow](Diagrams/flow.drawio.svg)',
         })).toBeNull();
     });
@@ -205,11 +214,11 @@ describe('Markdown block guide model', () => {
     test('gives a standalone Draw.io image a whole-source fold range', () => {
         const source = 'Before\n![Flow](Diagrams/flow.drawio.svg)\nAfter';
         const { guides } = guidePlan(source);
-        const guide = guides.find(candidate => candidate.type === 'drawio');
+        const guide = guides.find(candidate => candidate.type === 'diagram');
         const from = source.indexOf('![Flow]');
         expect(guide).toMatchObject({
             label: 'drawio',
-            type: 'drawio',
+            type: 'diagram',
             from,
             to: from + '![Flow](Diagrams/flow.drawio.svg)'.length,
             foldFrom: from,

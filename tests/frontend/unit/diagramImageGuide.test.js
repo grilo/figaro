@@ -16,7 +16,7 @@ async function settle() {
     await Promise.resolve();
 }
 
-describe('Draw.io image block guide', () => {
+describe('editable diagram image block guide', () => {
     let view;
 
     afterEach(() => {
@@ -26,7 +26,7 @@ describe('Draw.io image block guide', () => {
     });
 
     test('stacks fold and editor actions and preserves native vertical movement', async () => {
-        const openDrawioEditor = jest.fn(async () => true);
+        const openDiagramEditor = jest.fn(async () => true);
         view = new EditorView({
             parent: document.body,
             state: EditorState.create({
@@ -38,9 +38,9 @@ describe('Draw.io image block guide', () => {
                     mouseSelectingField,
                     createMarkdownImageField({
                         loadImage: async src => ({ loaded: true, src }),
-                        drawioTarget: () => ({ path: 'flow.drawio.svg', title: 'flow.drawio.svg' }),
+                        diagramTarget: () => ({ kind: 'drawio', path: 'flow.drawio.svg', title: 'flow.drawio.svg' }),
                     }),
-                    ...createMarkdownBlockGuidesExtension({ openDrawioEditor }),
+                    ...createMarkdownBlockGuidesExtension({ openDiagramEditor }),
                 ],
             }),
         });
@@ -48,7 +48,7 @@ describe('Draw.io image block guide', () => {
 
         const stack = view.dom.querySelector('.cm-editor-block-guide-stack');
         const foldButton = stack.querySelector('[aria-label="Collapse Draw.io image"]');
-        const editorButton = stack.querySelector('.drawio-editor-guide');
+        const editorButton = stack.querySelector('.diagram-editor-guide');
         expect(stack.children).toHaveLength(2);
         expect(foldButton.textContent).toBe('drawio');
         expect(editorButton.textContent).toBe('editor');
@@ -58,9 +58,9 @@ describe('Draw.io image block guide', () => {
         expect(editorButton.disabled).toBe(true);
         expect(editorButton.getAttribute('aria-busy')).toBe('true');
         await settle();
-        expect(openDrawioEditor).toHaveBeenCalledWith(view, expect.objectContaining({
+        expect(openDiagramEditor).toHaveBeenCalledWith(view, expect.objectContaining({
             label: 'drawio',
-            type: 'drawio',
+            type: 'diagram',
             from: source.indexOf('![Flow]'),
         }));
         expect(editorButton.disabled).toBe(false);
@@ -70,7 +70,7 @@ describe('Draw.io image block guide', () => {
         foldButton.click();
         expect(foldedRanges(view.state).size).toBeGreaterThan(0);
         expect(view.dom.querySelector('.cm-image-widget')).toBeNull();
-        expect(view.dom.querySelector('.drawio-editor-guide')).toBeNull();
+        expect(view.dom.querySelector('.diagram-editor-guide')).toBeNull();
         view.dom.querySelector('[aria-label="Expand Draw.io image"]').click();
         await settle();
         expect(foldedRanges(view.state).size).toBe(0);
@@ -81,5 +81,36 @@ describe('Draw.io image block guide', () => {
         expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(3);
         expect(cursorLineUp(view)).toBe(true);
         expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(1);
+    });
+
+    test('labels an Excalidraw image and opens the Excalidraw editor from its guide', async () => {
+        const drawing = 'Before\n![Board](board.excalidraw.svg)\nAfter';
+        const openDiagramEditor = jest.fn(async () => true);
+        view = new EditorView({
+            parent: document.body,
+            state: EditorState.create({
+                doc: drawing,
+                selection: { anchor: 0 },
+                extensions: [
+                    markdown(),
+                    collapseOnSelectionFacet.of(true),
+                    mouseSelectingField,
+                    createMarkdownImageField({
+                        loadImage: async src => ({ loaded: true, src }),
+                        diagramTarget: () => ({ kind: 'excalidraw', path: 'board.excalidraw.svg', title: 'board.excalidraw.svg' }),
+                    }),
+                    ...createMarkdownBlockGuidesExtension({ openDiagramEditor }),
+                ],
+            }),
+        });
+        await settle();
+
+        const stack = view.dom.querySelector('.cm-editor-block-guide-stack');
+        expect(stack.querySelector('[aria-label="Collapse Excalidraw image"]').textContent).toBe('excalidraw');
+        const editorButton = stack.querySelector('.diagram-editor-guide');
+        expect(editorButton.getAttribute('aria-label')).toBe('Open Excalidraw editor for this drawing');
+        editorButton.click();
+        await settle();
+        expect(openDiagramEditor).toHaveBeenCalledWith(view, expect.objectContaining({ label: 'excalidraw', type: 'diagram' }));
     });
 });

@@ -1,3 +1,4 @@
+import { isPathTabType } from './editableDiagramModel.js';
 export function normalizeFileTreeStyles(styles) {
     const entries = {};
     if (styles?.entries && typeof styles.entries === 'object') {
@@ -93,6 +94,7 @@ export function fileTreeFilePresentation(path) {
     const filename = normalized.slice(normalized.lastIndexOf('/') + 1);
     const lowerName = filename.toLowerCase();
     if (lowerName.endsWith('.drawio.svg')) return { icon: 'Workflow', label: 'Draw.io diagram' };
+    if (lowerName.endsWith('.excalidraw.svg')) return { icon: 'PenTool', label: 'Excalidraw drawing' };
 
     const dot = lowerName.lastIndexOf('.');
     const extension = dot >= 0 ? lowerName.slice(dot + 1) : '';
@@ -188,7 +190,7 @@ export function reconcileSelectedTreePaths(selectedPaths, items) {
  */
 export function dirtyFilePaths(openTabs) {
     return new Set((Array.isArray(openTabs) ? openTabs : [])
-        .filter(tab => (tab?.type === 'file' || tab?.type === 'drawio')
+        .filter(tab => isPathTabType(tab?.type)
             && tab.path
             && tab.dirty)
         .map(tab => tab.path));

@@ -160,6 +160,22 @@ describe('session persistence', () => {
         });
     });
 
+    test('persists and restores an Excalidraw drawing tab with its vault path', async () => {
+        const tab = { id: 'sketches/board.excalidraw.svg', type: 'excalidraw', title: 'board.excalidraw.svg', path: 'sketches/board.excalidraw.svg' };
+        setState('openTabs', [tab]);
+        setState('activeTabId', tab.id);
+
+        await saveSession();
+
+        expect(window.go.desktop.App.SaveSession.mock.calls.at(-1)[0].openTabs).toEqual([tab]);
+        expect(restoredTabOpenArgs(tab)).toEqual({
+            id: tab.id,
+            title: tab.title,
+            type: 'excalidraw',
+            data: { path: tab.path },
+        });
+    });
+
     test('drops a legacy Welcome pin instead of recreating a synthetic tab', async () => {
         window.go.desktop.App.LoadSession.mockResolvedValueOnce({
             openTabs: [{ id: 'note.md', type: 'file', title: 'Note', path: 'note.md' }],

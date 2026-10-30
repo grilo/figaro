@@ -1,3 +1,5 @@
+import { editableDiagramKind } from './editableDiagramModel.js';
+
 function decodedImagePath(source) {
     const raw = String(source || '').trim();
     if (!raw || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(raw)) return null;
@@ -15,17 +17,16 @@ function decodedImagePath(source) {
 
 export { parseMarkdownImageSyntax } from './markdownImageModel.js';
 
-/** Identify a standalone editable local Draw.io image without resolving a note path. */
-export function isLocalDrawioMarkdownImage(source) {
+/** The diagram kind of a standalone local editable image, without resolving a note path. */
+export function localDiagramMarkdownImageKind(source) {
     const image = parseMarkdownImageSyntax(source);
-    const path = decodedImagePath(image?.src);
-    return Boolean(path && /\.drawio\.svg$/i.test(path));
+    return editableDiagramKind(decodedImagePath(image?.src));
 }
 
-/** Resolve a local Markdown image destination to a vault-contained Draw.io file. */
-export function drawioImageCreationTarget({ imageSource, notePath }) {
+/** Resolve a local Markdown image destination to a vault-contained editable diagram. */
+export function diagramImageCreationTarget({ imageSource, notePath }) {
     const sourcePath = decodedImagePath(imageSource);
-    if (!sourcePath || !/\.drawio\.svg$/i.test(sourcePath)) return null;
+    if (!editableDiagramKind(sourcePath)) return null;
 
     const noteSegments = String(notePath || '').replace(/\\/g, '/').split('/').filter(Boolean);
     if (noteSegments.length) noteSegments.pop();
@@ -43,20 +44,22 @@ export function drawioImageCreationTarget({ imageSource, notePath }) {
     }
 
     const path = segments.join('/');
-    if (!path || !/\.drawio\.svg$/i.test(path)) return null;
+    const kind = editableDiagramKind(path);
+    if (!kind) return null;
     try {
         segments.forEach(segment => encodeURIComponent(segment));
     } catch {
         return null;
     }
     return {
+        kind,
         path,
         title: segments.at(-1),
     };
 }
 
 /** Build the canonical browser route for an already validated vault target. */
-export function drawioImageVaultURL(target, revision = null) {
+export function diagramImageVaultURL(target, revision = null) {
     if (!target?.path) return null;
     try {
         const url = `/vault/${target.path.split('/').map(segment => encodeURIComponent(segment)).join('/')}`;
@@ -67,7 +70,7 @@ export function drawioImageVaultURL(target, revision = null) {
 }
 
 /** Resolve a failed SVG load without conflating previewable, empty, and absent files. */
-export function drawioImageStateForRead(result, error = null) {
+export function diagramImageStateForRead(result, error = null) {
     if (error) return { kind: 'error' };
     if (!result) return { kind: 'create' };
     const content = String(result.content || '');

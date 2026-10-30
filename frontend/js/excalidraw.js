@@ -2,20 +2,27 @@ import { backend } from './backend.js';
 /**
  * Excalidraw integration for editable .excalidraw.svg drawings.
  *
- * The editor is vendored (frontend/vendored/excalidraw) and runs offline. It
- * stores the scene inside the exported SVG, so the file stays a regular image
- * for notes, PDFs and other tools, and reopens as an editable drawing.
+ * The editor is vendored (frontend/vendored/excalidraw, window.FigaroExcalidraw)
+ * and runs offline. It stores the scene inside the exported SVG, so the file
+ * stays a regular image for notes, PDFs and other tools and reopens as an
+ * editable drawing. Drawings save like notes: Ctrl/Cmd+S, the Auto-Save
+ * interval, and the unsaved-changes prompts when closing.
  */
 
 import { log } from './log.js';
 import { isDrawioDarkTheme } from './drawio.js';
+import {
+    isDrawingEdit,
+    isNewerDrawingFile,
+    shouldReloadDrawing,
+} from './core/excalidrawDrawingModel.js';
 
-export const excalidrawAutosaveMs = 1200;
 let workspacePorts = null;
 
 export function configureExcalidrawWorkspace(ports) {
     if (
-        typeof ports?.markTabDirty !== 'function'
+        typeof ports?.findTab !== 'function'
+        || typeof ports?.recordTabEdit !== 'function'
         || typeof ports?.recordTabMtime !== 'function'
         || typeof ports?.saveFileSnapshot !== 'function'
         || typeof ports?.refreshFileTree !== 'function'
@@ -28,12 +35,20 @@ function workspace() {
     return workspacePorts;
 }
 
+function vendor() {
+    const api = typeof window !== 'undefined' ? window.FigaroExcalidraw : null;
+    if (!api) throw new Error('The Excalidraw editor did not load');
+    return api;
+}
+
 function editorTheme() {
     return isDrawioDarkTheme() ? 'dark' : 'light';
 }
 
-// Publishes the rendered surface's lightness so CSS can adapt embedded
-// drawings, which are always exported in Excalidraw's light palette.
+/**
+ * Publish the rendered surface's lightness so CSS can adapt embedded
+ * drawings, which are always exported in Excalidraw's light palette.
+ */
 export function trackExcalidrawSurface(root = document.documentElement) {
     const update = () => { root.dataset.figaroSurface = editorTheme(); };
     update();
@@ -48,26 +63,41 @@ export async function renderExcalidrawTab(panel, tab) {
     const requestId = (panel._excalidrawRequestId || 0) + 1;
     panel._excalidrawRequestId = requestId;
     panel._excalidrawPath = tab.path;
-    panel.innerHTML = '<div class="excalidraw-view"><p class="excalidraw-status">Opening drawing…</p></div>';
+    panel.innerHTML = `
+        <div class="excalidraw-view">
+            <div class="excalidraw-message" role="status" aria-live="polite">
+                <span class="ui-spinner" aria-hidden="true"></span>
+                <span>Opening drawing…</span>
+            </div>
+        </div>`;
 
     try {
-        const vendor = window.FigaroExcalidraw;
-        if (!vendor) throw new Error('The Excalidraw editor did not load');
+        const editor = vendor();
         const result = await backend().ReadDiagram(tab.path);
-        if (!panel.isConnected || panel._excalidrawRequestId !== requestId) return;
-        if (!result) throw new Error('Drawing file was not found');
-        const scene = await vendor.loadSceneFromSVG(result.content || '');
-        if (!panel.isConnected || panel._excalidrawRequestId !== requestId) return;
+        if (!isCurrentRequest(panel, requestId)) return;
+        if (!result) throw new Error('The drawing file was not found.');
+        const scene = await editor.loadSceneFromSVG(result.content || '');
+        if (!isCurrentRequest(panel, requestId)) return;
 
         workspace().recordTabMtime(tab.id, result.mtime);
-        mountExcalidrawEditor(panel, tab, vendor, scene);
+        mountExcalidrawEditor(panel, editor, scene);
     } catch (error) {
         log.error('Unable to open Excalidraw drawing:', error);
-        if (panel.isConnected && panel._excalidrawRequestId === requestId) {
-            panel.innerHTML = '<div class="excalidraw-view"><p class="excalidraw-error"></p></div>';
-            panel.querySelector('.excalidraw-error').textContent = error?.message || 'Could not open this drawing.';
-        }
+        if (!isCurrentRequest(panel, requestId)) return;
+        panel.innerHTML = `
+            <div class="excalidraw-view">
+                <div class="ui-notice ui-notice--danger excalidraw-message" role="alert">
+                    <strong>Couldn’t open this drawing</strong>
+                    <span data-excalidraw-error></span>
+                </div>
+            </div>`;
+        panel.querySelector('[data-excalidraw-error]').textContent = error?.message
+            || 'The file is not an Excalidraw SVG with an embedded scene.';
     }
+}
+
+function isCurrentRequest(panel, requestId) {
+    return panel.isConnected && panel._excalidrawRequestId === requestId;
 }
 
 export function disposeExcalidrawTab(panel) {
@@ -77,75 +107,72 @@ export function disposeExcalidrawTab(panel) {
     panel._excalidrawPath = null;
 }
 
-function mountExcalidrawEditor(panel, tab, vendor, scene) {
+function mountExcalidrawEditor(panel, vendorAPI, scene) {
     panel.innerHTML = '<div class="excalidraw-view"><div class="excalidraw-stage" data-excalidraw-stage></div></div>';
     const stage = panel.querySelector('[data-excalidraw-stage]');
+    // Tab ids follow the file path; the panel's id is kept current across moves.
+    const currentTab = () => workspace().findTab(panel.dataset.tabId);
     const session = {
-        savedVersion: null,
-        latestVersion: null,
-        saving: false,
-        timer: null,
+        lastVersion: null,
+        saving: 0,
         editor: null,
-        dispose: null,
     };
 
-    function scheduleSave() {
-        clearTimeout(session.timer);
-        session.timer = setTimeout(() => save().catch(() => {}), excalidrawAutosaveMs);
-    }
-
-    async function save() {
-        clearTimeout(session.timer);
-        if (session.saving || session.latestVersion === session.savedVersion) return;
-        session.saving = true;
-        const version = session.latestVersion;
-        try {
-            const svg = await session.editor.exportSVG();
-            const result = await workspace().saveFileSnapshot(tab, svg);
-            if (!result?.success) throw new Error(result?.error || 'Could not save the drawing');
-            session.savedVersion = version;
-            workspace().refreshFileTree().catch(() => {});
-        } catch (error) {
-            log.error('Unable to save Excalidraw drawing:', error);
-        } finally {
-            session.saving = false;
-        }
-        // Edits made while the export was running still need a write.
-        if (session.latestVersion !== session.savedVersion) scheduleSave();
-    }
-
-    session.editor = vendor.mount(stage, {
+    session.editor = vendorAPI.mount(stage, {
         scene,
         theme: editorTheme(),
         onChange: ({ version }) => {
-            session.latestVersion = version;
-            // Excalidraw reports the loaded scene once; that is the saved baseline.
-            if (session.savedVersion === null) {
-                session.savedVersion = version;
-                return;
-            }
-            if (version === session.savedVersion) return;
-            workspace().markTabDirty(tab.id);
-            scheduleSave();
+            const edited = isDrawingEdit(session.lastVersion, version);
+            session.lastVersion = version;
+            const tab = edited ? currentTab() : null;
+            if (tab) workspace().recordTabEdit(tab.id);
         },
     });
 
-    const onAppearanceChanged = () => session.editor.setTheme(editorTheme());
-    const onKeyDown = event => {
-        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-            event.preventDefault();
-            event.stopPropagation();
-            save().catch(() => {});
+    session.save = async (options = {}) => {
+        const tab = currentTab();
+        if (!tab) return null;
+        if (!tab.dirty) return { success: true, path: tab.path, mtime: tab.mtime };
+        // Edits made while the SVG is exported keep the tab dirty.
+        const editGeneration = tab._editGeneration || 0;
+        session.saving += 1;
+        try {
+            const svg = await session.editor.exportSVG();
+            const result = await workspace().saveFileSnapshot(tab, svg, { ...options, editGeneration });
+            if (result?.success) workspace().refreshFileTree().catch(() => {});
+            return result;
+        } finally {
+            session.saving -= 1;
         }
     };
-    document.addEventListener('figaro:appearance-changed', onAppearanceChanged);
-    stage.addEventListener('keydown', onKeyDown, true);
 
-    session.save = save;
+    const reloadFromDisk = async scope => {
+        const tab = currentTab();
+        if (!shouldReloadDrawing({ scope, path: tab?.path, dirty: tab?.dirty, saving: session.saving > 0 })) return;
+        try {
+            const result = await backend().ReadDiagram(tab.path);
+            const latest = currentTab();
+            if (session.disposed || !latest || latest.dirty || !isNewerDrawingFile(result, latest.mtime)) return;
+            const next = await vendorAPI.loadSceneFromSVG(result.content || '');
+            if (session.disposed || currentTab()?.dirty) return;
+            session.lastVersion = null;
+            session.editor.replaceScene(next);
+            workspace().recordTabMtime(latest.id, result.mtime);
+        } catch (error) {
+            log.warn('Could not reload the Excalidraw drawing after a vault change:', error);
+        }
+    };
+
+    const onAppearanceChanged = () => session.editor.setTheme(editorTheme());
+    const onVaultChanged = event => { void reloadFromDisk(event.detail ? event.detail.paths : null); };
+    document.addEventListener('figaro:appearance-changed', onAppearanceChanged);
+    document.addEventListener('vault-filesystem-changed', onVaultChanged);
+
     session.dispose = () => {
-        clearTimeout(session.timer);
+        if (session.disposed) return;
+        session.disposed = true;
         document.removeEventListener('figaro:appearance-changed', onAppearanceChanged);
-        stage.removeEventListener('keydown', onKeyDown, true);
+        document.removeEventListener('vault-filesystem-changed', onVaultChanged);
         session.editor.unmount();
     };
     panel._excalidrawSession = session;

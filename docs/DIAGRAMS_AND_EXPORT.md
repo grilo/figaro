@@ -49,7 +49,7 @@ the diagram's lower edge to change its height; the width follows its
 proportions, and Figaro records the height in a Mermaid comment that PDF
 output honors.
 
-## Charts and Draw.io
+## Charts
 
 Use **chart** beside a rendered table to open the Chart Editor. Choose
 Cartesian, Pie, or Waterfall and configure series, axes, colors, trendlines, and
@@ -58,12 +58,6 @@ preserves the original table. Its **table** action can restore that source after
 confirmation. Unsupported manual changes to chart JSON remain untouched.
 
 Vega and Vega-Lite code blocks also render directly in notes and PDFs.
-
-Type `@drawio` to create a named `.drawio.svg` beside the note, insert an image
-reference, and open the Draw.io Editor. A missing Draw.io image reference offers
-**Create Draw.io diagram** too. Editing uses the hosted diagrams.net service;
-saved SVG output stays local and can be viewed offline. Closing an unsaved blank
-diagram leaves its empty local file available to reopen.
 
 Returning to a prepared Mermaid, Vega or Vega-Lite preview restores the finished
 diagram without the rendering delay. A bounded cache retains these previews
@@ -77,8 +71,32 @@ keeping their layout work out of the active input region.
 
 Tables, code, formulas and ordinary images also retain prepared content while
 navigating within the note. Editing their source refreshes the preview, and
-returning after a Draw.io edit still reloads the saved image. These editor caches
-do not alter PDF rendering or export.
+returning after a Draw.io or Excalidraw edit still reloads the saved image.
+These editor caches do not alter PDF rendering or export.
+
+## Draw.io diagrams and Excalidraw drawings
+
+Type `@drawio` to create a named `.drawio.svg` beside the note, insert an image
+reference, and open the Draw.io Editor. Editing uses the hosted diagrams.net
+service; saved SVG output stays local and can be viewed offline. Closing an
+unsaved blank diagram leaves its empty local file available to reopen.
+
+Type `@excalidraw` for a hand-drawn `.excalidraw.svg` sketch instead. The
+Excalidraw editor is bundled with Figaro and works offline. Its toolbar and
+panels follow your theme. Drawings save like notes: press `Ctrl+S` (`Cmd+S` on
+macOS), or let autosave write them, and closing with unsaved changes asks first.
+A drawing changed on disk reloads when the tab has no unsaved edits. In dark
+themes the image in a note is shown inverted, as Excalidraw does; the saved
+file stays light. Excalidraw's online features, such as collaboration, the
+shared library, web embeds, and text-to-diagram, are not included, and CJK
+handwriting fonts are not bundled.
+
+Both files are ordinary SVG images that other apps display. The editable scene
+is embedded in the image, so its editor can reopen it. A missing image
+reference with one of these extensions offers **Create Draw.io diagram** or
+**Create Excalidraw drawing**, and **New Draw.io Diagram** and **New Excalidraw
+Drawing** in a file-tree folder menu create one there. An image line's
+**editor** guide opens the matching editor.
 
 ## Preview and generate a PDF
 

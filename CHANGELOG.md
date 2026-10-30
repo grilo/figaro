@@ -8,7 +8,13 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- Excalidraw drawings: type `@excalidraw` in a note, or choose **New Excalidraw
+  Drawing** in a folder menu, to sketch a hand-drawn `.excalidraw.svg` image in
+  a built-in editor that works offline. The editor follows your theme, drawings
+  save and autosave like notes, and the saved file is an ordinary SVG that any
+  app can display and Figaro can reopen for editing.
 
 ## [1.45.0] - 2026-09-26
 

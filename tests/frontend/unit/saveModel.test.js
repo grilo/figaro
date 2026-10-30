@@ -60,4 +60,11 @@ describe('save model', () => {
         expect(saveResultDisposition({ success: false, error: 'External file is read-only' })).toBe('failure');
         expect(saveResultDisposition(null)).toBe('failure');
     });
+
+    test('keeps the edit generation an asynchronous export captured before it began', () => {
+        const tab = { path: 'board.excalidraw.svg', _editGeneration: 6 };
+        const snapshot = createSaveSnapshot(tab, '<svg/>', { editGeneration: 4 });
+        expect(snapshot.editGeneration).toBe(4);
+        expect(savedLatestEdit(tab, snapshot)).toBe(false);
+    });
 });

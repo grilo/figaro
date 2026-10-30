@@ -223,7 +223,7 @@ func normalizeSessionData(root *os.Root, source map[string]interface{}) map[stri
 					title = "Calendar: " + date
 				}
 				cleaned = map[string]interface{}{"id": tabID, "type": "calendar", "title": title, "dateStr": date}
-			case "file", "drawio":
+			case "file", "drawio", "excalidraw":
 				path, valid := sessionFilePath(root, tab["path"])
 				if !valid {
 					continue

@@ -93,6 +93,9 @@ jest.mock('../frontend/js/vaultHealth.js', () => ({
 jest.mock('../frontend/js/drawio.js', () => ({
     renderDrawioTab: jest.fn().mockResolvedValue(),
 }));
+jest.mock('../frontend/js/excalidraw.js', () => ({
+    renderExcalidrawTab: jest.fn().mockResolvedValue(),
+}));
 
 import { state, setState, getState, subscribe, getTabCursorState } from '../frontend/js/state.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState } from '../frontend/js/editor.js';
@@ -1324,6 +1327,78 @@ describe('Tab Manager', () => {
                 success: false,
                 error: 'Save "Diagram" before moving it',
             });
+        });
+
+        function mountExcalidrawPanel(tabId, session) {
+            const panel = document.createElement('section');
+            panel.className = 'tab-panel';
+            panel.dataset.tabId = tabId;
+            panel._excalidrawSession = session;
+            document.getElementById('tab-panels').appendChild(panel);
+            return panel;
+        }
+
+        test('saves a dirty Excalidraw drawing through its editor before moving it', async () => {
+            mockState.openTabs = [{ id: 'board.excalidraw.svg', title: 'Board', type: 'excalidraw', path: 'board.excalidraw.svg', dirty: true }];
+            mockState.activeTabId = 'board.excalidraw.svg';
+            const save = jest.fn(async () => {
+                mockState.openTabs = mockState.openTabs.map(tab => ({ ...tab, dirty: false }));
+                return { success: true };
+            });
+            mountExcalidrawPanel('board.excalidraw.svg', { save });
+
+            await expect(prepareTabsForPathMove('board.excalidraw.svg')).resolves.toEqual({ success: true });
+            expect(save).toHaveBeenCalledTimes(1);
+        });
+
+        test('keeps an Excalidraw drawing in place when its save fails', async () => {
+            mockState.openTabs = [{ id: 'board.excalidraw.svg', title: 'Board', type: 'excalidraw', path: 'board.excalidraw.svg', dirty: true }];
+            mockState.activeTabId = 'board.excalidraw.svg';
+            mountExcalidrawPanel('board.excalidraw.svg', { save: jest.fn(async () => ({ success: false })) });
+
+            await expect(prepareTabsForPathDelete('board.excalidraw.svg')).resolves.toEqual({
+                success: false,
+                error: 'Could not save "Board" before deleting it',
+            });
+        });
+
+        test('saving the active Excalidraw tab goes through its editor session', async () => {
+            mockState.openTabs = [{ id: 'board.excalidraw.svg', title: 'Board', type: 'excalidraw', path: 'board.excalidraw.svg', dirty: true }];
+            mockState.activeTabId = 'board.excalidraw.svg';
+            const save = jest.fn(async () => ({ success: true }));
+            mountExcalidrawPanel('board.excalidraw.svg', { save });
+
+            await expect(saveActiveFile({ failurePrompt: 'always' })).resolves.toEqual({ success: true });
+            expect(save).toHaveBeenCalledWith({ failurePrompt: 'always' });
+            expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
+        });
+
+        test('closing an Excalidraw tab unmounts its editor', async () => {
+            mockState.openTabs = [
+                { id: 'board.excalidraw.svg', title: 'Board', type: 'excalidraw', path: 'board.excalidraw.svg', dirty: false },
+                { id: 'notes/a.md', title: 'a.md', type: 'file', path: 'notes/a.md' },
+            ];
+            mockState.activeTabId = 'notes/a.md';
+            const dispose = jest.fn();
+            mountExcalidrawPanel('board.excalidraw.svg', { dispose });
+
+            await expect(closeTab('board.excalidraw.svg')).resolves.toBe(true);
+            expect(dispose).toHaveBeenCalledTimes(1);
+            expect(document.querySelector('.tab-panel[data-tab-id="board.excalidraw.svg"]')).toBeNull();
+        });
+
+        test('moving an open Excalidraw drawing keeps its mounted editor', () => {
+            mockState.openTabs = [{ id: 'notes/board.excalidraw.svg', title: 'board.excalidraw.svg', type: 'excalidraw', path: 'notes/board.excalidraw.svg' }];
+            mockState.activeTabId = 'notes/board.excalidraw.svg';
+            const panel = mountExcalidrawPanel('notes/board.excalidraw.svg', { save: jest.fn() });
+            panel._excalidrawPath = 'notes/board.excalidraw.svg';
+
+            expect(updateTabsForMovedPath('notes', 'archive/notes')).toBe(true);
+            expect(getState('openTabs')).toEqual([
+                expect.objectContaining({ id: 'archive/notes/board.excalidraw.svg', type: 'excalidraw' }),
+            ]);
+            expect(panel.dataset.tabId).toBe('archive/notes/board.excalidraw.svg');
+            expect(panel._excalidrawPath).toBe('archive/notes/board.excalidraw.svg');
         });
 
         test('saves an open dirty Markdown backlink source before a move', async () => {

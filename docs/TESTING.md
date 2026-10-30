@@ -840,6 +840,11 @@ That contract also owns mapped prose edits, scoped heading/code/soft-line update
 partial-parser progress, unrelated settings reuse, selective block source projection,
 heading indexes, cached Find counts and direct cursor-store work budgets.
 
+## Excalidraw drawing regressions
+
+See [Excalidraw drawing regressions](testing/editor.md#excalidraw-drawing-regressions)
+for which tests own drawing kinds, saving, reloading, theming, and the vendored bundle.
+
 ## Block widget and cursor regressions
 
 See [Block widget and cursor regressions](testing/editor.md#block-widget-and-cursor-regressions)

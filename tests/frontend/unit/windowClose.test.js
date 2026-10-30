@@ -71,4 +71,24 @@ describe('save dirty documents before native exit', () => {
         })).resolves.toBe(false);
         expect(first.dirty).toBe(true);
     });
+
+    test('saves dirty Excalidraw drawings through their editor and refuses to close if one fails', async () => {
+        const note = { id: 'note', type: 'file', dirty: true };
+        const drawing = { id: 'board.excalidraw.svg', type: 'excalidraw', dirty: true };
+        const save = jest.fn(async tab => { tab.dirty = false; return { success: true }; });
+        const saveDrawing = jest.fn(async tab => { tab.dirty = false; return { success: true }; });
+
+        await expect(saveDirtyDocumentsBeforeExit({
+            tabs: [note, drawing], activeId: 'note', activeContent: () => 'body', save, saveDrawing,
+        })).resolves.toBe(true);
+        expect(saveDrawing).toHaveBeenCalledWith(drawing, { failurePrompt: 'always' });
+        expect(save).toHaveBeenCalledTimes(1);
+
+        const unsaved = { id: 'other.excalidraw.svg', type: 'excalidraw', dirty: true };
+        await expect(saveDirtyDocumentsBeforeExit({
+            tabs: [unsaved], activeId: null, activeContent: () => '', save,
+            saveDrawing: async () => ({ success: false }),
+        })).resolves.toBe(false);
+        expect(unsaved.dirty).toBe(true);
+    });
 });

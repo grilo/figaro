@@ -160,7 +160,7 @@ describe('design-system catalogue', () => {
             '.ui-segmented-control',
             '.ui-segmented-control--quiet',
             '.ui-button.drawio-edit-button',
-            '.ui-button.cm-drawio-action-button',
+            '.ui-button.cm-diagram-action-button',
             '.ui-menu.context-menu',
             '.ds-help-popup',
             '.md-cheatsheet-tab.ui-button--accent',
@@ -889,7 +889,7 @@ describe('design-system catalogue', () => {
                 'ui-button ui-button--primary raw-text-preview-copy',
             ]],
             ['frontend/js/markdownImagePlugin.js', [
-                'ui-button ui-button--accent cm-drawio-action-button',
+                'ui-button ui-button--accent cm-diagram-action-button',
                 'ui-spinner',
             ]],
         ]);

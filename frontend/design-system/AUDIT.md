@@ -389,7 +389,7 @@ button variant.
 A failed local Draw.io image reuses the approved accent `.ui-button` for both
 its Create and Open actions and the
 approved `.ui-spinner` inside the image widget's existing one-source-line
-footprint. The `.cm-drawio-action-button` hook owns only that host geometry;
+footprint. The `.cm-diagram-action-button` hook owns only that host geometry;
 canonical primitives continue to own hover, focus, disabled, busy, and theme
 paint, so these action states add no component family or visual variant.
 

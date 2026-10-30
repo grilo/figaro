@@ -5,7 +5,8 @@ export function createSaveSnapshot(tab, content, options = {}) {
         path: tab.path,
         content,
         generation: options.generation || (tab._saveGeneration || 0) + 1,
-        editGeneration: tab._editGeneration || 0,
+        // A caller that prepared content asynchronously passes the generation it captured.
+        editGeneration: options.editGeneration ?? (tab._editGeneration || 0),
         expectedMtime: tab.mtime || 0,
         externalFileId: tab.externalFileId || null,
         failurePrompt: options.failurePrompt || 'once',

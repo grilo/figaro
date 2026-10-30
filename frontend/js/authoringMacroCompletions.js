@@ -37,7 +37,7 @@ export function createAuthoringMacroCompletionSource({
     openDuePicker = null,
     openTableEditor = null,
     openMermaidEditor = null,
-    openDrawioCreator = null,
+    openDiagramCreator = null,
     contextAllowed = () => true,
 } = {}) {
     return context => {
@@ -74,17 +74,18 @@ export function createAuthoringMacroCompletionSource({
                         return;
                     }
 
-                    if (macro.action === 'drawio-create') {
-                        if (typeof openDrawioCreator !== 'function') return;
+                    if (macro.action === 'diagram-create') {
+                        if (typeof openDiagramCreator !== 'function') return;
                         const expectedToken = view.state.sliceDoc(from, to);
                         queueMicrotask(() => {
                             if (view.isDestroyed) return;
-                            openDrawioCreator({
+                            openDiagramCreator({
                                 view,
+                                kind: macro.kind,
                                 position: to,
-                                insertReference: drawioName => {
+                                insertReference: diagramName => {
                                     if (view.isDestroyed || view.state.sliceDoc(from, to) !== expectedToken) return false;
-                                    return Boolean(applyInsertion(view, macro.name, from, to, { drawioName }));
+                                    return Boolean(applyInsertion(view, macro.name, from, to, { diagramName }));
                                 },
                             });
                         });

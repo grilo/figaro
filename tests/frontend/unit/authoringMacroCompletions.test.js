@@ -23,7 +23,7 @@ describe('Figaro authoring macro completions', () => {
         const complete = createAuthoringMacroCompletionSource();
         const result = complete(completionContext('@'));
 
-        expect(result.options.map(option => option.label)).toEqual(['date', 'table', 'todo', 'mermaid', 'drawio']);
+        expect(result.options.map(option => option.label)).toEqual(['date', 'table', 'todo', 'mermaid', 'drawio', 'excalidraw']);
         expect(result.options.every(option => option.commitCharacters.includes(' '))).toBe(true);
         expect(result.filter).toBe(false);
         expect(createAuthoringMacroCompletionSource({ contextAllowed: () => false })(completionContext('@date')))
@@ -89,16 +89,35 @@ describe('Figaro authoring macro completions', () => {
     });
 
     test('@drawio waits for successful asset creation before inserting its image reference', async () => {
-        const openDrawioCreator = jest.fn();
-        const complete = createAuthoringMacroCompletionSource({ openDrawioCreator });
+        const openDiagramCreator = jest.fn();
+        const complete = createAuthoringMacroCompletionSource({ openDiagramCreator });
         const view = testView('@drawio');
         const result = complete(completionContext('@drawio'));
 
         result.options[0].apply(view, null, 0, 7);
         await Promise.resolve();
         expect(view.state.doc.toString()).toBe('@drawio');
-        const request = openDrawioCreator.mock.calls[0][0];
+        const request = openDiagramCreator.mock.calls[0][0];
+        expect(request.kind).toBe('drawio');
         expect(request.insertReference('diagram1')).toBe(true);
         expect(view.state.doc.toString()).toBe('![Diagram](./diagram1.drawio.svg)');
+    });
+
+    test('@excalidraw asks for an Excalidraw drawing and inserts its reference after creation', async () => {
+        const openDiagramCreator = jest.fn();
+        const complete = createAuthoringMacroCompletionSource({ openDiagramCreator });
+        const view = testView('@excalidraw');
+        const result = complete(completionContext('@excalidraw'));
+
+        result.options[0].apply(view, null, 0, 11);
+        await Promise.resolve();
+        expect(view.state.doc.toString()).toBe('@excalidraw');
+        const request = openDiagramCreator.mock.calls[0][0];
+        expect(request.kind).toBe('excalidraw');
+        view.dispatch({ changes: { from: 0, insert: 'x' } });
+        expect(request.insertReference('drawing1')).toBe(false);
+        view.dispatch({ changes: { from: 0, to: 1 } });
+        expect(request.insertReference('drawing1')).toBe(true);
+        expect(view.state.doc.toString()).toBe('![Drawing](./drawing1.excalidraw.svg)');
     });
 });

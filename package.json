@@ -20,6 +20,7 @@
     "lint:fix": "eslint frontend/js frontend/design-system --fix",
     "vendor": "bash scripts/vendor.sh",
     "vendor:markdown": "node scripts/vendor-markdown-renderer.mjs",
+    "vendor:excalidraw": "node scripts/vendor-excalidraw.mjs",
     "context": "node scripts/feature-workflow.mjs context",
     "context:generate": "node scripts/feature-workflow.mjs generate",
     "context:check": "node scripts/feature-workflow.mjs check",

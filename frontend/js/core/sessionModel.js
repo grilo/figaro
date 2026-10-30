@@ -1,3 +1,4 @@
+import { isPathTabType } from './editableDiagramModel.js';
 /**
  * Pure portable-session model.
  *
@@ -6,14 +7,14 @@
  * state.
  */
 
-const PERSISTED_TAB_TYPES = new Set(['file', 'drawio', 'calendar']);
+const PERSISTED_TAB_TYPES = new Set(['file', 'drawio', 'excalidraw', 'calendar']);
 
 export function serializeSessionTabs(tabs) {
     return (Array.isArray(tabs) ? tabs : [])
         .filter(tab => tab && PERSISTED_TAB_TYPES.has(tab.type) && !tab.externalFileId)
         .map(tab => {
             const base = { id: tab.id, type: tab.type, title: tab.title };
-            if (tab.type === 'file' || tab.type === 'drawio') base.path = tab.path;
+            if (isPathTabType(tab.type)) base.path = tab.path;
             if (tab.type === 'calendar') base.dateStr = tab.dateStr;
             return base;
         });
@@ -42,7 +43,7 @@ export function restoreSessionTabs(tabs, pinnedTabs) {
 export function restoredTabOpenArgs(tab) {
     if (!tab || typeof tab !== 'object') return null;
 
-    if ((tab.type === 'file' || tab.type === 'drawio') && tab.path) {
+    if (isPathTabType(tab.type) && tab.path) {
         return {
             id: tab.id || tab.path,
             title: tab.title || tab.path.split('/').pop(),

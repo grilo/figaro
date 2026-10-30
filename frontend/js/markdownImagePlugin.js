@@ -9,7 +9,8 @@ import {
     mouseSelectingField,
     shouldShowSource,
 } from 'codemirror-live-markdown';
-import { drawioImageVaultURL } from './core/drawioImageCreationModel.js';
+import { diagramImageVaultURL } from './core/diagramImageCreationModel.js';
+import { editableDiagramSpec } from './core/editableDiagramModel.js';
 import { createDOMPreviewCache } from './domPreviewCache.js';
 import {
     clearMarkdownImageSize,
@@ -77,8 +78,6 @@ class MarkdownImageWidget extends WidgetType {
     toDOM(view) {
         const container = document.createElement('div');
         container.className = 'cm-image-widget';
-        // Excalidraw exports light-mode strokes on a transparent background.
-        if (/\.excalidraw\.svg(?:[?#]|$)/i.test(String(this.data.src || ''))) container.classList.add('cm-image-widget--excalidraw');
         container._figaroImageController = {
             view,
             data: this.data,
@@ -107,10 +106,13 @@ class MarkdownImageWidget extends WidgetType {
         loading.innerHTML = '<span class="cm-image-spinner"></span><span>Loading…</span>';
         container.appendChild(loading);
 
-        const drawioTarget = this.options.drawioTarget?.(this.data.src) || null;
-        const drawioURL = drawioImageVaultURL(drawioTarget, this.options.renderToken);
-        const loadSource = drawioURL || this.data.src;
-        const loadOptions = { basePath: drawioURL ? '' : this.options.basePath };
+        const diagramTarget = this.options.diagramTarget?.(this.data.src) || null;
+        // Excalidraw saves its light palette on a transparent background; CSS
+        // adapts it to dark surfaces the way the editor canvas does.
+        if (diagramTarget?.kind === 'excalidraw') container.classList.add('cm-image-widget--excalidraw');
+        const diagramURL = diagramImageVaultURL(diagramTarget, this.options.renderToken);
+        const loadSource = diagramURL || this.data.src;
+        const loadOptions = { basePath: diagramURL ? '' : this.options.basePath };
         Promise.resolve(this.options.loadImage(loadSource, loadOptions))
             .then(result => {
                 if (!controller.active) return;
@@ -119,12 +121,12 @@ class MarkdownImageWidget extends WidgetType {
                     this.renderImage(container, result.src, result);
                     return;
                 }
-                this.renderFailedLoad(container, drawioTarget);
+                this.renderFailedLoad(container, diagramTarget);
             })
             .catch(() => {
                 if (!controller.active) return;
                 loading.remove();
-                this.renderFailedLoad(container, drawioTarget);
+                this.renderFailedLoad(container, diagramTarget);
             });
         return container;
     }
@@ -318,7 +320,7 @@ class MarkdownImageWidget extends WidgetType {
         container.appendChild(checking);
         let state;
         try {
-            state = await this.options.resolveDrawioState(target);
+            state = await this.options.resolveDiagramState(target);
         } catch {
             state = { kind: 'error' };
         }
@@ -327,9 +329,9 @@ class MarkdownImageWidget extends WidgetType {
         if (state?.kind === 'preview' && state.source) {
             this.renderImage(container, state.source);
         } else if (state?.kind === 'create' || state?.kind === 'open') {
-            this.renderDrawioAction(container, target, state.kind);
+            this.renderDiagramAction(container, target, state.kind);
         } else {
-            this.renderError(container, 'Failed to inspect Draw.io diagram');
+            this.renderError(container, `Failed to inspect ${editableDiagramSpec(target.kind)?.editorName} ${editableDiagramSpec(target.kind)?.noun}`);
         }
     }
 
@@ -389,33 +391,34 @@ class MarkdownImageWidget extends WidgetType {
         container.appendChild(error);
     }
 
-    renderDrawioAction(container, target, initialAction) {
+    renderDiagramAction(container, target, initialAction) {
+        const spec = editableDiagramSpec(target.kind);
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'ui-button ui-button--accent cm-drawio-action-button';
+        button.className = 'ui-button ui-button--accent cm-diagram-action-button';
         const showAction = action => {
             const verb = action === 'open' ? 'Open' : 'Create';
-            button.dataset.drawioAction = action;
+            button.dataset.diagramAction = action;
             button.disabled = false;
             button.removeAttribute('aria-busy');
-            button.textContent = `${verb} Draw.io diagram`;
-            button.setAttribute('aria-label', `${verb} Draw.io diagram ${target.title}`);
+            button.textContent = `${verb} ${spec.editorName} ${spec.noun}`;
+            button.setAttribute('aria-label', `${verb} ${spec.editorName} ${spec.noun} ${target.title}`);
         };
         showAction(initialAction);
         button.addEventListener('click', async event => {
             event.preventDefault();
             event.stopPropagation();
             if (button.disabled) return;
-            const action = button.dataset.drawioAction;
+            const action = button.dataset.diagramAction;
             button.disabled = true;
             button.setAttribute('aria-busy', 'true');
-            const activity = action === 'open' ? 'Opening diagram…' : 'Creating diagram…';
+            const activity = action === 'open' ? `Opening ${spec.noun}…` : `Creating ${spec.noun}…`;
             button.innerHTML = `<span class="ui-spinner" aria-hidden="true"></span><span>${activity}</span>`;
             let succeeded = false;
             try {
                 const callback = action === 'open'
-                    ? this.options.onOpenDrawio
-                    : this.options.onCreateDrawio;
+                    ? this.options.onOpenDiagram
+                    : this.options.onCreateDiagram;
                 succeeded = await callback?.(target) === true;
             } catch {
                 succeeded = false;
@@ -430,7 +433,7 @@ class MarkdownImageWidget extends WidgetType {
 
     ignoreEvent(event) {
         return Boolean(event?.target?.closest?.(
-            '.cm-drawio-action-button, .cm-image-resize-handle',
+            '.cm-diagram-action-button, .cm-image-resize-handle',
         ));
     }
 }
@@ -490,21 +493,21 @@ function imageDecorations(state, options) {
         decorations: Decoration.set(decorations, true) };
 }
 
-/** Create Figaro's image preview with an actionable missing Draw.io state. */
+/** Create Figaro's image preview with an actionable missing editable-diagram state. */
 export function createMarkdownImageField({
     basePath = '',
-    drawioTarget = () => null,
-    resolveDrawioState = async () => ({ kind: 'create' }),
-    onCreateDrawio = async () => false,
-    onOpenDrawio = async () => false,
+    diagramTarget = () => null,
+    resolveDiagramState = async () => ({ kind: 'create' }),
+    onCreateDiagram = async () => false,
+    onOpenDiagram = async () => false,
     loadImage = loadMarkdownImage,
 } = {}) {
     const options = {
         basePath,
-        drawioTarget,
-        resolveDrawioState,
-        onCreateDrawio,
-        onOpenDrawio,
+        diagramTarget,
+        resolveDiagramState,
+        onCreateDiagram,
+        onOpenDiagram,
         loadImage,
         geometryCache: new Map(),
         previews: createDOMPreviewCache({ maximumEntries: 16, maximumWeight: 32 * 1024 * 1024 }),
