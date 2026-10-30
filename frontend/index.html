@@ -8,6 +8,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/icon-16.png">
     <link rel="shortcut icon" href="/favicon.ico">
     <link rel="stylesheet" href="/vendored/fonts/inter.css?v=3">
+    <link rel="stylesheet" href="/vendored/excalidraw/excalidraw.css">
     <link rel="stylesheet" href="/fonts/fonts.css?v=3">
     <link rel="stylesheet" href="design-system/tokens.css">
     <link rel="stylesheet" href="styles/base.css">
@@ -173,6 +174,8 @@
     <script defer src="/vendored/vega/vega-lite.min.js"></script>
     <script defer src="/vendored/vega/vega-embed.min.js"></script>
     <script defer src="/vendored/lucide/lucide.min.js"></script>
+    <script>window.EXCALIDRAW_ASSET_PATH = "/vendored/excalidraw/";</script>
+    <script defer src="/vendored/excalidraw/excalidraw.min.js"></script>
     <!-- Load the complete, eagerly bundled application graph during startup.
          The bundle's bootstrap waits for Wails' bound Go App object before it
          initializes the workspace. The development server substitutes the

@@ -9,7 +9,7 @@ import { setState, getState, subscribe } from './state.js';
 import { saveSession, scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
-import { isDrawioDiagramPath, isEditableCodeMirrorFile } from './languageSupport.js';
+import { isEditableDiagramPath, isEditableCodeMirrorFile } from './languageSupport.js';
 import { renderLucideIcon } from './lucideIcons.js';
 import { confirmExternalTreeImport, importDroppedExternalPaths, openDroppedMarkdownFiles } from './externalFiles.js';
 import { externalDropAction } from './core/externalFileModel.js';
@@ -370,7 +370,7 @@ export function buildFileTreeContextMenuHTML({
     const isFile = normalizedType === 'file';
     const isTarget = normalizedType !== 'root';
     const isMarkdownFile = isFile && targetPath.toLowerCase().endsWith('.md');
-    const isOpenableFile = isFile && (isDrawioDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath));
+    const isOpenableFile = isFile && (isEditableDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath));
     const isManagedOnlyFile = isFile && !external && !isOpenableFile;
     const actionPaths = external
         ? (targetPath ? [targetPath] : [])
@@ -821,7 +821,7 @@ export function buildTreeHTML(items, expandedDirs, focusPath, selectedPaths = []
         const isSelected = selectedPaths.includes(item.path);
         const isCutMarked = cutPathSet.has(item.path);
         const hasChildren = isDir && item.children && item.children.length > 0;
-        const isDrawioDiagram = !isDir && isDrawioDiagramPath(item.path);
+        const isDrawioDiagram = !isDir && isEditableDiagramPath(item.path);
         const isManagedOnly = !isDir && !isExternal && !isEditableCodeMirrorFile(item.path) && !isDrawioDiagram;
         const isPinned = !isExternal && isFileTreeEntryPinned(item, styles);
         const filePresentation = isDir ? null : fileTreeFilePresentation(item.path);
@@ -1097,7 +1097,7 @@ function initFileTreeEvents() {
                 renderFileTree();
             }
         } else if (type === 'file') {
-            const isDiagram = isDrawioDiagramPath(path);
+            const isDiagram = isEditableDiagramPath(path);
             const isEditable = Boolean(externalFileId) || isEditableCodeMirrorFile(path);
             const isCtrl = e.ctrlKey || e.metaKey;
             if (isCtrl) {
@@ -2136,8 +2136,8 @@ function handleContextMenu(e) {
                             externalFileId: targetExternalFileId,
                         }, true);
                     }
-                } else if (isDrawioDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath)) {
-                    openTab(targetPath, targetPath.split('/').pop(), isDrawioDiagramPath(targetPath) ? 'drawio' : 'file', { path: targetPath }, true);
+                } else if (isEditableDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath)) {
+                    openTab(targetPath, targetPath.split('/').pop(), isEditableDiagramPath(targetPath) ? 'drawio' : 'file', { path: targetPath }, true);
                 } else {
                     await openManagedFileWithDefaultApplication(targetPath);
                 }
@@ -2382,7 +2382,7 @@ async function createNewDrawioDiagramIn(targetPath, targetType) {
     if (!name?.trim()) return;
 
     let fileName = name.trim();
-    if (!isDrawioDiagramPath(fileName)) {
+    if (!isEditableDiagramPath(fileName)) {
         fileName = fileName.replace(/\.svg$/i, '').replace(/\.drawio$/i, '') + '.drawio.svg';
     }
 

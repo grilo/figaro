@@ -11,7 +11,8 @@ import (
 // double extension makes editable draw.io diagrams distinguishable from normal
 // SVG assets while preserving normal image rendering in Markdown.
 func isDrawioDiagramPath(path string) bool {
-	return strings.HasSuffix(strings.ToLower(filepath.ToSlash(path)), ".drawio.svg")
+	lower := strings.ToLower(filepath.ToSlash(path))
+	return strings.HasSuffix(lower, ".drawio.svg") || strings.HasSuffix(lower, ".excalidraw.svg")
 }
 
 // ReadDiagram reads an editable draw.io SVG. Markdown files continue to use

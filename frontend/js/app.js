@@ -83,6 +83,7 @@ import { installEditorSaveProtection } from './usecases/editorSaveProtection.js'
 import { initSettingsNavigation } from './settingsNavigation.js';
 import { configureClipboardImageWorkspace } from './clipboardImage.js';
 import { configureDrawioWorkspace } from './drawio.js';
+import { configureExcalidrawWorkspace, trackExcalidrawSurface } from './excalidraw.js';
 import { configureHomeWorkspace, openTodayNote } from './home.js';
 import { configureVaultHealthWorkspace } from './vaultHealth.js';
 import {
@@ -107,6 +108,8 @@ configureBacklinksWorkspace({
 configureCalendarWorkspace({ openTab });
 configureClipboardImageWorkspace({ refreshFileTree });
 configureDrawioWorkspace({ markTabDirty, recordTabMtime, saveFileSnapshot, refreshFileTree });
+configureExcalidrawWorkspace({ markTabDirty, recordTabMtime, saveFileSnapshot, refreshFileTree });
+trackExcalidrawSurface();
 configureEditorWorkspace({
     closeTab,
     confirm: confirmDialog,

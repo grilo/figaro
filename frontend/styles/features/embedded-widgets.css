@@ -518,6 +518,30 @@
 }
 
 /* ── Draw.io editable SVG diagrams ── */
+.excalidraw-view {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    background: var(--bg-color);
+}
+
+.excalidraw-stage {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+
+.excalidraw-status,
+.excalidraw-error {
+    margin: auto;
+    color: var(--text-muted);
+}
+
+:root[data-figaro-surface="dark"] .cm-image-widget--excalidraw img {
+    filter: invert(93%) hue-rotate(180deg);
+}
+
 .drawio-view {
     display: flex;
     flex: 1;

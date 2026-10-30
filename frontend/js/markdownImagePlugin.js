@@ -77,6 +77,8 @@ class MarkdownImageWidget extends WidgetType {
     toDOM(view) {
         const container = document.createElement('div');
         container.className = 'cm-image-widget';
+        // Excalidraw exports light-mode strokes on a transparent background.
+        if (/\.excalidraw\.svg(?:[?#]|$)/i.test(String(this.data.src || ''))) container.classList.add('cm-image-widget--excalidraw');
         container._figaroImageController = {
             view,
             data: this.data,

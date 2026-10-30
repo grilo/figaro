@@ -34,6 +34,8 @@ import {
 } from './kanban.js';
 import { renderVaultHealth } from './vaultHealth.js';
 import { renderDrawioTab } from './drawio.js';
+import { renderExcalidrawTab } from './excalidraw.js';
+import { isExcalidrawDiagramPath } from './languageSupport.js';
 import { createGraphView } from './graphView.js';
 import { initSettingsPanel } from './theme.js';
 import { isDiskFullError, isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
@@ -1256,7 +1258,8 @@ function renderVaultHealthTab(panel) {
 
 function renderDrawioDiagramTab(panel, tab) {
     if (tab.id !== getState('activeTabId') || !panel.isConnected) return;
-    renderDrawioTab(panel, tab).catch(error => {
+    const render = isExcalidrawDiagramPath(tab.path) ? renderExcalidrawTab : renderDrawioTab;
+    render(panel, tab).catch(error => {
         log.error('Failed to render draw.io tab:', error);
         panel.innerHTML = '<div class="drawio-view"><p class="drawio-error">Diagram editor is unavailable right now.</p></div>';
     });
