@@ -8,7 +8,7 @@ without a cloud service, and protect the user's edits.
 
 Install the following before working on the project:
 
-- Go 1.26.6 or newer
+- Go 1.26.10 or newer
 - Node.js 22.18+ on the 22.x line, or 24.11+
 - Wails v2 CLI
 - The native build dependencies required by Wails for your platform

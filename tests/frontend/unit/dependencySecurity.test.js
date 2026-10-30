@@ -93,7 +93,7 @@ test('keeps the Go toolchain above the reachable 2026 standard-library advisory 
     const match = goMod.match(/^go\s+(\d+\.\d+\.\d+)$/m);
 
     expect(match).not.toBeNull();
-    expect(isAtLeastGoVersion(`v${match[1]}`, 'v1.26.6')).toBe(true);
-    expect(makefile).toContain('Go 1.26.6 or newer');
-    expect(contributing).toContain('Go 1.26.6 or newer');
+    expect(isAtLeastGoVersion(`v${match[1]}`, 'v1.26.10')).toBe(true);
+    expect(makefile).toContain('Go 1.26.10 or newer');
+    expect(contributing).toContain('Go 1.26.10 or newer');
 });

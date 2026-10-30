@@ -8,7 +8,11 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- Figaro is now built with Go 1.26.10, which fixes security advisories in the
+  Go standard library's certificate checking, HTTP and file handling. Building
+  from source now requires Go 1.26.10 or newer.
 
 ## [1.46.1] - 2026-10-30
 
