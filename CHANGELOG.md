@@ -8,7 +8,13 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- Updated Markdown-It to 15.0.3, so printable previews and PDF export are no
+  longer exposed to its published slow-parsing (denial-of-service) advisories.
+  Other dependencies with published security advisories are updated too (Zod,
+  the MCP server SDK, fast-uri, brace-expansion, KaTeX, js-yaml and
+  source-map-js).
 
 ## [1.46.0] - 2026-10-30
 

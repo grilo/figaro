@@ -113,8 +113,8 @@ describe('locked npm dependency policy', () => {
         ];
 
         expect(manifest.dependencies['markdown-it']).toBe('^15.0.0');
-        expect(lock.packages['node_modules/markdown-it'].version).toBe('15.0.0');
-        expect(browserRuntime).toContain('Figaro vendored markdown-it 15.0.0 browser runtime');
+        expect(lock.packages['node_modules/markdown-it'].version).toBe('15.0.3');
+        expect(browserRuntime).toContain('Figaro vendored markdown-it 15.0.3 browser runtime');
         expect(browserRuntime).not.toContain('markdown-it 14.3.0');
         expect(rendererPackages.map(name => lock.packages[`node_modules/${name}`].peerDependencies['markdown-it']))
             .toEqual(rendererPackages.map(() => '^15.0.0'));

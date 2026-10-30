@@ -29,7 +29,7 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 6, codemirror-live-markdown, KaTeX, markdown-it, Mermaid, Vega, and Vega-Lite), with browser
 dependencies vendored in the frontend bundle.
 
-Markdown renderer compatibility: the printable renderer uses Markdown-It 15.0.0, and all ten bundled
+Markdown renderer compatibility: the printable renderer uses Markdown-It 15.0.3, and all ten bundled
 `@mdit` packages declare `markdown-it ^15.0.0` as their peer contract. Those packages comprise the
 directly selected anchor, footnote, KaTeX, mark, subscript, superscript, and task-list plugins plus
 their helper, inline-rule, and TeX implementation dependencies. Upgrade Markdown-It only after all

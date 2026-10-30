@@ -157,7 +157,9 @@ structural tests cannot prove that a model interprets a request's scope correctl
 Read-only audits leave product files and the commit proposal alone. For completed
 implementation work, review the full pending diff and write the proposed message
 to the path returned by `git rev-parse --git-path COMMIT_TEMPLATE`. This also
-works in linked worktrees where `.git` is a file. Configure the tracked hook with
+works in linked worktrees where `.git` is a file. Jest ignores `.claude/`, so
+an agent worktree nested there cannot shadow the repository's local packages.
+Configure the tracked hook with
 `git config --local core.hooksPath .githooks`; do not set `commit.template`.
 The hook supplies the proposal to a plain `git commit` so saving it unchanged
 works, and preserves explicit messages passed with `-m`. Agents commit, and
@@ -778,7 +780,7 @@ the check. The bundle records a hash of `scripts/vendor/excalidraw-entry.js`, an
 a unit test fails when the entry changes without a rebuild. Commit the bundle,
 stylesheet, fonts, and regenerated `LICENSES.txt` together.
 
-The printable Markdown renderer currently targets Markdown-It 15.0.0. All ten
+The printable Markdown renderer currently targets Markdown-It 15.0.3. All ten
 bundled `@mdit` packages declare `markdown-it ^15.0.0`: the direct anchor,
 footnote, KaTeX, mark, subscript, superscript, and task-list plugins, together
 with the transitive helper, inline-rule, and TeX packages. Treat a Markdown-It
