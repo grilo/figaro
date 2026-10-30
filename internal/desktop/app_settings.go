@@ -12,8 +12,6 @@ import (
 
 	"figaro/internal/pdfexport"
 	settingsmodel "figaro/internal/settings"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ============================================================================
@@ -178,11 +176,11 @@ func (a *App) PDFBrowserChoose() (*PDFBrowserSettingResult, error) {
 	if ctx == nil {
 		return &PDFBrowserSettingResult{Success: false, Error: "application window is not ready"}, nil
 	}
-	options := runtime.OpenDialogOptions{Title: "Choose Chrome, Chromium, Edge, or Brave"}
+	request := fileChooserRequest{Title: "Choose Chrome, Chromium, Edge, or Brave"}
 	if goruntime.GOOS == "windows" {
-		options.Filters = []runtime.FileFilter{{DisplayName: "Browser executables (*.exe)", Pattern: "*.exe"}}
+		request.Filters = []fileChooserFilter{{DisplayName: "Browser executables (*.exe)", Pattern: "*.exe"}}
 	}
-	selected, err := runtime.OpenFileDialog(ctx, options)
+	selected, err := a.windowRuntime.ChooseFile(ctx, request)
 	if err != nil {
 		return &PDFBrowserSettingResult{Success: false, Error: fmt.Sprintf("open browser chooser: %v", err)}, nil
 	}

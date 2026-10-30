@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  WAILS_VERSION: v2.14.0
+  WAILS_VERSION: v3.1.0-nightly.20261028
 
 jobs:
   verify:
@@ -81,6 +81,11 @@ jobs:
           cache: npm
       - run: ./scripts/prepare-frontend.sh
         shell: bash
+      - name: Install Linux Wails build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
       - run: npm run lint
       - run: npm run test:coverage
       - run: node scripts/profile-writing.mjs
@@ -154,7 +159,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends \
-            build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev imagemagick
+            build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev imagemagick
       - name: Install Windows icon tooling
         if: runner.os == 'Windows'
         shell: pwsh
@@ -172,22 +177,20 @@ jobs:
         shell: bash
         run: ./scripts/generate-icons.sh
 
+      # Wails v3 compiles with go build; the packaging script uses the wails3
+      # tool pinned by go.mod only for Windows resources and the macOS bundle.
       - name: Build Linux binary
         if: runner.os == 'Linux'
-        run: >-
-          go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build
-          -clean -trimpath -platform linux/amd64 -tags webkit2_41 -o figaro
+        shell: bash
+        run: ./scripts/package-desktop.sh linux
       - name: Build Windows binary
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: >-
-          go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build
-          -clean -trimpath -platform windows/amd64 -o figaro.exe
+        shell: bash
+        run: ./scripts/package-desktop.sh windows
       - name: Build universal macOS application
         if: runner.os == 'macOS'
-        run: >-
-          go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build
-          -clean -trimpath -platform darwin/universal -o figaro
+        shell: bash
+        run: ./scripts/package-desktop.sh darwin
 
       - name: Package Linux binary
         if: runner.os == 'Linux'
@@ -198,6 +201,8 @@ jobs:
           install -m 0755 build/bin/figaro "dist/$archive/figaro"
           cp README.md CHANGELOG.md LICENSE THIRD_PARTY_NOTICES.md "dist/$archive/"
           tar -C dist -czf "dist/$archive.tar.gz" "$archive"
+          # The in-app updater swaps exactly one top-level entry.
+          tar -C build/bin -czf "dist/$archive-update.tar.gz" figaro
       - name: Package Windows binary
         if: runner.os == 'Windows'
         shell: pwsh
@@ -207,6 +212,8 @@ jobs:
           Copy-Item build/bin/figaro.exe "dist/$archive/figaro.exe"
           Copy-Item README.md, CHANGELOG.md, LICENSE, THIRD_PARTY_NOTICES.md "dist/$archive/"
           Compress-Archive -Path "dist/$archive" -DestinationPath "dist/$archive.zip"
+          # The in-app updater swaps exactly one top-level entry.
+          Compress-Archive -Path build/bin/figaro.exe -DestinationPath "dist/$archive-update.zip"
       - name: Package universal macOS application
         if: runner.os == 'macOS'
         shell: bash
@@ -216,6 +223,8 @@ jobs:
           cp -R build/bin/figaro.app "dist/$archive/figaro.app"
           cp README.md CHANGELOG.md LICENSE THIRD_PARTY_NOTICES.md "dist/$archive/"
           ditto -c -k --sequesterRsrc --keepParent "dist/$archive" "dist/$archive.zip"
+          # The in-app updater swaps exactly one top-level entry.
+          ditto -c -k --sequesterRsrc --keepParent build/bin/figaro.app "dist/$archive-update.zip"
       - name: Upload packaged binary
         uses: actions/upload-artifact@v7
         with:

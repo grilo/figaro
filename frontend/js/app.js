@@ -69,6 +69,7 @@ import { initWritingLenses } from './writingLenses.js';
 import { createSpellingDictionary } from './usecases/spellingDictionary.js';
 import { setSpellingWords, setSpellcheck } from './editor.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
+import { initUpdateNotifications } from './updateSettings.js';
 import { configureLinkStyleWorkspace, initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitEnabled } from './automation.js';
 import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
@@ -702,6 +703,7 @@ export async function initApp() {
     // interaction- and geometry-affecting state concurrently with the portable
     // session, then expose the restored editor with one authoritative profile.
     initVaultChangeNotifications();
+    initUpdateNotifications();
     statusBar.set('Restoring workspace...');
     await startupTimings.measure('preferences', () => startupHydration.hydrate());
     

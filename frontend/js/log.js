@@ -1,6 +1,6 @@
 /**
- * Application logger — routes to Wails runtime (visible in Go terminal) when
- * running inside Wails, falls back to console when running tests or outside Wails.
+ * Application logger — writes to the console and forwards debug lines to the
+ * native runtime's LogDebug when the desktop adapter provides one.
  */
 
 // Lazy-init: Wails runtime may not be available when this module first loads.
@@ -8,7 +8,6 @@ let _rt = null;
 function rt() {
     if (_rt) return _rt;
     try {
-        // Dynamic import works in ESM; synchronous path for Wails v2.
         if (window.runtime && window.runtime.LogDebug) {
             _rt = window.runtime;
         }

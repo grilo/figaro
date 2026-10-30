@@ -1,15 +1,17 @@
 # figaro — desktop build targets
 #
-# Requires Go 1.26.6+ and the Wails CLI version used by go.mod. Linux builds
-# require GCC, pkg-config, GTK3, and either WebKitGTK 4.0 or 4.1. The current
-# Windows target uses Wails' pure-Go WebView2 path and needs no C toolchain.
+# Requires Go 1.26.6+. Wails v3 compiles with plain `go build`; the wails3 tool
+# pinned by go.mod runs through `go run` only to generate Windows resources and
+# macOS bundle metadata. Linux builds require GCC, pkg-config, GTK4, and
+# WebKitGTK 6.0. The Windows target uses Wails' pure-Go WebView2 path and needs
+# no C toolchain.
 
 .DEFAULT_GOAL := help
 .NOTPARALLEL:
 
 .PHONY: all help bootstrap doctor vendor release-check release release-local major minor patch dev linux windows darwin clean icons install-desktop \
 	stress-vault \
-	check-go check-node check-wails check-linux-host check-linux-deps check-darwin-host check-darwin-deps check-icon-tool \
+	check-go check-node check-linux-host check-linux-deps check-darwin-host check-darwin-deps check-icon-tool \
 	ensure-go-modules ensure-frontend-assets ensure-icons
 
 RELEASE_BUMP_GOALS := $(filter major minor patch,$(MAKECMDGOALS))
@@ -33,20 +35,10 @@ ifeq ($(strip $(GO_BIN)),)
 GO_BIN := $(shell go env GOPATH 2>/dev/null)/bin
 endif
 
-# Prefer a CLI already available on PATH, but also support Go's normal bin
-# directory so users do not need to modify PATH just to invoke make.
-WAILS ?= $(shell command -v wails 2>/dev/null || true)
-ifeq ($(strip $(WAILS)),)
-WAILS := $(GO_BIN)/wails
-endif
-WAILS_VERSION := v2.14.0
+WAILS_VERSION := $(shell sed -n 's#^[[:space:]]*github.com/wailsapp/wails/v3 \(v[^[:space:]]*\).*#\1#p' go.mod | head -n 1)
 HOST_GOOS := $(shell go env GOOS 2>/dev/null)
 STRESS_VAULT_PATH ?= $(CURDIR)/stress-vault/huge-vault
 STRESS_REPORT_DIR ?= $(CURDIR)/stress-vault
-
-# Wails uses WebKitGTK 4.0 by default. Fedora and other current distributions
-# ship 4.1, which requires this explicit build tag.
-LINUX_WAILS_TAGS := $(shell if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists webkit2gtk-4.1; then printf '%s' '-tags webkit2_41'; fi)
 
 ifeq ($(HOST_GOOS),linux)
 all: linux windows
@@ -66,7 +58,7 @@ help:
 	@echo ""
 	@echo "  make linux       Build Linux amd64 into build/bin/figaro"
 	@echo "  make windows     Build Windows amd64 into build/bin/figaro.exe"
-	@echo "  make darwin      Build macOS amd64 and arm64 binaries (macOS host only)"
+	@echo "  make darwin      Build a universal macOS build/bin/figaro.app (macOS host only)"
 	@echo "  make all         Build all targets supported by the current host"
 	@echo "  make bootstrap   Prepare Go modules, locked npm dependencies, browser assets, and icons"
 	@echo "  make doctor      Check build prerequisites and print install hints when needed"
@@ -76,16 +68,14 @@ help:
 	@echo "  make release <major|minor|patch> Bump and publish a release"
 	@echo "  make release VERSION=vX.Y.Z    Publish an explicit stable version"
 	@echo "  make release-local patch       Bump, verify, commit, and tag without pushing"
-	@echo "  make dev         Run the Wails development server"
+	@echo "  make dev         Run Figaro from source against ./vault"
 	@echo "  make stress-vault Generate and profile the opt-in 10,000-note stress vault"
 	@echo "  make icons       Rebuild application icons from figaro.appicon.png"
 	@echo "  make clean       Remove generated assets, installs, builds, and local vault data"
 	@echo ""
-	@echo "Install the matching Wails CLI with:"
-	@echo "  go install github.com/wailsapp/wails/v2/cmd/wails@$(WAILS_VERSION)"
-	@echo ""
-	@echo "The current Windows target cross-builds without MinGW-w64."
-	@echo "Linux builds use GTK3 with WebKitGTK 4.1 when available (4.0 is also supported)."
+	@echo "Builds use Wails $(WAILS_VERSION) from go.mod; no separate CLI install is needed."
+	@echo "The Windows target cross-builds without MinGW-w64."
+	@echo "Linux builds use GTK4 with WebKitGTK 6.0."
 
 check-go:
 	@if ! command -v go >/dev/null 2>&1; then \
@@ -108,19 +98,6 @@ check-node:
 	@if ! node ./scripts/check-node-version.js; then \
 		./scripts/build-prereqs.sh hint-frontend; \
 		exit 1; \
-	fi
-
-check-wails:
-	@if [ ! -x "$(WAILS)" ] && ! command -v "$(WAILS)" >/dev/null 2>&1; then \
-		echo "Wails CLI was not found."; \
-		echo "Install the version from go.mod with:"; \
-		echo "  go install github.com/wailsapp/wails/v2/cmd/wails@$(WAILS_VERSION)"; \
-		exit 1; \
-	fi
-	@installed_version="$$("$(WAILS)" version 2>/dev/null | sed -n '1p')"; \
-	if [ -n "$$installed_version" ] && [ "$$installed_version" != "$(WAILS_VERSION)" ]; then \
-		echo "Warning: go.mod requires Wails $(WAILS_VERSION), but the CLI is $$installed_version."; \
-		echo "Recommended: go install github.com/wailsapp/wails/v2/cmd/wails@$(WAILS_VERSION)"; \
 	fi
 
 check-linux-host:
@@ -171,7 +148,7 @@ ensure-icons:
 bootstrap: check-go check-node check-icon-tool ensure-go-modules ensure-frontend-assets ensure-icons
 	@echo "Bootstrap complete. Run 'make dev' or a platform build target."
 
-doctor: check-go check-node check-icon-tool check-wails
+doctor: check-go check-node check-icon-tool
 	@echo "Base build prerequisites are available."
 
 ifeq ($(HOST_GOOS),linux)
@@ -197,8 +174,8 @@ release-local: check-go check-node
 major minor patch:
 	@:
 
-dev: check-go check-wails ensure-go-modules ensure-frontend-assets ensure-icons
-	$(WAILS) dev $(LINUX_WAILS_TAGS)
+dev: check-go ensure-go-modules ensure-frontend-assets ensure-icons
+	go run .
 
 stress-vault: check-go check-node ensure-frontend-assets
 	@node scripts/generate-stress-vault.mjs --output "$(STRESS_VAULT_PATH)" --replace
@@ -219,17 +196,14 @@ stress-vault: check-go check-node ensure-frontend-assets
 
 # ── Production builds ────────────────────────────────────────────────────
 
-linux: check-go check-wails check-linux-host check-linux-deps ensure-go-modules ensure-frontend-assets ensure-icons
-	$(WAILS) build -platform linux/amd64 $(LINUX_WAILS_TAGS) -o figaro
-	@echo "Output: build/bin/figaro"
+linux: check-go check-linux-host check-linux-deps ensure-go-modules ensure-frontend-assets ensure-icons
+	@./scripts/package-desktop.sh linux
 
-windows: check-go check-wails ensure-go-modules ensure-frontend-assets ensure-icons
-	$(WAILS) build -platform windows/amd64
-	@echo "Output: build/bin/figaro.exe"
+windows: check-go ensure-go-modules ensure-frontend-assets ensure-icons
+	@./scripts/package-desktop.sh windows
 
-darwin: check-go check-wails check-darwin-host check-darwin-deps ensure-go-modules ensure-frontend-assets ensure-icons
-	$(WAILS) build -platform darwin/amd64 -o figaro-darwin
-	$(WAILS) build -platform darwin/arm64 -o figaro-darwin-arm64
+darwin: check-go check-darwin-host check-darwin-deps ensure-go-modules ensure-frontend-assets ensure-icons
+	@./scripts/package-desktop.sh darwin
 
 # ── Utility ──────────────────────────────────────────────────────────────
 

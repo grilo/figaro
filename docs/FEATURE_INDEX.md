@@ -41,6 +41,7 @@ Read the root [agent instructions](../AGENTS.md) and its applicable contracts be
 | Approved UI primitives and themes | [design](#design) |
 | Eager loading, bundling, and hydration | [startup](#startup) |
 | Preferences and machine-local settings | [settings](#settings) |
+| Wails v3 desktop host, native bridge, and in-app updates | [desktop-host](#desktop-host) |
 | Release metadata, packaging, and Git handoff | [release](#release) |
 | Feature index, agent routing, and verification | [workflow](#workflow) |
 
@@ -337,14 +338,23 @@ Preferences and machine-local settings
 - Frontend tests: [tests/frontend/unit/settingsNavigation.test.js](../tests/frontend/unit/settingsNavigation.test.js), [tests/frontend/unit/settingsPicker.test.js](../tests/frontend/unit/settingsPicker.test.js), [tests/frontend/unit/spellingDictionarySettings.test.js](../tests/frontend/unit/spellingDictionarySettings.test.js), [tests/frontend/unit/wheelScroll.test.js](../tests/frontend/unit/wheelScroll.test.js), [tests/frontend/unit/state.test.js](../tests/frontend/unit/state.test.js)
 - Additional boundary checks: Run go test ./internal/settings ./internal/desktop for persistence, migrations, and native settings boundaries.
 
+## desktop-host
+
+Wails v3 desktop host, native bridge, and in-app updates
+
+- Source: [internal/desktop/run.go](../internal/desktop/run.go), [internal/desktop/window_runtime.go](../internal/desktop/window_runtime.go), [internal/desktop/asset_routes.go](../internal/desktop/asset_routes.go), [internal/desktop/app_updates.go](../internal/desktop/app_updates.go), [internal/updates/updates.go](../internal/updates/updates.go), [frontend/js/wailsRuntime.js](../frontend/js/wailsRuntime.js) (`installWailsRuntime`, `createNativeApp`, `createNativeRuntime`), [frontend/js/updateSettings.js](../frontend/js/updateSettings.js) (`initUpdateSettings`, `initUpdateNotifications`), [frontend/js/core/updateModel.js](../frontend/js/core/updateModel.js) (`describeUpdateStatus`), [scripts/package-desktop.sh](../scripts/package-desktop.sh)
+- Documentation: [ARCHITECTURE.md#wails-v3-bridge-asset-routes-and-updates](../ARCHITECTURE.md#wails-v3-bridge-asset-routes-and-updates), [docs/PROMPT.md#21-settings-tab](PROMPT.md#21-settings-tab), [docs/testing/workspace.md#desktop-bridge-and-in-app-update-regressions](testing/workspace.md#desktop-bridge-and-in-app-update-regressions)
+- Frontend tests: [tests/frontend/unit/wailsRuntime.test.js](../tests/frontend/unit/wailsRuntime.test.js), [tests/frontend/unit/updateSettings.test.js](../tests/frontend/unit/updateSettings.test.js)
+- Additional boundary checks: Run go test ./internal/desktop ./internal/updates ./internal/repositorycheck for the bridge guard, updater (including a fake GitHub API), and release-workflow contracts. Linux builds need GTK 4 and WebKitGTK 6.0 headers; launch packaged builds under xvfb-run and confirm no [security] refusals for Figaro's own bridge calls. The restart swap, Windows and macOS packaging, and a real GitHub check are manual on packaged builds.
+
 ## release
 
 Release metadata, packaging, and Git handoff
 
-- Source: [scripts/prepare-release.sh](../scripts/prepare-release.sh), [scripts/verify-release.sh](../scripts/verify-release.sh), [.githooks/prepare-commit-msg](../.githooks/prepare-commit-msg), [scripts/profile-writing.mjs](../scripts/profile-writing.mjs), [.github/workflows/release.yml](../.github/workflows/release.yml)
+- Source: [scripts/prepare-release.sh](../scripts/prepare-release.sh), [scripts/verify-release.sh](../scripts/verify-release.sh), [.githooks/prepare-commit-msg](../.githooks/prepare-commit-msg), [scripts/profile-writing.mjs](../scripts/profile-writing.mjs), [.github/workflows/release.yml](../.github/workflows/release.yml), [scripts/package-desktop.sh](../scripts/package-desktop.sh)
 - Documentation: [CONTRIBUTING.md#release-process](../CONTRIBUTING.md#release-process), [.agents/skills/prepare-figaro-release/SKILL.md](../.agents/skills/prepare-figaro-release/SKILL.md)
 - Frontend tests: [tests/frontend/unit/releasePreparation.test.js](../tests/frontend/unit/releasePreparation.test.js), [tests/frontend/unit/releaseMetadata.test.js](../tests/frontend/unit/releaseMetadata.test.js), [tests/frontend/unit/releaseNotes.test.js](../tests/frontend/unit/releaseNotes.test.js), [tests/frontend/unit/commitHandoff.test.js](../tests/frontend/unit/commitHandoff.test.js)
-- Additional boundary checks: For release preparation read the complete release skill; focused checks neither finalize nor replace its verification and version/action approval. Run bash tests/release/prepare-release.test.sh, including native editorial-profile failure before finalization.
+- Additional boundary checks: For release preparation read the complete release skill; focused checks neither finalize nor replace its verification and version/action approval. Run bash tests/release/prepare-release.test.sh, including native editorial-profile failure before finalization. Run go test ./internal/repositorycheck for the packaging script, GTK 4 dependencies, and update-archive workflow contracts.
 
 ## workflow
 

@@ -22,9 +22,13 @@ func TestTagTriggeredReleaseWorkflowBuildsAndPublishesAllSupportedPlatforms(t *t
 		"Linux native runner":                 "os: ubuntu-24.04",
 		"Windows native runner":               "os: windows-latest",
 		"macOS native runner":                 "os: macos-latest",
-		"Linux Wails target":                  "-platform linux/amd64",
-		"Windows Wails target":                "-platform windows/amd64",
-		"universal macOS Wails target":        "-platform darwin/universal",
+		"Linux Wails target":                  "./scripts/package-desktop.sh linux",
+		"Windows Wails target":                "./scripts/package-desktop.sh windows",
+		"universal macOS Wails target":        "./scripts/package-desktop.sh darwin",
+		"Linux GTK4 WebKit dependencies":      "libgtk-4-dev libwebkitgtk-6.0-dev",
+		"Linux update archive":                `tar -C build/bin -czf "dist/$archive-update.tar.gz" figaro`,
+		"Windows update archive":              `Compress-Archive -Path build/bin/figaro.exe -DestinationPath "dist/$archive-update.zip"`,
+		"macOS update archive":                `ditto -c -k --sequesterRsrc --keepParent build/bin/figaro.app "dist/$archive-update.zip"`,
 		"tag-derived expected version":        "const expected = process.env.GITHUB_REF_NAME.slice(1)",
 		"package version validation":          `"package.json": pkg.version`,
 		"lockfile version validation":         `"package-lock root package": lock.packages?.[""]?.version`,
@@ -68,9 +72,9 @@ func TestReleaseWorkflowPinsTheWailsVersionRequiredByGoMod(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	match := regexp.MustCompile(`github\.com/wailsapp/wails/v2\s+(v[^\s]+)`).FindSubmatch(goModBytes)
+	match := regexp.MustCompile(`github\.com/wailsapp/wails/v3\s+(v[^\s]+)`).FindSubmatch(goModBytes)
 	if len(match) != 2 {
-		t.Fatal("go.mod does not declare a Wails v2 version")
+		t.Fatal("go.mod does not declare a Wails v3 version")
 	}
 	want := "WAILS_VERSION: " + string(match[1])
 	if !strings.Contains(string(workflowBytes), want) {
@@ -78,15 +82,17 @@ func TestReleaseWorkflowPinsTheWailsVersionRequiredByGoMod(t *testing.T) {
 	}
 }
 
-func TestWindowsHostUsesPinnedAltGrWailsFork(t *testing.T) {
+func TestWailsV3NeedsNoForkedHost(t *testing.T) {
 	goModBytes, err := os.ReadFile("go.mod")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	const replacement = "replace github.com/wailsapp/wails/v2 => github.com/grilo/wails/v2 v2.14.0-figaro.1"
-	if !strings.Contains(string(goModBytes), replacement) {
-		t.Fatalf("go.mod must contain the reviewed Windows AltGr host replacement %q", replacement)
+	// Wails v2 reposted unhandled WebView2 accelerator keys to the native
+	// window, which broke Windows AltGr dead keys and needed a fork. v3 only
+	// consumes accelerators bound to a menu item or key binding, and Figaro
+	// registers none, so the module must come from upstream.
+	if strings.Contains(string(goModBytes), "github.com/wailsapp/wails/v2") || strings.Contains(string(goModBytes), "replace github.com/wailsapp/wails") {
+		t.Fatal("go.mod must use upstream Wails v3 without a replacement")
 	}
 }
 

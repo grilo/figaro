@@ -58,6 +58,11 @@ func (f *fakeWindowRuntime) IsNormal(context.Context) bool {
 	f.record("is-normal")
 	return f.normal
 }
+func (f *fakeWindowRuntime) ExecJS(context.Context, string) { f.record("exec-js") }
+func (f *fakeWindowRuntime) ChooseFile(context.Context, fileChooserRequest) (string, error) {
+	f.record("choose-file")
+	return "", nil
+}
 
 func TestWindowCommandsUseInjectedRuntime(t *testing.T) {
 	app, _ := newTestApp(t)

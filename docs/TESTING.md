@@ -880,6 +880,12 @@ See [File-tree pin regressions](testing/workspace.md#file-tree-pin-regressions) 
 
 See [External Markdown launch regressions](testing/workspace.md#external-markdown-launch-regressions) for the detailed regression contract.
 
+## Desktop bridge and in-app update regressions
+
+See [Desktop bridge and in-app update regressions](testing/workspace.md#desktop-bridge-and-in-app-update-regressions)
+for which tests own the Wails v3 runtime adapter, the native-bridge guard, and
+the opt-in updater.
+
 ## Editor buffer undo ownership
 
 See [Editor buffer undo ownership](testing/editor.md#editor-buffer-undo-ownership) for the detailed regression contract.

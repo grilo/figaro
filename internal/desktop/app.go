@@ -17,7 +17,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ============================================================================
@@ -80,6 +79,7 @@ type App struct {
 	applicationVersion  string
 	vaultLoad           *vaultLoadTracker
 	windowRuntime       windowRuntime
+	updates             updateCoordinator
 }
 
 // SystemColumns are the three built-in kanban columns always present.
@@ -188,7 +188,7 @@ func NewApp(vaultPath string, bundledAssets ...AssetFS) *App {
 		fileIssues:          make(map[string]VaultFileIssue),
 		windowState:         defaultWindowState(),
 		vaultLoad:           newVaultLoadTracker(),
-		desktopRuntime:      newRuntimeBridge(runtime.WindowShow),
+		desktopRuntime:      newRuntimeBridge(nil),
 		windowRuntime:       wailsWindowRuntime{},
 	}
 }
@@ -406,7 +406,7 @@ func (a *App) ensureWelcomeNote() {
 	}
 }
 
-// startup captures the Wails context.
+// startup captures the Wails service context.
 func (a *App) startup(ctx context.Context) {
 	finish := a.startupTrace.Begin("native-startup")
 	defer finish(nil)
@@ -505,8 +505,8 @@ func (a *App) launchExternalFilePath(id string) (string, error) {
 	return path, nil
 }
 
-// domReady is called from OnDomReady; defined in run.go.
-// shutdown is called from OnShutdown.
+// domReady runs on the window's runtime-ready event; defined in run.go.
+// shutdown runs from the Wails service shutdown hook.
 func (a *App) shutdown(ctx context.Context) {
 	a.startupTrace.Mark("shutdown")
 	a.writingMu.Lock()

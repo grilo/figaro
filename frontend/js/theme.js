@@ -5,6 +5,7 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { initLinkStyleSetting } from './linkStyle.js';
+import { initUpdateSettings } from './updateSettings.js';
 import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import { enhanceSettingsPicker } from './settingsPicker.js';
@@ -671,6 +672,7 @@ export async function initSettingsPanel(root = document) {
         initAutoSave(root);
         await initLinkStyleSetting(root);
         await initPDFBrowserSetting(root);
+        await initUpdateSettings(root);
 
         await initFontPicker(root);
         initCodeFontPicker(root);

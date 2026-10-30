@@ -1748,6 +1748,49 @@
     }
   },
   {
+    "id": "desktop-host",
+    "title": "Wails v3 desktop host, native bridge, and in-app updates",
+    "sources": [
+      "internal/desktop/run.go",
+      "internal/desktop/window_runtime.go",
+      "internal/desktop/asset_routes.go",
+      "internal/desktop/app_updates.go",
+      "internal/updates/updates.go",
+      "frontend/js/wailsRuntime.js",
+      "frontend/js/updateSettings.js",
+      "frontend/js/core/updateModel.js",
+      "scripts/package-desktop.sh"
+    ],
+    "docs": [
+      "ARCHITECTURE.md#wails-v3-bridge-asset-routes-and-updates",
+      "docs/PROMPT.md#21-settings-tab",
+      "docs/testing/workspace.md#desktop-bridge-and-in-app-update-regressions"
+    ],
+    "tests": [
+      "tests/frontend/unit/wailsRuntime.test.js",
+      "tests/frontend/unit/updateSettings.test.js"
+    ],
+    "extraChecks": [
+      "Run go test ./internal/desktop ./internal/updates ./internal/repositorycheck for the bridge guard, updater (including a fake GitHub API), and release-workflow contracts.",
+      "Linux builds need GTK 4 and WebKitGTK 6.0 headers; launch packaged builds under xvfb-run and confirm no [security] refusals for Figaro's own bridge calls.",
+      "The restart swap, Windows and macOS packaging, and a real GitHub check are manual on packaged builds."
+    ],
+    "symbols": {
+      "frontend/js/wailsRuntime.js": [
+        "installWailsRuntime",
+        "createNativeApp",
+        "createNativeRuntime"
+      ],
+      "frontend/js/updateSettings.js": [
+        "initUpdateSettings",
+        "initUpdateNotifications"
+      ],
+      "frontend/js/core/updateModel.js": [
+        "describeUpdateStatus"
+      ]
+    }
+  },
+  {
     "id": "release",
     "title": "Release metadata, packaging, and Git handoff",
     "sources": [
@@ -1755,7 +1798,8 @@
       "scripts/verify-release.sh",
       ".githooks/prepare-commit-msg",
       "scripts/profile-writing.mjs",
-      ".github/workflows/release.yml"
+      ".github/workflows/release.yml",
+      "scripts/package-desktop.sh"
     ],
     "docs": [
       "CONTRIBUTING.md#release-process",
@@ -1769,7 +1813,8 @@
     ],
     "extraChecks": [
       "For release preparation read the complete release skill; focused checks neither finalize nor replace its verification and version/action approval.",
-      "Run bash tests/release/prepare-release.test.sh, including native editorial-profile failure before finalization."
+      "Run bash tests/release/prepare-release.test.sh, including native editorial-profile failure before finalization.",
+      "Run go test ./internal/repositorycheck for the packaging script, GTK 4 dependencies, and update-archive workflow contracts."
     ]
   },
   {

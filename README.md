@@ -103,7 +103,7 @@ To use another notes folder, set `VAULT_PATH` before launching. The
 import existing notes.
 
 Builds are unsigned; Windows or macOS may ask you to confirm the
-first launch. Linux needs GTK 3 and WebKitGTK 4.1 or 4.0. PDF generation needs
+first launch. Linux needs GTK 4 and WebKitGTK 6.0. PDF generation needs
 Chrome, Chromium, Brave, or Edge; macOS can also use its built-in WebKit engine.
 
 ## Your files and privacy
@@ -111,7 +111,8 @@ Chrome, Chromium, Brave, or Edge; macOS can also use its built-in WebKit engine.
 Editing, search, planning, local history, and writing review run on your
 computer. Figaro does not require an account, analytics service, or proprietary
 storage format. Optional Draw.io editing opens the hosted diagrams.net editor;
-the saved diagram stays in your notes folder.
+the saved diagram stays in your notes folder. Figaro asks GitHub for updates only
+when you turn on update checks or choose Check now.
 
 Figaro works with one vault at a time. It has no built-in cloud sync,
 encryption, mobile app, or plugin system. Local history helps recover changes

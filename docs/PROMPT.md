@@ -25,7 +25,7 @@ bundled fonts, optional Vim mode, KaTeX math, live diagrams, editable Draw.io an
 browser-backed PDF export. All content lives in a folder chosen by the user: no accounts, cloud
 service, sync engine, or proprietary note database.
 
-Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript frontend (CodeMirror
+Tech stack: Go backend (Wails v3, using GTK 4 and WebKitGTK 6.0 on Linux), vanilla JavaScript frontend (CodeMirror
 6, codemirror-live-markdown, KaTeX, markdown-it, Mermaid, Vega, and Vega-Lite), with browser
 dependencies vendored in the frontend bundle.
 
@@ -886,9 +886,8 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
 - **Windows keyboard layouts**: Figaro delegates printable text and dead-key composition to WebView2
   and CodeMirror in regular editing and Vim Insert mode. It does not infer characters from Spanish
   physical key codes, prevent native dead-key events, synthesize fallback accents, or rewrite
-  composition transactions. The pinned Wails v2.14 Windows host detects AltGr's Ctrl+Right-Alt state
-  and does not repost those keys through the native window, leaving the original event with
-  WebView2. An ordinary backtick therefore inserts one character without a Space sequence, three
+  composition transactions. Figaro registers no native key bindings, so the Wails v3 Windows host
+  leaves AltGr's Ctrl+Right-Alt chords with WebView2. An ordinary backtick therefore inserts one character without a Space sequence, three
   ordinary backticks create a Markdown fence, and the native `AltGr+4` sequence can remain pending
   for a following character such as `a` → `ã`.
 - **Markdown diagnostics**: after a short typing pause, Markdown notes locally mark unclosed leading
@@ -3017,7 +3016,7 @@ platform before compilation.
 1. Paint the shell with the last confirmed local theme/font mirror, the normalized saved sidebar
    width, and **Starting Figaro…** status; begin bundled language-parser warming, restore other
    webview-local UI state, and initialize backend-independent navigation and window controls.
-2. Wait for Wails to publish the native `window.go.desktop.App` binding, then read and apply the
+2. Wait for the native `window.go.desktop.App` binding to answer, then read and apply the
    authoritative vault-backed theme/font appearance and subscribe to vault notifications.
 3. Start the portable session, tab-size, link-style, automation, and complete interaction/layout
    preference reads together. Do not initialize or expose CodeMirror until this hydration barrier
@@ -3079,8 +3078,9 @@ frontend entry and bridge as well as native work; the event alone does not
 establish slow indexing, antivirus scanning, or OneDrive synchronization.
 
 Frontend code accesses Go only through `frontend/js/backend.js`. It calls the
-native `window.go.desktop.App` methods with their generated PascalCase names; the
-browser debugging fallback is installed explicitly with the same method shape.
+native `window.go.desktop.App` methods with their Go PascalCase names. In the desktop
+webview, `wailsRuntime.js` installs that object over the Wails v3 runtime before startup;
+outside it, the browser debugging fallback is installed explicitly with the same method shape.
 
 ---
 
@@ -3343,7 +3343,7 @@ Multiple layers prevent a white flash before CSS loads:
 1. **Native canvas**: `BackgroundColour: RGB(21,21,21,255)` in `internal/desktop/run.go`
 2. **Inline `<style>`**: `html, body { background: #151515 !important }` in `index.html`
 3. **Go domReady CSS**: injects only `html, body { background: #151515 }` via
-   `runtime.WindowExecJS`; it does not add a second window border
+   the window's `ExecJS`; it does not add a second window border
 4. **External base module**: `styles/base.css` overrides with `transparent !important` for the
    rounded corner effect
 
@@ -3502,6 +3502,16 @@ Multiple layers prevent a white flash before CSS loads:
   The adjacent durable **Recently deleted** list reads the vault-local,
   Git-backed recovery registry and offers a themed **Restore** button per item;
   an occupied original path is reported without replacement or record loss.
+- **Updates**: **Check for updates** is off by default and stored per machine, never in the vault.
+  While it is off Figaro makes no update request; **Check now** still checks on demand. When on,
+  Figaro checks the latest GitHub release once after the window is ready and, if a newer release is
+  available, asks before downloading (**Download and install** / **Not now**). The native updater
+  downloads only the platform's single-entry `figaro-<tag>-<platform>-update` archive, verifies it
+  against the release's `SHA256SUMS`, stages it, and then asks before restarting (**Restart now** /
+  **Later**). The card shows the current state (latest, available, ready, or the error) with one
+  matching action button. A release without an update archive for the platform reports an error
+  instead of offering another download; platforms without published builds show the setting
+  disabled.
 - **About**: a read-only, themed value shows the exact packaged Figaro version
   from the embedded Wails product metadata. It displays **Unavailable** if that
   metadata cannot be supplied and never adds static information to the
@@ -3510,7 +3520,7 @@ Multiple layers prevent a white flash before CSS loads:
 ### 21.1 Layout
 - Wide Settings views use two independent intrinsic-height card stacks:
   Appearance and Editor form the writing stack, while Kanban, Automation, PDF
-  Export, Vault care, and About form the workspace stack. Cards never stretch
+  Export, Updates, Vault care, and About form the workspace stack. Cards never stretch
   to match an unrelated neighbor; below 960px the groups become one logical
   column in the same keyboard order, with no accordion or hidden category.
 - Activating Settings moves focus to its semantic **Settings** heading without
@@ -3659,8 +3669,8 @@ Multiple layers prevent a white flash before CSS loads:
 ## 23. Dev / Debug Mode
 
 ### 23.1 Browser DevTools
-- Run `./scripts/debug.sh` to start the Go file server (`cmd/devserver`) on `:34115` and `wails dev`
-  simultaneously.
+- Run `./scripts/debug.sh` to start the Go file server (`cmd/devserver`) on `:34115` and a
+  development build of Figaro that loads its frontend from that server.
 - Open `http://localhost:34115` in a regular browser for full DevTools (Elements, Console, Styles,
   Computed).
 - When no Wails backend is detected (after ~2 seconds), the UI boots in debug mode with **mock API
@@ -3670,7 +3680,8 @@ Multiple layers prevent a white flash before CSS loads:
     accessibility inspection uses the production palette.
   - All API methods return sensible defaults so the full UI renders for CSS inspection.
 - `go run ./cmd/devserver` starts a Go `http.FileServer` from the project root.
-- `wails.json` `frontend:dev:url` points to `http://localhost:34115`.
+- `debug.sh` sets `FRONTEND_DEVSERVER_URL=http://localhost:34115`; the native bridge also trusts
+  that origin.
 
 ### 23.2 WebKit Inspector
 - Disabled by default in normal builds. Set `FIGARO_WEBKIT_INSPECTOR=1` before launch to opt into
@@ -3953,8 +3964,8 @@ toggle: it records the current target contents before direct filesystem removal.
 ## 26. Image Serving
 
 ### 26.1 Vault Image Serving
-- Images referenced in Markdown (`![alt](path)`) are served from the vault directory via a Wails
-  `AssetServer.Handler`.
+- Images referenced in Markdown (`![alt](path)`) are served from the vault directory by asset
+  middleware that answers `/vault/` ahead of the bundled frontend.
 - `imageField` plugin is configured with `basePath: '/vault/'` — all local image paths are prefixed
   with `/vault/`.
 - The Go `vaultFileHandler` opens the vault with `os.OpenRoot` and serves its scoped filesystem
@@ -4548,18 +4559,18 @@ graph TD
 |--------|--------|-------------|
 | `make bootstrap` | Prepared checkout | Go modules, locked npm dependencies, vendored browser assets, icons |
 | `make doctor` | Prerequisite report | Prints package-manager install hints |
-| `make linux` | `build/bin/figaro` (amd64) | Linux host, GCC, pkg-config, GTK3, WebKitGTK 4.1 or 4.0 |
-| `make windows` | `build/bin/figaro.exe` (amd64) | Go + Wails CLI |
-| `make darwin` | `build/bin/figaro-darwin` (amd64+arm64) | macOS host |
+| `make linux` | `build/bin/figaro` (amd64) | Linux host, GCC, pkg-config, GTK 4, WebKitGTK 6.0 |
+| `make windows` | `build/bin/figaro.exe` (amd64) | Go |
+| `make darwin` | `build/bin/figaro.app` (amd64+arm64) | macOS host |
 | `make dev` | Dev server | — |
 | `make icons` | Regenerate application icon assets | ImageMagick 7 |
 | `make clean` | Remove artifacts | — |
 
 ### 31.2 Windows Cross-Compilation from Linux
-- Uses `wails build -platform windows/amd64` with Wails' pure-Go WebView2 path; the current project
-  does not require MinGW-w64.
-- Wails' `go-winres` (pure Go) reads `build/appicon.png` (1024×1024) and embeds it as the Windows
-  `.exe` icon resource.
+- `scripts/package-desktop.sh windows` runs `go build` with `GOOS=windows` and Wails' pure-Go
+  WebView2 path; the current project does not require MinGW-w64.
+- The `wails3` tool pinned by `go.mod` generates a `.syso` resource from `build/windows/icon.ico`
+  and the product metadata, which the build embeds as the `.exe` icon and version information.
 - The build produces a native Windows `.exe` with embedded WebView2 loader — no Edge installation
   required.
 - Output includes `build/bin/figaro.exe` (single binary, ~30MB).
@@ -4569,10 +4580,12 @@ graph TD
   `appicon.png`, `build/appicon.png`, and `assets/branding/figaro.fullsize.png`.
 - Generated sizes: `frontend/icon-{16,22,24,32,48,64,128,256}.png`, `frontend/favicon.ico`
   (multi-res), and `build/windows/icon.ico` (multi-res).
-- Wails reads `build/appicon.png` for platform packaging during `wails build`.
+- `scripts/package-desktop.sh` reads `build/windows/icon.ico` and `build/appicon.png` for platform
+  packaging.
 - Linux desktop integration refreshes XDG launcher metadata and hicolor icons on startup via direct
   FS copy + `gtk-update-icon-cache`.
-- Windows/macOS: Wails embeds automatically from `build/appicon.png` → `.ico`/`.icns`.
+- Windows/macOS: the packaging script embeds the `.ico` resource and generates `.icns` from
+  `build/appicon.png`.
 
 ---
 
@@ -4604,8 +4617,8 @@ StartupWMClass=figaro
 
 ### 32.3 Platform Notes
 - **Linux**: `.desktop` + hicolor icons required for GNOME dash/dock visibility.
-- **Windows**: Icon embedded via Wails `go-winres` during build.
-- **macOS**: Icon embedded via Wails `.icns` generation in `.app` bundle.
+- **Windows**: Icon embedded from a generated `.syso` resource during build.
+- **macOS**: Icon embedded via `wails3 generate icons` `.icns` generation in the `.app` bundle.
 
 ---
 
@@ -4645,7 +4658,7 @@ workers explicitly. Missing generated entries fail compilation; the broad
 directory embed alone cannot establish that the frontend was prepared.
 
 ### 34.2 Embedded FS vs Disk Reads
-- **Asset server**: Serves embedded files via Wails `AssetServer` — all CSS/JS/images loaded by the
+- **Asset server**: Serves embedded files via the Wails v3 asset handler — all CSS/JS/images loaded by the
   frontend come from the embedded FS.
 - **Backend methods**: `GetThemes()` and `GetThemeCSS()` read from the immutable
   asset filesystem injected into that application instance first, falling back

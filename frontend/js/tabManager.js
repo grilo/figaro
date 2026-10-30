@@ -2528,6 +2528,32 @@ function renderSettingsTab(panel, _tab) {
                 </div>
             </div>
             <div class="settings-card">
+                <h2 class="settings-card-title">Updates</h2>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+                        <span>Software updates</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-row-label">Check for updates when Figaro starts</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="update-checks-toggle" aria-label="Check for updates when Figaro starts" aria-describedby="update-checks-description">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <p id="update-checks-description" class="settings-section-desc">Off by default. When on, Figaro asks GitHub Releases for a newer version at launch. It never downloads or restarts without asking.</p>
+                </div>
+                <div class="settings-section pdf-browser-setting update-setting">
+                    <div class="pdf-browser-setting-copy">
+                        <p id="update-status" class="settings-section-desc pdf-browser-status" role="status" aria-live="polite">Loading update settings…</p>
+                    </div>
+                    <div class="pdf-browser-actions">
+                        <button type="button" id="update-check" class="ui-button settings-action-btn">Check now</button>
+                        <button type="button" id="update-action" class="ui-button ui-button--primary settings-action-btn" hidden></button>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-card">
                 <h2 class="settings-card-title">Vault care</h2>
                 <div class="settings-section vault-health-setting">
                     <div class="pdf-browser-setting-copy">

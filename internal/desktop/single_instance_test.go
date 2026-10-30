@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func TestSingleInstanceForwardsMarkdownAndFocusesExistingWindow(t *testing.T) {
@@ -36,14 +36,14 @@ func TestSingleInstanceForwardsMarkdownAndFocusesExistingWindow(t *testing.T) {
 		}
 	})
 
-	lock := figaroSingleInstanceLock(app)
-	if lock == nil || lock.UniqueId != figaroSingleInstanceID || lock.OnSecondInstanceLaunch == nil {
+	lock := figaroSingleInstanceLock(func() *App { return app })
+	if lock == nil || lock.UniqueID != figaroSingleInstanceID || lock.OnSecondInstanceLaunch == nil {
 		t.Fatalf("figaroSingleInstanceLock = %#v, want configured callback", lock)
 	}
 
-	lock.OnSecondInstanceLaunch(options.SecondInstanceData{
-		Args:             []string{"forwarded.md", "forwarded.md", "missing.md", "ignored.txt"},
-		WorkingDirectory: root,
+	lock.OnSecondInstanceLaunch(application.SecondInstanceData{
+		Args:       []string{"forwarded.md", "forwarded.md", "missing.md", "ignored.txt"},
+		WorkingDir: root,
 	})
 
 	if focusCount != 1 {
@@ -65,9 +65,9 @@ func TestSingleInstanceForwardsMarkdownAndFocusesExistingWindow(t *testing.T) {
 		t.Fatalf("registered files = %#v, want retained initial and emitted capabilities", registered)
 	}
 
-	lock.OnSecondInstanceLaunch(options.SecondInstanceData{
-		Args:             []string{"--flag", "missing.md"},
-		WorkingDirectory: root,
+	lock.OnSecondInstanceLaunch(application.SecondInstanceData{
+		Args:       []string{"--flag", "missing.md"},
+		WorkingDir: root,
 	})
 	if focusCount != 2 {
 		t.Fatalf("window focus count after empty launch = %d, want 2", focusCount)

@@ -16,13 +16,8 @@ import (
 	"figaro/internal/appinfo"
 	"figaro/internal/startup"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/linux"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // AssetFS is the bundled application-asset boundary consumed by the desktop
@@ -50,13 +45,41 @@ func readBundledAssetDir(bundle AssetFS, name string) ([]fs.DirEntry, error) {
 
 const figaroSingleInstanceID = "io.github.figaro.Figaro"
 
-func figaroSingleInstanceLock(app *App) *options.SingleInstanceLock {
-	return &options.SingleInstanceLock{
-		UniqueId: figaroSingleInstanceID,
-		OnSecondInstanceLaunch: func(data options.SecondInstanceData) {
-			app.handleSecondInstanceLaunch(data.Args, data.WorkingDirectory)
+func figaroSingleInstanceLock(app func() *App) *application.SingleInstanceOptions {
+	return &application.SingleInstanceOptions{
+		UniqueID: figaroSingleInstanceID,
+		OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
+			if current := app(); current != nil {
+				current.handleSecondInstanceLaunch(data.Args, data.WorkingDir)
+			}
 		},
 	}
+}
+
+// nativeFilesDroppedEventName carries native file drops to the frontend with
+// their viewport coordinates, so the existing tree/editor routing stays in JS.
+const nativeFilesDroppedEventName = "native:files-dropped"
+
+type nativeFileDrop struct {
+	X     int      `json:"x"`
+	Y     int      `json:"y"`
+	Paths []string `json:"paths"`
+}
+
+// desktopLifecycle forwards Wails service lifecycle hooks to App without
+// adding exported lifecycle methods to the bound frontend facade.
+type desktopLifecycle struct {
+	app *App
+}
+
+func (l *desktopLifecycle) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
+	l.app.startup(ctx)
+	return nil
+}
+
+func (l *desktopLifecycle) ServiceShutdown() error {
+	l.app.shutdown(context.Background())
+	return nil
 }
 
 // Run assembles and starts the native desktop application.
@@ -81,6 +104,41 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	if applicationVersionErr != nil {
 		log.Printf("[app] Application version is unavailable: %v", applicationVersionErr)
 	}
+	linuxWindowIcon, iconErr := bundledAssets.ReadFile("frontend/icon-256.png")
+	if iconErr != nil {
+		// The launcher still has a filesystem-installed icon on Linux; this
+		// only affects the native window/dock representation.
+		log.Printf("[desktop] Could not load native Linux window icon: %v", iconErr)
+	}
+	frontendAssets, err := fs.Sub(bundledAssets, "frontend")
+	if err != nil {
+		return err
+	}
+
+	// Create the Wails application before opening the vault. A pending update
+	// swaps the binary inside application.New, and a second launch exits there,
+	// so neither path should first index the vault or take its locks.
+	var app *App
+	var vaultHandler http.Handler = http.NotFoundHandler()
+	wailsApp := application.New(application.Options{
+		Name:           "Figaro",
+		Description:    "Local Markdown Knowledge Base",
+		Icon:           linuxWindowIcon,
+		SingleInstance: figaroSingleInstanceLock(func() *App { return app }),
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(frontendAssets),
+			Middleware: application.ChainMiddleware(
+				nativeBridgeOriginGuard,
+				vaultRouteMiddleware(func() http.Handler { return vaultHandler }),
+			),
+			DisableLogging: true,
+		},
+		Linux: application.LinuxOptions{
+			ProgramName:   "figaro",
+			ApplicationID: figaroSingleInstanceID,
+		},
+	})
+
 	var trace *startup.Trace
 	var logDir string
 	if cache, err := os.UserCacheDir(); err == nil {
@@ -96,7 +154,7 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 			}
 		}()
 	}
-	app := openApp(vaultPath, trace, bundledAssets)
+	app = openApp(vaultPath, trace, bundledAssets)
 	app.startupLogDir = logDir
 	app.configureApplicationVersion(applicationVersion)
 	app.setLaunchExternalFiles(markdownLaunchPaths(launchArgs))
@@ -117,20 +175,12 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	} else {
 		app.configureMachineSettings(machineSettingsPath)
 	}
-	windowStartState := options.Normal
+	windowStartState := application.WindowStateNormal
 	if windowState.Maximized {
-		windowStartState = options.Maximised
-	}
-	// Position is deliberately absent from windowState. Wails centers the
-	// initial window on Windows, macOS, and Linux before applying this state.
-	linuxWindowIcon, iconErr := bundledAssets.ReadFile("frontend/icon-256.png")
-	if iconErr != nil {
-		// The launcher still has a filesystem-installed icon on Linux; this
-		// only affects the native window/dock representation.
-		log.Printf("[desktop] Could not load native Linux window icon: %v", iconErr)
+		windowStartState = application.WindowStateMaximised
 	}
 	log.Println("App created, launching Wails...")
-	vaultHandler := vaultFileHandler(app.vaultPath)
+	vaultHandler = vaultFileHandler(app.vaultPath)
 	if closer, ok := vaultHandler.(interface{ Close() error }); ok {
 		defer func() {
 			if err := closer.Close(); err != nil {
@@ -139,51 +189,49 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 		}()
 	}
 
-	trace.Mark("webview-launch")
-	return wails.Run(&options.App{
-		Title:              "Figaro",
-		Width:              windowState.Width,
-		Height:             windowState.Height,
-		MinWidth:           minimumWindowWidth,
-		MinHeight:          minimumWindowHeight,
-		WindowStartState:   windowStartState,
-		SingleInstanceLock: figaroSingleInstanceLock(app),
-		// Frameless for native custom title bar.
-		Frameless: true,
-		AssetServer: &assetserver.Options{
-			Assets:  bundledAssets,
-			Handler: vaultHandler,
+	wailsApp.RegisterService(application.NewService(app))
+	wailsApp.RegisterService(application.NewService(&desktopLifecycle{app: app}))
+
+	// Position is deliberately absent from windowState. Wails centers the
+	// initial window on Windows, macOS, and Linux before applying this state.
+	window := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "main",
+		Title:            "Figaro",
+		Width:            windowState.Width,
+		Height:           windowState.Height,
+		MinWidth:         minimumWindowWidth,
+		MinHeight:        minimumWindowHeight,
+		StartState:       windowStartState,
+		Frameless:        true,
+		BackgroundColour: application.NewRGBA(21, 21, 21, 255),
+		EnableFileDrop:   true,
+		DevToolsEnabled:  inspectorAddress != "",
+		Mac: application.MacWindow{
+			TitleBar: application.MacTitleBarHiddenInset,
 		},
-		BackgroundColour: &options.RGBA{R: 21, G: 21, B: 21, A: 255},
-		DragAndDrop: &options.DragAndDrop{
-			EnableFileDrop: true,
-		},
-		Bind: []interface{}{
-			app,
-		},
-		OnStartup: func(ctx context.Context) {
-			app.startup(ctx)
-		},
-		OnDomReady: func(ctx context.Context) {
-			app.domReady(ctx)
-		},
-		OnShutdown: func(ctx context.Context) {
-			app.shutdown(ctx)
-		},
-		Windows: &windows.Options{
-			WebviewIsTransparent: false,
-			WindowIsTranslucent:  false,
-		},
-		Mac: &mac.Options{
-			TitleBar:             mac.TitleBarHiddenInset(),
-			WebviewIsTransparent: false,
-			WindowIsTranslucent:  false,
-		},
-		Linux: &linux.Options{
-			Icon:        linuxWindowIcon,
-			ProgramName: "figaro",
+		Linux: application.LinuxWindow{
+			Icon: linuxWindowIcon,
 		},
 	})
+	app.windowRuntime = wailsWindowRuntime{app: wailsApp, window: window}
+	app.desktopRuntime.attachNative(showWailsWindow(window), func(name string, data ...any) {
+		wailsApp.Event.Emit(name, data...)
+	})
+	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+		app.domReady(context.Background())
+		app.scheduleStartupUpdateCheck()
+	})
+	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
+		drop := nativeFileDrop{Paths: event.Context().DroppedFiles()}
+		if details := event.Context().DropTargetDetails(); details != nil {
+			drop.X, drop.Y = details.X, details.Y
+		}
+		app.emitRuntimeEventData(nativeFilesDroppedEventName, drop)
+	})
+	app.configureUpdater(wailsApp, applicationVersion)
+
+	trace.Mark("webview-launch")
+	return wailsApp.Run()
 }
 
 // markdownLaunchPaths accepts only existing Markdown files provided as native
@@ -272,7 +320,7 @@ func (a *App) domReady(ctx context.Context) {
 	if a.devInspectorAddress != "" {
 		inspectorLog = `console.log('🔧 DevTools: open http://` + a.devInspectorAddress + ` in browser');`
 	}
-	runtime.WindowExecJS(ctx, `
+	a.windowRuntime.ExecJS(ctx, `
 		(function() {
 			var s = document.createElement('style');
 			s.id = 'wails-frameless-border';

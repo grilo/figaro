@@ -10,7 +10,7 @@ Linux builds target x86-64, Windows builds target x86-64, and the macOS archive
 supports both Intel and Apple Silicon. Builds are unsigned, so Windows
 SmartScreen or macOS Gatekeeper may ask you to confirm the first launch.
 
-Linux needs GTK 3 and WebKitGTK 4.1 or 4.0. PDF generation uses an installed
+Linux needs GTK 4 and WebKitGTK 6.0. PDF generation uses an installed
 Chrome, Chromium, Brave, or Edge browser. Linux supports browser commands under
 `/snap/bin`; macOS can also use its built-in WebKit engine.
 
@@ -40,6 +40,17 @@ VAULT_PATH="$HOME/Documents/Notes" ./figaro.app/Contents/MacOS/figaro
 
 Quit the running app before launching with a different `VAULT_PATH`. Figaro
 uses one desktop instance and one vault at a time.
+
+### Update Figaro
+
+Figaro does not contact GitHub until you allow it. Turn on **Settings →
+Updates → Check for updates** to look for a new release each time Figaro
+starts, or choose **Check now** at any time. When a release is available,
+Figaro asks before downloading it, checks the download against the release's
+published checksums, and asks again before restarting into the new version.
+Choose **Not now** or **Later** to keep working; the update stays available in
+Settings. On a platform without published release builds, the setting is
+unavailable.
 
 ## Bring your notes
 

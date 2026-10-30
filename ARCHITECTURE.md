@@ -660,8 +660,9 @@ and PDF Preview know only their own lifecycle; they do not broadcast or listen
 for pairwise peer-close events.
 
 `frontend/js/backend.js` is the frontend's sole backend entry point. It calls
-the native Wails binding at `window.go.desktop.App` using its generated PascalCase
-method names. Browser debugging installs an explicit same-shaped mock through
+the native binding at `window.go.desktop.App` using the Go PascalCase method
+names; `wailsRuntime.js` installs that object, and `window.runtime`, over the
+Wails v3 `@wailsio/runtime` module before any other startup code runs. Browser debugging installs an explicit same-shaped mock through
 that module, rather than emulating a retired desktop runtime.
 `frontend/js/backendContract.js` is the canonical JavaScript inventory of that
 facade. Debug and shared test doubles are generated from it, production binding
@@ -695,6 +696,36 @@ This is a behavioral boundary, not a directory-size target. Dividing a large
 module into smaller services is not sufficient if those services still mix
 domain decisions with I/O. Interfaces remain narrow and are introduced only at
 real effect boundaries; pure functions do not need wrapper interfaces.
+
+### Wails v3 bridge, asset routes, and updates
+
+`Run` creates the Wails application before opening the vault, because Wails
+handles the updater's helper-process mode inside `application.New`. It then
+registers the bound `App` and a lifecycle service whose startup and shutdown
+hooks call `App.startup` and `App.shutdown`; the window's runtime-ready event
+calls `domReady`. Native file drops arrive as a window event that `Run`
+re-emits to the frontend as `native:files-dropped`; `<body>` is the only drop
+target. `wailsWindowRuntime` adapts window state, script execution, and the
+file chooser for the App's `windowRuntime` port.
+
+Asset middleware in `asset_routes.go` runs before Wails' own routes.
+`vaultRouteMiddleware` serves `/vault/` from the vault root.
+`nativeBridgeOriginGuard` protects every `/wails/` endpoint, because Wails
+dispatches bound methods to any frame that can POST to `/wails/runtime`.
+`allowNativeBridgeRequest` is the pure decision: a present Origin or Referer
+must name Figaro's own document (`wails://localhost`, or
+`http://wails.localhost` on Windows), and method calls must carry the runtime
+client header. WebKitGTK omits Origin only on same-origin requests, so the
+hosted Draw.io frame and the sandboxed PDF preview are refused by origin.
+
+`internal/updates` owns the pure release decisions: published platforms, the
+`figaro-<tag>-<platform>-update` archive name and matcher, and version parsing.
+`app_updates.go` coordinates the opt-in setting, the startup check, and the
+Settings states through a narrow `updateService` port; `wailsUpdateService`
+adapts the Wails updater and its GitHub provider, which verifies each download
+against the release's `SHA256SUMS` before it is staged. Each update archive
+holds exactly one entry (the executable, or `figaro.app`) so the updater
+can swap it in place.
 
 ### Applying the boundary to future work
 
@@ -860,8 +891,8 @@ documents under process-local opaque IDs; the frontend can read, save, open, or 
 cannot turn it into arbitrary filesystem access. The one webview-supplied path that becomes such a
 capability is a dropped Markdown file: `OpenDroppedMarkdownFiles` accepts only absolute paths to
 regular `.md`/`.markdown` files that are not symbolic links, returns vault members by their relative
-path instead, and reuses the existing ID for a repeated path. Wails delivers native drops through
-the same dispatcher channel as page messages, so these rules, not the drop itself, bound what the
+path instead, and reuses the existing ID for a repeated path. Wails v3 reports native drops as a
+window event that Go re-emits as an ordinary frontend event, so these rules, not the drop itself, bound what the
 editor can write outside the vault. The pure `externalDropAction` routes each drop by target (the
 tree imports, Markdown elsewhere opens, other files ask only over the editor), and
 `externalFileNotice.js` renders the approved info notice for the active external tab. The initial capability snapshot closes the race
@@ -2462,12 +2493,11 @@ Windows keyboard layouts remain owned by the native WebView2 and CodeMirror
 input stack. The editor does not map physical key codes to assumed Spanish
 characters, prevent dead-key events, synthesize accent output, or reconcile
 composition with timers. This rule applies in regular editing and Vim Insert
-mode. Figaro pins Wails v2.14 to the `v2.14.0-figaro.1` fork tag: its Windows
-accelerator boundary recognizes Ctrl+Right Alt as AltGr and leaves those events
-with WebView2 instead of reposting a duplicate `WM_KEYDOWN` to the native
-window. Component coverage proves Figaro does not consume representative key
-events, the fork's Windows unit test owns the native forwarding decision,
-browser coverage proves literal and already-composed text reaches the document
+mode. Wails v3's Windows accelerator callback consumes only accelerators bound
+to a menu item or key binding, plus Alt+F4; Figaro registers neither, so AltGr
+chords stay with WebView2 and upstream Wails needs no fork. Component coverage
+proves Figaro does not consume representative key events, a repository check
+keeps `go.mod` on unreplaced upstream Wails, browser coverage proves literal and already-composed text reaches the document
 once, and the packaged Windows check owns actual layout composition.
 
 The CodeMirror adapter recognizes one deliberate exception to the generic

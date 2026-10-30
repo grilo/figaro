@@ -2021,7 +2021,7 @@ async function openDroppedMarkdown(paths) {
     }
 }
 
-/** Register Wails' cross-platform native path drop callback once. */
+/** Register the cross-platform native path drop callback once. */
 export function initNativeFileDrops(runtime = window.runtime) {
     if (nativeFileDropInitialized || typeof runtime?.OnFileDrop !== 'function') return false;
     runtime.OnFileDrop((x, y, paths) => {
@@ -2037,9 +2037,9 @@ export function initNativeFileDrops(runtime = window.runtime) {
         if (action === 'ask') {
             return copyExternalDrop(paths, '', { confirmImport: true, coordinates: { x, y } }).catch(() => false);
         }
-    // Handle every native file drop ourselves. Passing true would make Wails
-    // invoke the callback only for CSS --wails-drop-target elements, which
-    // excludes CodeMirror and leaves Linux/WebKit to insert the file path.
+    // Handle every native file drop ourselves. The document body is Wails'
+    // only drop target, so CodeMirror never receives the raw path and the
+    // tree/editor routing above decides what the drop means.
     }, false);
     nativeFileDropInitialized = true;
     return true;

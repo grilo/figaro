@@ -16,6 +16,8 @@ const machineSettingsVersion = 1
 type machineSettings struct {
 	Version        int    `json:"version"`
 	PDFBrowserPath string `json:"pdf_browser_path,omitempty"`
+	// CheckForUpdates is the opt-in for contacting GitHub Releases at launch.
+	CheckForUpdates bool `json:"check_for_updates,omitempty"`
 }
 
 func defaultMachineSettings() machineSettings {
@@ -112,6 +114,34 @@ func (a *App) storePDFBrowserPath(path string) error {
 		settings = defaultMachineSettings()
 	}
 	settings.PDFBrowserPath = strings.TrimSpace(path)
+	return saveMachineSettingsFile(a.machineSettingsPath, settings)
+}
+
+func (a *App) loadUpdateChecksEnabled() (bool, error) {
+	a.machineSettingsMu.RLock()
+	defer a.machineSettingsMu.RUnlock()
+	if a.machineSettingsPath == "" {
+		return false, fmt.Errorf("machine-local settings are unavailable")
+	}
+	settings, err := loadMachineSettingsFile(a.machineSettingsPath)
+	if err != nil {
+		return false, err
+	}
+	return settings.CheckForUpdates, nil
+}
+
+func (a *App) storeUpdateChecksEnabled(enabled bool) error {
+	a.machineSettingsMu.Lock()
+	defer a.machineSettingsMu.Unlock()
+	if a.machineSettingsPath == "" {
+		return fmt.Errorf("machine-local settings are unavailable")
+	}
+	settings, err := loadMachineSettingsFile(a.machineSettingsPath)
+	if err != nil {
+		log.Printf("[settings] Replacing invalid machine settings: %v", err)
+		settings = defaultMachineSettings()
+	}
+	settings.CheckForUpdates = enabled
 	return saveMachineSettingsFile(a.machineSettingsPath, settings)
 }
 

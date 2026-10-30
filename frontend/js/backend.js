@@ -1,10 +1,11 @@
 /**
  * Native Wails backend access.
  *
- * Figaro binds App directly through Wails. This module deliberately exposes
- * the native PascalCase method names rather than maintaining a compatibility
- * translation layer. Browser-only debugging can install an explicit mock
- * backend without pretending to be a desktop runtime.
+ * Figaro binds App directly through Wails, and wailsRuntime.js publishes it
+ * at window.go.desktop.App in the desktop webview. This module deliberately
+ * exposes the native PascalCase method names rather than maintaining a
+ * renaming layer. Browser-only debugging can install an explicit mock backend
+ * without pretending to be a desktop runtime.
  */
 
 import { assertBackendContract, missingBackendMethods } from './backendContract.js';

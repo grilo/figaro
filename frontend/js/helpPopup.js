@@ -34,6 +34,7 @@ export const helpSettingsEntries = [
     ['Auto-save', '#auto-save-interval', 'Automation', ['interval', 'save frequency']],
     ['Auto-commit', '#auto-commit-toggle', 'Automation', ['git', 'history']],
     ['PDF browser engine', '#pdf-browser-choose', 'PDF Export', ['chromium', 'edge', 'executable']],
+    ['Software updates', '#update-checks-toggle', 'Updates', ['update', 'upgrade', 'new version', 'github releases']],
     ['Vault health', '#open-vault-health', 'Vault care', ['broken links', 'orphans', 'duplicates']],
     ['Startup logs', '#open-startup-logs', 'Vault care', ['slow launch', 'timings', 'troubleshooting']],
     ['Recently deleted', '#recently-deleted-list', 'Vault care', ['restore', 'trash']],

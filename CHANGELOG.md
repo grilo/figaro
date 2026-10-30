@@ -8,7 +8,20 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- In-app updates: turn on **Settings → Updates → Check for updates** and Figaro
+  looks for a new GitHub release when it starts, or whenever you choose
+  **Check now**. It asks before downloading, verifies the download against the
+  release checksums, and asks again before restarting into the new version.
+  Checks stay off until you turn them on.
+
+### Changed
+
+- Figaro now runs on Wails v3. On Linux it needs GTK 4 and WebKitGTK 6.0, so
+  distributions that only ship GTK 3 and WebKitGTK 4.x can no longer run it.
+- Windows AltGr shortcuts and dead keys now work without a patched copy of the
+  desktop framework.
 
 ## [1.46.0] - 2026-10-30
 

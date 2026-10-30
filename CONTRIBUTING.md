@@ -10,18 +10,19 @@ Install the following before working on the project:
 
 - Go 1.26.6 or newer
 - Node.js 22.18+ on the 22.x line, or 24.11+
-- Wails v2 CLI
-- The native build dependencies required by Wails for your platform
+- The native build dependencies required by Wails v3 for your platform
 
 On Linux, run `make doctor` for distribution-specific package names. The build
-requires a C compiler, `pkg-config`, GTK 3, WebKitGTK 4.1 or 4.0, and
-ImageMagick. Windows uses the Wails WebView2 toolchain. Building the universal
-macOS package requires a macOS host.
+requires a C compiler, `pkg-config`, GTK 4, WebKitGTK 6.0, and ImageMagick.
+Windows uses the Wails WebView2 toolchain. Building the universal macOS package
+requires a macOS host.
 
-Install Wails once, then prepare the repository:
+Wails v3 compiles with plain `go build`, so no Wails CLI needs installing. The
+packaging script runs the `wails3` tool pinned by `go.mod` through `go run`
+when it needs Windows resources or macOS bundle metadata. Prepare the
+repository:
 
 ```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@v2.14.0
 make bootstrap
 ```
 
@@ -427,19 +428,20 @@ make darwin
 make icons # regenerate all app icon variants from figaro.appicon.png
 ```
 
-`make linux` builds the native Linux target and checks for GTK3 plus WebKitGTK
-4.0 or 4.1 first. `make doctor` prints the package-manager command for missing
-tools and headers; WebKitGTK 4.1 is preferred and 4.0 remains supported. The
-current Windows target uses Wails' pure-Go WebView2 path and cross-builds from
-Linux without MinGW-w64; macOS builds still require a macOS host. Wails also
-requires a Linux host for Linux builds, while `make all` selects the outputs
-supported by the current host. See the `help` target in the [Makefile](Makefile).
+`make linux` builds the native Linux target and checks for GTK 4 plus WebKitGTK
+6.0 first. `make doctor` prints the package-manager command for missing tools
+and headers. Every target runs `scripts/package-desktop.sh`; the release
+workflow then adds the single-entry update archive the in-app updater installs
+beside each download archive. The Windows target
+uses Wails' pure-Go WebView2 path and cross-builds from Linux without
+MinGW-w64; macOS builds still require a macOS host. Linux builds need a Linux
+host, while `make all` selects the outputs supported by the current host. See the `help` target in the [Makefile](Makefile).
 On Fedora, `./scripts/build-fedora.sh` delegates to the same `make linux`
 workflow.
 
 Production builds require the generated application bundle and all four workers:
 the explicit embed patterns in `assets_production.go` reject missing outputs at
-compile time. Run `make bootstrap` before invoking Wails directly. In automation,
+compile time. Run `make bootstrap` before running `go build -tags production` directly. In automation,
 run `scripts/prepare-frontend.sh` with `shell: bash`, including on Windows;
 PowerShell's `.sh` file association does not guarantee completion or failure
 propagation. Source-only Go backend tests do not require generated frontend files.

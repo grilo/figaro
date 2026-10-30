@@ -18,29 +18,28 @@ package_manager() {
 print_linux_hint() {
     case "$(package_manager)" in
         dnf)
-            printf '%s\n' "  sudo dnf install gcc pkgconf-pkg-config gtk3-devel webkit2gtk4.1-devel ImageMagick"
+            printf '%s\n' "  sudo dnf install gcc pkgconf-pkg-config gtk4-devel webkitgtk6.0-devel ImageMagick"
             ;;
         apt-get)
-            printf '%s\n' "  sudo apt-get install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev imagemagick"
-            printf '%s\n' "  # On older Debian/Ubuntu releases, use libwebkit2gtk-4.0-dev instead."
+            printf '%s\n' "  sudo apt-get install build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev imagemagick"
             ;;
         pacman)
-            printf '%s\n' "  sudo pacman -S --needed base-devel pkgconf gtk3 webkit2gtk imagemagick"
+            printf '%s\n' "  sudo pacman -S --needed base-devel pkgconf gtk4 webkitgtk-6.0 imagemagick"
             ;;
         zypper)
-            printf '%s\n' "  sudo zypper install gcc-c++ pkg-config gtk3-devel webkit2gtk3-devel ImageMagick"
+            printf '%s\n' "  sudo zypper install gcc-c++ pkg-config gtk4-devel webkitgtk-6_0-devel ImageMagick"
             ;;
         emerge)
-            printf '%s\n' "  sudo emerge --ask sys-devel/gcc dev-util/pkgconf x11-libs/gtk+ net-libs/webkit-gtk media-gfx/imagemagick"
+            printf '%s\n' "  sudo emerge --ask sys-devel/gcc dev-util/pkgconf gui-libs/gtk net-libs/webkit-gtk:6 media-gfx/imagemagick"
             ;;
         eopkg)
-            printf '%s\n' "  sudo eopkg it gcc pkgconf libgtk-3-devel libwebkit-gtk-devel imagemagick"
+            printf '%s\n' "  sudo eopkg it gcc pkgconf libgtk-4-devel libwebkit-gtk6-devel imagemagick"
             ;;
         nix-shell)
-            printf '%s\n' "  nix-shell -p gcc pkg-config gtk3 webkitgtk imagemagick"
+            printf '%s\n' "  nix-shell -p gcc pkg-config gtk4 webkitgtk_6_0 imagemagick"
             ;;
         *)
-            printf '%s\n' "  Install GCC, pkg-config, GTK3 development headers, WebKitGTK 4.1 or 4.0 development headers, and ImageMagick 7."
+            printf '%s\n' "  Install GCC, pkg-config, GTK4 development headers, WebKitGTK 6.0 development headers, and ImageMagick 7."
             ;;
     esac
 }
@@ -80,15 +79,9 @@ check_linux() {
     if ! command -v pkg-config >/dev/null 2>&1; then
         missing+=("pkg-config")
     else
-        pkg-config --exists gtk+-3.0 || missing+=("GTK3 development headers (gtk+-3.0)")
+        pkg-config --exists gtk4 || missing+=("GTK4 development headers (gtk4)")
         pkg-config --exists gio-unix-2.0 || missing+=("GIO Unix development headers (gio-unix-2.0)")
-        if pkg-config --exists webkit2gtk-4.1; then
-            printf '%s\n' "Using WebKitGTK 4.1 ($(pkg-config --modversion webkit2gtk-4.1); Wails build tag: webkit2_41)."
-        elif pkg-config --exists webkit2gtk-4.0; then
-            printf '%s\n' "Using WebKitGTK 4.0 ($(pkg-config --modversion webkit2gtk-4.0))."
-        else
-            missing+=("WebKitGTK 4.1 or 4.0 development headers")
-        fi
+        pkg-config --exists webkitgtk-6.0 || missing+=("WebKitGTK 6.0 development headers (webkitgtk-6.0)")
     fi
 
     if ((${#missing[@]} == 0)); then
@@ -98,7 +91,7 @@ check_linux() {
     printf '%s\n' "Linux native build dependencies are missing:"
     printf '  - %s\n' "${missing[@]}"
     printf '%s\n' ""
-    printf '%s\n' "Figaro uses Wails v2's GTK3 backend. WebKitGTK 4.1 is preferred; 4.0 is also supported."
+    printf '%s\n' "Figaro uses Wails v3's GTK4 backend with WebKitGTK 6.0."
     printf '%s\n' "Install the matching packages for this system with:"
     print_linux_hint
     printf '%s\n' ""

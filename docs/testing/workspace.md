@@ -752,6 +752,30 @@ npx playwright test \
   tests/e2e/tabBufferOwnership.spec.js
 ```
 
+## Desktop bridge and in-app update regressions
+
+- `tests/frontend/unit/wailsRuntime.test.js` owns the adapter that exposes the
+  Wails v3 runtime as `window.go.desktop.App` and `window.runtime`, only inside
+  the desktop webview.
+- `internal/desktop/asset_routes_test.go` owns the native-bridge guard: the
+  request shapes WebKitGTK sends from Figaro's document pass, and the hosted
+  Draw.io frame, the sandboxed PDF preview, look-alike hosts, and calls without
+  the runtime client header are refused before Wails dispatches them.
+- `internal/updates/updates_test.go` owns update-archive names, asset matching,
+  published platforms, and version parsing.
+- `internal/desktop/app_updates_test.go` owns the opt-in default, the startup
+  check, and each Settings state through a fake updater.
+- `internal/desktop/app_updates_github_test.go` drives the real Wails updater
+  against a fake GitHub API: it stages only the verified single-entry update
+  archive, rejects a checksum mismatch, and reports a newer release without an
+  update archive as an error.
+- `tests/frontend/unit/updateSettings.test.js` owns the Updates card and the
+  two consent prompts before downloading and restarting.
+
+The restart swap itself, Windows and macOS packaging, and a check against the
+real GitHub API stay manual: run them on a packaged build before relying on an
+update path.
+
 ## File revision continuity
 
 `state.test.js` exercises real `recordTabEdit`/`recordTabContent` publications with

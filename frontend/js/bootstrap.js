@@ -1,3 +1,4 @@
+import { installWailsRuntime } from './wailsRuntime.js';
 import { startupTimings } from './startupDiagnostics.js';
 import { hasBackend, installDebugBackend } from './backend.js';
 import { initApp } from './app.js';
@@ -9,6 +10,7 @@ import { createBackendStub } from './backendContract.js';
 let bootTries = 0;
 let bootStarted = false;
 
+installWailsRuntime();
 initTooltips();
 
 function startApp() {

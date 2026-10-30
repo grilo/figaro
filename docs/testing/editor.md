@@ -18,12 +18,9 @@ Windows keyboard layout, or native dead-key composition. Their names and
 comments must describe that simulated boundary rather than claiming
 Windows-native coverage.
 
-The dependency contract pins the application to Wails v2.14 and replaces its
-runtime module with `github.com/grilo/wails/v2` tag `v2.14.0-figaro.1`. That
-fork carries the native regression which distinguishes AltGr's Ctrl+Right-Alt
-state from ordinary Left-Alt accelerators. The official v2.14 CLI remains the
-build driver; its application build consumes the replacement declared by
-Figaro's `go.mod`.
+`TestWailsV3NeedsNoForkedHost` keeps `go.mod` on upstream Wails v3 without a
+replacement. Wails v3 consumes only Windows accelerators bound to a menu item
+or key binding, and Figaro registers none, so AltGr chords reach WebView2.
 
 Synthetic Chromium events cannot activate the operating system's Spanish
 layout. Before a Windows release, repeat the irreducible packaged WebView2

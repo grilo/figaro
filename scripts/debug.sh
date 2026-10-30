@@ -4,14 +4,12 @@ cd "$(dirname "$0")/.."
 
 echo "=== figaro Debug Mode ==="
 
-# Ensure wails is in PATH
-export PATH="$HOME/go/bin:$PATH"
 # This script is an explicit development entry point, so opt in to the
 # loopback-only WebKit inspector without exposing it in normal app launches.
 export FIGARO_WEBKIT_INSPECTOR="${FIGARO_WEBKIT_INSPECTOR:-1}"
 
 # A clean checkout intentionally omits generated browser modules and icon
-# derivatives. Prepare them before either the static server or Wails starts.
+# derivatives. Prepare them before either the static server or Figaro starts.
 make ensure-frontend-assets ensure-icons
 
 # Start Go file server for browser DevTools
@@ -25,7 +23,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 sleep 1
 
-# Start Wails dev mode
-echo "[2/2] Starting Wails dev mode ..."
+# A non-production Wails v3 build serves the frontend from this dev server,
+# so edits to frontend files are picked up on reload.
+echo "[2/2] Starting Figaro against the dev server ..."
 echo "       Open http://localhost:34115 in your browser for DevTools"
-wails dev
+FRONTEND_DEVSERVER_URL="http://localhost:34115" go run .

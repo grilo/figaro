@@ -3,8 +3,6 @@ package desktop
 import (
 	"context"
 	"sync"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // runtimeBridge owns Wails lifecycle readiness and event delivery. Keeping it
@@ -16,11 +14,21 @@ type runtimeBridge struct {
 	ready        bool
 	focusPending bool
 	emitOverride func(name string, data ...any)
+	emitNative   func(name string, data ...any)
 	showWindow   func(context.Context)
 }
 
 func newRuntimeBridge(showWindow func(context.Context)) *runtimeBridge {
 	return &runtimeBridge{showWindow: showWindow}
+}
+
+// attachNative connects the bridge to the composition root's window focus and
+// event bus before the application runs.
+func (r *runtimeBridge) attachNative(showWindow func(context.Context), emit func(name string, data ...any)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.showWindow = showWindow
+	r.emitNative = emit
 }
 
 func (r *runtimeBridge) start(ctx context.Context) {
@@ -71,13 +79,14 @@ func (r *runtimeBridge) emit(name string, data ...any) {
 	ctx := r.ctx
 	ready := r.ready
 	override := r.emitOverride
+	native := r.emitNative
 	r.mu.RUnlock()
 	if override != nil {
 		override(name, data...)
 		return
 	}
-	if ctx != nil && ready {
-		runtime.EventsEmit(ctx, name, data...)
+	if ctx != nil && ready && native != nil {
+		native(name, data...)
 	}
 }
 

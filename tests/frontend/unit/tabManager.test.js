@@ -674,13 +674,14 @@ describe('Tab Manager', () => {
             expect(columns).toHaveLength(2);
             expect(columns.map(column => column.dataset.settingsGroup)).toEqual(['writing', 'workspace']);
             expect(titles(columns[0])).toEqual(['Appearance', 'Editor']);
-            expect(titles(columns[1])).toEqual(['Kanban', 'Automation', 'PDF Export', 'Vault care', 'About']);
+            expect(titles(columns[1])).toEqual(['Kanban', 'Automation', 'PDF Export', 'Updates', 'Vault care', 'About']);
             expect(titles(grid)).toEqual([
                 'Appearance',
                 'Editor',
                 'Kanban',
                 'Automation',
                 'PDF Export',
+                'Updates',
                 'Vault care',
                 'About',
             ]);
