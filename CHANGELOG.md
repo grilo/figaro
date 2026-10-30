@@ -8,6 +8,10 @@ remain as originally published.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.46.2] - 2026-10-31
+
 ### Fixed
 
 - Figaro is now built with Go 1.26.10, which fixes security advisories in the
@@ -2543,7 +2547,8 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.46.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.46.2...HEAD
+[1.46.2]: https://github.com/grilo/figaro/compare/v1.46.1...v1.46.2
 [1.46.1]: https://github.com/grilo/figaro/compare/v1.46.0...v1.46.1
 [1.46.0]: https://github.com/grilo/figaro/compare/v1.45.0...v1.46.0
 [1.45.0]: https://github.com/grilo/figaro/compare/v1.44.0...v1.45.0
