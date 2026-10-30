@@ -921,6 +921,10 @@ npm run test:unit -- --runTestsByPath \
 npx playwright test tests/e2e/pdfExport.spec.js
 ```
 
+CI's dependency audit runs the production npm audit and `govulncheck`; release
+verification repeats only `govulncheck`
+([release process](../CONTRIBUTING.md#release-process)).
+
 The dependency-policy contract also locks Babel 8 to its exact Node engine
 floor, proves the Jest 30 syntax-preset compatibility copy is inert under Babel
 8 while its Babel 7 plugins resolve a nested core, and verifies that the tracked

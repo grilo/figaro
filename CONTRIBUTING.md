@@ -502,6 +502,10 @@ of resuming the chosen one.
 Both local release verification and tag CI run `node scripts/profile-writing.mjs`
 to check combined native/JavaScript editorial outcomes. A mismatch stops local
 finalization before commit/tag creation and stops tag CI before publication.
+Local release verification also runs the CI dependency audit's
+`govulncheck` scan, so a reachable Go standard-library or module advisory stops
+finalization before a tag exists; the scan needs network access to the Go
+vulnerability database.
 The browser check downloads Playwright's pinned Chromium if necessary, but does
 not install system packages or request elevated privileges.
 `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
@@ -537,7 +541,7 @@ embedded Vale module is tested separately without executable preparation. All
 platform tests and builds must pass before the publication job can run; a Windows binary compiling
 successfully is not proof
 that Windows behavior passed. Also inspect the ordinary CI run for the same commit
-when reporting release health, since it includes checks such as the dependency
+when reporting release health, since it includes checks such as the npm dependency
 audit beyond the tag workflow. Local release verification tests the current host;
 cross-compiling does not replace these native platform runs.
 

@@ -16,6 +16,9 @@ The 2026-09-05 reference profile used:
   one backlink per note
 - Linux amd64 with Go 1.26.6 and Playwright Chromium 151.0.7922.34
 
+Figaro now requires Go 1.26.10, a security patch release; the profile has not
+been rerun on it, so treat these figures as the 1.26.6 baseline.
+
 The Go profile uses the real root-scoped filesystem, Git history adapter, and
 desktop application methods. The browser profile supplies the same planned
 10,000-item payloads to the real frontend so it can isolate DOM, layout,
