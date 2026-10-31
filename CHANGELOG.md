@@ -8,6 +8,10 @@ remain as originally published.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.46.3] - 2026-10-31
+
 ### Added
 
 - Vim mode supports `gcc` (and `gc` with a motion) to toggle line comments in
@@ -2568,7 +2572,8 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.46.2...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.46.3...HEAD
+[1.46.3]: https://github.com/grilo/figaro/compare/v1.46.2...v1.46.3
 [1.46.2]: https://github.com/grilo/figaro/compare/v1.46.1...v1.46.2
 [1.46.1]: https://github.com/grilo/figaro/compare/v1.46.0...v1.46.1
 [1.46.0]: https://github.com/grilo/figaro/compare/v1.45.0...v1.46.0
