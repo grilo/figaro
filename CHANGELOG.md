@@ -23,6 +23,11 @@ remain as originally published.
 - Windows AltGr shortcuts and dead keys now work without a patched copy of the
   desktop framework.
 
+### Fixed
+
+- **Settings → PDF Export** no longer shows **Use automatic** while Figaro is
+  already detecting the browser automatically.
+
 ## [1.46.0] - 2026-10-30
 
 ### Added

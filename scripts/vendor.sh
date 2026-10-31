@@ -252,6 +252,18 @@ cp "$TEMP_DIR/node_modules/@mermaid-js/examples/LICENSE" "$VENDOR_DIR/mermaid-ex
 cd - > /dev/null
 rm -rf "$TEMP_DIR"
 
+# The Wails runtime must match the nightly pinned by go.mod, so it is copied
+# from the locked root dependencies rather than the latest-version install.
+echo "Vendoring @wailsio/runtime from the locked dependencies..."
+WAILS_RUNTIME_DIST="$(pwd)/node_modules/@wailsio/runtime/dist"
+if [ ! -f "$WAILS_RUNTIME_DIST/index.js" ]; then
+    echo "Missing $WAILS_RUNTIME_DIST; run npm ci first." >&2
+    exit 1
+fi
+rm -rf "$VENDOR_DIR/@wailsio/runtime"
+mkdir -p "$VENDOR_DIR/@wailsio/runtime"
+cp "$WAILS_RUNTIME_DIST"/*.js "$VENDOR_DIR/@wailsio/runtime/"
+
 echo "Creating import map for local modules..."
 cat > "$VENDOR_DIR/importmap.json" << 'EOF'
 {
@@ -307,6 +319,7 @@ cat > "$VENDOR_DIR/importmap.json" << 'EOF'
     "@lezer/yaml": "./lezer/yaml/index.js",
     "@marijn/find-cluster-break": "./@marijn/find-cluster-break/index.js",
     "crelt": "./crelt/index.js",
+    "@wailsio/runtime": "./@wailsio/runtime/index.js",
     "w3c-keyname": "./w3c-keyname/index.js",
     "style-mod": "./style-mod/index.js",
     "@uiw/codemirror-extensions-color": "./@uiw/codemirror-extensions-color/index.js",

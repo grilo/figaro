@@ -529,7 +529,10 @@ test('preserves the active buffer cursor and first-frame horizontal layout when 
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.settings-panel-tab')).toBeVisible();
     await expect(page.locator('.settings-view-title')).toBeFocused();
-    await expect(page.locator('.settings-card > h2.settings-card-title')).toHaveCount(7);
+    await expect(page.locator('.settings-card > h2.settings-card-title')).toHaveCount(8);
+    // Optional actions use the hidden attribute; .ui-button must not reveal them as empty buttons.
+    await expect(page.locator('#pdf-browser-clear')).toBeHidden();
+    await expect(page.locator('#update-action')).toBeHidden();
 
     // Actual cutout paint, bounded modal scrolling and focus handoff need a browser.
     for (const title of ['Navigation', 'Vim Mode', 'Pure mode']) {

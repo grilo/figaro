@@ -116,6 +116,9 @@
     gap: 7px;
 }
 
+/* .ui-button sets display, which would otherwise override [hidden]. */
+.pdf-browser-actions [hidden] { display: none; }
+
 .vault-health-setting,
 .startup-logs-setting {
     align-items: start;

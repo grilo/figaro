@@ -2541,7 +2541,7 @@ function renderSettingsTab(panel, _tab) {
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <p id="update-checks-description" class="settings-section-desc">Off by default. When on, Figaro asks GitHub Releases for a newer version at launch. It never downloads or restarts without asking.</p>
+                    <p id="update-checks-description" class="settings-section-desc">Off by default. Figaro never downloads or restarts without asking.</p>
                 </div>
                 <div class="settings-section pdf-browser-setting update-setting">
                     <div class="pdf-browser-setting-copy">

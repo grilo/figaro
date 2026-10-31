@@ -88,4 +88,36 @@ describe('vendored browser security policy', () => {
             expect([name, [...specifiers].filter(specifier => !mapped(imports)(specifier))]).toEqual([name, []]);
         }
     });
+
+    test('maps every package the unbundled application modules import', () => {
+        // The dev server (browser debugging and the Playwright suite) loads
+        // frontend/js/bootstrap.js without the bundler, so a package such as
+        // @wailsio/runtime that only Jest and esbuild can resolve stops startup.
+        const index = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
+        const imports = JSON.parse(index.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]).imports;
+        const moduleSpecifiers = /^\s*(?:import|export)\b[^'"]*?\bfrom\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]/gm;
+        const specifiers = new Set();
+        const pending = [path.resolve('frontend/js/bootstrap.js')];
+        const visited = new Set();
+        while (pending.length) {
+            const file = pending.pop();
+            if (visited.has(file)) continue;
+            visited.add(file);
+            for (const match of fs.readFileSync(file, 'utf8').matchAll(moduleSpecifiers)) {
+                const specifier = match[1] || match[2];
+                if (specifier.startsWith('.')) pending.push(path.resolve(path.dirname(file), specifier));
+                else if (!specifier.startsWith('/')) specifiers.add(specifier);
+            }
+        }
+        expect(specifiers.has('@wailsio/runtime')).toBe(true);
+        const unmapped = [...specifiers].filter(specifier => !(specifier in imports)
+            && !Object.keys(imports).some(prefix => prefix.endsWith('/') && specifier.startsWith(prefix)));
+        expect(unmapped).toEqual([]);
+        for (const specifier of specifiers.values()) {
+            const target = imports[specifier];
+            if (target?.startsWith('/vendored/')) {
+                expect([specifier, fs.existsSync(path.resolve('frontend', target.slice(1)))]).toEqual([specifier, true]);
+            }
+        }
+    });
 });

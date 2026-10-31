@@ -69,6 +69,7 @@ required_vendor_files=(
     frontend/vendored/markdown-it-plugins/index.js
     frontend/vendored/katex/dist/katex.min.js
     frontend/vendored/lucide/lucide.min.js
+    frontend/vendored/@wailsio/runtime/index.js
 )
 needs_vendor=false
 if [[ "${FIGARO_FORCE_VENDOR:-}" == "1" ]]; then

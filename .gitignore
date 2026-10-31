@@ -9,6 +9,7 @@ Thumbs.db
 /tools/babel-preset-current-node-syntax/node_modules/
 /frontend/vendored/@marijn/
 /frontend/vendored/@uiw/
+/frontend/vendored/@wailsio/
 /frontend/vendored/codemirror/
 /frontend/vendored/crelt/
 /frontend/vendored/importmap.json

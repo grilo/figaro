@@ -771,6 +771,9 @@ npx playwright test \
   update archive as an error.
 - `tests/frontend/unit/updateSettings.test.js` owns the Updates card and the
   two consent prompts before downloading and restarting.
+- The Settings test in `tests/e2e/editorUX.spec.js` owns that hidden
+  Settings actions (**Use automatic**, the update action) stay hidden in a real
+  browser, where `.ui-button` would otherwise override `[hidden]`.
 
 The restart swap itself, Windows and macOS packaging, and a check against the
 real GitHub API stay manual: run them on a packaged build before relying on an

@@ -47,7 +47,7 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
     await expect(page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node')).toHaveClass(/selected/);
     await page.locator('#topbar-settings').click();
-    await expect(page.locator('.settings-card')).toHaveCount(7);
+    await expect(page.locator('.settings-card')).toHaveCount(8);
     await expect(page.locator('#theme-picker-menu .theme-picker-item')).toHaveCount(18);
     await page.locator('#theme-picker-btn').click();
     await page.getByRole('option', { name: 'Figaro CRT Phosphor', exact: true }).click();
@@ -76,7 +76,7 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
     expect(wideSettingsLayout.columnCount).toBe(2);
     expect(wideSettingsLayout.titles).toEqual([
         ['Appearance', 'Editor'],
-        ['Kanban', 'Automation', 'PDF Export', 'Vault care', 'About'],
+        ['Kanban', 'Automation', 'PDF Export', 'Updates', 'Vault care', 'About'],
     ]);
     expect(wideSettingsLayout.columnBoxes[0].x).toBeLessThan(wideSettingsLayout.columnBoxes[1].x);
     expect(wideSettingsLayout.appearance.height).toBeLessThan(wideSettingsLayout.editor.height);
