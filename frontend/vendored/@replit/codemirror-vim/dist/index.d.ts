@@ -5,353 +5,6 @@ import { SearchQuery } from '@codemirror/search';
 import { ChangeDesc, EditorSelection, Extension } from '@codemirror/state';
 import { EditorView, ViewUpdate } from '@codemirror/view';
 
-declare function initVim(CM: typeof CodeMirror): {
-	enterVimMode: (cm: CodeMirror) => void;
-	leaveVimMode: (cm: CodeMirror) => void;
-	buildKeyMap: () => void;
-	getRegisterController: () => {
-		registers: {
-			[x: string]: {
-				keyBuffer: string[];
-				/** @type {InsertModeChanges[]} */
-				insertModeChanges: InsertModeChanges[];
-				/** @type {string[]}*/
-				searchQueries: string[];
-				linewise: boolean;
-				blockwise: boolean;
-				/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
-				setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
-				/** @arg {string} text @arg {boolean} [linewise] */
-				pushText(text: string, linewise?: boolean): void;
-				/** @arg {InsertModeChanges} changes */
-				pushInsertModeChanges(changes: InsertModeChanges): void;
-				/** @arg {string} query */
-				pushSearchQuery(query: string): void;
-				clear(): void;
-				toString(): string;
-			};
-		};
-		unnamedRegister: {
-			keyBuffer: string[];
-			/** @type {InsertModeChanges[]} */
-			insertModeChanges: InsertModeChanges[];
-			/** @type {string[]}*/
-			searchQueries: string[];
-			linewise: boolean;
-			blockwise: boolean;
-			/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
-			setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
-			/** @arg {string} text @arg {boolean} [linewise] */
-			pushText(text: string, linewise?: boolean): void;
-			/** @arg {InsertModeChanges} changes */
-			pushInsertModeChanges(changes: InsertModeChanges): void;
-			/** @arg {string} query */
-			pushSearchQuery(query: string): void;
-			clear(): void;
-			toString(): string;
-		};
-		/**
-		 * @param {string | null | undefined} registerName
-		 * @param {string} operator
-		 * @param {string} text
-		 * @param {boolean} [linewise]
-		 * @param {boolean} [blockwise]
-		 */
-		pushText(registerName: string | null | undefined, operator: string, text: string, linewise?: boolean, blockwise?: boolean): void;
-		/**
-		 * Gets the register named @name.  If one of @name doesn't already exist,
-		 * create it.  If @name is invalid, return the unnamedRegister.
-		 * @arg {string} [name]
-		 */
-		getRegister(name?: string): {
-			keyBuffer: string[];
-			/** @type {InsertModeChanges[]} */
-			insertModeChanges: InsertModeChanges[];
-			/** @type {string[]}*/
-			searchQueries: string[];
-			linewise: boolean;
-			blockwise: boolean;
-			/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
-			setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
-			/** @arg {string} text @arg {boolean} [linewise] */
-			pushText(text: string, linewise?: boolean): void;
-			/** @arg {InsertModeChanges} changes */
-			pushInsertModeChanges(changes: InsertModeChanges): void;
-			/** @arg {string} query */
-			pushSearchQuery(query: string): void;
-			clear(): void;
-			toString(): string;
-		};
-		isValidRegister(name: any): name is string;
-		shiftNumericRegisters_(): void;
-	};
-	resetVimGlobalState_: () => void;
-	getVimGlobalState_: () => {
-		macroModeState: {
-			latestRegister: string | undefined;
-			isPlaying: boolean;
-			isRecording: boolean;
-			/** @type {string[]}*/
-			replaySearchQueries: string[];
-			onRecordingDone: ((newVal?: string) => void) | undefined;
-			lastInsertModeChanges: InsertModeChanges;
-			exitMacroRecordMode(): void;
-			/**
-			 * @arg {CodeMirror} cm
-			 * @arg {string} registerName
-			 */
-			enterMacroRecordMode(cm: CodeMirror, registerName: string): void;
-		};
-		registerController: {
-			registers: {
-				[x: string]: {
-					keyBuffer: string[];
-					/** @type {InsertModeChanges[]} */
-					insertModeChanges: InsertModeChanges[];
-					/** @type {string[]}*/
-					searchQueries: string[];
-					linewise: boolean;
-					blockwise: boolean;
-					/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
-					setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
-					/** @arg {string} text @arg {boolean} [linewise] */
-					pushText(text: string, linewise?: boolean): void;
-					/** @arg {InsertModeChanges} changes */
-					pushInsertModeChanges(changes: InsertModeChanges): void;
-					/** @arg {string} query */
-					pushSearchQuery(query: string): void;
-					clear(): void;
-					toString(): string;
-				};
-			};
-			unnamedRegister: {
-				keyBuffer: string[];
-				/** @type {InsertModeChanges[]} */
-				insertModeChanges: InsertModeChanges[];
-				/** @type {string[]}*/
-				searchQueries: string[];
-				linewise: boolean;
-				blockwise: boolean;
-				/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
-				setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
-				/** @arg {string} text @arg {boolean} [linewise] */
-				pushText(text: string, linewise?: boolean): void;
-				/** @arg {InsertModeChanges} changes */
-				pushInsertModeChanges(changes: InsertModeChanges): void;
-				/** @arg {string} query */
-				pushSearchQuery(query: string): void;
-				clear(): void;
-				toString(): string;
-			};
-			/**
-			 * @param {string | null | undefined} registerName
-			 * @param {string} operator
-			 * @param {string} text
-			 * @param {boolean} [linewise]
-			 * @param {boolean} [blockwise]
-			 */
-			pushText(registerName: string | null | undefined, operator: string, text: string, linewise?: boolean, blockwise?: boolean): void;
-			/**
-			 * Gets the register named @name.  If one of @name doesn't already exist,
-			 * create it.  If @name is invalid, return the unnamedRegister.
-			 * @arg {string} [name]
-			 */
-			getRegister(name?: string): {
-				keyBuffer: string[];
-				/** @type {InsertModeChanges[]} */
-				insertModeChanges: InsertModeChanges[];
-				/** @type {string[]}*/
-				searchQueries: string[];
-				linewise: boolean;
-				blockwise: boolean;
-				/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
-				setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
-				/** @arg {string} text @arg {boolean} [linewise] */
-				pushText(text: string, linewise?: boolean): void;
-				/** @arg {InsertModeChanges} changes */
-				pushInsertModeChanges(changes: InsertModeChanges): void;
-				/** @arg {string} query */
-				pushSearchQuery(query: string): void;
-				clear(): void;
-				toString(): string;
-			};
-			isValidRegister(name: any): name is string;
-			shiftNumericRegisters_(): void;
-		};
-		searchHistoryController: {
-			/**@type {string[]} */
-			historyBuffer: string[];
-			iterator: number;
-			initialPrefix: string | null;
-			/**
-			 * the input argument here acts a user entered prefix for a small time
-			 * until we start autocompletion in which case it is the autocompleted.
-			 * @arg {string} input
-			 * @arg {boolean} up
-			 */
-			nextMatch(input: string, up: boolean): string | undefined;
-			/** @arg {string} input */
-			pushInput(input: string): void;
-			reset(): void;
-		};
-		jumpList: ReturnType<() => {
-			/**@type{Pos|undefined} */
-			cachedCursor: Pos | undefined;
-			add: (cm: CodeMirror, oldCur: Pos, newCur: Pos) => void;
-			find: (cm: CodeMirror, offset: number) => {
-				line: number;
-				ch: number;
-				sticky?: string;
-			} | null | undefined;
-			move: (cm: CodeMirror, offset: number) => {
-				cm: CodeMirror;
-				id: number;
-				offset: number | null;
-				assoc: number;
-				clear(): void;
-				find(): {
-					line: number;
-					ch: number;
-					sticky?: string;
-				} | null;
-				update(change: import("@codemirror/state").ChangeDesc): void;
-			} | undefined;
-		}>;
-		exCommandHistoryController: {
-			/**@type {string[]} */
-			historyBuffer: string[];
-			iterator: number;
-			initialPrefix: string | null;
-			/**
-			 * the input argument here acts a user entered prefix for a small time
-			 * until we start autocompletion in which case it is the autocompleted.
-			 * @arg {string} input
-			 * @arg {boolean} up
-			 */
-			nextMatch(input: string, up: boolean): string | undefined;
-			/** @arg {string} input */
-			pushInput(input: string): void;
-			reset(): void;
-		};
-		lastCharacterSearch: {
-			increment: number;
-			forward: boolean;
-			selectedCharacter: string;
-		};
-		query?: any;
-		isReversed?: boolean;
-		lastSubstituteReplacePart: any;
-		searchQuery?: null;
-		searchIsReversed?: boolean;
-	};
-	maybeInitVimState_: (cm: CodeMirror) => vimState;
-	suppressErrorLogging: boolean;
-	InsertModeKey: {
-		new (keyName: string, e: KeyboardEvent): {
-			keyName: string;
-			key: string;
-			ctrlKey: boolean;
-			altKey: boolean;
-			metaKey: boolean;
-			shiftKey: boolean;
-		};
-	};
-	/**@type {(lhs: string, rhs: string, ctx: string) => void} */
-	map: (lhs: string, rhs: string, ctx: string) => void;
-	/**@type {(lhs: string, ctx: string) => any} */
-	unmap: (lhs: string, ctx: string) => any;
-	/**@type {(lhs: string, rhs: string, ctx: string) => void} */
-	noremap: (lhs: string, rhs: string, ctx: string) => void;
-	/**@arg {string} [ctx]} */
-	mapclear: (ctx?: string) => void;
-	langmap: (langmapString: any, remapCtrl: any) => void;
-	vimKeyFromEvent: (e: KeyboardEvent, vim?: vimState) => string | undefined;
-	setOption: (name: string, value: any, cm?: CodeMirrorV, cfg?: {
-		scope?: any;
-	} | undefined) => Error | undefined;
-	getOption: (name: string, cm?: CodeMirrorV, cfg?: {
-		scope?: any;
-	} | undefined) => any;
-	defineOption: {
-		/**
-		 * @overload
-		 * @arg {string} name
-		 * @arg {boolean|null|undefined} defaultValue
-		 * @arg {'boolean'} type
-		 * @arg {string[]|null} [aliases]
-		 * @arg {import("./types").booleanOptionCallback} [callback]
-		 * @returns {void}
-		 */
-		(name: string, defaultValue: boolean | null | undefined, type: "boolean", aliases?: string[] | null | undefined, callback?: booleanOptionCallback | undefined): void;
-		/**
-		 * @overload
-		 * @arg {string} name
-		 * @arg {number|null|undefined} defaultValue
-		 * @arg {'number'} type
-		 * @arg {string[]|null} [aliases]
-		 * @arg {import("./types").numberOptionCallback} [callback]
-		 * @returns {void}
-		 */
-		(name: string, defaultValue: number | null | undefined, type: "number", aliases?: string[] | null | undefined, callback?: numberOptionCallback | undefined): void;
-		/**
-		 * @overload
-		 * @arg {string} name
-		 * @arg {string|null|undefined} defaultValue
-		 * @arg {'string'} type
-		 * @arg {string[]|null} [aliases]
-		 * @arg {import("./types").stringOptionCallback} [callback]
-		 * @returns {void}
-		 */
-		(name: string, defaultValue: string | null | undefined, type: "string", aliases?: string[] | null | undefined, callback?: stringOptionCallback | undefined): void;
-	};
-	/**@type {(name: string, prefix: string|undefined, func: ExFn) => void} */
-	defineEx: (name: string, prefix: string | undefined, func: ExFn) => void;
-	/**@type {(cm: CodeMirror, key: string, origin: string) => undefined | boolean} */
-	handleKey: (cm: CodeMirror, key: string, origin: string) => undefined | boolean;
-	multiSelectHandleKey: (cm_: CodeMirror, key: string, origin: string) => boolean | undefined;
-	/**
-	 * This is the outermost function called by CodeMirror, after keys have
-	 * been mapped to their Vim equivalents.
-	 *
-	 * Finds a command based on the key (and cached keys if there is a
-	 * multi-key sequence). Returns `undefined` if no key is matched, a noop
-	 * function if a partial match is found (multi-key), and a function to
-	 * execute the bound command if a a key is matched. The function always
-	 * returns true.
-	 */
-	/**@type {(cm_: CodeMirror, key: string, origin?: string| undefined) => (() => boolean|undefined) | undefined} */
-	findKey: (cm_: CodeMirror, key: string, origin?: string | undefined) => (() => boolean | undefined) | undefined;
-	/**@type {(cm: CodeMirrorV, input: string)=>void} */
-	handleEx: (cm: CodeMirrorV, input: string) => void;
-	defineMotion: (name: string, fn: MotionFn) => void;
-	defineAction: (name: string, fn: ActionFn) => void;
-	defineOperator: (name: string, fn: OperatorFn) => void;
-	mapCommand: (keys: string, type: string, name: string, args: any, extra: {
-		[x: string]: any;
-	}) => void;
-	_mapCommand: (command: vimKey) => void;
-	defineRegister: (name: string, register: {
-		keyBuffer: string[];
-		/** @type {InsertModeChanges[]} */
-		insertModeChanges: InsertModeChanges[];
-		/** @type {string[]}*/
-		searchQueries: string[];
-		linewise: boolean;
-		blockwise: boolean;
-		/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
-		setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
-		/** @arg {string} text @arg {boolean} [linewise] */
-		pushText(text: string, linewise?: boolean): void;
-		/** @arg {InsertModeChanges} changes */
-		pushInsertModeChanges(changes: InsertModeChanges): void;
-		/** @arg {string} query */
-		pushSearchQuery(query: string): void;
-		clear(): void;
-		toString(): string;
-	}) => void;
-	exitVisualMode: (cm: CodeMirrorV, moveHead?: boolean) => void;
-	exitInsertMode: (cm: CodeMirrorV, keepCursor?: boolean) => void;
-};
 export type Vim = ReturnType<typeof initVim>;
 export type vimState = {
 	onPasteFn?: () => void;
@@ -396,7 +49,19 @@ export type vimState = {
 	mode?: string;
 	expectLiteralNext?: boolean;
 };
-export type Marker = ReturnType<CodeMirror["setBookmark"]>;
+export interface Marker {
+	cm: CM5EditorInterface;
+	id: number;
+	offset: number | null;
+	assoc: number;
+	clear(): void;
+	find(): Pos | null;
+	update(change: any): void;
+}
+export type LineHandle = {
+	row: number;
+	index: number;
+};
 export type Pos = {
 	line: number;
 	ch: number;
@@ -430,7 +95,7 @@ export type OperatorArgs = {
 	};
 	keepCursor?: boolean;
 };
-export type CodeMirrorV = CodeMirror & {
+export type CodeMirrorV = CM5EditorInterface & {
 	state: {
 		vim: vimState;
 	};
@@ -485,10 +150,10 @@ export type MotionFn = (cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs, vim:
 	Pos,
 	Pos
 ] | null | undefined;
-export type optionCallback = (value?: string | undefined, cm?: CodeMirror) => any;
-export type booleanOptionCallback = (value?: boolean, cm?: CodeMirror) => any;
-export type numberOptionCallback = (value?: number, cm?: CodeMirror) => any;
-export type stringOptionCallback = (value?: string, cm?: CodeMirror) => any;
+export type optionCallback = (value?: string | undefined, cm?: CM5EditorInterface) => any;
+export type booleanOptionCallback = (value?: boolean, cm?: CM5EditorInterface) => any;
+export type numberOptionCallback = (value?: number, cm?: CM5EditorInterface) => any;
+export type stringOptionCallback = (value?: string, cm?: CM5EditorInterface) => any;
 export type vimOption = {
 	type?: string;
 	defaultValue?: unknown;
@@ -617,6 +282,554 @@ export type ExParams = {
 	setCfg?: Object;
 	callback?: () => void;
 };
+/**
+ * The editor API the vim engine drives. This is the CM5-style editor
+ * interface; @replit/codemirror-vim's adapter implements it on top of
+ * CM5EditorInterface 6, and cm5-vim binds it to a real CM5EditorInterface 5 instance.
+ */
+export interface CM5EditorInterface {
+	state: {
+		statusbar?: Element | null;
+		dialog?: HTMLElement | null;
+		vimPlugin?: any;
+		vim?: vimState | null;
+		currentNotificationClose?: Function | null;
+		closeVimNotification?: Function | null;
+		keyMap?: string;
+		overwrite?: boolean;
+		textwidth?: number;
+	};
+	marks: Record<string, Marker>;
+	$mid: number;
+	curOp: {
+		$d: number;
+		isVimOp?: boolean;
+		cursorActivityHandlers?: Function[];
+		cursorActivity?: boolean;
+		lastChange?: any;
+		change?: any;
+		changeHandlers?: Function[];
+		$changeStart?: number;
+	} | null | undefined;
+	options: any;
+	_handlers: any;
+	/** the host editor instance the adapter wraps (an EditorView for CM5EditorInterface 6) */
+	cm6: any;
+	openDialog(template: Element, callback: Function | undefined, options: any): (newVal?: string) => void;
+	openNotification(template: Node, options: {
+		bottom?: boolean;
+		duration?: number;
+	}): () => void;
+	on(type: string, f: Function): void;
+	off(type: string, f: Function): void;
+	signal(type: string, e: any, handlers?: any): void;
+	indexFromPos(pos: Pos): number;
+	posFromIndex(offset: number): Pos;
+	foldCode(pos: Pos): void;
+	firstLine(): number;
+	lastLine(): number;
+	lineCount(): number;
+	setCursor(line: number, ch: number): void;
+	setCursor(line: Pos): void;
+	getCursor(p?: "head" | "anchor" | "start" | "end"): Pos;
+	listSelections(): {
+		anchor: Pos;
+		head: Pos;
+	}[];
+	setSelections(p: CM5RangeInterface[], primIndex?: number): void;
+	setSelection(anchor: Pos, head: Pos, options?: any): void;
+	getLine(row: number): string;
+	getLineHandle(row: number): LineHandle;
+	getLineNumber(handle: any): number | null;
+	releaseLineHandles(): void;
+	getRange(s: Pos, e: Pos): string;
+	replaceRange(text: string, s: Pos, e?: Pos, source?: string): void;
+	replaceSelection(text: string): void;
+	replaceSelections(replacements: string[]): void;
+	getSelection(): string;
+	getSelections(): string[];
+	somethingSelected(): boolean;
+	getInputField(): HTMLElement;
+	clipPos(p: Pos): Pos;
+	getValue(): string;
+	setValue(text: string): void;
+	focus(): void;
+	blur(): void;
+	defaultTextHeight(): number;
+	findMatchingBracket(pos: Pos, _options?: any): {
+		to: Pos;
+	} | {
+		to: undefined;
+	};
+	scanForBracket(pos: Pos, dir: 1 | -1, style: any, config: any): false | {
+		pos: Pos;
+		ch: string;
+	} | null;
+	indentLine(line: number, more?: boolean): void;
+	indentMore(): void;
+	indentLess(): void;
+	execCommand(name: string): void;
+	setBookmark(cursor: Pos, options?: {
+		insertLeft: boolean;
+	}): Marker;
+	addOverlay(overlay: {
+		query: RegExp;
+	}): any;
+	removeOverlay(overlay?: any): void;
+	getSearchCursor(query: RegExp, pos: Pos): {
+		findNext: () => string[] | null | undefined;
+		findPrevious: () => string[] | null | undefined;
+		find: (back?: boolean) => string[] | null | undefined;
+		from: () => Pos | undefined;
+		to: () => Pos | undefined;
+		replace: (text: string) => void;
+		readonly match: string[] | null;
+	};
+	findPosV(start: Pos, amount: number, unit: "page" | "line", goalColumn?: number): Pos & {
+		hitSide?: boolean;
+	};
+	charCoords(pos: Pos, mode: "div" | "local"): {
+		left: number;
+		top: number;
+		bottom: number;
+	};
+	coordsChar(coords: {
+		left: number;
+		top: number;
+	}, mode: "div" | "local"): Pos;
+	getScrollInfo(): {
+		left: number;
+		top: number;
+		height: number;
+		width: number;
+		clientHeight: number;
+		clientWidth: number;
+	};
+	scrollTo(x?: number | null, y?: number | null): void;
+	scrollIntoView(pos?: Pos, margin?: number): void;
+	getWrapperElement(): HTMLElement;
+	getMode(): {
+		name: string | number | boolean | undefined;
+	};
+	setSize(w: number, h: number): void;
+	refresh(): void;
+	destroy(): void;
+	getLastEditEnd(): Pos;
+	$lastChangeEndOffset: number;
+	$lineHandleChanges: any[] | undefined;
+	onChange(update: any): void;
+	onSelectionChange(): void;
+	operation<T>(fn: () => T, force?: boolean): T;
+	onBeforeEndOperation(): void;
+	moveH(increment: number, unit: string): void;
+	setOption(name: string, val: any): void;
+	getOption(name: "firstLineNumber" | "tabSize" | "textwidth"): number;
+	getOption(name: string): number | boolean | string | undefined;
+	toggleOverwrite(on: boolean): void;
+	getTokenTypeAt(pos: Pos): "" | "string" | "comment";
+	overWriteSelection(text: string): void;
+	isInMultiSelectMode(): boolean;
+	virtualSelectionMode(): boolean;
+	virtualSelection: any;
+	forEachSelection(command: Function): void;
+	hardWrap(options: {
+		from: number;
+		to: number;
+		column?: number;
+		allowMerge?: boolean;
+	}): number;
+	showMatchesOnScrollbar?: Function;
+	save?: Function;
+}
+/** The constructor-with-statics shape passed to initVim. */
+export interface CodeMirrorConstructor {
+	new (host: any): CM5EditorInterface;
+	isMac: boolean;
+	Pos: new (line: number, ch: number) => Pos;
+	StringStream: new (str: string) => StringStream$1;
+	commands: {
+		toggleLineComment: (cm: CM5EditorInterface) => void;
+		cursorCharLeft: (cm: CM5EditorInterface) => void;
+		redo: (cm: CM5EditorInterface) => void;
+		undo: (cm: CM5EditorInterface) => void;
+		newlineAndIndent: (cm: CM5EditorInterface) => void;
+		indentAuto: (cm: CM5EditorInterface) => void;
+		newlineAndIndentContinueComment: any;
+		save: any;
+	};
+	isWordChar: (ch: string) => boolean;
+	keys: any;
+	addClass: (el: any, str: string) => void;
+	rmClass: (el: any, str: string) => void;
+	e_preventDefault: (e: Event) => void;
+	e_stop: (e: Event) => void;
+	lookupKey: (key: string, map: string, handle: Function) => void;
+	on: (emitter: any, type: string, f: Function) => void;
+	off: (emitter: any, type: string, f: Function) => void;
+	signal: (emitter: any, type: string, ...args: any[]) => void;
+	findMatchingTag: (cm: CM5EditorInterface, pos: Pos) => any;
+	findEnclosingTag: (cm: CM5EditorInterface, pos: Pos) => {
+		open: {
+			from: Pos;
+			to: Pos;
+		};
+		close: {
+			from: Pos;
+			to: Pos;
+		};
+	} | undefined;
+	keyName?: Function;
+}
+interface StringStream$1 {
+	pos: number;
+	start: number;
+	string: string;
+	next(): string | void;
+	peek(): string | void;
+	eat(match: string | RegExp | ((ch: string) => boolean)): string | void;
+	eatWhile(match: string | RegExp | ((ch: string) => boolean)): boolean;
+	eatSpace(): boolean;
+	skipToEnd(): void;
+	skipTo(ch: string): boolean | void;
+	backUp(n: number): void;
+	column(): number;
+	indentation(): number;
+	match(pattern: string | RegExp, consume?: boolean, caseInsensitive?: boolean): boolean | RegExpMatchArray | null;
+	current(): string;
+	eol(): boolean;
+	sol(): boolean;
+}
+declare function initVim(CM: CodeMirrorConstructor): {
+	enterVimMode: (cm: CM5EditorInterface) => void;
+	leaveVimMode: (cm: CM5EditorInterface) => void;
+	buildKeyMap: () => void;
+	getRegisterController: () => {
+		registers: {
+			[x: string]: {
+				keyBuffer: string[];
+				/** @type {InsertModeChanges[]} */
+				insertModeChanges: InsertModeChanges[];
+				/** @type {string[]}*/
+				searchQueries: string[];
+				linewise: boolean;
+				blockwise: boolean;
+				/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
+				setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
+				/** @arg {string} text @arg {boolean} [linewise] */
+				pushText(text: string, linewise?: boolean): void;
+				/** @arg {InsertModeChanges} changes */
+				pushInsertModeChanges(changes: InsertModeChanges): void;
+				/** @arg {string} query */
+				pushSearchQuery(query: string): void;
+				clear(): void;
+				toString(): string;
+			};
+		};
+		unnamedRegister: {
+			keyBuffer: string[];
+			/** @type {InsertModeChanges[]} */
+			insertModeChanges: InsertModeChanges[];
+			/** @type {string[]}*/
+			searchQueries: string[];
+			linewise: boolean;
+			blockwise: boolean;
+			/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
+			setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
+			/** @arg {string} text @arg {boolean} [linewise] */
+			pushText(text: string, linewise?: boolean): void;
+			/** @arg {InsertModeChanges} changes */
+			pushInsertModeChanges(changes: InsertModeChanges): void;
+			/** @arg {string} query */
+			pushSearchQuery(query: string): void;
+			clear(): void;
+			toString(): string;
+		};
+		/**
+		 * @param {string | null | undefined} registerName
+		 * @param {string} operator
+		 * @param {string} text
+		 * @param {boolean} [linewise]
+		 * @param {boolean} [blockwise]
+		 */
+		pushText(registerName: string | null | undefined, operator: string, text: string, linewise?: boolean, blockwise?: boolean): void;
+		/**
+		 * Gets the register named @name.  If one of @name doesn't already exist,
+		 * create it.  If @name is invalid, return the unnamedRegister.
+		 * @arg {string} [name]
+		 */
+		getRegister(name?: string): {
+			keyBuffer: string[];
+			/** @type {InsertModeChanges[]} */
+			insertModeChanges: InsertModeChanges[];
+			/** @type {string[]}*/
+			searchQueries: string[];
+			linewise: boolean;
+			blockwise: boolean;
+			/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
+			setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
+			/** @arg {string} text @arg {boolean} [linewise] */
+			pushText(text: string, linewise?: boolean): void;
+			/** @arg {InsertModeChanges} changes */
+			pushInsertModeChanges(changes: InsertModeChanges): void;
+			/** @arg {string} query */
+			pushSearchQuery(query: string): void;
+			clear(): void;
+			toString(): string;
+		};
+		isValidRegister(name: any): name is string;
+		shiftNumericRegisters_(): void;
+	};
+	resetVimGlobalState_: () => void;
+	getVimGlobalState_: () => {
+		macroModeState: {
+			latestRegister: string | undefined;
+			isPlaying: boolean;
+			isRecording: boolean;
+			/** @type {string[]}*/
+			replaySearchQueries: string[];
+			onRecordingDone: ((newVal?: string) => void) | undefined;
+			lastInsertModeChanges: InsertModeChanges;
+			exitMacroRecordMode(): void;
+			/**
+			 * @arg {CodeMirror} cm
+			 * @arg {string} registerName
+			 */
+			enterMacroRecordMode(cm: CM5EditorInterface, registerName: string): void;
+		};
+		registerController: {
+			registers: {
+				[x: string]: {
+					keyBuffer: string[];
+					/** @type {InsertModeChanges[]} */
+					insertModeChanges: InsertModeChanges[];
+					/** @type {string[]}*/
+					searchQueries: string[];
+					linewise: boolean;
+					blockwise: boolean;
+					/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
+					setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
+					/** @arg {string} text @arg {boolean} [linewise] */
+					pushText(text: string, linewise?: boolean): void;
+					/** @arg {InsertModeChanges} changes */
+					pushInsertModeChanges(changes: InsertModeChanges): void;
+					/** @arg {string} query */
+					pushSearchQuery(query: string): void;
+					clear(): void;
+					toString(): string;
+				};
+			};
+			unnamedRegister: {
+				keyBuffer: string[];
+				/** @type {InsertModeChanges[]} */
+				insertModeChanges: InsertModeChanges[];
+				/** @type {string[]}*/
+				searchQueries: string[];
+				linewise: boolean;
+				blockwise: boolean;
+				/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
+				setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
+				/** @arg {string} text @arg {boolean} [linewise] */
+				pushText(text: string, linewise?: boolean): void;
+				/** @arg {InsertModeChanges} changes */
+				pushInsertModeChanges(changes: InsertModeChanges): void;
+				/** @arg {string} query */
+				pushSearchQuery(query: string): void;
+				clear(): void;
+				toString(): string;
+			};
+			/**
+			 * @param {string | null | undefined} registerName
+			 * @param {string} operator
+			 * @param {string} text
+			 * @param {boolean} [linewise]
+			 * @param {boolean} [blockwise]
+			 */
+			pushText(registerName: string | null | undefined, operator: string, text: string, linewise?: boolean, blockwise?: boolean): void;
+			/**
+			 * Gets the register named @name.  If one of @name doesn't already exist,
+			 * create it.  If @name is invalid, return the unnamedRegister.
+			 * @arg {string} [name]
+			 */
+			getRegister(name?: string): {
+				keyBuffer: string[];
+				/** @type {InsertModeChanges[]} */
+				insertModeChanges: InsertModeChanges[];
+				/** @type {string[]}*/
+				searchQueries: string[];
+				linewise: boolean;
+				blockwise: boolean;
+				/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
+				setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
+				/** @arg {string} text @arg {boolean} [linewise] */
+				pushText(text: string, linewise?: boolean): void;
+				/** @arg {InsertModeChanges} changes */
+				pushInsertModeChanges(changes: InsertModeChanges): void;
+				/** @arg {string} query */
+				pushSearchQuery(query: string): void;
+				clear(): void;
+				toString(): string;
+			};
+			isValidRegister(name: any): name is string;
+			shiftNumericRegisters_(): void;
+		};
+		searchHistoryController: {
+			/**@type {string[]} */
+			historyBuffer: string[];
+			iterator: number;
+			initialPrefix: string | null;
+			/**
+			 * the input argument here acts a user entered prefix for a small time
+			 * until we start autocompletion in which case it is the autocompleted.
+			 * @arg {string} input
+			 * @arg {boolean} up
+			 */
+			nextMatch(input: string, up: boolean): string | undefined;
+			/** @arg {string} input */
+			pushInput(input: string): void;
+			reset(): void;
+		};
+		jumpList: ReturnType<() => {
+			/**@type{Pos|undefined} */
+			cachedCursor: Pos | undefined;
+			add: (cm: CM5EditorInterface, oldCur: Pos, newCur: Pos) => void;
+			find: (cm: CM5EditorInterface, offset: number) => Pos | null | undefined;
+			move: (cm: CM5EditorInterface, offset: number) => Marker | undefined;
+		}>;
+		exCommandHistoryController: {
+			/**@type {string[]} */
+			historyBuffer: string[];
+			iterator: number;
+			initialPrefix: string | null;
+			/**
+			 * the input argument here acts a user entered prefix for a small time
+			 * until we start autocompletion in which case it is the autocompleted.
+			 * @arg {string} input
+			 * @arg {boolean} up
+			 */
+			nextMatch(input: string, up: boolean): string | undefined;
+			/** @arg {string} input */
+			pushInput(input: string): void;
+			reset(): void;
+		};
+		lastCharacterSearch: {
+			increment: number;
+			forward: boolean;
+			selectedCharacter: string;
+		};
+		query?: any;
+		isReversed?: boolean;
+		lastSubstituteReplacePart: any;
+		searchQuery?: null;
+		searchIsReversed?: boolean;
+	};
+	maybeInitVimState_: (cm: CM5EditorInterface) => vimState;
+	suppressErrorLogging: boolean;
+	InsertModeKey: {
+		new (keyName: string, e: KeyboardEvent): {
+			keyName: string;
+			key: string;
+			ctrlKey: boolean;
+			altKey: boolean;
+			metaKey: boolean;
+			shiftKey: boolean;
+		};
+	};
+	/**@type {(lhs: string, rhs: string, ctx: string) => void} */
+	map: (lhs: string, rhs: string, ctx: string) => void;
+	/**@type {(lhs: string, ctx: string) => any} */
+	unmap: (lhs: string, ctx: string) => any;
+	/**@type {(lhs: string, rhs: string, ctx: string) => void} */
+	noremap: (lhs: string, rhs: string, ctx: string) => void;
+	/**@arg {string} [ctx]} */
+	mapclear: (ctx?: string) => void;
+	langmap: (langmapString: any, remapCtrl: any) => void;
+	vimKeyFromEvent: (e: KeyboardEvent, vim?: vimState) => string | undefined;
+	setOption: (name: string, value: any, cm?: CodeMirrorV, cfg?: {
+		scope?: any;
+	} | undefined) => Error | undefined;
+	getOption: (name: string, cm?: CodeMirrorV, cfg?: {
+		scope?: any;
+	} | undefined) => any;
+	defineOption: {
+		/**
+		 * @overload
+		 * @arg {string} name
+		 * @arg {boolean|null|undefined} defaultValue
+		 * @arg {'boolean'} type
+		 * @arg {string[]|null} [aliases]
+		 * @arg {import("./types").booleanOptionCallback} [callback]
+		 * @returns {void}
+		 */
+		(name: string, defaultValue: boolean | null | undefined, type: "boolean", aliases?: string[] | null | undefined, callback?: booleanOptionCallback | undefined): void;
+		/**
+		 * @overload
+		 * @arg {string} name
+		 * @arg {number|null|undefined} defaultValue
+		 * @arg {'number'} type
+		 * @arg {string[]|null} [aliases]
+		 * @arg {import("./types").numberOptionCallback} [callback]
+		 * @returns {void}
+		 */
+		(name: string, defaultValue: number | null | undefined, type: "number", aliases?: string[] | null | undefined, callback?: numberOptionCallback | undefined): void;
+		/**
+		 * @overload
+		 * @arg {string} name
+		 * @arg {string|null|undefined} defaultValue
+		 * @arg {'string'} type
+		 * @arg {string[]|null} [aliases]
+		 * @arg {import("./types").stringOptionCallback} [callback]
+		 * @returns {void}
+		 */
+		(name: string, defaultValue: string | null | undefined, type: "string", aliases?: string[] | null | undefined, callback?: stringOptionCallback | undefined): void;
+	};
+	/**@type {(name: string, prefix: string|undefined, func: ExFn) => void} */
+	defineEx: (name: string, prefix: string | undefined, func: ExFn) => void;
+	/**@type {(cm: CodeMirror, key: string, origin: string) => undefined | boolean} */
+	handleKey: (cm: CM5EditorInterface, key: string, origin: string) => undefined | boolean;
+	multiSelectHandleKey: (cm_: CM5EditorInterface, key: string, origin: string) => boolean | undefined;
+	/**
+	 * This is the outermost function called by CodeMirror, after keys have
+	 * been mapped to their Vim equivalents.
+	 *
+	 * Finds a command based on the key (and cached keys if there is a
+	 * multi-key sequence). Returns `undefined` if no key is matched, a noop
+	 * function if a partial match is found (multi-key), and a function to
+	 * execute the bound command if a a key is matched. The function always
+	 * returns true.
+	 */
+	/**@type {(cm_: CodeMirror, key: string, origin?: string| undefined) => (() => boolean|undefined) | undefined} */
+	findKey: (cm_: CM5EditorInterface, key: string, origin?: string | undefined) => (() => boolean | undefined) | undefined;
+	/**@type {(cm: CodeMirrorV, input: string)=>void} */
+	handleEx: (cm: CodeMirrorV, input: string) => void;
+	defineMotion: (name: string, fn: MotionFn) => void;
+	defineAction: (name: string, fn: ActionFn) => void;
+	defineOperator: (name: string, fn: OperatorFn) => void;
+	mapCommand: (keys: string, type: string, name: string, args: any, extra: {
+		[x: string]: any;
+	}) => void;
+	_mapCommand: (command: vimKey) => void;
+	defineRegister: (name: string, register: {
+		keyBuffer: string[];
+		/** @type {InsertModeChanges[]} */
+		insertModeChanges: InsertModeChanges[];
+		/** @type {string[]}*/
+		searchQueries: string[];
+		linewise: boolean;
+		blockwise: boolean;
+		/** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
+		setText(text?: string, linewise?: boolean, blockwise?: boolean): void;
+		/** @arg {string} text @arg {boolean} [linewise] */
+		pushText(text: string, linewise?: boolean): void;
+		/** @arg {InsertModeChanges} changes */
+		pushInsertModeChanges(changes: InsertModeChanges): void;
+		/** @arg {string} query */
+		pushSearchQuery(query: string): void;
+		clear(): void;
+		toString(): string;
+	}) => void;
+	exitVisualMode: (cm: CodeMirrorV, moveHead?: boolean) => void;
+	exitInsertMode: (cm: CodeMirrorV, keepCursor?: boolean) => void;
+};
 declare class Pos$1 {
 	line: number;
 	ch: number;
@@ -643,6 +856,7 @@ export declare class CodeMirror {
 		new (_: string): StringStream;
 	};
 	static commands: {
+		toggleLineComment: (cm: CodeMirror) => void;
 		cursorCharLeft: (cm: CodeMirror) => void;
 		redo: (cm: CodeMirror) => void;
 		undo: (cm: CodeMirror) => void;
@@ -840,8 +1054,8 @@ export type hardWrapOptions = {
 	allowMerge?: boolean;
 };
 declare const Vim$1: {
-	enterVimMode: (cm: CodeMirror) => void;
-	leaveVimMode: (cm: CodeMirror) => void;
+	enterVimMode: (cm: CM5EditorInterface) => void;
+	leaveVimMode: (cm: CM5EditorInterface) => void;
 	buildKeyMap: () => void;
 	getRegisterController: () => {
 		registers: {
@@ -899,7 +1113,7 @@ declare const Vim$1: {
 			onRecordingDone: ((newVal?: string) => void) | undefined;
 			lastInsertModeChanges: InsertModeChanges;
 			exitMacroRecordMode(): void;
-			enterMacroRecordMode(cm: CodeMirror, registerName: string): void;
+			enterMacroRecordMode(cm: CM5EditorInterface, registerName: string): void;
 		};
 		registerController: {
 			registers: {
@@ -957,25 +1171,9 @@ declare const Vim$1: {
 		};
 		jumpList: ReturnType<() => {
 			cachedCursor: Pos | undefined;
-			add: (cm: CodeMirror, oldCur: Pos, newCur: Pos) => void;
-			find: (cm: CodeMirror, offset: number) => {
-				line: number;
-				ch: number;
-				sticky?: string;
-			} | null | undefined;
-			move: (cm: CodeMirror, offset: number) => {
-				cm: CodeMirror;
-				id: number;
-				offset: number | null;
-				assoc: number;
-				clear(): void;
-				find(): {
-					line: number;
-					ch: number;
-					sticky?: string;
-				} | null;
-				update(change: import("@codemirror/state").ChangeDesc): void;
-			} | undefined;
+			add: (cm: CM5EditorInterface, oldCur: Pos, newCur: Pos) => void;
+			find: (cm: CM5EditorInterface, offset: number) => Pos | null | undefined;
+			move: (cm: CM5EditorInterface, offset: number) => Marker | undefined;
 		}>;
 		exCommandHistoryController: {
 			historyBuffer: string[];
@@ -996,7 +1194,7 @@ declare const Vim$1: {
 		searchQuery?: null;
 		searchIsReversed?: boolean;
 	};
-	maybeInitVimState_: (cm: CodeMirror) => vimState;
+	maybeInitVimState_: (cm: CM5EditorInterface) => vimState;
 	suppressErrorLogging: boolean;
 	InsertModeKey: {
 		new (keyName: string, e: KeyboardEvent): {
@@ -1021,41 +1219,14 @@ declare const Vim$1: {
 		scope?: any;
 	} | undefined) => any;
 	defineOption: {
-		/**
-		 * @overload
-		 * @arg {string} name
-		 * @arg {boolean|null|undefined} defaultValue
-		 * @arg {'boolean'} type
-		 * @arg {string[]|null} [aliases]
-		 * @arg {import("./types").booleanOptionCallback} [callback]
-		 * @returns {void}
-		 */
 		(name: string, defaultValue: boolean | null | undefined, type: "boolean", aliases?: string[] | null | undefined, callback?: booleanOptionCallback | undefined): void;
-		/**
-		 * @overload
-		 * @arg {string} name
-		 * @arg {number|null|undefined} defaultValue
-		 * @arg {'number'} type
-		 * @arg {string[]|null} [aliases]
-		 * @arg {import("./types").numberOptionCallback} [callback]
-		 * @returns {void}
-		 */
 		(name: string, defaultValue: number | null | undefined, type: "number", aliases?: string[] | null | undefined, callback?: numberOptionCallback | undefined): void;
-		/**
-		 * @overload
-		 * @arg {string} name
-		 * @arg {string|null|undefined} defaultValue
-		 * @arg {'string'} type
-		 * @arg {string[]|null} [aliases]
-		 * @arg {import("./types").stringOptionCallback} [callback]
-		 * @returns {void}
-		 */
 		(name: string, defaultValue: string | null | undefined, type: "string", aliases?: string[] | null | undefined, callback?: stringOptionCallback | undefined): void;
 	};
 	defineEx: (name: string, prefix: string | undefined, func: ExFn) => void;
-	handleKey: (cm: CodeMirror, key: string, origin: string) => undefined | boolean;
-	multiSelectHandleKey: (cm_: CodeMirror, key: string, origin: string) => boolean | undefined;
-	findKey: (cm_: CodeMirror, key: string, origin?: string | undefined) => (() => boolean | undefined) | undefined;
+	handleKey: (cm: CM5EditorInterface, key: string, origin: string) => undefined | boolean;
+	multiSelectHandleKey: (cm_: CM5EditorInterface, key: string, origin: string) => boolean | undefined;
+	findKey: (cm_: CM5EditorInterface, key: string, origin?: string | undefined) => (() => boolean | undefined) | undefined;
 	handleEx: (cm: CodeMirrorV, input: string) => void;
 	defineMotion: (name: string, fn: MotionFn) => void;
 	defineAction: (name: string, fn: ActionFn) => void;

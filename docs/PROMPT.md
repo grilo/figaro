@@ -29,7 +29,7 @@ Tech stack: Go backend (Wails v3, using GTK 4 and WebKitGTK 6.0 on Linux), vanil
 6, codemirror-live-markdown, KaTeX, markdown-it, Mermaid, Vega, and Vega-Lite), with browser
 dependencies vendored in the frontend bundle.
 
-Markdown renderer compatibility: the printable renderer uses Markdown-It 15.0.0, and all ten bundled
+Markdown renderer compatibility: the printable renderer uses Markdown-It 15.0.3, and all ten bundled
 `@mdit` packages declare `markdown-it ^15.0.0` as their peer contract. Those packages comprise the
 directly selected anchor, footnote, KaTeX, mark, subscript, superscript, and task-list plugins plus
 their helper, inline-rule, and TeX implementation dependencies. Upgrade Markdown-It only after all
@@ -2684,7 +2684,8 @@ control returns to Month; repeating Gantt returns to Board.
 
 ### 8.1 Activation
 - Toggle via the Settings tab's **Enable Vim** checkbox.
-- Uses `@replit/codemirror-vim` (vendored at `frontend/vendored/@replit/codemirror-vim/`).
+- Uses `@replit/codemirror-vim` and its engine `@replit/codemirror-vim-core`
+  (vendored under `frontend/vendored/@replit/`).
 - Enabled or disabled at runtime through a preloaded CodeMirror `Compartment`
   — no module loading or page reload is required.
 - Preference persisted to `vault/.config/settings.json` (`"vim": true/false`).
@@ -2794,6 +2795,9 @@ necessary.
   back to that register if system clipboard access fails or is empty; in Visual
   mode, an OS URL over plain Markdown prose uses Smart URL paste
 - All standard vim motions, operators, and visual mode
+- `gcc` and `gc{motion}` toggle line comments in code files whose language
+  defines them (`//` in JavaScript, `#` in YAML). Markdown has only block
+  comments, so they leave notes unchanged.
 
 Ordinary unnamed-register yanks, deletes, and changes are also written to the
 OS clipboard. Named and numbered Vim registers remain available normally.

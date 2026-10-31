@@ -1,6 +1,6 @@
 {
   "name": "figaro",
-  "version": "1.46.0",
+  "version": "1.46.3",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -32,14 +32,14 @@
     "@babel/parser": "^7.29.0",
     "@babel/preset-env": "^8.0.2",
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.64.1",
     "babel-preset-current-node-syntax": "file:tools/babel-preset-current-node-syntax",
-    "esbuild": "0.28.1",
-    "eslint": "^10.8.0",
-    "globals": "^17.7.0",
+    "esbuild": "0.28.2",
+    "eslint": "^10.14.0",
+    "globals": "^17.13.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
-    "js-yaml": "3.15.1"
+    "js-yaml": "3.15.2"
   },
   "jest": {
     "testEnvironment": "jsdom",
@@ -55,6 +55,7 @@
       "^@codemirror/legacy-modes/mode/(.*)\\.js$": "<rootDir>/frontend/vendored/codemirror/legacy-modes/mode/$1.js",
       "^@codemirror/(.*)$": "<rootDir>/frontend/vendored/codemirror/$1/index.js",
       "^@lezer/(.*)$": "<rootDir>/frontend/vendored/lezer/$1/index.js",
+      "^@replit/codemirror-vim-core$": "<rootDir>/frontend/vendored/@replit/codemirror-vim-core/vim.js",
       "^@replit/(.*)$": "<rootDir>/frontend/vendored/@replit/$1/dist/index.js",
       "^@uiw/codemirror-extensions-color$": "<rootDir>/frontend/vendored/@uiw/codemirror-extensions-color/index.js",
       "^turndown$": "<rootDir>/frontend/vendored/turndown/index.js",
@@ -64,6 +65,9 @@
     },
     "testMatch": [
       "<rootDir>/tests/frontend/**/*.test.js"
+    ],
+    "modulePathIgnorePatterns": [
+      "<rootDir>/.claude/"
     ],
     "setupFilesAfterEnv": [
       "./tests/frontend/support/test_setup.js"
@@ -97,7 +101,10 @@
     "babel-plugin-istanbul": "8.0.0",
     "test-exclude": "8.0.0",
     "glob": "13.0.6",
-    "jsdom": "27.4.0"
+    "jsdom": "27.4.0",
+    "micromark-extension-math": {
+      "katex": "$katex"
+    }
   },
   "dependencies": {
     "@mdit/plugin-anchor": "2.1.0",
@@ -107,7 +114,7 @@
     "@mdit/plugin-sub": "1.1.0",
     "@mdit/plugin-sup": "1.1.0",
     "@mdit/plugin-tasklist": "1.1.0",
-    "@replit/codemirror-vim": "^6.3.0",
+    "@replit/codemirror-vim": "^6.4.0",
     "@textlint-rule/textlint-rule-no-unmatched-pair": "2.0.4",
     "@textlint/kernel": "15.8.0",
     "@textlint/textlint-plugin-text": "15.8.0",

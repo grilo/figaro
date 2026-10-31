@@ -13,6 +13,9 @@ npm run lint
 npm run test:coverage
 node scripts/profile-writing.mjs
 go vet . ./internal/... ./cmd/...
+# Same reachable-vulnerability scan as the CI dependency audit, so a Go
+# advisory fails the release here instead of after the tag is pushed.
+go run golang.org/x/vuln/cmd/govulncheck@latest .
 ./scripts/check-go-coverage.sh
 go test -race . ./internal/... ./cmd/...
 npx playwright install chromium

@@ -28,6 +28,49 @@ remain as originally published.
 - **Settings → PDF Export** no longer shows **Use automatic** while Figaro is
   already detecting the browser automatically.
 
+## [1.46.3] - 2026-10-31
+
+### Added
+
+- Vim mode supports `gcc` (and `gc` with a motion) to toggle line comments in
+  code files whose language has them, such as JavaScript or YAML.
+
+### Fixed
+
+- Vim mode is updated to the latest upstream release, fixing `,` in Visual
+  mode, `:sort` with a pattern and the `r` flag, and Ex ranges such as
+  `:'a,.y`.
+- Switching from a note to a code file no longer logs a "Field is not present"
+  editor error when writing link hints were about to refresh.
+- PDF export with a page-numbered table of contents no longer creates a
+  `pdfcpu` settings folder in your user configuration directory, and can no
+  longer fail when that directory is not writable.
+
+### Security
+
+- Updated the PDF library Figaro uses to read back page-numbered exports to
+  pdfcpu 0.16.4, which fixes its published crafted-PDF crash and
+  resource-exhaustion advisories. Git, system and text libraries are updated
+  to their latest patch releases too.
+
+## [1.46.2] - 2026-10-31
+
+### Fixed
+
+- Figaro is now built with Go 1.26.10, which fixes security advisories in the
+  Go standard library's certificate checking, HTTP and file handling. Building
+  from source now requires Go 1.26.10 or newer.
+
+## [1.46.1] - 2026-10-30
+
+### Fixed
+
+- Updated Markdown-It to 15.0.3, so printable previews and PDF export are no
+  longer exposed to its published slow-parsing (denial-of-service) advisories.
+  Other dependencies with published security advisories are updated too (Zod,
+  the MCP server SDK, fast-uri, brace-expansion, KaTeX, js-yaml and
+  source-map-js).
+
 ## [1.46.0] - 2026-10-30
 
 ### Added
@@ -2547,7 +2590,10 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.46.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.46.3...HEAD
+[1.46.3]: https://github.com/grilo/figaro/compare/v1.46.2...v1.46.3
+[1.46.2]: https://github.com/grilo/figaro/compare/v1.46.1...v1.46.2
+[1.46.1]: https://github.com/grilo/figaro/compare/v1.46.0...v1.46.1
 [1.46.0]: https://github.com/grilo/figaro/compare/v1.45.0...v1.46.0
 [1.45.0]: https://github.com/grilo/figaro/compare/v1.44.0...v1.45.0
 [1.44.0]: https://github.com/grilo/figaro/compare/v1.43.0...v1.44.0

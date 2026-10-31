@@ -5,7 +5,10 @@ import { indexWritingLinkFindings, writingLinkFindingsInRange, writingLinkLabel,
 export function createWritingLinkHints(readFindings, queryFindings = null) {
     return ViewPlugin.fromClass(class {
         constructor(view) { this.links = new Map(); this.mounted = new Map(); this.schedule(view); }
-        schedule(view) { view.requestMeasure({ key: this, read: () => null, write: () => this.docViewUpdate(view) }); }
+        // A queued measure can outlive the plugin when a file-mode switch removes
+        // the writing extensions; its state no longer has the findings field.
+        schedule(view) { view.requestMeasure({ key: this, read: () => null, write: () => { if (!this.destroyed) this.docViewUpdate(view); } }); }
+        destroy() { this.destroyed = true; }
         update(update) {
             // Marks wholly covered by replacements may not trigger a DOM redraw.
             if (readFindings(update.startState) !== readFindings(update.state)) this.schedule(update.view);

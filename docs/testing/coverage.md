@@ -144,8 +144,8 @@ commit, each automatic version bump resolves from the latest tag, and an
 interrupted release can resume its matching tag and push. They also prove an
 empty `[Unreleased]` section leaves the worktree untouched and gives the user the
 next steps instead of only reporting the failure. The dependency-security test
-keeps every `brace-expansion` and `js-yaml` copy above its denial-of-service
-advisory range and guards the ESLint major that provides that patched
+keeps every `brace-expansion`, `js-yaml`, and other npm-audit-flagged copy
+above its advisory range and guards the ESLint major that provides that patched
 dependency graph. The
 Node-prerequisite test exercises every accepted and rejected release-line
 boundary and keeps package metadata aligned with the build checks. The release

@@ -19,7 +19,8 @@ termination, and native Windows/macOS behavior remains untested.
 ## Measurements
 
 Linux amd64, AMD Ryzen 7 9800X3D (8 cores / 16 threads), Go 1.26.6, CGO disabled
-for the harness, Vale 3.20.0. Three runs per sample; medians below. Rule
+for the harness, Vale 3.20.0 (measured before Figaro's Go 1.26.10 minimum; not
+rerun since). Three runs per sample; medians below. Rule
 initialization took **26.3 ms** and is excluded from embedded scan times. CLI
 scan times include starting the existing executable and loading its rules;
 initial extraction is outside the measurement. Runs were sequential on one

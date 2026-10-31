@@ -1,21 +1,7 @@
 {
   "name": "@replit/codemirror-vim",
-  "version": "6.3.0",
+  "version": "6.4.0",
   "description": "Vim keybindings for CodeMirror 6",
-  "author": {
-    "name": "Yunchi Luo",
-    "email": "mightyguava@gmail.com"
-  },
-  "scripts": {
-    "dev": "vite ./dev",
-    "test": "cm-runtests",
-    "build-types": "rm -rf out && tsc && dts-bundle-generator out/index.ts -o dist/index.d.ts && cp dist/index.d.ts dist/index.d.cts",
-    "testAll": "yarn run build-test-package && yarn run test && cd dev/cm5 && yarn run buildAndTest",
-    "build": "cm-buildhelper src/index.ts && node scripts/addVersion.cjs && npm run build-types",
-    "publish": "yarn run build && npm publish",
-    "build-test-package": "bash ./scripts/build-test-package.sh",
-    "prepare": "yarn run build"
-  },
   "keywords": [
     "editor",
     "code"
@@ -30,6 +16,9 @@
   "module": "dist/index.js",
   "sideEffects": false,
   "license": "MIT",
+  "dependencies": {
+    "@replit/codemirror-vim-core": "^0.1.0"
+  },
   "peerDependencies": {
     "@codemirror/commands": "6.x.x",
     "@codemirror/language": "6.x.x",
@@ -42,10 +31,11 @@
     "@codemirror/lang-javascript": "6.x.x",
     "@codemirror/lang-xml": "6.x.x",
     "@codemirror/language": "6.x.x",
+    "@types/mocha": "^9.1.1",
     "codemirror": "6.x.x",
     "dts-bundle-generator": "^9.5.1",
     "typescript": "^5.8.2",
-    "vite": "^6.2.2"
+    "vite": "^6.4.3"
   },
   "files": [
     "dist",
@@ -53,6 +43,16 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/replit/codemirror-vim.git"
+    "url": "https://github.com/replit/codemirror-vim.git",
+    "directory": "packages/codemirror-vim"
+  },
+  "scripts": {
+    "dev": "vite ./dev",
+    "test": "cm-runtests",
+    "build-types": "rm -rf out && tsc && dts-bundle-generator out/index.ts -o dist/index.d.ts --external-imports @replit/codemirror-vim-core @codemirror/view @codemirror/state @codemirror/search @codemirror/language && cp dist/index.d.ts dist/index.d.cts",
+    "testAll": "pnpm run build-test-package && pnpm run test",
+    "build": "cm-buildhelper src/index.ts && node scripts/addVersion.cjs && pnpm run build-types",
+    "build-test-package": "bash ./scripts/build-test-package.sh",
+    "typecheck": "tsc --emitDeclarationOnly false --noEmit"
   }
 }

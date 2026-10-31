@@ -76,8 +76,9 @@ took **48.8 ms** in this run. Median native analysis times across three runs:
 
 The longer workload still requires substantial background work. These are
 non-randomized observations on Linux amd64, Ryzen 7 9800X3D, Go 1.26.6, and Node
-24.20.0. They do not measure Windows antivirus behavior or establish equivalence
-to the historical prototype's differently bounded dense workloads.
+24.20.0, taken before Figaro required Go 1.26.10 and not rerun since. They do
+not measure Windows antivirus behavior or establish equivalence to the
+historical prototype's differently bounded dense workloads.
 
 Machine-readable results and the native observation are in
 [the integration evidence](benchmarks/vale-integration-2026-09-08.json).

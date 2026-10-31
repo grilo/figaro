@@ -927,6 +927,10 @@ npm run test:unit -- --runTestsByPath \
 npx playwright test tests/e2e/pdfExport.spec.js
 ```
 
+CI's dependency audit runs the production npm audit and `govulncheck`; release
+verification repeats only `govulncheck`
+([release process](../CONTRIBUTING.md#release-process)).
+
 The dependency-policy contract also locks Babel 8 to its exact Node engine
 floor, proves the Jest 30 syntax-preset compatibility copy is inert under Babel
 8 while its Babel 7 plugins resolve a nested core, and verifies that the tracked
@@ -943,8 +947,12 @@ the exact local transform and that an unfamiliar upstream artifact fails
 closed. The vendored security contract reads Mermaid's embedded `js-yaml`
 version, while the
 dependency-security contract checks every resolved npm copy of
-`brace-expansion` and test-only `js-yaml`,
-and proves that every production `window.mermaid.render` call passes through
+`brace-expansion` and test-only `js-yaml`, plus the Markdown-It, Zod, MCP
+server SDK, `fast-uri`, `source-map-js`, and KaTeX copies flagged by npm audit
+in October 2026. `micromark-extension-math` is overridden to the root KaTeX,
+because every KaTeX 0.16 release is in GHSA-238p-pmpm-9mq7 and `remark-math`
+uses only its syntax, never KaTeX rendering. The same contract
+proves that every production `window.mermaid.render` call passes through
 the shared guard. If Mermaid updates its embedded parser to `js-yaml` 4.3.1 or
 newer, keep the guard as defense in depth and update the inventory expectation
 only after the actual bundle changes.

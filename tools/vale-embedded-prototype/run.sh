@@ -2,7 +2,7 @@
 set -euo pipefail
 prototype_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 prototype_workspace=$(python3 "$prototype_dir/bootstrap.py")
-export GOTOOLCHAIN=go1.26.6
+export GOTOOLCHAIN=go1.26.10
 printf '%s\n' "Prototype workspace: $prototype_workspace"
 node "$prototype_dir/samples.mjs" "$prototype_workspace/samples.json"
 (

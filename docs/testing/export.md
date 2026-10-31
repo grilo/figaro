@@ -28,7 +28,9 @@ prove **Upgrade copy** preserves its source and occupied targets.
 leading comment, keeps unmarked and older files upgradable, and refuses to
 append a current starter to itself; `frontmatter.test.js` disables the button
 only for an up-to-date status. The pdfcpu
-adapter owns actual internal-link destination resolution.
+adapter owns actual internal-link destination resolution;
+`toc_pages_test.go` resolves a hand-built linked PDF with the user
+configuration directory redirected and requires that directory to stay empty.
 
 Preview scroll synchronization: `pdfPreview.test.js` sweeps a multi-line widget
 monotonically with content padding and requires the inverse to land on the

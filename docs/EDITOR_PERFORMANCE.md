@@ -415,7 +415,8 @@ The dependency audit reports one existing high-severity advisory in the direct
 development dependency `js-yaml` 3.15.1 (GHSA-2883-xcg3-v3hh); the audit advertises
 3.15.2 as its fix. This cursor change does not alter dependency metadata. The
 vendored-browser security regression passes; it does not establish a clean npm
-audit or assess the advisory's application exploitability.
+audit or assess the advisory's application exploitability. Release 1.46.1 later
+moved `js-yaml` to 3.15.2, clearing the advisory.
 
 
 Final verification passed all 300 frontend suites / 2,561 tests, including

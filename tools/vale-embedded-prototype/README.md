@@ -13,7 +13,7 @@ From the Figaro repository root, after preparing its normal frontend assets:
 bash tools/vale-embedded-prototype/run.sh
 ```
 
-Requires Python 3, the repository's supported Node version, Go 1.26.6, and a host
+Requires Python 3, the repository's supported Node version, Go 1.26.10, and a host
 C compiler for Go's race detector. The initial build downloads pinned Go modules
 and an explicitly checksum-verified historical Vale CLI for comparison only;
 normal application builds do not download or bundle that executable. Analysis

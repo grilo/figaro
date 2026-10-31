@@ -139,6 +139,7 @@ npm run lint
 npm run test:coverage
 node scripts/profile-writing.mjs
 go vet . ./internal/... ./cmd/...
+go run golang.org/x/vuln/cmd/govulncheck@latest .
 check-go-coverage.sh
 go test -race . ./internal/... ./cmd/...
 npx playwright install chromium

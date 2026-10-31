@@ -18,14 +18,14 @@ const isAtLeastGoVersion = (version, minimum) => {
 
 const isPatchedBraceExpansion = version => {
     const [major, minor, patch] = version.split('.').map(Number);
-    return major > 5 || (major === 5 && (minor > 0 || (minor === 0 && patch >= 9)));
+    return major > 5 || (major === 5 && (minor > 0 || (minor === 0 && patch >= 12)));
 };
 
 const isPatchedJsYaml = version => {
     const [major, minor, patch] = version.split('.').map(Number);
     if (major > 4) return true;
     if (major === 4) return minor > 3 || (minor === 3 && patch >= 1);
-    if (major === 3) return minor > 15 || (minor === 15 && patch >= 1);
+    if (major === 3) return minor > 15 || (minor === 15 && patch >= 2);
     return false;
 };
 
@@ -50,6 +50,34 @@ test('keeps every npm dependency above the known denial-of-service advisory rang
     }
 });
 
+const isAtLeastVersion = (version, minimum) => {
+    const actual = version.split('.').map(Number);
+    const required = minimum.split('.').map(Number);
+    for (let index = 0; index < required.length; index += 1) {
+        if (actual[index] !== required[index]) return actual[index] > required[index];
+    }
+    return true;
+};
+
+test('keeps installed packages above the advisory ranges reported by npm audit in October 2026', () => {
+    const lock = readJSON('package-lock.json');
+    const minimums = {
+        '@modelcontextprotocol/server': '2.2.1',
+        'fast-uri': '3.1.9',
+        katex: '0.18.2',
+        'markdown-it': '15.0.3',
+        'source-map-js': '1.2.2',
+        zod: '4.6.6',
+    };
+    for (const [name, minimum] of Object.entries(minimums)) {
+        const installed = Object.entries(lock.packages)
+            .filter(([packagePath]) => packagePath.endsWith(`node_modules/${name}`))
+            .map(([packagePath, dependency]) => [packagePath, dependency.version]);
+        expect([name, installed.length > 0]).toEqual([name, true]);
+        expect(installed.filter(([, version]) => !isAtLeastVersion(version, minimum))).toEqual([]);
+    }
+});
+
 test('keeps the reachable WebP decoder above the GO-2026-5061 advisory range', () => {
     const goMod = readText('go.mod');
     const match = goMod.match(/^\s*golang\.org\/x\/image\s+(v\d+\.\d+\.\d+)/m);
@@ -65,7 +93,7 @@ test('keeps the Go toolchain above the reachable 2026 standard-library advisory 
     const match = goMod.match(/^go\s+(\d+\.\d+\.\d+)$/m);
 
     expect(match).not.toBeNull();
-    expect(isAtLeastGoVersion(`v${match[1]}`, 'v1.26.6')).toBe(true);
-    expect(makefile).toContain('Go 1.26.6 or newer');
-    expect(contributing).toContain('Go 1.26.6 or newer');
+    expect(isAtLeastGoVersion(`v${match[1]}`, 'v1.26.10')).toBe(true);
+    expect(makefile).toContain('Go 1.26.10 or newer');
+    expect(contributing).toContain('Go 1.26.10 or newer');
 });

@@ -670,7 +670,7 @@ nav a { display: grid; grid-template-columns: 1fr 5ch; }
 			return err
 		}
 		var err error
-		provisionalPages, err = ResolveTOCPageNumbers(provisional, 2)
+		provisionalPages, err = ResolveTOCPageNumbers(context.Background(), provisional, 2)
 		if err != nil {
 			return err
 		}
@@ -685,7 +685,7 @@ nav a { display: grid; grid-template-columns: 1fr 5ch; }
 	}); err != nil {
 		t.Fatalf("RenderChromiumPDF failed: %v", err)
 	}
-	pages, err := ResolveTOCPageNumbers(output, 2)
+	pages, err := ResolveTOCPageNumbers(context.Background(), output, 2)
 	if err != nil {
 		t.Fatalf("resolve generated contents destinations: %v", err)
 	}

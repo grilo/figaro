@@ -99,3 +99,25 @@ test('a sentence finding crossing a rendered link paints only its visible label 
     const finding = { id: 'sentence', from: 0, to: source.length, actual: 'We utilize words.', sourceText: source };
     expect(writingLinkSegments('utilize', { from, to: from + 7 }, [finding])).toEqual({ findings: [finding], segments: [{ text: 'utilize', marked: true }] });
 });
+
+test('a measure queued before the hints are reconfigured away never reads the removed findings', async () => {
+    const { Compartment, StateField } = await import('@codemirror/state');
+    const findings = StateField.define({ create: () => [], update: value => value });
+    const hints = new Compartment();
+    const parent = document.body.appendChild(document.createElement('div'));
+    const view = new EditorView({
+        state: EditorState.create({ doc: '[teh label](https://teh.test)', extensions: hints.of([findings, createWritingLinkHints(state => state.field(findings))]) }),
+        parent,
+    });
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+        // The constructor's measure is still queued when a file-mode switch drops the extension.
+        view.dispatch({ effects: hints.reconfigure([]) });
+        await new Promise(resolve => setTimeout(resolve, 50));
+        expect(errors).not.toHaveBeenCalled();
+    } finally {
+        errors.mockRestore();
+        view.destroy();
+        parent.remove();
+    }
+});

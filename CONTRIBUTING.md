@@ -8,7 +8,7 @@ without a cloud service, and protect the user's edits.
 
 Install the following before working on the project:
 
-- Go 1.26.6 or newer
+- Go 1.26.10 or newer
 - Node.js 22.18+ on the 22.x line, or 24.11+
 - The native build dependencies required by Wails v3 for your platform
 
@@ -158,7 +158,9 @@ structural tests cannot prove that a model interprets a request's scope correctl
 Read-only audits leave product files and the commit proposal alone. For completed
 implementation work, review the full pending diff and write the proposed message
 to the path returned by `git rev-parse --git-path COMMIT_TEMPLATE`. This also
-works in linked worktrees where `.git` is a file. Configure the tracked hook with
+works in linked worktrees where `.git` is a file. Jest ignores `.claude/`, so
+an agent worktree nested there cannot shadow the repository's local packages.
+Configure the tracked hook with
 `git config --local core.hooksPath .githooks`; do not set `commit.template`.
 The hook supplies the proposal to a plain `git commit` so saving it unchanged
 works, and preserves explicit messages passed with `-m`. Agents commit, and
@@ -502,6 +504,10 @@ of resuming the chosen one.
 Both local release verification and tag CI run `node scripts/profile-writing.mjs`
 to check combined native/JavaScript editorial outcomes. A mismatch stops local
 finalization before commit/tag creation and stops tag CI before publication.
+Local release verification also runs the CI dependency audit's
+`govulncheck` scan, so a reachable Go standard-library or module advisory stops
+finalization before a tag exists; the scan needs network access to the Go
+vulnerability database.
 The browser check downloads Playwright's pinned Chromium if necessary, but does
 not install system packages or request elevated privileges.
 `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
@@ -537,7 +543,7 @@ embedded Vale module is tested separately without executable preparation. All
 platform tests and builds must pass before the publication job can run; a Windows binary compiling
 successfully is not proof
 that Windows behavior passed. Also inspect the ordinary CI run for the same commit
-when reporting release health, since it includes checks such as the dependency
+when reporting release health, since it includes checks such as the npm dependency
 audit beyond the tag workflow. Local release verification tests the current host;
 cross-compiling does not replace these native platform runs.
 
@@ -780,7 +786,7 @@ the check. The bundle records a hash of `scripts/vendor/excalidraw-entry.js`, an
 a unit test fails when the entry changes without a rebuild. Commit the bundle,
 stylesheet, fonts, and regenerated `LICENSES.txt` together.
 
-The printable Markdown renderer currently targets Markdown-It 15.0.0. All ten
+The printable Markdown renderer currently targets Markdown-It 15.0.3. All ten
 bundled `@mdit` packages declare `markdown-it ^15.0.0`: the direct anchor,
 footnote, KaTeX, mark, subscript, superscript, and task-list plugins, together
 with the transitive helper, inline-rule, and TeX packages. Treat a Markdown-It
@@ -855,6 +861,12 @@ copies it from the locked root `node_modules`, because it must match the Wails
 nightly pinned in `go.mod`. A companion test walks the unbundled module graph
 from `frontend/js/bootstrap.js`, which the dev server and Playwright load, and
 fails when an imported package is missing from the `index.html` import map.
+The `@replit` editor plugins are checked in under `frontend/vendored/@replit/`
+and copied there by hand from `node_modules`, so an npm update (including a
+Dependabot pull request) does not change what the app runs until they are
+copied. The same test requires every `@replit` package they import to be
+mapped in `frontend/index.html`, `scripts/build-app-bundle.mjs`, and the Jest
+`moduleNameMapper` (as for `@replit/codemirror-vim-core`).
 The vendor script also pins `@mermaid-js/examples` 1.3.0 and checks its browser
 ES module plus MIT license into `frontend/vendored/mermaid-examples/`. Keep that
 catalogue version aligned with the bundled Mermaid parser and run the Mermaid

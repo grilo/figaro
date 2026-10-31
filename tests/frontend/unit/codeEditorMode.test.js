@@ -122,6 +122,54 @@ describe('Code file editor mode', () => {
         await configureEditorForFile('notes/example.md');
     });
 
+    test('switching from a Markdown note to a code file before the next measure logs no editor error', async () => {
+        const { configureEditorForFile, getEditorView } = await import('../frontend/js/editor.js');
+        const view = getEditorView();
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            await configureEditorForFile('src/before.js');
+            // Entering Markdown mounts the writing link hints, which queue a measure;
+            // the code file replaces them before that measure runs.
+            await configureEditorForFile('notes/quick-switch.md');
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'See [[Other note]].' } });
+            await configureEditorForFile('src/after.js');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            expect(errors.mock.calls.map(call => call.map(String).join(' '))).toEqual([]);
+        } finally {
+            errors.mockRestore();
+            await configureEditorForFile('notes/example.md');
+        }
+    });
+
+    test('Vim gcc toggles line comments in code files and leaves Markdown prose alone', async () => {
+        const { configureEditorForFile, getEditorView, toggleVim } = await import('../frontend/js/editor.js');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
+        const view = getEditorView();
+        const gcc = () => { for (const key of 'gcc') Vim.handleKey(getCM(view), key, 'user'); };
+        await toggleVim(true);
+
+        for (const [path, text, commented] of [
+            ['src/toggle.js', 'const value = 1;', '// const value = 1;'],
+            ['config/toggle.yaml', 'key: value', '# key: value'],
+        ]) {
+            await configureEditorForFile(path);
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, selection: { anchor: 0 } });
+            gcc();
+            expect(view.state.doc.toString()).toBe(commented);
+            gcc();
+            expect(view.state.doc.toString()).toBe(text);
+        }
+
+        // Markdown defines only block comments, so the line-comment operator is a no-op.
+        await configureEditorForFile('notes/toggle.md');
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'Plain prose.' }, selection: { anchor: 0 } });
+        gcc();
+        expect(view.state.doc.toString()).toBe('Plain prose.');
+
+        await toggleVim(false);
+        await configureEditorForFile('notes/example.md');
+    });
+
     test('folds Markdown heading sections from the gutter and exposes an accessible control', async () => {
         const { initEditor, createEditorView, configureEditorForFile, setMarkdownBlockGuides } = await import('../frontend/js/editor.js');
         const { foldedRanges } = await import('@codemirror/language');
