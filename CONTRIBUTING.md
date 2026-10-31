@@ -854,6 +854,12 @@ that vulnerable Mermaid YAML releases remain behind Figaro's pre-parse guard.
 `scripts/vendor.sh` installs the latest CodeMirror and Lezer packages, so the
 same test also fails when one of them imports a package that neither import map
 names; vendor and map the new package (as for `@codemirror/streamparser`).
+The `@replit` editor plugins are checked in under `frontend/vendored/@replit/`
+and copied there by hand from `node_modules`, so an npm update (including a
+Dependabot pull request) does not change what the app runs until they are
+copied. The same test requires every `@replit` package they import to be
+mapped in `frontend/index.html`, `scripts/build-app-bundle.mjs`, and the Jest
+`moduleNameMapper` (as for `@replit/codemirror-vim-core`).
 The vendor script also pins `@mermaid-js/examples` 1.3.0 and checks its browser
 ES module plus MIT license into `frontend/vendored/mermaid-examples/`. Keep that
 catalogue version aligned with the bundled Mermaid parser and run the Mermaid

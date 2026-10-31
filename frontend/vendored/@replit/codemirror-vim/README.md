@@ -69,7 +69,3 @@ Vim.unmap("jj", "insert");
     // make changes and return new cursor position
   });
 ```
-
-## Credits
-
-This plugin was originally authored by [@mightyguava](https://github.com/mightyguava) (Yunchi Luo) as part of [CodeMirror](https://github.com/codemirror/dev), before being extracted and maintained here.

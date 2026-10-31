@@ -407,8 +407,10 @@ type pdfPaginationPorts struct {
 
 func defaultPDFPaginationPorts(bundle AssetFS) pdfPaginationPorts {
 	return pdfPaginationPorts{
-		resolvePages: pdfexport.ResolveTOCPageNumbers,
-		injectPages:  pdfexport.InjectTOCPageNumbers,
+		resolvePages: func(pdfPath string, expected int) ([]int, error) {
+			return pdfexport.ResolveTOCPageNumbers(context.Background(), pdfPath, expected)
+		},
+		injectPages: pdfexport.InjectTOCPageNumbers,
 		writeHTML: func(workspace string, document string) (string, error) {
 			return writeInteractivePDFWorkspace(bundle, workspace, document)
 		},

@@ -12,6 +12,7 @@ const aliases = new Map(Object.entries(importMap).map(([specifier, target]) => (
 )));
 for (const [specifier, target] of Object.entries({
     '@replit/codemirror-vim': '@replit/codemirror-vim/dist/index.js',
+    '@replit/codemirror-vim-core': '@replit/codemirror-vim-core/vim.js',
     '@replit/codemirror-indentation-markers': '@replit/codemirror-indentation-markers/dist/index.js',
     'codemirror-live-markdown': 'codemirror-live-markdown/index.js',
 })) aliases.set(specifier, resolve(vendorRoot, target));

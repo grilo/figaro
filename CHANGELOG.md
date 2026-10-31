@@ -8,7 +8,28 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- Vim mode supports `gcc` (and `gc` with a motion) to toggle line comments in
+  code files whose language has them, such as JavaScript or YAML.
+
+### Fixed
+
+- Vim mode is updated to the latest upstream release, fixing `,` in Visual
+  mode, `:sort` with a pattern and the `r` flag, and Ex ranges such as
+  `:'a,.y`.
+- Switching from a note to a code file no longer logs a "Field is not present"
+  editor error when writing link hints were about to refresh.
+- PDF export with a page-numbered table of contents no longer creates a
+  `pdfcpu` settings folder in your user configuration directory, and can no
+  longer fail when that directory is not writable.
+
+### Security
+
+- Updated the PDF library Figaro uses to read back page-numbered exports to
+  pdfcpu 0.16.4, which fixes its published crafted-PDF crash and
+  resource-exhaustion advisories. Git, system and text libraries are updated
+  to their latest patch releases too.
 
 ## [1.46.2] - 2026-10-31
 

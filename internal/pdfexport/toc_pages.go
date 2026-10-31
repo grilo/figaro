@@ -1,7 +1,9 @@
 package pdfexport
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -49,18 +51,18 @@ type internalPDFLink struct {
 // generated contents entries. Cover and contents precede authored Markdown,
 // so the first expected internal links in physical reading order are exactly
 // the generated TOC entries.
-func ResolveTOCPageNumbers(pdfPath string, expected int) ([]int, error) {
+func ResolveTOCPageNumbers(ctx context.Context, pdfPath string, expected int) ([]int, error) {
 	if expected <= 0 {
 		return nil, nil
 	}
-	ctx, err := api.ReadContextFile(pdfPath)
+	pdf, err := readValidatedPDF(ctx, pdfPath)
 	if err != nil {
 		return nil, fmt.Errorf("read provisional PDF destinations: %w", err)
 	}
 
 	links := make([]internalPDFLink, 0, expected)
-	for pageNr := 1; pageNr <= ctx.PageCount; pageNr++ {
-		pageLinks, err := internalLinksForPage(ctx, pageNr)
+	for pageNr := 1; pageNr <= pdf.PageCount; pageNr++ {
+		pageLinks, err := internalLinksForPage(ctx, pdf, pageNr)
 		if err != nil {
 			return nil, err
 		}
@@ -88,8 +90,27 @@ func ResolveTOCPageNumbers(pdfPath string, expected int) ([]int, error) {
 	return pages, nil
 }
 
-func internalLinksForPage(ctx *model.Context, pageNr int) ([]internalPDFLink, error) {
-	page, _, _, err := ctx.PageDict(pageNr, false)
+// readValidatedPDF uses pdfcpu's built-in configuration, so reading a
+// provisional PDF never creates or reads a pdfcpu folder in the user's
+// configuration directory.
+func readValidatedPDF(ctx context.Context, pdfPath string) (*model.Context, error) {
+	file, err := os.Open(pdfPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	pdf, err := api.ReadContext(ctx, file, model.NewStatelessConfiguration())
+	if err != nil {
+		return nil, err
+	}
+	if err := api.ValidateContext(ctx, pdf); err != nil {
+		return nil, err
+	}
+	return pdf, nil
+}
+
+func internalLinksForPage(ctx context.Context, pdf *model.Context, pageNr int) ([]internalPDFLink, error) {
+	page, _, _, err := pdf.PageDict(ctx, pageNr, false)
 	if err != nil {
 		return nil, fmt.Errorf("read provisional PDF page %d: %w", pageNr, err)
 	}
@@ -97,14 +118,14 @@ func internalLinksForPage(ctx *model.Context, pageNr int) ([]internalPDFLink, er
 	if !found || object == nil {
 		return nil, nil
 	}
-	annotations, err := ctx.DereferenceArray(object)
+	annotations, err := pdf.DereferenceArray(object)
 	if err != nil {
 		return nil, fmt.Errorf("read provisional PDF annotations on page %d: %w", pageNr, err)
 	}
 
 	links := make([]internalPDFLink, 0, len(annotations))
 	for _, object := range annotations {
-		dictionary, err := ctx.DereferenceDict(object)
+		dictionary, err := pdf.DereferenceDict(object)
 		if err != nil {
 			return nil, fmt.Errorf("read provisional PDF link on page %d: %w", pageNr, err)
 		}
@@ -115,14 +136,14 @@ func internalLinksForPage(ctx *model.Context, pageNr int) ([]internalPDFLink, er
 		if subtype == nil || *subtype != "Link" {
 			continue
 		}
-		destination, ok, err := linkDestination(ctx, dictionary)
+		destination, ok, err := linkDestination(pdf, dictionary)
 		if err != nil {
 			return nil, fmt.Errorf("read provisional PDF destination on page %d: %w", pageNr, err)
 		}
 		if !ok {
 			continue
 		}
-		targetPage, err := pdfcpu.PageNrFromDestination(ctx, destination)
+		targetPage, err := pdfcpu.PageNrFromDestination(ctx, pdf, destination)
 		if err != nil {
 			return nil, fmt.Errorf("resolve provisional PDF destination on page %d: %w", pageNr, err)
 		}
@@ -131,7 +152,7 @@ func internalLinksForPage(ctx *model.Context, pageNr int) ([]internalPDFLink, er
 		}
 		link := internalPDFLink{sourcePage: pageNr, targetPage: targetPage}
 		if rectObject, found := dictionary.Find("Rect"); found {
-			if rectArray, rectErr := ctx.DereferenceArray(rectObject); rectErr == nil {
+			if rectArray, rectErr := pdf.DereferenceArray(rectObject); rectErr == nil {
 				if rect := types.RectForArray(rectArray); rect != nil {
 					link.top = rect.UR.Y
 					link.left = rect.LL.X
@@ -143,7 +164,7 @@ func internalLinksForPage(ctx *model.Context, pageNr int) ([]internalPDFLink, er
 	return links, nil
 }
 
-func linkDestination(ctx *model.Context, dictionary types.Dict) (types.Object, bool, error) {
+func linkDestination(pdf *model.Context, dictionary types.Dict) (types.Object, bool, error) {
 	if destination, found := dictionary.Find("Dest"); found && destination != nil {
 		return destination, true, nil
 	}
@@ -151,7 +172,7 @@ func linkDestination(ctx *model.Context, dictionary types.Dict) (types.Object, b
 	if !found || actionObject == nil {
 		return nil, false, nil
 	}
-	action, err := ctx.DereferenceDict(actionObject)
+	action, err := pdf.DereferenceDict(actionObject)
 	if err != nil || action == nil {
 		return nil, false, err
 	}

@@ -1444,7 +1444,8 @@ composes the approved menu and buttons. `core/writingLinkModel.js` computes exac
 label ranges and disjoint paint segments without effects. `writingLinkHints.js`
 adapts mounted link widgets through public CodeMirror DOM positions, limits
 matching to the viewport, and decorates labels after drawing without rebuilding
-widgets. The writing StateField owns persistent decoration range trees; mounted link
+widgets; a measure still queued when a file-mode switch removes the plugin is
+ignored. The writing StateField owns persistent decoration range trees; mounted link
 labels query that tree directly, avoiding a rebuilt full finding-array index. Mounted labels retain
 their document/range/text and
 visible-findings plan; unchanged reconciliation skips source reads and painting. Covered source
@@ -3015,7 +3016,9 @@ to that shared contract. Chromium 131 is the minimum engine with the required
 margin-box support; Safari and older Chromium fail explicitly instead of
 silently omitting numbers. With no generated contents, the export stays one
 pass. With contents, the desktop use case renders a provisional PDF, resolves
-the first generated internal-link destinations through the pdfcpu adapter,
+the first generated internal-link destinations through the pdfcpu adapter
+(with pdfcpu's built-in configuration, so it never reads or creates a pdfcpu
+folder in the user's configuration directory),
 injects their physical pages into reserved fixed-width cells, and renders the
 final PDF through the same `ChromiumPDFSession`. It resolves the final
 destinations again and publishes only when they match. The pass coordinator is

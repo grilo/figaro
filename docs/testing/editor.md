@@ -154,7 +154,9 @@ reads, font measurements or unrelated decoration replacement. They cover active
 line/link boundaries, multiple/backwards selections, drag transitions, edits,
 Undo/Redo, parser/configuration changes, task actions and reference definitions.
 `writingLinkHints.test.js` checks indexed finding access and actual redraw
-reconciliation, with no visits to 1,000 offscreen findings. Gutter tests require
+reconciliation, with no visits to 1,000 offscreen findings, and that a measure
+queued before the hints are reconfigured away does nothing;
+`codeEditorMode.test.js` repeats that through a quick note-to-code-file switch. Gutter tests require
 no unchanged accessibility writes or same-logical-line label redraw. The existing
 wrapped-list browser scenario checks active numbered markers and live font-scale
 changes as well as bullet/quote wrapping. Native verification repeats horizontal

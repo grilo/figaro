@@ -88,4 +88,32 @@ describe('vendored browser security policy', () => {
             expect([name, [...specifiers].filter(specifier => !mapped(imports)(specifier))]).toEqual([name, []]);
         }
     });
+
+    test('maps every @replit package the vendored @replit modules import', () => {
+        // @replit/codemirror-vim 6.4 moved its engine into @replit/codemirror-vim-core.
+        // The production bundle maps @replit packages in build-app-bundle.mjs, and
+        // Jest needs a mapping for any package without dist/index.js.
+        const index = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
+        const source = JSON.parse(index.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]).imports;
+        const bundleScript = fs.readFileSync(path.resolve('scripts/build-app-bundle.mjs'), 'utf8');
+        const jestMapper = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8')).jest.moduleNameMapper;
+        const root = path.resolve('frontend/vendored/@replit');
+        const specifiers = new Set(fs.readdirSync(root, { recursive: true })
+            .filter(file => file.endsWith('.js'))
+            .flatMap(file => [...fs.readFileSync(path.join(root, file), 'utf8')
+                .matchAll(/\bfrom\s*['"](@replit\/[^'"]+)['"]/g)].map(match => match[1])));
+        expect(specifiers.has('@replit/codemirror-vim-core')).toBe(true);
+        const resolvesInJest = specifier => Object.entries(jestMapper).some(([pattern, target]) => {
+            const match = specifier.match(new RegExp(pattern));
+            return match && fs.existsSync(target
+                .replace('<rootDir>', process.cwd())
+                .replace(/\$(\d)/g, (_, group) => match[Number(group)]));
+        });
+        for (const specifier of specifiers) {
+            expect([specifier, 'source', specifier in source]).toEqual([specifier, 'source', true]);
+            expect([specifier, 'production', bundleScript.includes(`'${specifier}':`)])
+                .toEqual([specifier, 'production', true]);
+            expect([specifier, 'jest', resolvesInJest(specifier)]).toEqual([specifier, 'jest', true]);
+        }
+    });
 });
