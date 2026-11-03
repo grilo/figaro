@@ -858,7 +858,7 @@ same test also fails when one of them imports a package that neither import map
 names; vendor and map the new package (as for `@codemirror/streamparser`).
 `@wailsio/runtime` is the exception to latest-version vendoring: the script
 copies it from the locked root `node_modules`, because it must match the Wails
-nightly pinned in `go.mod`. A companion test walks the unbundled module graph
+release pinned in `go.mod`. A companion test walks the unbundled module graph
 from `frontend/js/bootstrap.js`, which the dev server and Playwright load, and
 fails when an imported package is missing from the `index.html` import map.
 The `@replit` editor plugins are checked in under `frontend/vendored/@replit/`

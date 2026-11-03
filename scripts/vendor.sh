@@ -252,7 +252,7 @@ cp "$TEMP_DIR/node_modules/@mermaid-js/examples/LICENSE" "$VENDOR_DIR/mermaid-ex
 cd - > /dev/null
 rm -rf "$TEMP_DIR"
 
-# The Wails runtime must match the nightly pinned by go.mod, so it is copied
+# The Wails runtime must match the release pinned by go.mod, so it is copied
 # from the locked root dependencies rather than the latest-version install.
 echo "Vendoring @wailsio/runtime from the locked dependencies..."
 WAILS_RUNTIME_DIST="$(pwd)/node_modules/@wailsio/runtime/dist"

@@ -53,7 +53,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## Wails v3 and @wailsio/runtime 3.1.0-nightly.20261028
+## Wails v3 and @wailsio/runtime 3.1.0
 
 The desktop host is built with [Wails](https://github.com/wailsapp/wails), and
 the application bundle includes its `@wailsio/runtime` browser module.
