@@ -18,8 +18,6 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
 )
 
-const updateAvailableEventName = "updates:available"
-
 // updateRelease is the part of a published release the frontend may show.
 type updateRelease struct {
 	Version string
@@ -154,30 +152,32 @@ func (a *App) UpdateRestart() (*UpdateStatus, error) {
 	return &UpdateStatus{State: updateStateReady, CurrentVersion: version}, nil
 }
 
-// scheduleStartupUpdateCheck runs the opted-in check once per launch, after
-// the frontend is listening for its result.
-func (a *App) scheduleStartupUpdateCheck() {
-	a.updates.startupCheck.Do(func() { go a.checkForUpdatesAtStartup() })
-}
-
-// checkForUpdatesAtStartup tells the frontend only about an available
-// release; failures stay in the log rather than interrupting writing.
-func (a *App) checkForUpdatesAtStartup() {
+// UpdateStartupCheck runs the opted-in check once per launch and reports only
+// an available release. The frontend asks once its update prompt is ready, so
+// a fast reply cannot arrive before anything is listening; failures stay in
+// the log rather than interrupting writing.
+func (a *App) UpdateStartupCheck() (*UpdateStatus, error) {
+	first := false
+	a.updates.startupCheck.Do(func() { first = true })
+	if !first {
+		return nil, nil
+	}
 	enabled, err := a.loadUpdateChecksEnabled()
 	if err != nil || !enabled {
-		return
+		return nil, nil
 	}
 	status, _ := a.UpdateCheck()
 	if status == nil {
-		return
+		return nil, nil
 	}
 	if status.State == updateStateError {
 		log.Printf("[updates] Startup check failed: %s", status.Error)
-		return
+		return nil, nil
 	}
-	if status.State == updateStateAvailable {
-		a.emitRuntimeEventData(updateAvailableEventName, status)
+	if status.State != updateStateAvailable {
+		return nil, nil
 	}
+	return status, nil
 }
 
 func releasePageURL(version string) string {

@@ -219,7 +219,6 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	})
 	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
 		app.domReady(context.Background())
-		app.scheduleStartupUpdateCheck()
 	})
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
 		drop := nativeFileDrop{Paths: event.Context().DroppedFiles()}

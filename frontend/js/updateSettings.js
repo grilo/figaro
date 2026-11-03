@@ -10,8 +10,6 @@ import { backend as defaultBackend } from './backend.js';
 import { confirmDialog as defaultConfirm } from './dialogs.js';
 import { describeUpdateStatus, updateActionLabel } from './core/updateModel.js';
 
-export const UPDATE_AVAILABLE_EVENT = 'updates:available';
-
 let notificationsInitialized = false;
 
 function findIn(root, selector) {
@@ -113,39 +111,46 @@ export async function initUpdateSettings(root = document, { backend = defaultBac
 }
 
 /**
- * Offer an update found by the opted-in startup check. Declining leaves the
- * release available from Settings.
+ * Offer an update found by the opted-in startup check. The check runs once
+ * Figaro is ready, so its answer always has a prompt waiting for it.
+ * Declining leaves the release available from Settings.
  */
-export function initUpdateNotifications(runtime = window.runtime, {
+export async function initUpdateNotifications({
     backend = defaultBackend,
     confirm = defaultConfirm,
 } = {}) {
-    if (notificationsInitialized || typeof runtime?.EventsOn !== 'function') return false;
+    if (notificationsInitialized) return false;
     notificationsInitialized = true;
-    runtime.EventsOn(UPDATE_AVAILABLE_EVENT, async (status = {}) => {
-        const install = await confirm(
-            `Figaro ${status.version || ''} is available`.trim(),
-            `You are running ${status.currentVersion || 'an older version'}. Figaro downloads the update, verifies it, and asks before restarting.`,
-            false,
-            false,
-            { confirmLabel: 'Download and install', cancelLabel: 'Not now', icon: 'info' },
-        );
-        if (install !== 'confirm') return;
-        const staged = await backend().UpdateInstall();
-        const description = describeUpdateStatus(staged);
-        const restart = await confirm(
-            description.kind === 'ready' ? 'Update ready' : 'Update failed',
-            description.message,
-            false,
-            false,
-            description.action === 'restart'
-                ? { confirmLabel: 'Restart now', cancelLabel: 'Later', icon: 'info' }
-                : { confirmLabel: 'OK', cancelLabel: 'Close', tone: 'warning' },
-        );
-        if (restart === 'confirm' && description.action === 'restart') {
-            await backend().UpdateRestart();
-        }
-    });
+    let status;
+    try {
+        status = await backend().UpdateStartupCheck();
+    } catch (_) {
+        // The backend logs failed checks; a missing answer must not interrupt writing.
+        return false;
+    }
+    if (status?.state !== 'available') return false;
+    const install = await confirm(
+        `Figaro ${status.version || ''} is available`.trim(),
+        `You are running ${status.currentVersion || 'an older version'}. Figaro downloads the update, verifies it, and asks before restarting.`,
+        false,
+        false,
+        { confirmLabel: 'Download and install', cancelLabel: 'Not now', icon: 'info' },
+    );
+    if (install !== 'confirm') return true;
+    const staged = await backend().UpdateInstall();
+    const description = describeUpdateStatus(staged);
+    const restart = await confirm(
+        description.kind === 'ready' ? 'Update ready' : 'Update failed',
+        description.message,
+        false,
+        false,
+        description.action === 'restart'
+            ? { confirmLabel: 'Restart now', cancelLabel: 'Later', icon: 'info' }
+            : { confirmLabel: 'OK', cancelLabel: 'Close', tone: 'warning' },
+    );
+    if (restart === 'confirm' && description.action === 'restart') {
+        await backend().UpdateRestart();
+    }
     return true;
 }
 

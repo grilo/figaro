@@ -44,16 +44,13 @@ func newUpdateTestApp(t *testing.T, service updateService) *App {
 func TestUpdateChecksAreOffUntilTheUserOptsIn(t *testing.T) {
 	service := &fakeUpdateService{release: &updateRelease{Version: "1.47.0"}}
 	app := newUpdateTestApp(t, service)
-	emitted := 0
-	app.desktopRuntime.configureForTest(context.Background(), true, nil, func(string, ...any) { emitted++ })
 
 	settings, err := app.UpdateSettingsLoad()
 	if err != nil || !settings.Success || settings.Enabled || !settings.Supported {
 		t.Fatalf("default update settings = %#v, %v", settings, err)
 	}
-	app.checkForUpdatesAtStartup()
-	if service.checks != 0 || emitted != 0 {
-		t.Fatalf("startup contacted GitHub without opt-in: checks=%d events=%d", service.checks, emitted)
+	if status, _ := app.UpdateStartupCheck(); status != nil || service.checks != 0 {
+		t.Fatalf("startup contacted GitHub without opt-in: status=%#v checks=%d", status, service.checks)
 	}
 
 	if saved, _ := app.UpdateSettingsSave(true); !saved.Success || !saved.Enabled {
@@ -64,33 +61,33 @@ func TestUpdateChecksAreOffUntilTheUserOptsIn(t *testing.T) {
 	}
 }
 
-func TestStartupCheckAnnouncesOnlyAnAvailableRelease(t *testing.T) {
-	service := &fakeUpdateService{}
-	app := newUpdateTestApp(t, service)
-	var events []string
-	var announced *UpdateStatus
-	app.desktopRuntime.configureForTest(context.Background(), true, nil, func(name string, data ...any) {
-		events = append(events, name)
-		if len(data) == 1 {
-			announced, _ = data[0].(*UpdateStatus)
+func TestStartupCheckReportsOnlyAnAvailableReleaseOncePerLaunch(t *testing.T) {
+	startupCheck := func(service *fakeUpdateService) (*UpdateStatus, *App) {
+		app := newUpdateTestApp(t, service)
+		if _, err := app.UpdateSettingsSave(true); err != nil {
+			t.Fatal(err)
 		}
-	})
-	if _, err := app.UpdateSettingsSave(true); err != nil {
-		t.Fatal(err)
+		status, err := app.UpdateStartupCheck()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return status, app
 	}
 
-	app.checkForUpdatesAtStartup()
-	service.checkErr = errors.New("network unreachable")
-	app.checkForUpdatesAtStartup()
-	if len(events) != 0 {
-		t.Fatalf("up-to-date or failed checks emitted %v", events)
+	if status, _ := startupCheck(&fakeUpdateService{}); status != nil {
+		t.Fatalf("up-to-date startup check reported %#v", status)
+	}
+	if status, _ := startupCheck(&fakeUpdateService{checkErr: errors.New("network unreachable")}); status != nil {
+		t.Fatalf("failed startup check reported %#v", status)
 	}
 
-	service.checkErr = nil
-	service.release = &updateRelease{Version: "1.47.0", URL: "https://github.com/grilo/figaro/releases/tag/v1.47.0"}
-	app.checkForUpdatesAtStartup()
-	if len(events) != 1 || events[0] != updateAvailableEventName || announced == nil || announced.Version != "1.47.0" {
-		t.Fatalf("available release announced as %v %#v", events, announced)
+	service := &fakeUpdateService{release: &updateRelease{Version: "1.47.0", URL: "https://github.com/grilo/figaro/releases/tag/v1.47.0"}}
+	status, app := startupCheck(service)
+	if status == nil || status.State != updateStateAvailable || status.Version != "1.47.0" || status.CurrentVersion != "1.46.0" {
+		t.Fatalf("available release reported as %#v", status)
+	}
+	if again, _ := app.UpdateStartupCheck(); again != nil || service.checks != 1 {
+		t.Fatalf("second startup check in one launch = %#v after %d checks", again, service.checks)
 	}
 }
 

@@ -763,14 +763,16 @@ npx playwright test \
   the runtime client header are refused before Wails dispatches them.
 - `internal/updates/updates_test.go` owns update-archive names, asset matching,
   published platforms, and version parsing.
-- `internal/desktop/app_updates_test.go` owns the opt-in default, the startup
-  check, and each Settings state through a fake updater.
+- `internal/desktop/app_updates_test.go` owns the opt-in default, the
+  once-per-launch startup check, and each Settings state through a fake
+  updater.
 - `internal/desktop/app_updates_github_test.go` drives the real Wails updater
   against a fake GitHub API: it stages only the verified single-entry update
   archive, rejects a checksum mismatch, and reports a newer release without an
   update archive as an error.
-- `tests/frontend/unit/updateSettings.test.js` owns the Updates card and the
-  two consent prompts before downloading and restarting.
+- `tests/frontend/unit/updateSettings.test.js` owns the Updates card, asking
+  for the startup check only once Figaro is ready, and the two consent prompts
+  before downloading and restarting.
 - The Settings test in `tests/e2e/editorUX.spec.js` owns that hidden
   Settings actions (**Use automatic**, the update action) stay hidden in a real
   browser, where `.ui-button` would otherwise override `[hidden]`.

@@ -112,6 +112,7 @@ export const BACKEND_METHODS = Object.freeze([
     'UpdateRestart',
     'UpdateSettingsLoad',
     'UpdateSettingsSave',
+    'UpdateStartupCheck',
     'UpdateTaskTag',
     'VimLoad',
     'VimRevealBlocksLoad',

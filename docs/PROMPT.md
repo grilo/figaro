@@ -3508,8 +3508,8 @@ Multiple layers prevent a white flash before CSS loads:
   an occupied original path is reported without replacement or record loss.
 - **Updates**: **Check for updates** is off by default and stored per machine, never in the vault.
   While it is off Figaro makes no update request; **Check now** still checks on demand. When on,
-  Figaro checks the latest GitHub release once after the window is ready and, if a newer release is
-  available, asks before downloading (**Download and install** / **Not now**). The native updater
+  Figaro checks the latest GitHub release once per launch, after startup finishes, and, if a newer
+  release is available, asks before downloading (**Download and install** / **Not now**). The native updater
   downloads only the platform's single-entry `figaro-<tag>-<platform>-update` archive, verifies it
   against the release's `SHA256SUMS`, stages it, and then asks before restarting (**Restart now** /
   **Later**). The card shows the current state (latest, available, ready, or the error) with one

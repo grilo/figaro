@@ -703,7 +703,6 @@ export async function initApp() {
     // interaction- and geometry-affecting state concurrently with the portable
     // session, then expose the restored editor with one authoritative profile.
     initVaultChangeNotifications();
-    initUpdateNotifications();
     statusBar.set('Restoring workspace...');
     await startupTimings.measure('preferences', () => startupHydration.hydrate());
     
@@ -846,6 +845,8 @@ export async function initApp() {
     statusBar.set('Ready');
     window._appReady = true;
     startupTimings.mark('ready');
+    // Ask only now, so an opted-in update prompt never interrupts startup.
+    void initUpdateNotifications();
 
     // Expose API for debugging
     window.app = {

@@ -1,6 +1,5 @@
 import { describeUpdateStatus, updateActionLabel } from '../../../frontend/js/core/updateModel.js';
 import {
-    UPDATE_AVAILABLE_EVENT,
     initUpdateNotifications,
     initUpdateSettings,
     resetUpdateNotificationsForTest,
@@ -109,35 +108,40 @@ describe('Updates settings card', () => {
 describe('startup update notice', () => {
     beforeEach(() => resetUpdateNotificationsForTest());
 
-    function runtimeWithListener() {
-        const listeners = new Map();
-        return {
-            runtime: { EventsOn: (name, callback) => listeners.set(name, callback) },
-            emit: (name, payload) => listeners.get(name)(payload),
-        };
-    }
-
     test('downloads only after consent and restarts only after a second consent', async () => {
-        const { runtime, emit } = runtimeWithListener();
         const native = {
+            UpdateStartupCheck: jest.fn().mockResolvedValue({ state: 'available', version: '1.47.0', currentVersion: '1.46.0' }),
             UpdateInstall: jest.fn().mockResolvedValue({ state: 'ready' }),
             UpdateRestart: jest.fn().mockResolvedValue({ state: 'ready' }),
         };
         const confirm = jest.fn().mockResolvedValueOnce('confirm').mockResolvedValueOnce(false);
-        initUpdateNotifications(runtime, { backend: () => native, confirm });
 
-        await emit(UPDATE_AVAILABLE_EVENT, { state: 'available', version: '1.47.0', currentVersion: '1.46.0' });
+        await initUpdateNotifications({ backend: () => native, confirm });
         expect(confirm.mock.calls[0][0]).toBe('Figaro 1.47.0 is available');
         expect(native.UpdateInstall).toHaveBeenCalledTimes(1);
         expect(native.UpdateRestart).not.toHaveBeenCalled();
     });
 
     test('leaves the release alone when the user declines', async () => {
-        const { runtime, emit } = runtimeWithListener();
-        const native = { UpdateInstall: jest.fn(), UpdateRestart: jest.fn() };
-        initUpdateNotifications(runtime, { backend: () => native, confirm: jest.fn().mockResolvedValue(false) });
-
-        await emit(UPDATE_AVAILABLE_EVENT, { state: 'available', version: '1.47.0' });
+        const native = {
+            UpdateStartupCheck: jest.fn().mockResolvedValue({ state: 'available', version: '1.47.0' }),
+            UpdateInstall: jest.fn(),
+            UpdateRestart: jest.fn(),
+        };
+        await initUpdateNotifications({ backend: () => native, confirm: jest.fn().mockResolvedValue(false) });
         expect(native.UpdateInstall).not.toHaveBeenCalled();
+    });
+
+    test('asks once per launch and stays quiet without an available release', async () => {
+        const confirm = jest.fn();
+        const native = { UpdateStartupCheck: jest.fn().mockResolvedValue(null) };
+        await expect(initUpdateNotifications({ backend: () => native, confirm })).resolves.toBe(false);
+        await initUpdateNotifications({ backend: () => native, confirm });
+        expect(native.UpdateStartupCheck).toHaveBeenCalledTimes(1);
+
+        resetUpdateNotificationsForTest();
+        native.UpdateStartupCheck.mockRejectedValue(new Error('offline'));
+        await expect(initUpdateNotifications({ backend: () => native, confirm })).resolves.toBe(false);
+        expect(confirm).not.toHaveBeenCalled();
     });
 });
