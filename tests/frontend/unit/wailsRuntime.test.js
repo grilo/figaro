@@ -61,10 +61,11 @@ describe('Wails v3 runtime adapter', () => {
         expect(installWailsRuntime(browser, { protocol: 'http:', hostname: 'localhost' })).toBe(false);
         expect(browser).toEqual({});
 
-        const desktop = {};
+        const desktop = { document: document.implementation.createHTMLDocument('') };
         expect(installWailsRuntime(desktop, { protocol: 'wails:', hostname: 'localhost' })).toBe(true);
         expect(typeof desktop.go.desktop.App.GetFileTree).toBe('function');
         expect(typeof desktop.runtime.EventsOn).toBe('function');
         expect(typeof desktop.runtime.OnFileDrop).toBe('function');
+        expect(desktop.document.documentElement.hasAttribute('data-desktop-webview')).toBe(true);
     });
 });

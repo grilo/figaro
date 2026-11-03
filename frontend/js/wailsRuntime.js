@@ -58,10 +58,14 @@ export function createNativeRuntime({
     });
 }
 
-/** Publish the native surface before application startup reads it. */
+/**
+ * Publish the native surface before application startup reads it, and mark
+ * the document so desktop-only chrome such as the frameless resize edges shows.
+ */
 export function installWailsRuntime(target = globalThis, location = globalThis.location) {
     if (!isDesktopWebview(location)) return false;
     target.go = { desktop: { App: createNativeApp() } };
     target.runtime = createNativeRuntime();
+    target.document?.documentElement?.setAttribute('data-desktop-webview', '');
     return true;
 }

@@ -27,6 +27,8 @@ remain as originally published.
 
 - **Settings → PDF Export** no longer shows **Use automatic** while Figaro is
   already detecting the browser automatically.
+- On Linux and Windows, dragging the window's right or bottom edge resizes it
+  again where the editor or another scrolling pane reaches that edge.
 
 ## [1.46.3] - 2026-10-31
 

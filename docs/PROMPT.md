@@ -3710,6 +3710,10 @@ Multiple layers prevent a white flash before CSS loads:
   resize, calls `WindowSetSize` via the Go backend. It stays visible outside Pure mode and is hidden
   in Pure mode.
 - `WindowStartResize(direction)` for programmatic edge resizing (N/S/E/W/NE/NW/SE/SW).
+- On Linux and Windows the Wails runtime resizes a frameless window when a press lands within 5px
+  of its border. In the desktop webview, invisible strips cover the right and bottom 5px above every
+  pane, so a scroller that reaches the border (the editor, Settings, boards) cannot take that press
+  for its scrollbar.
 
 ### 24.1 Persisted State Contract
 - Persist only schema version `1`, the last normal width, the last normal height, and whether the

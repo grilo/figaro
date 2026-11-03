@@ -14,7 +14,8 @@ Window-edge styling must remain a full, pointer-transparent outline: one pixel
 on every side, the same radius as `#app`, and a slightly stronger top color.
 Keep `tests/e2e/windowChrome.spec.js` focused on those computed properties so
 the browser build and packaged webview do not drift back to separate border
-implementations. After changing the outline, title bar, drag region, or window
+implementations. It also owns that the desktop-only right and bottom resize
+strips are the topmost hit target in the 5px border zones. After changing the outline, title bar, drag region, or window
 controls, also exercise native edge resizing and maximize/restore in the
 packaged application on each affected desktop platform.
 

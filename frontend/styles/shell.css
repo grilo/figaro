@@ -23,6 +23,36 @@
     --wails-draggable: no-drag;
 }
 
+/* Wails starts a frameless edge resize from the page when a press lands within
+   5px of the window border, but a scroll container that reaches the border
+   takes that press for its scrollbar. These invisible strips keep the right
+   and bottom resize zones above every scroller in the desktop webview. */
+.window-resize-edge {
+    display: none;
+}
+
+:root[data-desktop-webview] .window-resize-edge {
+    display: block;
+    position: fixed;
+    /* Below only the pointer-transparent window outline on #app::after. */
+    z-index: 2147483646;
+    --wails-draggable: no-drag;
+}
+
+:root[data-desktop-webview] .window-resize-edge[data-edge="right"] {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 5px;
+}
+
+:root[data-desktop-webview] .window-resize-edge[data-edge="bottom"] {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 5px;
+}
+
 
 .app-title {
     font-weight: 600;
