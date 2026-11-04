@@ -34,6 +34,10 @@ remain as originally published.
   fix the next time you apply them in the Chart Editor.
 - With **Activity dates** on, switching tabs no longer nudges the note's text
   sideways.
+- On Linux, the dock and app grid show Figaro's icon for its window again
+  instead of a generic one.
+- **Raw Text Preview** opens promptly for long notes; on Linux it could take
+  several seconds.
 
 ## [1.46.3] - 2026-10-31
 

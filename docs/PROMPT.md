@@ -4605,8 +4605,10 @@ graph TD
 
 ### 32.1 Startup Setup
 `ensureDesktopIntegration()` runs in a goroutine on startup:
-1. Refreshes `~/.local/share/applications/figaro.desktop` so upgrades correct stale launcher
-   metadata.
+1. Refreshes `~/.local/share/applications/io.github.figaro.Figaro.desktop` so upgrades correct
+   stale launcher metadata. The file is named after the GTK application ID because GNOME on
+   Wayland finds a window's launcher, and so its Dash icon, by that ID. A `figaro.desktop` that an
+   earlier Figaro wrote is removed; a same-named file from anything else is left alone.
 2. Copies icon PNGs to `~/.local/share/icons/hicolor/{size}x{size}/apps/io.github.figaro.Figaro.png`
    for sizes 16–256.
 3. Copies a scalable icon to `hicolor/scalable/apps/io.github.figaro.Figaro.png`.
@@ -4621,7 +4623,7 @@ graph TD
 Type=Application
 Name=figaro
 Exec=/absolute/path/to/figaro %U
-Icon=/absolute/path/to/io.github.figaro.Figaro.png
+Icon=io.github.figaro.Figaro
 Terminal=false
 Categories=Office;TextEditor;Utility;
 StartupWMClass=figaro

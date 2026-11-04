@@ -184,7 +184,11 @@ body.right-sidebar-resizing .pdf-preview-frame {
     line-height: 1.35;
 }
 
+/* The pane opens by animating its width from zero. Holding the stage at the
+   open width lays a long note out once instead of on every frame, at widths
+   where wrap-anywhere text becomes one character per line; the pane clips it. */
 .raw-text-preview-stage {
+    min-width: calc(var(--right-sidebar-effective-width, var(--right-sidebar-width, 320px)) - 1px);
     min-height: 0;
     flex: 1;
     overflow: auto;

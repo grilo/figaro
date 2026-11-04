@@ -84,3 +84,33 @@ test('opens exact Markdown source from the editor menu and closes it by keyboard
     await expect(panel).toBeHidden();
     await expect(sidebar).not.toHaveClass(/open/);
 });
+
+test('lays the raw source out at its open width while the pane slides open', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    await page.evaluate(async () => {
+        (await import('/js/editor.js')).setEditorContent('# Long note\n\n' + 'A line of exact Markdown source.\n'.repeat(400));
+    });
+
+    // WebKitGTK spends seconds relaying out wrap-anywhere text at each
+    // narrow animated width; the source must keep one width from the first frame.
+    await page.evaluate(() => {
+        window.__rawWidths = [];
+        const sample = () => {
+            const source = document.querySelector('#raw-text-preview-panel:not([hidden]) .raw-text-preview-source');
+            const sidebar = document.getElementById('right-sidebar');
+            if (source) window.__rawWidths.push([source.getBoundingClientRect().width, sidebar.getBoundingClientRect().width]);
+            if (window.__rawWidths.length < 40) requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+    });
+    await page.getByRole('button', { name: 'Preview raw Markdown' }).click();
+    await expect.poll(() => page.evaluate(() => window.__rawWidths.length)).toBe(40);
+    const widths = await page.evaluate(() => window.__rawWidths);
+    const sourceWidths = widths.map(([source]) => source);
+    const sidebarWidths = widths.map(([, sidebar]) => sidebar);
+    expect(Math.min(...sidebarWidths)).toBeLessThan(Math.max(...sidebarWidths));
+    expect(Math.max(...sourceWidths) - Math.min(...sourceWidths)).toBeLessThan(0.5);
+});

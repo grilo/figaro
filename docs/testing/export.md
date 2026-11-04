@@ -97,7 +97,9 @@ source-anchor clamping, delayed editor-to-raw scroll following, listener
 cleanup, and closing. The browser workflow must open it from a Markdown context
 menu, assert exact text plus deliberate source geometry, copy the complete live
 snapshot through the visible action, follow main-editor scrolling down and back
-up, and close it by keyboard. Current-note heading completion must ignore frontmatter and fenced
+up, and close it by keyboard. A second browser case owns that the source keeps one
+layout width on every frame while the pane slides open; WebKitGTK otherwise relays out
+a long note at each narrow animated width. Current-note heading completion must ignore frontmatter and fenced
 examples, preserve duplicate anchor suffixes, and accept a keyboard selection
 after typing `](#`.
 

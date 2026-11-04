@@ -2870,7 +2870,9 @@ the otherwise-unused Babel runtime.
 places the current active/dirty Markdown snapshot into a selectable `pre` with
 `textContent`, preserving frontmatter, HTML, fences, and every delimiter
 exactly. It does not invoke Markdown-It or the print worker and cannot apply
-print CSS, page geometry, cover pages, or a generated table of contents.
+print CSS, page geometry, cover pages, or a generated table of contents. Its
+scrolling stage holds the pane's open width as a minimum, so the sliding pane
+clips one layout of the text instead of reflowing it on every animation frame.
 
 The module listens for active document changes, saves, and matching tab
 switches so it keeps the current note snapshot without competing with the

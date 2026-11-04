@@ -17,6 +17,10 @@ import (
 const (
 	linuxDesktopIconName       = "io.github.figaro.Figaro"
 	linuxLegacyDesktopIconName = "figaro"
+	// Wayland shells match a window to the launcher named after its
+	// application ID, so the entry carries the GTK application ID's name.
+	linuxDesktopEntryName       = figaroSingleInstanceID + ".desktop"
+	linuxLegacyDesktopEntryName = "figaro.desktop"
 )
 
 var linuxDesktopIconSizes = []int{16, 22, 24, 32, 48, 64, 128, 256}
@@ -26,6 +30,34 @@ func linuxDataHome(homeDir string) string {
 		return configured
 	}
 	return filepath.Join(homeDir, ".local", "share")
+}
+
+// isFigaroLegacyDesktopEntry recognizes the launcher earlier Figaro versions
+// wrote, so the rename removes only Figaro's own file.
+func isFigaroLegacyDesktopEntry(content string) bool {
+	return strings.HasPrefix(content, "[Desktop Entry]\n") &&
+		strings.Contains(content, "\nName=figaro\n") &&
+		strings.Contains(content, "\nComment=Local Markdown Knowledge Base\n")
+}
+
+// removeLegacyLinuxDesktopEntry deletes the pre-rename launcher when Figaro
+// wrote it; a same-named file from anything else is left alone.
+func removeLegacyLinuxDesktopEntry(applicationsDir string) error {
+	legacy := filepath.Join(applicationsDir, linuxLegacyDesktopEntryName)
+	content, err := os.ReadFile(legacy) // #nosec G304 -- fixed filename inside the user's XDG applications directory.
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !isFigaroLegacyDesktopEntry(string(content)) {
+		return nil
+	}
+	if err := os.Remove(legacy); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func linuxDesktopEntry(exePath string, iconPath string) string {
@@ -119,7 +151,7 @@ func (a *App) ensureDesktopIntegration() {
 		return
 	}
 	dataHome := linuxDataHome(homeDir)
-	desktopFile := filepath.Join(dataHome, "applications", "figaro.desktop")
+	desktopFile := filepath.Join(dataHome, "applications", linuxDesktopEntryName)
 
 	exePath, err := os.Executable()
 	if err != nil {
@@ -206,6 +238,9 @@ func (a *App) ensureDesktopIntegration() {
 	}
 
 	applicationsDir := filepath.Join(dataHome, "applications")
+	if err := removeLegacyLinuxDesktopEntry(applicationsDir); err != nil {
+		log.Printf("[desktop] Could not remove the earlier figaro.desktop launcher: %v", err)
+	}
 	if out, err := exec.Command("update-desktop-database", applicationsDir).CombinedOutput(); err != nil { // #nosec G204 -- fixed Linux utility; no shell is used and applicationsDir is from os.UserHomeDir.
 		log.Printf("[desktop] update-desktop-database: %s (non-critical)", string(out))
 	}

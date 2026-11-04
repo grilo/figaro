@@ -81,3 +81,42 @@ func TestRemoveStaleLinuxFigaroIconsPreservesCurrentAndUnrelatedFiles(t *testing
 		}
 	}
 }
+
+func TestLinuxDesktopEntryIsNamedAfterTheApplicationID(t *testing.T) {
+	// GNOME on Wayland finds a window's launcher, and so its icon, by app ID.
+	if linuxDesktopEntryName != figaroSingleInstanceID+".desktop" {
+		t.Fatalf("desktop entry %q does not match application ID %q", linuxDesktopEntryName, figaroSingleInstanceID)
+	}
+}
+
+func TestRemoveLegacyLinuxDesktopEntryRemovesOnlyFigarosOwnLauncher(t *testing.T) {
+	applicationsDir := t.TempDir()
+	legacy := filepath.Join(applicationsDir, linuxLegacyDesktopEntryName)
+	if err := os.WriteFile(legacy, []byte(linuxDesktopEntry("/opt/figaro/figaro", linuxDesktopIconName)), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeLegacyLinuxDesktopEntry(applicationsDir); err != nil {
+		t.Fatalf("removeLegacyLinuxDesktopEntry error: %v", err)
+	}
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Fatalf("Figaro's earlier launcher was not removed; stat error = %v", err)
+	}
+
+	foreign := "[Desktop Entry]\nType=Application\nName=figaro\nComment=Someone else's tool\nExec=/usr/bin/figaro\n"
+	if err := os.WriteFile(legacy, []byte(foreign), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeLegacyLinuxDesktopEntry(applicationsDir); err != nil {
+		t.Fatalf("removeLegacyLinuxDesktopEntry error: %v", err)
+	}
+	if _, err := os.Stat(legacy); err != nil {
+		t.Fatalf("an unrelated figaro.desktop was removed: %v", err)
+	}
+
+	if err := os.Remove(legacy); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeLegacyLinuxDesktopEntry(applicationsDir); err != nil {
+		t.Fatalf("a missing legacy launcher must not be an error: %v", err)
+	}
+}
