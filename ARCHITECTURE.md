@@ -2996,6 +2996,8 @@ workspace cannot fit both minima, the pure presentation plan moves that same
 pane into bounded trailing-overlay placement; CodeMirror retains its full
 layout width, a normal compact window exposes at least 180 px of it, and the
 launcher rail moves into that exposed strip so the pane remains reversible.
+Closing keeps the overlay placement while the pane collapses, so it never
+docks beside the editor and reflows it; the next open replans placement.
 When PDF Preview leaves the docked editor narrower than 560 px, CodeMirror's
 horizontal content padding contracts from 24 px to 12 px; it returns to the
 normal padding when space is restored. Pointer capture keeps the gesture alive

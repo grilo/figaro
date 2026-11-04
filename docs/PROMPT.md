@@ -1002,9 +1002,9 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   IDs from the current preview, displays its generated body HTML, and can copy that HTML. Its
   splitter has the shared 220 px pane minimum and otherwise grows dynamically while preserving a 400
   px editor floor. If the current workspace cannot fit both minima, the same right pane overlays the
-  trailing editor edge at a bounded width: the editor keeps its complete layout width, at least 180
-  px remains visibly exposed at normal compact-window sizes, and widening the window docks the pane
-  again. The pane may keep growing, but the centered paper surface is capped to the last supported
+  trailing editor edge at a bounded width: the editor keeps its complete layout width, also while
+  the pane opens or closes, at least 180 px remains visibly exposed at normal compact-window sizes,
+  and widening the window docks the pane again. The pane may keep growing, but the centered paper surface is capped to the last supported
   `@page size` declaration. Preview geometry supports named A3/A4/A5, B5, Letter, Legal,
   Ledger/Tabloid, and Executive paper, portrait/landscape orientation, and one- or two-length
   explicit sizes, with A4 as fallback. A final preview-only geometry rule prevents user `body` width

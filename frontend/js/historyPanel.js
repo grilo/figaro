@@ -703,9 +703,11 @@ function configuredRightSidebarWidth() {
     return Number.isFinite(value) && value > 0 ? value : 320;
 }
 
-function clearPreviewSidebarPresentation(sidebar) {
+// A closed overlay keeps its out-of-flow placement so it collapses over the
+// editor instead of docking and squeezing it; the next open replans placement.
+function clearPreviewSidebarPresentation(sidebar, { keepOverlayPlacement = false } = {}) {
     document.getElementById('app')?.style.removeProperty('--shell-right-sidebar-width');
-    sidebar?.classList.remove('right-sidebar--responsive-overlay');
+    if (!keepOverlayPlacement) sidebar?.classList.remove('right-sidebar--responsive-overlay');
     sidebar?.style.removeProperty('--right-sidebar-effective-width');
     const main = document.getElementById('main-content');
     main?.classList.remove('right-sidebar-overlay-active');
@@ -722,7 +724,7 @@ export function updateRightSidebarEditorLayout(
     const sidebarOpen = Boolean(sidebar?.classList.contains('open'));
     const isPDFPreview = Boolean(sidebarOpen && sidebar.classList.contains('pdf-preview-mode'));
     if (!sidebarOpen) {
-        clearPreviewSidebarPresentation(sidebar);
+        clearPreviewSidebarPresentation(sidebar, { keepOverlayPlacement: true });
         main.classList.remove('pdf-preview-compact-editor');
         return null;
     }

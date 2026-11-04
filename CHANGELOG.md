@@ -34,6 +34,8 @@ remain as originally published.
   fix the next time you apply them in the Chart Editor.
 - With **Activity dates** on, switching tabs no longer nudges the note's text
   sideways.
+- In a narrow window, closing Outline or another pane that covers the edge of
+  the note no longer squeezes the note's text for a moment before it closes.
 
 ## [1.46.3] - 2026-10-31
 

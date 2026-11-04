@@ -148,6 +148,12 @@ describe('live PDF preview', () => {
         sidebar.classList.remove('open');
         updateRightSidebarEditorLayout();
         expect(app.style.getPropertyValue('--shell-right-sidebar-width')).toBe('');
+        // A closing overlay collapses in place instead of docking beside the editor.
+        expect(sidebar.classList.contains('right-sidebar--responsive-overlay')).toBe(true);
+        expect(document.getElementById('main-content').classList.contains('right-sidebar-overlay-active')).toBe(false);
+        sidebar.classList.add('open');
+        updateRightSidebarEditorLayout(1000, 280);
+        expect(sidebar.classList.contains('right-sidebar--responsive-overlay')).toBe(false);
     });
 
     test('resolves explicit and fallback stylesheets relative to the note', () => {

@@ -101,14 +101,19 @@ test('stacks Outline, Raw, PDF, and Writing lenses launchers with usable respons
     await page.keyboard.press('ArrowRight');
     const sidebar = page.locator('#right-sidebar');
     const expectedWidth = Number(await splitter.getAttribute('aria-valuenow'));
+    // Pressed and hover backgrounds fade in, so compare colours once each
+    // launcher's transition has finished rather than a mid-fade sample.
+    const settledBackground = launcher => launcher.evaluate(async element => {
+        await Promise.allSettled(element.getAnimations().map(animation => animation.finished));
+        return getComputedStyle(element).backgroundColor;
+    });
     for (const selected of [outline, pdf, lenses, raw]) {
         await selected.click();
         await expect(selected).toHaveAttribute('aria-pressed', 'true');
         await expect.poll(async () => Math.round((await sidebar.boundingBox()).width)).toBe(expectedWidth);
         await assertFooterAligned();
         for (const button of [outline, raw, pdf, lenses]) await expect(button).toBeVisible();
-        expect(await selected.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe(
-            await (selected === raw ? pdf : raw).evaluate(el => getComputedStyle(el).backgroundColor));
+        expect(await settledBackground(selected)).not.toBe(await settledBackground(selected === raw ? pdf : raw));
     }
     await page.locator('#topbar-settings').click();
     await expect(sidebar).not.toHaveClass(/\bopen\b/);
@@ -597,6 +602,9 @@ test('keeps the left Mermaid control stack aligned when Outline narrows the writ
     expect(after.horizontalGap).toBeGreaterThanOrEqual(0);
     expect(after.helperTop).toBeGreaterThan(after.diagramTop);
 
+    // At this width Outline is a responsive overlay: it must collapse over the
+    // editor rather than dock and squeeze it while closing.
+    const editorWidth = await page.locator('#main-content').evaluate(element => element.getBoundingClientRect().width);
     await page.locator('#right-sidebar-close').click();
     await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'true');
     const closingLayout = await page.evaluate(async () => {
@@ -615,6 +623,7 @@ test('keeps the left Mermaid control stack aligned when Outline narrows the writ
             const diagramRect = diagram.getBoundingClientRect();
             const widgetRect = widget.getBoundingClientRect();
             samples.push({
+                editorWidth: document.getElementById('main-content').getBoundingClientRect().width,
                 widgetOffset: helperRect.top - widgetRect.top,
                 foldGap: helperRect.top - foldRect.bottom,
                 horizontalGap: widgetRect.left - helperRect.right,
@@ -627,6 +636,7 @@ test('keeps the left Mermaid control stack aligned when Outline narrows the writ
         return samples;
     });
     expect(closingLayout).toHaveLength(30);
+    expect(closingLayout.every(sample => Math.abs(sample.editorWidth - editorWidth) <= 1)).toBe(true);
     expect(closingLayout.every(sample => Math.abs(sample.widgetOffset - beforeWidgetOffset) <= 2)).toBe(true);
     expect(closingLayout.every(sample => !sample.overlaps)).toBe(true);
     expect(closingLayout.every(sample => Math.abs(sample.foldGap - before.foldGap) <= 1)).toBe(true);
