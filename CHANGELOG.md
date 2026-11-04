@@ -8,6 +8,10 @@ remain as originally published.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.47.0] - 2026-11-05
+
 ### Added
 
 - In-app updates: turn on **Settings → Updates → Check for updates** and Figaro
@@ -2603,7 +2607,8 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.46.3...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.47.0...HEAD
+[1.47.0]: https://github.com/grilo/figaro/compare/v1.46.3...v1.47.0
 [1.46.3]: https://github.com/grilo/figaro/compare/v1.46.2...v1.46.3
 [1.46.2]: https://github.com/grilo/figaro/compare/v1.46.1...v1.46.2
 [1.46.1]: https://github.com/grilo/figaro/compare/v1.46.0...v1.46.1
