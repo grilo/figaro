@@ -788,7 +788,9 @@ axis, the complete visible-series legend domain and four-side legend position,
 safe recognition and upgrade of the earlier managed legend shape, threshold
 placement without axis ownership, upgrade of the earlier axis-suppressing
 threshold shape, hidden authored-row linear-regression predictors and legacy
-category-predictor upgrades, Pie normalization,
+category-predictor upgrades, Pie normalization, Pie labels inside their own
+row-ordered slices (compiled through the vendored Vega engine) and upgrade of
+earlier unordered Pie stacks,
 exact authored category order through explicit `sort: null` encodings for
 vertical/horizontal Cartesian axes, trendline lookups, and Pie color domains,
 first-column Cartesian ownership even for numeric-first tables, all-column
