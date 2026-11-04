@@ -38,6 +38,8 @@ remain as originally published.
   instead of a generic one.
 - **Raw Text Preview** opens promptly for long notes; on Linux it could take
   several seconds.
+- In a narrow window, closing Outline or another pane that covers the edge of
+  the note no longer squeezes the note's text for a moment before it closes.
 
 ## [1.46.3] - 2026-10-31
 

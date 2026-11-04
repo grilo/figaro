@@ -112,7 +112,10 @@ expanded, that same scenario opens Raw and PDF Preview and asserts the pure
 presentation plan selects the existing overlay placement, the editor retains at
 least its 320px layout floor, at least 180px remains visibly exposed, and no
 root horizontal overflow appears. Widening the same viewport must return the
-pane to docked placement; no duplicate preview workflow is added.
+pane to docked placement; no duplicate preview workflow is added. The Outline
+Mermaid-alignment scenario owns the per-frame proof that closing an overlaid
+pane keeps the editor's width, and `pdfPreview.test.js` owns the close-time
+placement classes.
 
 ```bash
 npm run test:unit -- --runTestsByPath \

@@ -26,14 +26,23 @@
 /* When the editor and the preview cannot both retain their usable minimum,
    keep the editor at its full workspace width and place the existing pane over
    its trailing edge. The preview remains the same resizable right-sidebar
-   component; only its responsive placement changes. */
-.right-sidebar.right-sidebar--responsive-overlay.open {
+   component; only its responsive placement changes. A closing overlay keeps
+   this placement while it collapses, so the editor never reflows behind it. */
+.right-sidebar.right-sidebar--responsive-overlay {
     position: absolute;
     z-index: 12;
     top: 0;
     right: 0;
     bottom: 0;
-    width: var(--right-sidebar-effective-width) !important;
+    transition:
+        width var(--motion-layout-duration) var(--motion-ease-out),
+        min-width var(--motion-layout-duration) var(--motion-ease-out),
+        border-left-color var(--motion-content-duration) ease,
+        box-shadow var(--motion-layout-duration) var(--motion-ease-out);
+}
+
+.right-sidebar.right-sidebar--responsive-overlay.open {
+    width: var(--right-sidebar-effective-width, var(--right-sidebar-width, 320px)) !important;
     min-width: 0 !important;
     box-shadow: -10px 0 24px color-mix(in srgb, var(--bg-color) 28%, transparent);
 }
