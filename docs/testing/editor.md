@@ -689,6 +689,10 @@ npm run test:unit -- --runTestsByPath \
 npx playwright test tests/e2e/editorUX.spec.js --grep "keeps activity and block-guide gutters aligned"
 ```
 
+`editorUX.spec.js` "keeps the writing edge still when switching notes whose activity dates differ in
+width" owns the fixed date-rail width: it samples the prose edge on every frame of tab switches
+between notes whose date labels differ.
+
 ### Mermaid Editor dialog
 
 Keyboard exit and fonts: `mermaidEditor.test.js` owns Escape-then-Tab out of Source, the

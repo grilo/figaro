@@ -1005,8 +1005,10 @@ boundaries and editor cursor/selection behavior in Chromium and packaged WebKitG
 ## Activity dates in the outer margin
 
 The opt-in activity gutter does not replace source or add Markdown syntax.
-Its compact date labels always include the year (for example, **7 Sep 26**);
-the existing spacer reserves enough width without changing the writing inset.
+Its compact date labels always include the year (for example, **7 Sep 26**).
+The hidden spacer stacks the widest label for every month, styled like a real
+marker with tabular digits, so the rail keeps one width for every note and while
+dates load; switching notes never moves the prose.
 It shares `editorBlockActionLayout` measurements with the inner helper rail,
 reserving their combined width without overlaying text. Toggling line numbers
 or block guides remeasures both rails after the gutter DOM changes. A changed

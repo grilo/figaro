@@ -806,7 +806,7 @@
 }
 
 .cm-editor[data-helper-rail-compact] .activity-date-marker,
-.cm-editor[data-helper-rail-compact] .activity-date-spacer {
+.cm-editor[data-helper-rail-compact] .activity-date-spacer-label {
     padding-inline: 3px;
 }
 
@@ -1243,8 +1243,11 @@
     transform: translateX(var(--editor-activity-rail-offset, 0px));
 }
 .cm-activityGutter .cm-gutterElement { padding: 0 3px; text-align: right; }
-.activity-date-marker { font-size: calc(var(--font-size-sm) * .85); min-height: 24px; padding: 2px 5px; white-space: nowrap; }
-.activity-date-spacer { display: block; visibility: hidden; font-size: calc(var(--font-size-sm) * .85); padding: 2px 5px; }
+.activity-date-marker,
+.activity-date-spacer-label { font-size: calc(var(--font-size-sm) * .85); font-variant-numeric: tabular-nums; min-height: 24px; padding: 2px 5px; white-space: nowrap; }
+/* Stacked widest labels reserve one rail width, so switching notes or loading dates never moves the text. */
+.activity-date-spacer { display: grid; visibility: hidden; }
+.activity-date-spacer-label { grid-area: 1 / 1; }
 
 .cm-editor.cm-pure-writing .cm-activityGutter,
 .cm-editor.history-mode .cm-activityGutter { display: none !important; }

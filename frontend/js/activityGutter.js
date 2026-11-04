@@ -113,9 +113,22 @@ function appendMarginDate(element, { dayMonth, year }) {
     yearElement.textContent = ` ${year}`;
     element.append(dayMonth, yearElement);
 }
+// Every month's widest label, styled as a real marker, shares one grid cell so
+// the rail keeps one width across documents and while dates load.
+const spacerDateKeys = Array.from({ length: 12 }, (_, month) => `2026-${String(month + 1).padStart(2, '0')}-28`);
 class ActivitySpacer extends GutterMarker {
-    // Size the rail for the widest label ("28 Sep 26"), not a four-digit year.
-    toDOM() { const spacer = document.createElement('span'); spacer.className = 'activity-date-spacer'; appendMarginDate(spacer, { dayMonth: '28 Sep', year: '26' }); return spacer; }
+    toDOM() {
+        const spacer = document.createElement('span');
+        spacer.className = 'activity-date-spacer';
+        spacer.setAttribute('aria-hidden', 'true');
+        for (const key of spacerDateKeys) {
+            const label = document.createElement('span');
+            label.className = 'ui-button ui-button--quiet activity-date-spacer-label';
+            appendMarginDate(label, activityMarginDateParts(key));
+            spacer.append(label);
+        }
+        return spacer;
+    }
 }
 function markerEntries(view) {
     const data = view.state.field(activityState);

@@ -1686,6 +1686,57 @@ test('keeps activity and block-guide gutters aligned through gutter toggles, fol
     }
 });
 
+test('keeps the writing edge still when switching notes whose activity dates differ in width', async ({ page }) => {
+    await page.addInitScript(() => {
+        const notes = {
+            'Welcome.md': '# Welcome\n\nStart writing a paragraph that wraps across the editor column.\n',
+            'Second.md': '# Second note\n\nAnother paragraph that wraps across the editor column.\n',
+        };
+        let installed;
+        Object.defineProperty(window, '__figaroDebugBackend', {
+            configurable: true,
+            get: () => installed,
+            set: backend => {
+                if (backend) {
+                    backend.GetFileTree = async () => Object.keys(notes).map(path => ({ name: path, path, type: 'file', mtime: 1 }));
+                    backend.ReadFile = async path => ({ content: notes[path] ?? notes['Welcome.md'], path, mtime: 1 });
+                    // "3 Sep 26" and "21 Sep 26" render at different widths.
+                    backend.GetFileActivity = async path => ({
+                        source: notes[path], revision: 'fixture', partial: false,
+                        lines: notes[path].split('\n').map(() => ({ event: 0 })),
+                        events: [{ revision: 'fixture', timestamp: path === 'Second.md' ? 1790000000 : 1788436800, kind: 'added', before: '', after: notes[path], parents: [] }],
+                    });
+                }
+                installed = backend;
+            },
+        });
+    });
+    await openWelcomeEditor(page);
+    await page.evaluate(async () => (await import('/js/editorNavigationPreferences.js')).setEditorNavigationPreference('activityDates', true));
+    await expect(page.locator('.activity-date-marker:visible').first()).toHaveAttribute('aria-label', /Last recorded change/);
+    await page.locator('.file-tree-item[data-path="Second.md"] > .file-tree-node').click();
+    await expect(page.locator('.activity-date-marker:visible').first()).toHaveAttribute('aria-label', /Last recorded change/);
+
+    // Sample every frame of each switch: the reserved date rail must not let
+    // a wider label, or the brief moment before dates load, move the prose.
+    const edges = [];
+    for (const path of ['Welcome.md', 'Second.md', 'Welcome.md']) {
+        await page.evaluate(() => {
+            window.__writingEdges = [];
+            const sample = () => {
+                const content = document.querySelector('#editor-container > .cm-editor .cm-content');
+                window.__writingEdges.push(content.getBoundingClientRect().left + parseFloat(getComputedStyle(content).paddingLeft));
+                if (window.__writingEdges.length < 30) requestAnimationFrame(sample);
+            };
+            requestAnimationFrame(sample);
+        });
+        await page.locator(`.tab[data-tab-id="${path}"]`).click();
+        await expect.poll(() => page.evaluate(() => window.__writingEdges.length)).toBe(30);
+        edges.push(...await page.evaluate(() => window.__writingEdges));
+    }
+    expect(Math.max(...edges) - Math.min(...edges)).toBeLessThan(0.5);
+});
+
 test('uses a same-folder note from a rendered missing link and rewrites only its destination', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);

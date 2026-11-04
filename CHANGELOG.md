@@ -32,6 +32,8 @@ remain as originally published.
 - Pie charts made with the Chart Editor put each percentage label on its own
   slice, and slices follow the table's row order. Existing pie charts get the
   fix the next time you apply them in the Chart Editor.
+- With **Activity dates** on, switching tabs no longer nudges the note's text
+  sideways.
 
 ## [1.46.3] - 2026-10-31
 
