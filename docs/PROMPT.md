@@ -4260,8 +4260,12 @@ diagrams in the editor.
   generated endpoints back up against the first-column labels; the visible
   category axis and tooltips therefore keep the original text.
   Every nominal category encoding explicitly disables Vega-Lite sorting, so
-  Cartesian axes, regression lookups, Pie legends, and slices preserve the
+  Cartesian axes, regression lookups, and Pie legends preserve the
   table's authored row order rather than silently switching to lexical order.
+  Pie arcs and their percentage labels both stack by the same hidden
+  authored-row index, so slices follow row order and each label sits on its own
+  slice; Pie charts saved before that index remain reversible and acquire it on
+  their next Apply.
   The first table column always owns the Cartesian category axis and is excluded
   from the visible series, so Cartesian mode does not show a redundant Category
   selector. Pie and Waterfall retain independent table-column category pickers.

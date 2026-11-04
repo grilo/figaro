@@ -29,6 +29,9 @@ remain as originally published.
   already detecting the browser automatically.
 - On Linux and Windows, dragging the window's right or bottom edge resizes it
   again where the editor or another scrolling pane reaches that edge.
+- Pie charts made with the Chart Editor put each percentage label on its own
+  slice, and slices follow the table's row order. Existing pie charts get the
+  fix the next time you apply them in the Chart Editor.
 
 ## [1.46.3] - 2026-10-31
 

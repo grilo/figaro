@@ -81,8 +81,13 @@ function activeTrendlineColumns(state) {
     ));
 }
 
-function chartDataRows(state, { legacyCategoryTrendlines = false } = {}) {
-    if (legacyCategoryTrendlines || !activeTrendlineColumns(state).length) return state.rows;
+function needsRowOrder(state, { legacyCategoryTrendlines = false, legacyPieOrder = false } = {}) {
+    if (state.mode === 'pie') return !legacyPieOrder;
+    return !legacyCategoryTrendlines && activeTrendlineColumns(state).length > 0;
+}
+
+function chartDataRows(state, options = {}) {
+    if (!needsRowOrder(state, options)) return state.rows;
     const field = rowOrderField(state);
     return state.rows.map((row, index) => ({ ...row, [field]: index + 1 }));
 }
@@ -583,12 +588,18 @@ function cartesianSpec(
     };
 }
 
-function pieSpec(state, base, { completeLegend = true } = {}) {
+function pieSpec(state, base, { completeLegend = true, legacyPieOrder = false } = {}) {
     const category = state.columns.find(column => column.field === state.pie.categoryField);
     const value = state.columns.find(column => column.field === state.pie.valueField);
     if (!category || !value) return { ...base, layer: [] };
-    const arcEncoding = {
+    // Both layers stack by authored row order; without it the arcs stack by the
+    // category value while the labels stack in data order, so labels miss their slices.
+    const stackEncoding = {
         theta: { field: value.field, type: 'quantitative', stack: 'normalize' },
+        ...(legacyPieOrder ? {} : { order: { field: rowOrderField(state), type: 'quantitative' } }),
+    };
+    const arcEncoding = {
+        ...stackEncoding,
         color: {
             field: category.field,
             type: 'nominal',
@@ -615,7 +626,7 @@ function pieSpec(state, base, { completeLegend = true } = {}) {
                 ],
                 mark: { type: 'text', radius: Math.max(42, Math.round(state.height * 0.24)), color: '#ffffff' },
                 encoding: {
-                    theta: { field: value.field, type: 'quantitative', stack: 'normalize' },
+                    ...stackEncoding,
                     text: { field: 'figaro_percent', type: 'quantitative', format: '.0%' },
                 },
             }] : []),
@@ -738,6 +749,7 @@ function buildVegaLiteChartSpecVersion(
         completeLegend = true,
         legacyAxisSuppression = false,
         legacyCategoryTrendlines = false,
+        legacyPieOrder = false,
     } = {},
 ) {
     if (!state?.valid) return null;
@@ -752,7 +764,7 @@ function buildVegaLiteChartSpecVersion(
     const base = {
         $schema: VEGA_LITE_SCHEMA,
         usermeta: { figaro: metadata },
-        data: { values: chartDataRows(state, { legacyCategoryTrendlines }) },
+        data: { values: chartDataRows(state, { legacyCategoryTrendlines, legacyPieOrder }) },
         width: 'container',
         height: normalizeVegaLiteChartHeight(state.height),
         autosize: { type: 'fit', contains: 'padding', resize: true },
@@ -761,7 +773,7 @@ function buildVegaLiteChartSpecVersion(
             axis: { labelLimit: 160 },
         },
     };
-    if (state.mode === 'pie') return pieSpec(state, base, { completeLegend });
+    if (state.mode === 'pie') return pieSpec(state, base, { completeLegend, legacyPieOrder });
     if (state.mode === 'waterfall') return waterfallSpec(state, base);
     return cartesianSpec(state, base, {
         completeLegend,
@@ -811,6 +823,9 @@ export function createVegaLiteChartEditorStateFromSource(source) {
                 legacyCategoryTrendlines,
             }));
         }
+    }
+    if (state.mode === 'pie') {
+        previousGenerated.push(buildVegaLiteChartSpecVersion(state, { completeLegend, legacyPieOrder: true }));
     }
     const roundTrip = specsEqual(spec, generated)
         || previousGenerated.some(candidate => specsEqual(spec, candidate));

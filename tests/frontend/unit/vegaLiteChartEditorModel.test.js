@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import v8 from 'node:v8';
 import {
     buildVegaLiteChartSpec,
     createVegaLiteChartEditorStateFromSource,
@@ -19,6 +21,58 @@ const table = [
     '| 2026-02 | 51 | 31 | -6 |',
     '| 2026-03 | 64 | 37 | 18 |',
 ].join('\n');
+
+function loadVendoredVega() {
+    // Run the browser bundles headlessly: jsdom has neither structuredClone nor a canvas,
+    // so hide its document and let Vega fall back to estimated text metrics.
+    const load = (file, requireDependency) => {
+        const module = { exports: {} };
+        new Function('exports', 'module', 'require', 'structuredClone', 'document', 'window',
+            fs.readFileSync(file, 'utf8'))(
+            module.exports,
+            module,
+            requireDependency,
+            value => v8.deserialize(v8.serialize(value)),
+            undefined,
+            undefined,
+        );
+        return module.exports;
+    };
+    const vega = load('frontend/vendored/vega/vega.min.js', () => {
+        throw new Error('Vega has no runtime dependencies.');
+    });
+    const vegaLite = load('frontend/vendored/vega/vega-lite.min.js', () => vega);
+    return { vega, vegaLite };
+}
+
+async function renderedPieGeometry(spec, categoryField) {
+    const { vega, vegaLite } = loadVendoredVega();
+    const compiled = vegaLite.compile({ ...spec, width: 320 }).spec;
+    const view = new vega.View(vega.parse(compiled), { renderer: 'none' });
+    await view.runAsync();
+    const marks = [];
+    const collect = node => {
+        if (node?.marktype && node.role === 'mark') marks.push(node);
+        (node?.items || []).forEach(collect);
+    };
+    collect(view.scenegraph().root);
+    const items = type => marks
+        .filter(mark => mark.marktype === type)
+        .flatMap(mark => mark.items);
+    // Vega-Lite may emit a slice's angles in either direction.
+    const slices = items('arc').map(item => ({
+        category: item.datum[categoryField],
+        startAngle: Math.min(item.startAngle, item.endAngle),
+        endAngle: Math.max(item.startAngle, item.endAngle),
+    }));
+    const labels = items('text').map(item => ({
+        category: item.datum[categoryField],
+        theta: item.theta,
+        text: item.text,
+    }));
+    view.finalize();
+    return { slices, labels };
+}
 
 describe('Vega-Lite Chart Editor model', () => {
     test('maps a rectangular Markdown table to typed, reversible chart state', () => {
@@ -374,6 +428,47 @@ describe('Vega-Lite Chart Editor model', () => {
             mark: expect.objectContaining({ type: 'rule' }),
             encoding: { x2: { field: 'figaro_next' } },
         });
+    });
+
+    test('places each Pie percentage label on its own slice in authored row order', async () => {
+        const state = createVegaLiteChartEditorStateFromTable([
+            '| Month | Visitors |',
+            '| --- | ---: |',
+            '| Jan | 10 |',
+            '| Feb | 25 |',
+            '| Mar | 18 |',
+        ].join('\n'));
+        state.mode = 'pie';
+        const { slices, labels } = await renderedPieGeometry(buildVegaLiteChartSpec(state), 'Month');
+
+        labels.forEach(label => {
+            const slice = slices.find(candidate => candidate.category === label.category);
+            expect(label.theta).toBeGreaterThan(slice.startAngle);
+            expect(label.theta).toBeLessThan(slice.endAngle);
+        });
+        expect([...slices].sort((left, right) => left.startAngle - right.startAngle)
+            .map(slice => slice.category)).toEqual(['Jan', 'Feb', 'Mar']);
+        expect(labels.map(label => [label.category, label.text])).toEqual([
+            ['Jan', '19%'],
+            ['Feb', '47%'],
+            ['Mar', '34%'],
+        ]);
+    });
+
+    test('reopens Pie charts saved before labels shared the slice order', () => {
+        const state = createVegaLiteChartEditorStateFromTable(table);
+        state.mode = 'pie';
+        state.pie.valueField = 'Revenue';
+        const previous = buildVegaLiteChartSpec(state);
+        const orderField = previous.layer[0].encoding.order.field;
+        previous.data.values.forEach(row => { delete row[orderField]; });
+        previous.layer.forEach(layer => { delete layer.encoding.order; });
+
+        const reopened = createVegaLiteChartEditorStateFromSource(JSON.stringify(previous));
+        expect(reopened).toMatchObject({ valid: true, roundTrip: true, mode: 'pie' });
+        const upgraded = JSON.parse(serializeVegaLiteChartFence(reopened).split('\n')[1]);
+        upgraded.layer.forEach(layer => expect(layer.encoding.order).toEqual({ field: orderField, type: 'quantitative' }));
+        expect(upgraded.data.values.map(row => row[orderField])).toEqual([1, 2, 3]);
     });
 
     test('uses any table column as a reversible Pie or Waterfall category', () => {

@@ -3234,12 +3234,12 @@ generation, fixed first-column Cartesian category ownership, Pie/Waterfall
 category selection and calculations, dual-axis grouping, non-owning
 threshold overlays and stack
 policy, collision-safe hidden row-order predictors for nominal-category
-regression, explicit no-sort nominal category encodings, complete visible-series legend domains and
+regression and the shared Pie arc/label stacking order, explicit no-sort nominal category encodings, complete visible-series legend domains and
 placement, exact embedded
 table restoration, foreign-JSON detection, and height
 clamping. Its compatibility reader accepts the exact prior managed-legend and
-axis-suppressing threshold shapes plus earlier category-predictor trendlines,
-but still rejects any
+axis-suppressing threshold shapes plus earlier category-predictor trendlines
+and unordered Pie stacks, but still rejects any
 other JSON drift; the next Apply writes the current
 canonical form. It has no DOM or CodeMirror dependency. `vegaLiteChartEditor.js` owns
 the approved borderless modal composition, quiet field/picker/stepper/segmented

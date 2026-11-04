@@ -114,8 +114,10 @@ Managed trendlines retain the visible first-column labels while Vega-Lite uses
 their hidden authored-row positions as the regression predictor, so Preview and
 export share the same nominal-category trend geometry.
 Managed nominal encodings explicitly preserve table row order for Cartesian
-categories, regression lookups, Pie legends, and slices; Vega-Lite is never
-allowed to silently apply lexical category sorting.
+categories, regression lookups, and Pie legends; Vega-Lite is never
+allowed to silently apply lexical category sorting. Pie slices and their
+percentage labels stack by the same hidden authored-row positions, so printed
+labels sit on their own slices.
 Threshold overlays preserve the chart's selected value-axis labels in both the
 interactive and printable renderers.
 
