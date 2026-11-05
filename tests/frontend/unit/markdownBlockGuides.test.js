@@ -291,7 +291,11 @@ describe('Markdown block guide model', () => {
 test('a prose edit maps complete guides without reading the note, while structural edits still rebuild', () => {
     const { ensureSyntaxTree } = require('@codemirror/language');
     const { mapMarkdownBlockGuides } = require('../../../frontend/js/markdownBlockGuides.js');
-    for (const count of [10, 1000]) {
+    // Mapping needs each edit's incremental parse to finish, which CodeMirror
+    // bounds with a wall-clock budget; freeze the clock so a slow runner
+    // cannot leave the tree partial.
+    jest.useFakeTimers();
+    try { for (const count of [10, 1000]) {
         const source = 'Ordinary prose here.\n\n' + Array(count).fill('## Heading\n\nBody text.\n\n').join('');
         let state = EditorState.create({ doc: source, extensions: [markdownLanguage] });
         ensureSyntaxTree(state, state.doc.length, 10000); state = state.update({}).state;
@@ -309,7 +313,7 @@ test('a prose edit maps complete guides without reading the note, while structur
         const structural = state.update({ changes: { from: 0, insert: '# ' } });
         expect(mapMarkdownBlockGuides(structural)).toBe(false);
         expect(buildMarkdownBlockGuides(structural.state)[0].title).toBe('Ordinary prose here.');
-    }
+    } } finally { jest.useRealTimers(); }
 });
 
 test('guide construction never copies the remaining block list for each heading', () => {
