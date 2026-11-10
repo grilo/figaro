@@ -1,4 +1,5 @@
 import {
+    escapeMarkdownTablePipes,
     markdownTableCellCursorOffset,
     parseMarkdownTable,
     parseMarkdownTableRow,
@@ -12,6 +13,20 @@ const source = [
 ].join('\n');
 
 describe('source-safe Markdown table editing', () => {
+    test('escapes every unescaped pipe in a cell, including each pipe of a run', () => {
+        expect(escapeMarkdownTablePipes('a | b')).toBe('a \\| b');
+        expect(escapeMarkdownTablePipes('a || b')).toBe('a \\|\\| b');
+        expect(escapeMarkdownTablePipes('|x|')).toBe('\\|x\\|');
+        // An already escaped pipe stays as written; an escaped backslash does not escape the pipe.
+        expect(escapeMarkdownTablePipes('a \\| b')).toBe('a \\| b');
+        expect(escapeMarkdownTablePipes('a \\\\| b')).toBe('a \\\\\\| b');
+        expect(escapeMarkdownTablePipes('plain')).toBe('plain');
+        // The escaped cell always parses back as one cell.
+        for (const cell of ['a || b', '|x|', 'a \\\\| b']) {
+            expect(parseMarkdownTableRow(`| ${escapeMarkdownTablePipes(cell)} | 2 |`).cells).toHaveLength(2);
+        }
+    });
+
     test('parses exact row whitespace and escaped pipes without normalizing source', () => {
         const row = parseMarkdownTableRow('  | Alpha \\| A | 2 |  ');
         expect(row.prefix).toBe('  |');

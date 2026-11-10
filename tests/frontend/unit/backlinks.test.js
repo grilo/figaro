@@ -124,6 +124,54 @@ describe('empty and failed backlink lookups', () => {
         expect(container.querySelectorAll('.relationship-card')).toHaveLength(96);
     });
 
+    test('reveals unlinked mentions a page at a time and keeps the place after linking one', async () => {
+        window.go.desktop.App.LinkUnlinkedMention.mockResolvedValue({ success: true });
+        const wrapper = document.createElement('div');
+        wrapper.className = 'backlinks-view-wrapper';
+        const container = document.createElement('div');
+        container.id = 'paged-mentions-results';
+        wrapper.appendChild(container);
+        document.body.appendChild(wrapper);
+        const mentions = count => Array.from({ length: count }, (_, index) => ({
+            path: `notes/mention-${index}.md`, name: `mention-${index}.md`, line_num: index + 1,
+            context: `Meeting ${index} needs an owner.`, match_text: 'Meeting',
+        }));
+        window.go.desktop.App.SearchBacklinks.mockResolvedValue([]);
+        window.go.desktop.App.SearchUnlinkedMentions.mockResolvedValueOnce(mentions(250)).mockResolvedValue(mentions(249));
+
+        await loadBacklinksResults('Meeting.md', container.id);
+
+        const cards = () => container.querySelectorAll('[data-relationship-section="unlinked"] .relationship-card');
+        const more = () => container.querySelector('.relationship-more-action');
+        expect(container.querySelector('.relationship-section:last-child .relationship-count').textContent).toBe('250');
+        expect(cards()).toHaveLength(100);
+        expect(more().textContent).toBe('Show 100 more');
+        expect(container.querySelector('.relationship-more-count').textContent).toBe('150 more mentions not shown');
+
+        more().click();
+        expect(cards()).toHaveLength(200);
+        expect(more().textContent).toBe('Show 50 more');
+        expect(document.activeElement).toBe(cards()[100].querySelector('.relationship-open'));
+
+        more().click();
+        expect(cards()).toHaveLength(250);
+        expect(more()).toBeNull();
+        expect(cards()[249].querySelector('.relationship-link-action').dataset.line).toBe('250');
+
+        // Linking a mention far down refreshes in place: no return to the top
+        // of the list and no collapse back to the first page.
+        wrapper.scrollTop = 4321;
+        cards()[240].querySelector('.relationship-link-action').click();
+        await testUtils.waitFor(0);
+        await testUtils.waitFor(0);
+
+        expect(window.go.desktop.App.LinkUnlinkedMention).toHaveBeenCalledWith('notes/mention-240.md', 241, 'Meeting.md', 'markdown');
+        expect(cards()).toHaveLength(249);
+        expect(more()).toBeNull();
+        expect(wrapper.scrollTop).toBe(4321);
+        wrapper.remove();
+    });
+
     test('links one unlinked mention in the preferred syntax after safeguarding open buffers', async () => {
         window.go.desktop.App.LinkUnlinkedMention.mockResolvedValue({ success: true });
         const container = document.createElement('div');

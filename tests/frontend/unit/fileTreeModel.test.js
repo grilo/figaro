@@ -12,10 +12,12 @@ import {
     mergeNoteCandidates,
     normalizeFileTreeStyles,
     reconcileSelectedTreePaths,
+    remapExpandedDirectories,
     selectedMergeNotePaths,
     sortFileTreeItems,
     toggleExpandedDirectory,
     toggleSelectedPath,
+    vaultItemNameError,
     visibleFileTreeRows,
 } from '../frontend/js/core/fileTreeModel.js';
 import {
@@ -25,6 +27,31 @@ import {
 } from '../frontend/js/core/fileTreeTransferModel.js';
 
 describe('file tree model', () => {
+    test('refuses names Figaro would hide or cannot use, with a specific reason', () => {
+        expect(vaultItemNameError('Meeting notes.md')).toBe('');
+        expect(vaultItemNameError('v1.2 plan')).toBe('');
+        expect(vaultItemNameError('  ')).toBe('Enter a name.');
+        expect(vaultItemNameError('', 'Enter a name for the folder.')).toBe('Enter a name for the folder.');
+        expect(vaultItemNameError('a/b')).toMatch(/name, not a path/);
+        expect(vaultItemNameError('..')).toMatch(/other than dots/);
+        // A dot-prefixed entry is hidden from the tree and could not be renamed back.
+        expect(vaultItemNameError('.Projects')).toMatch(/start with a dot are hidden/);
+        expect(vaultItemNameError(' .todo.md')).toMatch(/start with a dot are hidden/);
+        expect(vaultItemNameError('line\nbreak')).toMatch(/control character/);
+    });
+
+    test('keeps a renamed or moved folder and its children expanded under the new path', () => {
+        const expanded = new Set(['Projects', 'Projects/2026', 'Projects/2026/Q1', 'Projects-old', 'Notes']);
+
+        const renamed = remapExpandedDirectories(expanded, 'Projects', 'Work');
+        expect([...renamed].sort()).toEqual(['Notes', 'Projects-old', 'Work', 'Work/2026', 'Work/2026/Q1']);
+        // The input set is not mutated, and an unaffected set is returned as is.
+        expect(expanded.has('Projects')).toBe(true);
+        expect(remapExpandedDirectories(expanded, 'Archive', 'Old')).toBe(expanded);
+        expect(remapExpandedDirectories(expanded, 'Projects', 'Projects')).toBe(expanded);
+        expect([...remapExpandedDirectories(['A', 'A/B'], 'A', 'C/A')].sort()).toEqual(['C/A', 'C/A/B']);
+    });
+
     test('plans note merges from the open note and only the checked sources', () => {
         const candidates = mergeNoteCandidates(
             'a.md',

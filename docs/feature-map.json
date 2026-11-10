@@ -42,7 +42,9 @@
       ],
       "frontend/js/editor.js": [
         "handleLinkClick",
-        "replaceMarkdownLinkTarget"
+        "replaceMarkdownLinkTarget",
+        "markdownLiteralContextAt",
+        "handleFootnoteNavigation"
       ],
       "frontend/js/usecases/similarNoteReview.js": [
         "reviewMissingLinkedNote"
@@ -107,7 +109,9 @@
       "frontend/js/core/rightSidebarLayout.js",
       "frontend/styles/editor.css",
       "frontend/styles/features/right-sidebar.css",
-      "frontend/js/core/editorBlockActionLayoutModel.js"
+      "frontend/js/core/editorBlockActionLayoutModel.js",
+      "frontend/js/core/markdownTableEditing.js",
+      "frontend/js/frontmatterCompletions.js"
     ],
     "docs": [
       "docs/LIVEPREVIEW.md#4-block-widget-geometry-contract",
@@ -193,7 +197,8 @@
         "verticalMotionStaysInLine"
       ],
       "frontend/js/editor.js": [
-        "requestVerticalViewportMeasure"
+        "requestVerticalViewportMeasure",
+        "adjacentVimRenderedBlock"
       ],
       "frontend/js/pureWriting.js": [
         "createPureWritingExtension"
@@ -335,6 +340,13 @@
       "frontend/js/core/editorBlockActionLayoutModel.js": [
         "editorBlockActionLayout",
         "editorHelperRailCompact"
+      ],
+      "frontend/js/core/markdownTableEditing.js": [
+        "escapeMarkdownTablePipes",
+        "parseMarkdownTableRow"
+      ],
+      "frontend/js/frontmatterCompletions.js": [
+        "createFrontmatterCompletionSource"
       ]
     }
   },
@@ -350,7 +362,8 @@
       "frontend/js/app.js",
       "frontend/js/home.js",
       "frontend/js/usecases/openTodayNote.js",
-      "frontend/js/workspaceChromeState.js"
+      "frontend/js/workspaceChromeState.js",
+      "frontend/js/core/globalShortcutModel.js"
     ],
     "docs": [
       "docs/testing/workspace.md#frameless-window-chrome-regressions",
@@ -373,7 +386,8 @@
       "tests/frontend/unit/home.test.js",
       "tests/frontend/unit/openTodayNote.test.js",
       "tests/frontend/unit/topBar.test.js",
-      "tests/frontend/unit/workspaceChromeState.test.js"
+      "tests/frontend/unit/workspaceChromeState.test.js",
+      "tests/frontend/unit/globalShortcutModel.test.js"
     ],
     "extraChecks": [
       "Reuse existing outline and windowChrome browser boundaries for focus, accessibility, or geometry changes; verify native window behavior in the packaged webview."
@@ -391,6 +405,11 @@
       ],
       "frontend/js/workspaceChromeState.js": [
         "initWorkspaceChromeState"
+      ],
+      "frontend/js/core/globalShortcutModel.js": [
+        "globalShortcutAction",
+        "isSaveShortcut",
+        "isCloseTabShortcut"
       ]
     }
   },
@@ -505,7 +524,8 @@
       "frontend/js/core/writingReviewWork.js",
       "frontend/js/core/writingProjectionModel.js",
       "frontend/js/usecases/writingSourceProjection.js",
-      "frontend/js/usecases/writingParagraphChecks.js"
+      "frontend/js/usecases/writingParagraphChecks.js",
+      "frontend/js/core/appendAll.js"
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#asynchronous-execution-contract",
@@ -523,7 +543,8 @@
       "tests/frontend/unit/writingRuntime.test.js",
       "tests/frontend/unit/editorTypingInventory.test.js",
       "tests/frontend/unit/writingIncremental.test.js",
-      "tests/frontend/unit/writingSourceProjection.test.js"
+      "tests/frontend/unit/writingSourceProjection.test.js",
+      "tests/frontend/unit/appendAll.test.js"
     ],
     "extraChecks": [
       "Use writing-grammar, writing-spelling, writing-retention, writing-inline, or writing-decisions for those changes. Worker/startup changes also need the existing productionBundle boundary."
@@ -553,6 +574,9 @@
       ],
       "frontend/js/usecases/writingParagraphChecks.js": [
         "createWritingParagraphChecks"
+      ],
+      "frontend/js/core/appendAll.js": [
+        "appendAll"
       ]
     }
   },
@@ -827,6 +851,10 @@
       "frontend/js/views/spellingDictionarySettings.js": [
         "createSpellingDictionarySettings",
         "createSpellingDictionaryEditor"
+      ],
+      "frontend/js/spellcheck.js": [
+        "writingSpellingObservations",
+        "spellcheckSuggestionsAtPosition"
       ]
     }
   },
@@ -993,7 +1021,8 @@
     ],
     "symbols": {
       "frontend/js/usecases/writingDecisions.js": [
-        "createWritingDecisions"
+        "createWritingDecisions",
+        "rememberWritingFindings"
       ]
     }
   },
@@ -1012,7 +1041,10 @@
       "frontend/js/externalFiles.js",
       "frontend/js/core/externalFileModel.js",
       "frontend/js/externalFileNotice.js",
-      "internal/desktop/app_dropped_files.go"
+      "internal/desktop/app_dropped_files.go",
+      "internal/desktop/vault_watcher_index.go",
+      "internal/vault/root.go",
+      "internal/mutations/plan.go"
     ],
     "docs": [
       "docs/PROMPT.md#3-file-operations",
@@ -1045,7 +1077,9 @@
     "symbols": {
       "frontend/js/core/fileTreeModel.js": [
         "fileTreeTabMarkersChanged",
-        "dirtyFilePaths"
+        "dirtyFilePaths",
+        "vaultItemNameError",
+        "remapExpandedDirectories"
       ],
       "frontend/js/recentlyDeleted.js": [
         "restoreRecentlyDeletedItem",
@@ -1088,7 +1122,10 @@
       "frontend/js/usecases/tabContent.js",
       "frontend/js/core/tabNavigationModel.js",
       "internal/desktop/app_session.go",
-      "frontend/js/usecases/editorSaveProtection.js"
+      "frontend/js/usecases/editorSaveProtection.js",
+      "frontend/js/editor.js",
+      "frontend/js/core/saveModel.js",
+      "frontend/js/core/editorDocumentMountModel.js"
     ],
     "docs": [
       "docs/PROMPT.md#2-tab-system",
@@ -1117,7 +1154,11 @@
       "tests/frontend/unit/workspaceCursorModel.test.js",
       "tests/frontend/unit/workspaceTabModel.test.js",
       "tests/frontend/unit/session.test.js",
-      "tests/frontend/unit/editorSaveProtection.test.js"
+      "tests/frontend/unit/editorSaveProtection.test.js",
+      "tests/frontend/unit/editorDocumentSession.test.js",
+      "tests/frontend/unit/editor.test.js",
+      "tests/frontend/unit/saveModel.test.js",
+      "tests/frontend/unit/editorDocumentMountModel.test.js"
     ],
     "extraChecks": [
       "Add the affected session/undo tests; focus or tab geometry changes need the existing tab/browser boundary. Session record changes also need go test ./internal/desktop -run Session."
@@ -1154,6 +1195,28 @@
       "frontend/js/session.js": [
         "flushSessionWithin",
         "installSessionFlush"
+      ],
+      "frontend/js/editor.js": [
+        "getEditorBufferContent",
+        "renameEditorDocumentTab"
+      ],
+      "frontend/js/usecases/editorDocumentSession.js": [
+        "createEditorDocumentSession"
+      ],
+      "frontend/js/tabManager.js": [
+        "activeFileContentSnapshot",
+        "updateTabsForMovedPath"
+      ],
+      "frontend/js/core/saveModel.js": [
+        "saveContentSource",
+        "createSaveSnapshot"
+      ],
+      "frontend/js/core/editorDocumentMountModel.js": [
+        "editorDocumentMountChunks",
+        "documentChangeAllowed"
+      ],
+      "frontend/js/usecases/documentSave.js": [
+        "createDocumentSave"
       ]
     }
   },
@@ -1235,7 +1298,9 @@
       "internal/links/rewrite.go",
       "internal/desktop/vault_index.go",
       "internal/desktop/app_search.go",
-      "internal/desktop/relationships.go"
+      "internal/desktop/relationships.go",
+      "frontend/js/core/relationshipModel.js",
+      "internal/desktop/vault_health.go"
     ],
     "docs": [
       "docs/PROMPT.md#71-relationships-panel",
@@ -1246,7 +1311,8 @@
     ],
     "tests": [
       "tests/frontend/unit/backlinks.test.js",
-      "tests/frontend/race/backlinks.race.test.js"
+      "tests/frontend/race/backlinks.race.test.js",
+      "tests/frontend/unit/relationshipModel.test.js"
     ],
     "extraChecks": [
       "Relationship backend changes require go test ./internal/desktop; actual popup/windowing focus needs the existing browser boundary.",
@@ -1257,6 +1323,10 @@
         "configureBacklinksWorkspace",
         "loadBacklinksResults",
         "linkUnlinkedMention"
+      ],
+      "frontend/js/core/relationshipModel.js": [
+        "relationshipWindow",
+        "relationshipPage"
       ]
     }
   },
@@ -1359,7 +1429,7 @@
       "tests/frontend/unit/kanbanColumnRetentionModel.test.js"
     ],
     "extraChecks": [
-      "Run go test ./internal/taskschedule for task policy; use existing Kanban/calendar browser scenarios only for geometry and native events. Column and color persistence need go test ./internal/desktop -run Kanban."
+      "Run go test ./internal/taskschedule for task policy; use existing Kanban/calendar browser scenarios only for geometry and native events. Column and color persistence need go test ./internal/desktop -run Kanban; hashtag edits in any letter case and refused color-code column names are in kanban_tags_test.go (go test ./internal/desktop -run 'Hashtag|TaskTag|KanbanColumn')."
     ],
     "symbols": {
       "frontend/js/core/kanbanBufferModel.js": [
@@ -1375,7 +1445,9 @@
       ],
       "frontend/js/core/kanbanColumnRetentionModel.js": [
         "droppedKanbanColumns",
-        "kanbanColumnsWithRetained"
+        "kanbanColumnsWithRetained",
+        "kanbanColumnNameError",
+        "kanbanColumnHashtag"
       ]
     }
   },
@@ -1388,20 +1460,38 @@
       "frontend/js/usecases/activityReview.js",
       "internal/history/commit_plan.go",
       "internal/history/commit_file.go",
-      "internal/history/path_status.go"
+      "internal/history/path_status.go",
+      "frontend/js/editor.js",
+      "frontend/js/core/editorPreviewModel.js",
+      "internal/history/archive_plan.go",
+      "internal/activity/paths.go"
     ],
     "docs": [
       "ARCHITECTURE.md#git-status-and-history-restoration",
-      "docs/testing/workspace.md#file-revision-continuity"
+      "docs/testing/workspace.md#file-revision-continuity",
+      "ARCHITECTURE.md#editor-buffer-ownership-and-undo-history",
+      "docs/PROMPT.md#256-right-sidebar--history-panel"
     ],
     "tests": [
       "tests/frontend/unit/historyRestore.test.js",
       "tests/frontend/unit/historyDiff.test.js",
-      "tests/frontend/unit/historyPaneTabs.test.js"
+      "tests/frontend/unit/historyPaneTabs.test.js",
+      "tests/frontend/unit/gitStatus.test.js",
+      "tests/frontend/unit/editorPreviewModel.test.js"
     ],
     "extraChecks": [
-      "Run go test -race ./internal/history ./internal/desktop for Git/filesystem changes, including commit_plan_test.go, commit_file_test.go, and desktop/slow_history_test.go; use actual temporary repositories."
-    ]
+      "Run go test -race ./internal/history ./internal/desktop for Git/filesystem changes, including commit_plan_test.go, commit_file_test.go, archive_plan_test.go (delete staging against full worktree status), and desktop/slow_history_test.go; use actual temporary repositories."
+    ],
+    "symbols": {
+      "frontend/js/editor.js": [
+        "showEditorPreview",
+        "closeEditorPreview",
+        "editorPreviewLiveContent"
+      ],
+      "frontend/js/core/editorPreviewModel.js": [
+        "editorPreviewClosePlan"
+      ]
+    }
   },
   {
     "id": "pdf",
@@ -1579,6 +1669,10 @@
     "symbols": {
       "frontend/js/vegaLiteChartEditor.js": [
         "openVegaLiteChartEditor"
+      ],
+      "frontend/js/core/vegaLiteChartEditorModel.js": [
+        "buildVegaLiteChartSpec",
+        "createVegaLiteChartEditorStateFromSource"
       ]
     }
   },
@@ -1759,7 +1853,8 @@
       "frontend/js/wailsRuntime.js",
       "frontend/js/updateSettings.js",
       "frontend/js/core/updateModel.js",
-      "scripts/package-desktop.sh"
+      "scripts/package-desktop.sh",
+      "frontend/js/log.js"
     ],
     "docs": [
       "ARCHITECTURE.md#wails-v3-bridge-asset-routes-and-updates",
@@ -1768,7 +1863,8 @@
     ],
     "tests": [
       "tests/frontend/unit/wailsRuntime.test.js",
-      "tests/frontend/unit/updateSettings.test.js"
+      "tests/frontend/unit/updateSettings.test.js",
+      "tests/frontend/unit/log.test.js"
     ],
     "extraChecks": [
       "Run go test ./internal/desktop ./internal/updates ./internal/repositorycheck for the bridge guard, updater (including a fake GitHub API), and release-workflow contracts.",

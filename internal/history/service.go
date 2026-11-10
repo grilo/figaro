@@ -172,64 +172,11 @@ func (h *Service) archivePathLocked(relPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("get worktree: %w", err)
 	}
-	status, err := worktree.Status()
+	staged, restoreIndex, err := h.stageArchiveLocked(worktree, relPath, files)
 	if err != nil {
-		return "", fmt.Errorf("check status: %w", err)
+		return "", err
 	}
-	for path, statusFile := range status {
-		if archiveContainsPath(relPath, path) {
-			continue
-		}
-		if statusFile.Staging != git.Unmodified && statusFile.Staging != git.Untracked {
-			return "", fmt.Errorf("cannot archive %s while %s has staged changes", relPath, path)
-		}
-	}
-
-	originalIndex, err := h.repo.Storer.Index()
-	if err != nil {
-		return "", fmt.Errorf("read index: %w", err)
-	}
-	restoreIndex := func(cause error) error {
-		if restoreErr := h.repo.Storer.SetIndex(originalIndex); restoreErr != nil {
-			return fmt.Errorf("%w (restore index: %v)", cause, restoreErr)
-		}
-		return cause
-	}
-	for _, path := range files {
-		if err := worktree.AddWithOptions(&git.AddOptions{
-			Path:       filepath.FromSlash(path),
-			SkipStatus: true,
-		}); err != nil {
-			return "", restoreIndex(fmt.Errorf("stage file %s: %w", path, err))
-		}
-	}
-	// A directory snapshot must match the files that exist now, not merely add
-	// its current children over the previous tree. Stage tracked children that
-	// were removed before the directory itself was deleted as removals too.
-	for path, statusFile := range status {
-		if !archiveContainsPath(relPath, path) || statusFile.Worktree != git.Deleted {
-			continue
-		}
-		if err := worktree.AddWithOptions(&git.AddOptions{Path: filepath.FromSlash(path)}); err != nil {
-			return "", restoreIndex(fmt.Errorf("stage removed archive file %s: %w", path, err))
-		}
-	}
-
-	status, err = worktree.Status()
-	if err != nil {
-		return "", restoreIndex(fmt.Errorf("check staged archive: %w", err))
-	}
-	hasStaged := false
-	for path, statusFile := range status {
-		if statusFile.Staging == git.Unmodified || statusFile.Staging == git.Untracked {
-			continue
-		}
-		if !archiveContainsPath(relPath, path) {
-			return "", restoreIndex(fmt.Errorf("archive unexpectedly staged %s", path))
-		}
-		hasStaged = true
-	}
-	if !hasStaged {
+	if !staged {
 		head, err := h.repo.Head()
 		if err != nil {
 			return "", fmt.Errorf("resolve archived revision: %w", err)
@@ -247,6 +194,139 @@ func (h *Service) archivePathLocked(relPath string) (string, error) {
 	log.Println("[history] Archived before delete:", relPath)
 	h.notifyCommitLocked()
 	return hash.String(), nil
+}
+
+// stageArchiveLocked makes the index describe exactly the files that exist at
+// relPath now and reports whether that differs from HEAD. It refuses to run
+// while another path has staged changes, because the archive commit records
+// the whole index. The returned function restores the index as it was found;
+// the caller uses it when the commit itself fails.
+//
+// The index and HEAD answer every question asked here, so no repository-wide
+// status is taken. Index shapes the comparison does not model fall back to
+// stageArchiveWithFullStatusLocked.
+func (h *Service) stageArchiveLocked(worktree *git.Worktree, relPath string, files []string) (bool, func(error) error, error) {
+	originalIndex, err := h.repo.Storer.Index()
+	if err != nil {
+		return false, nil, fmt.Errorf("read index: %w", err)
+	}
+	restoreIndex := func(cause error) error {
+		if restoreErr := h.repo.Storer.SetIndex(originalIndex); restoreErr != nil {
+			return fmt.Errorf("%w (restore index: %v)", cause, restoreErr)
+		}
+		return cause
+	}
+	headHash, err := h.historyHeadHash()
+	if err != nil {
+		return false, nil, fmt.Errorf("resolve HEAD: %w", err)
+	}
+	head, err := h.headEntries(headHash)
+	if err != nil {
+		return false, nil, fmt.Errorf("read HEAD tree: %w", err)
+	}
+	before := compareArchiveIndexWithHead(relPath, head, originalIndex)
+	if before.needsFullStatus {
+		staged, err := h.stageArchiveWithFullStatusLocked(worktree, relPath, files, restoreIndex)
+		return staged, restoreIndex, err
+	}
+	if len(before.stagedOutside) > 0 {
+		return false, nil, fmt.Errorf("cannot archive %s while %s has staged changes", relPath, before.stagedOutside[0])
+	}
+
+	for _, path := range files {
+		if err := worktree.AddWithOptions(&git.AddOptions{
+			Path:       filepath.FromSlash(path),
+			SkipStatus: true,
+		}); err != nil {
+			return false, nil, restoreIndex(fmt.Errorf("stage file %s: %w", path, err))
+		}
+	}
+	// A directory snapshot must match the files that exist now, not merely add
+	// its current children over the previous tree. Tracked children that were
+	// removed before the directory itself was deleted leave the index too.
+	current := make(map[string]struct{}, len(files))
+	for _, path := range files {
+		current[path] = struct{}{}
+	}
+	stagedIndex, err := h.repo.Storer.Index()
+	if err != nil {
+		return false, nil, restoreIndex(fmt.Errorf("read staged index: %w", err))
+	}
+	removed := false
+	for _, path := range before.indexedInside {
+		if _, exists := current[path]; exists {
+			continue
+		}
+		if _, err := stagedIndex.Remove(path); err != nil {
+			return false, nil, restoreIndex(fmt.Errorf("stage removed archive file %s: %w", path, err))
+		}
+		removed = true
+	}
+	if removed {
+		if err := h.repo.Storer.SetIndex(stagedIndex); err != nil {
+			return false, nil, restoreIndex(fmt.Errorf("write staged index: %w", err))
+		}
+	}
+
+	after := compareArchiveIndexWithHead(relPath, head, stagedIndex)
+	if after.needsFullStatus || len(after.stagedOutside) > 0 {
+		unexpected := relPath
+		if len(after.stagedOutside) > 0 {
+			unexpected = after.stagedOutside[0]
+		}
+		return false, nil, restoreIndex(fmt.Errorf("archive unexpectedly staged %s", unexpected))
+	}
+	return after.stagedInside, restoreIndex, nil
+}
+
+// stageArchiveWithFullStatusLocked is the complete-status form of
+// stageArchiveLocked, kept for repositories with submodules, unmerged entries
+// or intent-to-add entries.
+func (h *Service) stageArchiveWithFullStatusLocked(worktree *git.Worktree, relPath string, files []string, restoreIndex func(error) error) (bool, error) {
+	status, err := worktree.Status()
+	if err != nil {
+		return false, fmt.Errorf("check status: %w", err)
+	}
+	for path, statusFile := range status {
+		if archiveContainsPath(relPath, path) {
+			continue
+		}
+		if statusFile.Staging != git.Unmodified && statusFile.Staging != git.Untracked {
+			return false, fmt.Errorf("cannot archive %s while %s has staged changes", relPath, path)
+		}
+	}
+	for _, path := range files {
+		if err := worktree.AddWithOptions(&git.AddOptions{
+			Path:       filepath.FromSlash(path),
+			SkipStatus: true,
+		}); err != nil {
+			return false, restoreIndex(fmt.Errorf("stage file %s: %w", path, err))
+		}
+	}
+	for path, statusFile := range status {
+		if !archiveContainsPath(relPath, path) || statusFile.Worktree != git.Deleted {
+			continue
+		}
+		if err := worktree.AddWithOptions(&git.AddOptions{Path: filepath.FromSlash(path)}); err != nil {
+			return false, restoreIndex(fmt.Errorf("stage removed archive file %s: %w", path, err))
+		}
+	}
+
+	status, err = worktree.Status()
+	if err != nil {
+		return false, restoreIndex(fmt.Errorf("check staged archive: %w", err))
+	}
+	hasStaged := false
+	for path, statusFile := range status {
+		if statusFile.Staging == git.Unmodified || statusFile.Staging == git.Untracked {
+			continue
+		}
+		if !archiveContainsPath(relPath, path) {
+			return false, restoreIndex(fmt.Errorf("archive unexpectedly staged %s", path))
+		}
+		hasStaged = true
+	}
+	return hasStaged, nil
 }
 
 // GetPathSnapshotWithVaultLocked reads one path from the exact archive commit.

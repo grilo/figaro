@@ -18,7 +18,8 @@ func TestMovePathRewritesMarkdownBacklinks(t *testing.T) {
 	fence := "```"
 	writeTestFile(t, vaultPath, "notes/standard.md", strings.Join([]string{
 		"[Spec](projects/Spec%20Note.md#overview)",
-		"![Spec image](projects/Spec%20Note.md)",
+		"![Spec image](../projects/Spec%20Note.md)",
+		"![Beside the note](projects/Spec%20Note.md)",
 		"[release]: projects/Spec%20Note.md \"Specification\"",
 		"[[projects/Spec Note|Read the spec]]",
 		fence + "md",
@@ -50,7 +51,9 @@ func TestMovePathRewritesMarkdownBacklinks(t *testing.T) {
 	standard := readTestFile(t, vaultPath, "notes/standard.md")
 	for _, want := range []string{
 		"[Spec](archive/Spec%20Note.md#overview)",
-		"![Spec image](archive/Spec%20Note.md)",
+		"![Spec image](../archive/Spec%20Note.md)",
+		// A bare embed names a file beside the note, so it did not move.
+		"![Beside the note](projects/Spec%20Note.md)",
 		"[release]: archive/Spec%20Note.md \"Specification\"",
 		"[[archive/Spec Note|Read the spec]]",
 		fence + "md\n[Do not rewrite](projects/Spec%20Note.md)\n" + fence,
@@ -281,7 +284,7 @@ func TestIndexedMoveFallsBackWhenExternalMarkdownWasNotObserved(t *testing.T) {
 		t.Fatalf("open vault root: %v", err)
 	}
 	defer root.Close()
-	rewrites, usedIndex, err := collectVaultLinkRewritesIndexed(root, app.vaultIndex, "Projects", "Archive/Projects")
+	rewrites, usedIndex, err := collectVaultLinkRewritesIndexed(root, app.vaultIndex, app.vaultIndexIssue, "Projects", "Archive/Projects")
 	if err != nil {
 		t.Fatalf("collect rewrites with stale index: %v", err)
 	}
@@ -299,5 +302,156 @@ func TestIndexedMoveFallsBackWhenExternalMarkdownWasNotObserved(t *testing.T) {
 	}
 	if _, found := app.vaultIndex.files["external.md"]; !found {
 		t.Fatal("fallback move did not rebuild the externally changed index")
+	}
+}
+
+// writeUnindexableNotes adds one note of each kind the index records as a
+// file issue instead of holding: too large, binary, and not UTF-8.
+func writeUnindexableNotes(t *testing.T, vaultPath string, folder string) {
+	t.Helper()
+	writeTestFile(t, vaultPath, filepath.Join(folder, "binary.md"), "[Spec](Projects/Spec.md)\x00binary")
+	writeTestFile(t, vaultPath, filepath.Join(folder, "latin1.md"), "[Spec](Projects/Spec.md) caf\xe9")
+	large, err := os.Create(filepath.Join(vaultPath, folder, "huge.md"))
+	if err != nil {
+		t.Fatalf("create oversized note: %v", err)
+	}
+	if err := large.Truncate(maxEditableFileBytes + 1); err != nil {
+		t.Fatalf("size oversized note: %v", err)
+	}
+	if err := large.Close(); err != nil {
+		t.Fatalf("close oversized note: %v", err)
+	}
+}
+
+func TestIndexedMoveStaysAvailableBesideNotesRecordedAsFileIssues(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Projects/Spec.md", "# Specification\n")
+	writeTestFile(t, vaultPath, "index.md", "[Spec](Projects/Spec.md)\n")
+	writeUnindexableNotes(t, vaultPath, "Broken")
+	if _, err := app.SearchFiles("Specification", false); err != nil {
+		t.Fatalf("warm shared index: %v", err)
+	}
+	if issues := app.GetVaultFileIssues(); len(issues) != 3 {
+		t.Fatalf("file issues = %#v, want the three unindexable notes", issues)
+	}
+	warmIndex := app.vaultIndex
+
+	root, err := app.openVaultRoot()
+	if err != nil {
+		t.Fatalf("open vault root: %v", err)
+	}
+	defer root.Close()
+	if current, err := vaultIndexMatchesMarkdownFiles(root, app.vaultIndex, app.vaultIndexIssue); err != nil || !current {
+		t.Fatalf("index beside recorded file issues = %v, %v; want it to count as current", current, err)
+	}
+	// Without the issue records the same files are unexplained and stale.
+	if current, err := vaultIndexMatchesMarkdownFiles(root, app.vaultIndex, nil); err != nil || current {
+		t.Fatalf("index with unexplained unindexed notes = %v, %v; want stale", current, err)
+	}
+	_, usedIndex, err := collectVaultLinkRewritesIndexed(root, app.vaultIndex, app.vaultIndexIssue, "Projects", "Archive/Projects")
+	if err != nil || !usedIndex {
+		t.Fatalf("indexed rewrite collection: usedIndex=%v err=%v", usedIndex, err)
+	}
+
+	if result, err := app.MovePath("Projects", "Archive"); err != nil || !result.Success {
+		t.Fatalf("MovePath: result=%+v err=%v", result, err)
+	}
+	if app.vaultIndex != warmIndex {
+		t.Fatal("a vault with file issues rebuilt its whole index for one move")
+	}
+	if got := readTestFile(t, vaultPath, "index.md"); got != "[Spec](Archive/Projects/Spec.md)\n" {
+		t.Fatalf("rewritten link = %q", got)
+	}
+
+	// Moving the folder that holds the issue files keeps their records.
+	if result, err := app.RenamePath("Broken", "Quarantine"); err != nil || !result.Success {
+		t.Fatalf("RenamePath of the folder with file issues: result=%+v err=%v", result, err)
+	}
+	if app.vaultIndex != warmIndex {
+		t.Fatal("renaming the folder that holds the file issues rebuilt the whole index")
+	}
+	for _, issue := range app.GetVaultFileIssues() {
+		if !strings.HasPrefix(issue.Path, "Quarantine/") {
+			t.Fatalf("file issue did not follow its folder: %#v", issue)
+		}
+	}
+}
+
+func TestFileIssueExplainsUnindexedNoteOnlyWhileItStillDescribesTheFile(t *testing.T) {
+	vaultPath := t.TempDir()
+	writeTestFile(t, vaultPath, "note.md", "twelve bytes")
+	info, err := os.Stat(filepath.Join(vaultPath, "note.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name  string
+		issue *VaultFileIssue
+		want  bool
+	}{
+		{name: "no issue", issue: nil, want: false},
+		{name: "unreadable", issue: &VaultFileIssue{Code: fileIssueUnreadable}, want: true},
+		{name: "binary of the same size", issue: &VaultFileIssue{Code: fileIssueBinary, Size: info.Size()}, want: true},
+		{name: "binary since rewritten", issue: &VaultFileIssue{Code: fileIssueBinary, Size: info.Size() + 1}, want: false},
+		{name: "encoding of the same size", issue: &VaultFileIssue{Code: fileIssueUnsupportedEncoding, Size: info.Size()}, want: true},
+		{name: "too large but now small", issue: &VaultFileIssue{Code: fileIssueTooLarge, Size: maxEditableFileBytes + 1}, want: false},
+		{name: "unrelated configuration issue", issue: &VaultFileIssue{Code: fileIssueConfigUnreadable}, want: false},
+	} {
+		if got := fileIssueExplainsUnindexedNote(test.issue, info); got != test.want {
+			t.Errorf("%s: fileIssueExplainsUnindexedNote = %v, want %v", test.name, got, test.want)
+		}
+	}
+}
+
+func TestFullScanMoveSkipsNotesTheIndexWouldRecordAsFileIssues(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Projects/Spec.md", "# Specification\n")
+	writeTestFile(t, vaultPath, "index.md", "[Spec](Projects/Spec.md)\n")
+	writeUnindexableNotes(t, vaultPath, "Broken")
+	writeTestFile(t, vaultPath, "Broken/locked.md", "[Spec](Projects/Spec.md)\n")
+	lockedPath := filepath.Join(vaultPath, "Broken", "locked.md")
+	if err := os.Chmod(lockedPath, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(lockedPath, 0644) })
+	if _, err := os.ReadFile(lockedPath); err == nil {
+		// Windows and root can still read it; the other three kinds remain.
+		if err := os.Remove(lockedPath); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	root, err := app.openVaultRoot()
+	if err != nil {
+		t.Fatalf("open vault root: %v", err)
+	}
+	defer root.Close()
+	rewrites, err := collectVaultLinkRewrites(root, "Projects", "Archive/Projects")
+	if err != nil {
+		t.Fatalf("full-scan rewrite collection failed on an unindexable note: %v", err)
+	}
+	if len(rewrites) != 1 || filepath.ToSlash(rewrites[0].path) != "index.md" {
+		paths := make([]string, 0, len(rewrites))
+		for _, rewrite := range rewrites {
+			paths = append(paths, filepath.ToSlash(rewrite.path))
+		}
+		t.Fatalf("full-scan rewrites = %v, want only index.md", paths)
+	}
+
+	// A folder merge always takes the full scan.
+	writeTestFile(t, vaultPath, "Archive/Projects/Other.md", "# Other\n")
+	result, err := app.MergeDirectory("Projects", "Archive")
+	if err != nil || !result.Success {
+		t.Fatalf("MergeDirectory beside unindexable notes: result=%+v err=%v", result, err)
+	}
+	if got := readTestFile(t, vaultPath, "index.md"); got != "[Spec](Archive/Projects/Spec.md)\n" {
+		t.Fatalf("rewritten link after merge = %q", got)
+	}
+	if got := readTestFile(t, vaultPath, "Broken/binary.md"); got != "[Spec](Projects/Spec.md)\x00binary" {
+		t.Fatalf("a binary note was rewritten: %q", got)
 	}
 }

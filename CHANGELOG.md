@@ -8,7 +8,94 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+
+- **Relationships** shows unlinked mentions 100 at a time. **Show 100 more**
+  reveals the next page in place, and linking a mention no longer sends you
+  back to the top of the list.
+- Searching for a short or common word is faster in large vaults: choosing
+  each result's excerpt no longer re-reads every line of every matching note
+  from scratch.
+- Deleting a note or folder is faster in large vaults. Figaro no longer scans
+  the whole vault's Git status twice or rebuilds its index for a delete.
+- Spelling results appear at once in notes with many unfamiliar words or
+  names. Suggested corrections for the remaining words follow shortly after,
+  instead of the whole check timing out.
+- A large outside change, such as a `git pull` that rewrites hundreds of
+  notes, now refreshes Figaro's index once instead of note by note, and a tool
+  that writes into the vault continuously no longer holds back every update.
+
+### Fixed
+
+- Renaming or moving the note you are editing no longer detaches it from its
+  tab. Text typed afterwards is saved again, and **Ctrl/Cmd+S** can no longer
+  replace the note with an empty or outdated file.
+- Viewing an older version in **History** can no longer overwrite the note.
+  Your text, including unsaved edits, stays the note's content while a version
+  is shown: Auto-Save, **Ctrl/Cmd+S**, **Save to history**, switching tabs and
+  exiting all save it. A shown version cannot be changed through checkboxes or
+  other rendered controls, and closing History brings your text back with its
+  cursor and undo history.
+- **Delete column** on the Kanban board no longer joins each tagged line with
+  the line below it.
+- The desktop app reports failures again. Since 1.47.0 a save that did not
+  reach the disk, a note that could not be opened and similar errors could
+  pass without any message, and the workspace session could stop being saved.
+- Opening a note with Windows (CRLF) line endings that has Properties and
+  little or no body no longer leaves the previous note on screen, where typing
+  could overwrite the note you opened.
+- Opening a very large Markdown note can no longer lose its second half when
+  you type or save straight away.
+- **Open in New Tab** on a note that is already open switches to its tab
+  instead of opening a second copy whose edits were not saved.
+- Pressing **Ctrl/Cmd+S** while a note is still loading no longer saves an
+  empty file over it.
+- Moving or renaming files no longer rewrites image embeds in unrelated notes
+  or the first word of a footnote. An image embedded by a bare path, such as a
+  pasted `image1.png`, now follows that image when it is renamed or moved and
+  stays correct when its note moves.
+- A note that another program saves by replacing the file, such as Vim or
+  `git checkout`, no longer disappears from search, backlinks and Kanban until
+  restart. A folder renamed, moved in or removed outside Figaro now carries
+  its notes with it.
+- Kanban cards whose tag is written in another letter case, such as `#TODO`,
+  can be moved, and renaming or deleting a column covers every spelling of its
+  tag. A column can no longer be renamed to a name Figaro reads as a color
+  code, such as `bad` or `decade`, which hid all of its cards.
+- Merging a folder into another keeps its tasks' manual card order and dates.
+- Notes whose names contain a colon, such as `Meeting: Q3.md`, can be renamed
+  and moved, and on Linux and macOS names like `1:1 Alice.md` open normally.
+- A name can be changed in letter case only (`todo.md` to `Todo.md`) on macOS
+  and Windows.
+- **Vault Health** no longer reports valid links from notes in folders as
+  broken, or their attachments as unused.
+- One folder Figaro may not read no longer empties the file tree, search and
+  Kanban for the whole vault.
+- Exporting a PDF from a note whose title contains letters such as `İ` no
+  longer produces a blank document.
+- Saving a note keeps its file permissions, including group write access.
+- `Welcome.md` is no longer recreated at each start in a vault whose notes all
+  live in folders.
+- Clicking text such as `[^a-z]` in code no longer inserts a footnote
+  definition, and typing `name[key]()` in code is no longer rewritten into a
+  link. Reopening a note no longer completes an empty link by itself.
+- A table cell containing `||` keeps its columns in the Table Editor and when
+  pasted from a web page.
+- Charts made from a table whose headers contain a dot or brackets, such as
+  `Rev. 2024`, are no longer empty. Existing charts are corrected the next
+  time you apply them in the Chart Editor.
+- Choosing **Keep editing** when a file changed on disk is no longer asked
+  again at every Auto-Save or tab switch. **Ctrl/Cmd+S** asks again.
+- **Ctrl/Cmd+S**, **Ctrl/Cmd+W** and Figaro's other letter shortcuts work with
+  Caps Lock on and on keyboard layouts that do not type Latin letters.
+- A file or folder can no longer be given a name starting with a dot, which
+  hid it from Figaro with no way to rename it back. A new folder's name no
+  longer keeps accidental leading or trailing spaces.
+- A renamed or moved folder stays expanded in the file tree.
+- **Ignore** on a writing suggestion that lists several reasons now ignores
+  all of them instead of the first one only.
+- Writing lenses no longer stop working on a note with one extremely long
+  paragraph, and a very long run of letters no longer freezes spelling.
 
 ## [1.47.0] - 2026-11-05
 

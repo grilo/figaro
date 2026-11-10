@@ -147,8 +147,12 @@ func validateDefaultApplicationFile(root *os.Root, relPath string) error {
 	return nil
 }
 
+// startFileManager launches the platform opener without waiting for it, and
+// reaps it when it exits. xdg-open and open return within moments; a child
+// that is started and never waited for stays in the process table as a zombie
+// for as long as Figaro runs.
 var startFileManager = func(command *exec.Cmd) error {
-	return command.Start()
+	return startAndReap(command)
 }
 
 func fileManagerCommand(target string) (*exec.Cmd, error) {

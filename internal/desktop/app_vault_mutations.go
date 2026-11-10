@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	goruntime "runtime"
+	"slices"
 	"sort"
 
 	"figaro/internal/mutations"
@@ -94,7 +95,11 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 		log.Printf("[kanban] Could not remove card-order paths beneath %q: %v", filepath.ToSlash(cleanRel), err)
 	}
 	a.resetFileVersionsLocked()
-	a.syncKanbanColumnsLocked()
+	// A delete removes a known set of notes. Drop exactly those from the shared
+	// index, with their file issues, instead of re-reading the whole vault
+	// while both vault locks are held.
+	a.removeVaultFileIssuesBelow(cleanRel)
+	a.removeVaultIndexPathLocked(cleanRel)
 	return &SaveFileResult{Success: true, DeletedID: deleted.ID}, nil
 }
 
@@ -153,7 +158,7 @@ func (a *App) PreviewRenamePath(oldRel string, newRel string) (*SaveFileResult, 
 	if err != nil {
 		return nil, fmt.Errorf("index links for rename preview: %w", err)
 	}
-	rewrites, _, err := collectVaultLinkRewritesIndexed(root, index, oldClean, newClean)
+	rewrites, _, err := collectVaultLinkRewritesIndexed(root, index, a.vaultIndexIssue, oldClean, newClean)
 	if err != nil {
 		return nil, fmt.Errorf("collect links for rename preview: %w", err)
 	}
@@ -206,10 +211,21 @@ func (a *App) renamePathWritingLocked(oldRel string, newRel string, updateLinks 
 	} else if err != nil {
 		return nil, err
 	}
-	if _, err := root.Stat(newClean); err == nil {
-		return &SaveFileResult{Success: false, Error: "Destination exists"}, nil
-	} else if !os.IsNotExist(err) {
+	destinationExists := true
+	if _, err := root.Stat(newClean); os.IsNotExist(err) {
+		destinationExists = false
+	} else if err != nil {
 		return nil, err
+	}
+	destinationIsSource := false
+	if destinationExists && mutations.IsCaseOnlyRename(oldClean, newClean) {
+		destinationIsSource, err = rootNamesShareOneEntry(root, oldClean, newClean)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if mutations.RenameDestinationOccupied(oldClean, newClean, destinationExists, destinationIsSource) {
+		return &SaveFileResult{Success: false, Error: "Destination exists"}, nil
 	}
 	writingChanges, err := a.planDocumentPathMove(root, oldClean, newClean)
 	if err != nil {
@@ -225,12 +241,12 @@ func (a *App) renamePathWritingLocked(oldRel string, newRel string, updateLinks 
 	linkRewrites := make([]vaultLinkRewrite, 0)
 	indexCurrent := false
 	if updateLinks {
-		linkRewrites, indexCurrent, err = collectVaultLinkRewritesIndexed(root, index, oldClean, newClean)
+		linkRewrites, indexCurrent, err = collectVaultLinkRewritesIndexed(root, index, a.vaultIndexIssue, oldClean, newClean)
 		if err != nil {
 			return nil, fmt.Errorf("collect links for move: %w", err)
 		}
 	} else {
-		indexCurrent, err = vaultIndexMatchesMarkdownFiles(root, index)
+		indexCurrent, err = vaultIndexMatchesMarkdownFiles(root, index, a.vaultIndexIssue)
 		if err != nil {
 			return nil, fmt.Errorf("validate link index for move: %w", err)
 		}
@@ -242,7 +258,8 @@ func (a *App) renamePathWritingLocked(oldRel string, newRel string, updateLinks 
 	if err := root.Rename(oldClean, newClean); err != nil {
 		return nil, errors.Join(err, rollbackWriting())
 	}
-	if applied, err := applyVaultLinkRewrites(root, linkRewrites); err != nil {
+	applied, err := applyVaultLinkRewrites(root, linkRewrites)
+	if err != nil {
 		restoreErr := restoreVaultLinkRewrites(root, applied)
 		renameErr := root.Rename(newClean, oldClean)
 		writingErr := rollbackWriting()
@@ -253,6 +270,9 @@ func (a *App) renamePathWritingLocked(oldRel string, newRel string, updateLinks 
 		}
 		return nil, err
 	}
+	// The index is brought in line with these rewrites below, so the watcher's
+	// echo of each write has nothing to add and must not re-read the note.
+	a.acknowledgeVaultLinkRewritesLocked(applied)
 	if indexCurrent {
 		a.remapFileTreeCachePathLocked(oldClean, newClean)
 	} else {
@@ -279,6 +299,36 @@ func (a *App) renamePathWritingLocked(oldRel string, newRel string, updateLinks 
 		updatedLinks = append(updatedLinks, filepath.ToSlash(rewrite.path))
 	}
 	return &SaveFileResult{Success: true, OldPath: oldRel, Path: newRel, UpdatedLinks: updatedLinks}, nil
+}
+
+// rootNamesShareOneEntry reports whether two names in the same folder reach a
+// single directory entry, as a name and its case variant do on a
+// case-insensitive volume (the macOS and Windows defaults). Both names must
+// resolve to the same file without following a link, and the folder must not
+// list newPath's exact name: a second entry of that name, whether another
+// file, a symbolic link or a hard link to the same file, is a real destination
+// that renaming would replace.
+func rootNamesShareOneEntry(root *os.Root, oldPath string, newPath string) (bool, error) {
+	oldInfo, err := root.Lstat(oldPath)
+	if err != nil {
+		return false, err
+	}
+	newInfo, err := root.Lstat(newPath)
+	if err != nil {
+		return false, err
+	}
+	if !os.SameFile(oldInfo, newInfo) {
+		return false, nil
+	}
+	directory, err := root.Open(filepath.Dir(newPath))
+	if err != nil {
+		return false, err
+	}
+	names, readErr := directory.Readdirnames(-1)
+	if err := errors.Join(readErr, directory.Close()); err != nil {
+		return false, err
+	}
+	return !slices.Contains(names, filepath.Base(newPath)), nil
 }
 
 // MovePath moves a file or directory into a target directory.
@@ -446,6 +496,8 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 	if err := root.RemoveAll(sourceClean); err != nil {
 		return &SaveFileResult{Success: false, Error: errors.Join(fmt.Errorf("Merged contents were copied, but the source folder could not be removed: %w", err), rollbackWriting()).Error()}, nil
 	}
+	// The index is rebuilt below; the watcher need not re-read each rewrite.
+	a.acknowledgeVaultLinkRewritesLocked(applied)
 	a.invalidateFileTreeCacheLocked()
 
 	finalUpdatedLinkSet := make(map[string]struct{}, len(updatedLinkSet)+len(linkRewrites))
@@ -474,6 +526,15 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 	a.syncKanbanColumnsLocked()
 	if err := a.mergeFileTreeStylePathsLocked(sourceClean, destination); err != nil {
 		log.Printf("[file-tree] Could not preserve styles after directory merge: %v", err)
+	}
+	// Every merged note now lives beneath the destination. Colliding notes
+	// were already remapped to their " (copy)" names by the renames above, so
+	// one prefix remap carries the saved card order and task dates across.
+	if err := a.rewriteKanbanOrderPaths(sourceClean, destination, false); err != nil {
+		log.Printf("[kanban] Could not move card-order paths from %q to %q: %v", filepath.ToSlash(sourceClean), filepath.ToSlash(destination), err)
+	}
+	if err := a.rewriteTaskSchedulePaths(sourceClean, destination); err != nil {
+		log.Printf("[kanban] Could not move task schedules after directory merge: %v", err)
 	}
 	return &SaveFileResult{
 		Success:      true,
@@ -764,7 +825,7 @@ func (a *App) copyIndexIsCurrentLocked(root *os.Root, destination string) (bool,
 	if watcherActive {
 		return a.vaultIndex != nil, nil
 	}
-	return vaultIndexMatchesMarkdownFilesExcluding(root, a.vaultIndex, destination)
+	return vaultIndexMatchesMarkdownFilesExcluding(root, a.vaultIndex, destination, a.vaultIndexIssue)
 }
 
 func vaultPathIsSameOrDescendant(parent, candidate string) bool {

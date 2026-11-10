@@ -119,7 +119,9 @@ changes to save. It does not include unrelated staged files. Undo and Redo belon
 to each open document, so switching tabs also switches editing history.
 
 History contains **Versions** for saved notes and **Activity** for passage
-changes. Optional margin dates open Activity directly; enable them under
+changes. Select a version to read it in the editor; your current text,
+including unsaved edits, remains the note and returns when you close History.
+Use **Revert to this version** to make an older version current. Optional margin dates open Activity directly; enable them under
 **Settings → Editor → Navigation**. See [passage activity](WRITING.md#see-when-a-passage-changed).
 
 Deleting a vault item bypasses the system Trash. Figaro first saves affected

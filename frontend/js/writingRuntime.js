@@ -2,6 +2,7 @@
 import { getFrontmatterRegion } from './frontmatter.js';
 import { wikiLinkRanges } from './core/noteLinks.js';
 import { writingFootnoteRanges } from './core/writingFootnoteModel.js';
+import { appendAll } from './core/appendAll.js';
 import { ordinaryWritingWords } from '../vendored/writing/words.js';
 import { unified } from 'unified';
 import { VFile } from 'vfile';
@@ -40,7 +41,7 @@ export async function analyzeWriting(source, options) {
 export async function analyzeWritingFull(source) {
     await writingRuntimeReady;
     const result = analyzeRetext(source);
-    result.observations.push(...await analyzeWritingTextlint(result.projection));
+    appendAll(result.observations, await analyzeWritingTextlint(result.projection));
     return result;
 }
 
@@ -129,7 +130,7 @@ function restoreSourcePositions(parent, source) {
 }
 function collectInline(node, source, units) {
     if (excluded.has(node.type)) { units.push({ char: '\uFFFC', from: -1, to: -1, safe: false }); return; }
-    if (node.type === 'text') { units.push(...textUnits(node, source)); return; }
+    if (node.type === 'text') { appendAll(units, textUnits(node, source)); return; }
     if (node.type === 'break') { units.push({ char: '\n', from: -1, to: -1, safe: false }); return; }
     for (const child of node.children || []) collectInline(child, source, units);
 }
@@ -168,12 +169,12 @@ function projectWritingTree(root, source, { wiki, footnotes }) {
             if (!units.some(unit => /\p{L}/u.test(unit.char))) return;
             const start = result.units.length;
             const separator = [{ char: '\n', from: -1, to: -1 }, { char: '\n', from: -1, to: -1 }];
-            result.typography.units.push(...units, ...separator);
+            appendAll(appendAll(result.typography.units, units), separator);
             for (const span of writingQuotationSpans(units)) {
                 result.quotationSpans.push({ ...span, from: start + span.from, to: start + span.to });
                 for (let at = span.from; at < span.to; at++) units[at] = { ...units[at], char: ' ', safe: false, hidden: true };
             }
-            result.units.push(...units, { char: '\n', from: -1, to: -1 }, { char: '\n', from: -1, to: -1 });
+            appendAll(result.units, units).push({ char: '\n', from: -1, to: -1 }, { char: '\n', from: -1, to: -1 });
             result.regions.push({ from: node.position.start.offset, to: node.position.end.offset, start, end: start + units.length, type: node.type });
             return;
         }
@@ -311,13 +312,13 @@ export function createIncrementalWritingAnalyzer() {
             }));
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i], value = values[i];
-                collected.messages.push(...value.messages.map(message => ({ ...message, place: offsetWritingPlace(message.place, chunk) })));
-                collected.sentences.push(...value.sentences.map(sentence => ({ start: sentence.start + chunk.from, end: sentence.end + chunk.from })));
+                appendAll(collected.messages, value.messages.map(message => ({ ...message, place: offsetWritingPlace(message.place, chunk) })));
+                appendAll(collected.sentences, value.sentences.map(sentence => ({ start: sentence.start + chunk.from, end: sentence.end + chunk.from })));
             }
             collected.messages.sort((a, b) => order.indexOf(a.source) - order.indexOf(b.source));
             await checkpoint();
             const result = finishRetext(projection, collected);
-            result.observations.push(...await textlint.analyze(projection, checkpoint));
+            appendAll(result.observations, await textlint.analyze(projection, checkpoint));
             await checkpoint();
             return result;
         },

@@ -47,6 +47,31 @@ func PlanMove(
 	return MovePlan{Destination: destination}
 }
 
+// IsCaseOnlyRename reports whether newPath gives oldPath's final name a
+// different letter case and changes nothing else: same parent folder, same
+// name once case is ignored.
+func IsCaseOnlyRename(oldPath, newPath string) bool {
+	oldPath = filepath.Clean(oldPath)
+	newPath = filepath.Clean(newPath)
+	if oldPath == newPath || filepath.Dir(oldPath) != filepath.Dir(newPath) {
+		return false
+	}
+	return strings.EqualFold(filepath.Base(oldPath), filepath.Base(newPath))
+}
+
+// RenameDestinationOccupied decides whether an existing destination blocks a
+// rename. On a case-insensitive filesystem "todo.md" and "Todo.md" are one
+// directory entry, so looking up the new name finds the source itself; that
+// is the one occupied destination a rename may proceed over. destinationIsSource
+// must be true only when the adapter has established that the two names reach
+// the same entry, not merely the same content.
+func RenameDestinationOccupied(oldPath, newPath string, destinationExists, destinationIsSource bool) bool {
+	if !destinationExists {
+		return false
+	}
+	return !(destinationIsSource && IsCaseOnlyRename(oldPath, newPath))
+}
+
 func ValidateCopy(source, targetDirectory string, sourceIsDirectory, caseInsensitive bool) string {
 	if sourceIsDirectory && IsSameOrDescendant(source, targetDirectory, caseInsensitive) {
 		return RecursiveCopyError

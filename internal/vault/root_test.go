@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -30,6 +31,217 @@ func TestRelativePathNormalizesAndRejectsTraversal(t *testing.T) {
 			t.Errorf("RelativePath(%q) unexpectedly succeeded with %q", test.input, got)
 		}
 	}
+}
+
+func TestRelativePathRefusesOnlyRealDriveFormsOutsideWindows(t *testing.T) {
+	for _, test := range []struct {
+		goos  string
+		input string
+		valid bool
+	}{
+		{goos: "linux", input: "1:1 Alice.md", valid: true},
+		{goos: "darwin", input: "a: note.md", valid: true},
+		{goos: "linux", input: "c:notes.md", valid: true},
+		{goos: "linux", input: "Meetings/1:1 Alice.md", valid: true},
+		{goos: "linux", input: "C:", valid: false},
+		{goos: "linux", input: "C:/windows/system.ini", valid: false},
+		{goos: "darwin", input: "c:\\windows\\system.ini", valid: false},
+		{goos: "linux", input: "/C:/windows/system.ini", valid: false},
+		{goos: "windows", input: "1:1 Alice.md", valid: false},
+		{goos: "windows", input: "a: note.md", valid: false},
+		{goos: "windows", input: "c:notes.md", valid: false},
+		{goos: "windows", input: "C:/windows/system.ini", valid: false},
+	} {
+		got, err := relativePathFor(test.goos, test.input)
+		if test.valid && err != nil {
+			t.Errorf("relativePathFor(%q, %q) rejected an ordinary name: %v", test.goos, test.input, err)
+		}
+		if !test.valid && err == nil {
+			t.Errorf("relativePathFor(%q, %q) = %q, want a drive-path refusal", test.goos, test.input, got)
+		}
+	}
+	if runtime.GOOS != "windows" {
+		if got, err := RelativePath("1:1 Alice.md"); err != nil || got != "1:1 Alice.md" {
+			t.Fatalf("RelativePath(1:1 Alice.md) = %q, %v; want the name unchanged", got, err)
+		}
+	}
+}
+
+func TestWriteFileAtomicKeepsPermissionBitsTheUmaskWouldStrip(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no group or other permission bits")
+	}
+	rootDir := t.TempDir()
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		t.Fatalf("open root: %v", err)
+	}
+	t.Cleanup(func() { _ = root.Close() })
+
+	for _, mode := range []os.FileMode{0666, 0664, 0640} {
+		if err := root.WriteFile("shared.md", []byte("old"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		// Chmod is not filtered by the umask, so the starting mode is exact
+		// whatever umask the test process inherited.
+		if err := root.Chmod("shared.md", mode); err != nil {
+			t.Fatal(err)
+		}
+		if err := WriteFileAtomic(root, "shared.md", []byte("new"), 0644); err != nil {
+			t.Fatalf("WriteFileAtomic over %o: %v", mode, err)
+		}
+		info, err := root.Stat("shared.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != mode {
+			t.Fatalf("permissions after atomic save = %o, want the note's own %o", info.Mode().Perm(), mode)
+		}
+		if err := root.Remove("shared.md"); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// makeUnreadableDirectory creates a directory the test process cannot list,
+// or skips when the platform or user cannot be denied (Windows, root).
+func makeUnreadableDirectory(t *testing.T, path string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits do not deny directory listing on Windows")
+	}
+	if err := os.MkdirAll(path, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "sealed.md"), []byte("sealed"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0755) })
+	if _, err := os.ReadDir(path); err == nil {
+		t.Skip("this user can read a mode-000 directory (running as root)")
+	}
+}
+
+func TestMarkdownWalkSkipsUnreadableDirectoryAndStillVisitsTheRest(t *testing.T) {
+	rootDir := t.TempDir()
+	for _, name := range []string{"alpha.md", "nested/bravo.md", "zulu.md"} {
+		absolute := filepath.Join(rootDir, name)
+		if err := os.MkdirAll(filepath.Dir(absolute), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(absolute, []byte(name), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	makeUnreadableDirectory(t, filepath.Join(rootDir, "lost+found"))
+	makeUnreadableDirectory(t, filepath.Join(rootDir, "nested", "private"))
+
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		t.Fatalf("open root: %v", err)
+	}
+	t.Cleanup(func() { _ = root.Close() })
+
+	var paths []string
+	if err := WalkMarkdown(root, func(_ *os.Root, rel string, _ fs.FileInfo, _ []byte) error {
+		paths = append(paths, rel)
+		return nil
+	}); err != nil {
+		t.Fatalf("WalkMarkdown failed on an unreadable subdirectory: %v", err)
+	}
+	if want := []string{"alpha.md", "nested/bravo.md", "zulu.md"}; !reflect.DeepEqual(paths, want) {
+		t.Fatalf("visited paths = %v, want %v", paths, want)
+	}
+
+	var progress [][2]int
+	if err := WalkMarkdownMetadataWithProgress(root, func(*os.Root, string, fs.FileInfo) error { return nil },
+		func(visited, total int) { progress = append(progress, [2]int{visited, total}) }); err != nil {
+		t.Fatalf("metadata walk failed on an unreadable subdirectory: %v", err)
+	}
+	if want := [][2]int{{0, 3}, {1, 3}, {2, 3}, {3, 3}}; !reflect.DeepEqual(progress, want) {
+		t.Fatalf("progress = %v, want %v", progress, want)
+	}
+}
+
+func TestMarkdownWalkStillFailsWhenTheVaultRootIsUnreadable(t *testing.T) {
+	parent := t.TempDir()
+	rootDir := filepath.Join(parent, "vault")
+	if err := os.Mkdir(rootDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		t.Fatalf("open root: %v", err)
+	}
+	t.Cleanup(func() { _ = root.Close() })
+	makeUnreadableDirectory(t, rootDir)
+
+	err = WalkMarkdown(root, func(*os.Root, string, fs.FileInfo, []byte) error { return nil })
+	if !errors.Is(err, fs.ErrPermission) {
+		t.Fatalf("walk of an unreadable vault root = %v, want a permission failure", err)
+	}
+}
+
+func TestSkippableWalkErrorCoversOnlyDeniedAndVanishedEntries(t *testing.T) {
+	for _, skippable := range []error{
+		&fs.PathError{Op: "open", Path: "lost+found", Err: fs.ErrPermission},
+		&fs.PathError{Op: "lstat", Path: "gone.md", Err: fs.ErrNotExist},
+	} {
+		if !IsSkippableWalkError(skippable) {
+			t.Errorf("IsSkippableWalkError(%v) = false, want true", skippable)
+		}
+	}
+	for _, fatal := range []error{nil, errors.New("input/output error"), fs.ErrInvalid} {
+		if IsSkippableWalkError(fatal) {
+			t.Errorf("IsSkippableWalkError(%v) = true, want false", fatal)
+		}
+	}
+}
+
+func TestHasMarkdownFindsNestedNotesButNotHiddenFoldersOrSymlinks(t *testing.T) {
+	rootDir := t.TempDir()
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		t.Fatalf("open root: %v", err)
+	}
+	t.Cleanup(func() { _ = root.Close() })
+	expect := func(want bool, context string) {
+		t.Helper()
+		got, err := HasMarkdown(root)
+		if err != nil || got != want {
+			t.Fatalf("HasMarkdown %s = %v, %v; want %v", context, got, err, want)
+		}
+	}
+	write := func(name string) {
+		t.Helper()
+		absolute := filepath.Join(rootDir, name)
+		if err := os.MkdirAll(filepath.Dir(absolute), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(absolute, []byte(name), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	expect(false, "in an empty vault")
+	write("readme.txt")
+	write(".trash/old.md")
+	if err := os.Mkdir(filepath.Join(rootDir, "folder.md"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	expect(false, "with only a hidden folder's note and a folder named like one")
+	outside := filepath.Join(t.TempDir(), "outside.md")
+	if err := os.WriteFile(outside, []byte("outside"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(rootDir, "linked.md")); err == nil {
+		expect(false, "with only a symlinked note")
+	}
+	write("Projects/2025/Plan.MD")
+	expect(true, "with a nested upper-case extension")
 }
 
 func TestWriteFileAtomicReplacesContentAndPreservesPermissions(t *testing.T) {

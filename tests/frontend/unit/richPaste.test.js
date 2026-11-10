@@ -104,6 +104,16 @@ describe('rich clipboard HTML conversion', () => {
         expect(result.markdown).toContain('After the table.');
     });
 
+    test('escapes each pipe of a pasted table cell so the row keeps its columns', () => {
+        const result = richMarkdownFromClipboard({
+            html: '<table><tr><th>Expression</th><th>Meaning</th></tr><tr><td>a || b</td><td>logical or</td></tr></table>',
+            text: 'Expression Meaning\na || b logical or',
+        });
+
+        expect(result.converted).toBe(true);
+        expect(result.markdown).toContain('| a \\|\\| b | logical or |');
+    });
+
     test('repairs structural AI code quirks without applying opinionated cleanup', () => {
         const gemini = richMarkdownFromClipboard({
             html: [

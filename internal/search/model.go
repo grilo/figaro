@@ -590,6 +590,164 @@ func BestPassage(content string, query Query, variants [][]Variant) Passage {
 	return best
 }
 
+// BestPassageNormalized is BestPassage for a case-insensitive query whose
+// caller already holds Normalize(content, false), as the vault index does.
+//
+// Normalization never adds, removes or moves a line break, so line i of both
+// texts is the same source line: the folded line answers which query terms it
+// holds and the original line supplies the excerpt. Each folded line is walked
+// once for its tokens, which are looked up in per-term tables built once for
+// the query. BestPassage instead normalizes, tokenizes, counts and sorts every
+// line of every candidate note, which dominated a search for a short or common
+// word. Both functions return the same passage.
+func BestPassageNormalized(content, normalized string, query Query, variants [][]Variant) Passage {
+	if query.CaseSensitive || strings.Count(content, "\n") != strings.Count(normalized, "\n") {
+		return BestPassage(content, query, variants)
+	}
+	matcher := newPassageMatcher(query, variants)
+	best := Passage{}
+	bestScore := 0.0
+	lineStart, foldedStart := 0, 0
+	for lineNumber := 1; ; lineNumber++ {
+		lineEnd := strings.IndexByte(content[lineStart:], '\n')
+		foldedEnd := strings.IndexByte(normalized[foldedStart:], '\n')
+		line, folded := content[lineStart:], normalized[foldedStart:]
+		if lineEnd >= 0 {
+			line = content[lineStart : lineStart+lineEnd]
+		}
+		if foldedEnd >= 0 {
+			folded = normalized[foldedStart : foldedStart+foldedEnd]
+		}
+		if score := matcher.score(line, folded); score > 0 {
+			best.MatchingLines++
+			if score > bestScore {
+				bestScore = score
+				best.Line = lineNumber
+				best.Text = strings.TrimSpace(line)
+				best.Terms = matcher.matchedTerms()
+			}
+		}
+		if lineEnd < 0 || foldedEnd < 0 {
+			break
+		}
+		lineStart += lineEnd + 1
+		foldedStart += foldedEnd + 1
+	}
+	return best
+}
+
+// passageVariant is one indexed spelling that satisfies a query term, with its
+// position among that term's variants: an earlier variant wins a tie in weight,
+// exactly as the first-match rule of lineMatch does.
+type passageVariant struct {
+	weight float64
+	order  int
+}
+
+// passageMatcher answers, for one folded line at a time, which query terms the
+// line holds. It is built once per query and reuses its per-term state, so
+// scoring a line allocates nothing unless the line becomes the best passage.
+type passageMatcher struct {
+	terms    []map[string]passageVariant
+	needles  []string
+	weight   []float64
+	order    []int
+	selected []string
+}
+
+func newPassageMatcher(query Query, variants [][]Variant) *passageMatcher {
+	matcher := &passageMatcher{
+		terms:    make([]map[string]passageVariant, len(query.Terms)),
+		needles:  make([]string, len(query.Terms)),
+		weight:   make([]float64, len(query.Terms)),
+		order:    make([]int, len(query.Terms)),
+		selected: make([]string, len(query.Terms)),
+	}
+	for termIndex, term := range query.Terms {
+		matcher.needles[termIndex] = term.Normalized
+		if termIndex >= len(variants) {
+			continue
+		}
+		table := make(map[string]passageVariant, len(variants[termIndex]))
+		for order, variant := range variants[termIndex] {
+			if variant.Weight <= 0 {
+				continue
+			}
+			if known, found := table[variant.Term]; found && known.weight >= variant.Weight {
+				continue
+			}
+			table[variant.Term] = passageVariant{weight: variant.Weight, order: order}
+		}
+		matcher.terms[termIndex] = table
+	}
+	return matcher
+}
+
+// score returns lineMatch's score for one line, given its folded form.
+func (matcher *passageMatcher) score(line, folded string) float64 {
+	for termIndex := range matcher.weight {
+		matcher.weight[termIndex] = 0
+		matcher.selected[termIndex] = ""
+	}
+	observe := func(token string) {
+		for termIndex, table := range matcher.terms {
+			variant, found := table[token]
+			if !found {
+				continue
+			}
+			if variant.weight > matcher.weight[termIndex] ||
+				(variant.weight == matcher.weight[termIndex] && variant.order < matcher.order[termIndex]) {
+				matcher.weight[termIndex] = variant.weight
+				matcher.order[termIndex] = variant.order
+				matcher.selected[termIndex] = token
+			}
+		}
+	}
+	start := -1
+	for offset, current := range folded {
+		if current == '_' || unicode.IsLetter(current) || unicode.IsNumber(current) {
+			if start < 0 {
+				start = offset
+			}
+			continue
+		}
+		if start >= 0 {
+			observe(folded[start:offset])
+			start = -1
+		}
+	}
+	if start >= 0 {
+		observe(folded[start:])
+	}
+
+	score := 0.0
+	for termIndex, needle := range matcher.needles {
+		if matcher.weight[termIndex] == 0 && needle != "" && strings.Contains(folded, needle) {
+			matcher.weight[termIndex] = 0.35
+			matcher.selected[termIndex] = needle
+		}
+		if matcher.weight[termIndex] > 0 {
+			score += 10 + matcher.weight[termIndex]
+		}
+	}
+	if score > 0 && strings.HasPrefix(strings.TrimSpace(line), "#") {
+		score += 0.5
+	}
+	return score
+}
+
+// matchedTerms lists the term chosen for each satisfied query term of the line
+// last scored, in query order.
+func (matcher *passageMatcher) matchedTerms() []string {
+	matched := make([]string, 0, len(matcher.selected))
+	for termIndex, weight := range matcher.weight {
+		if weight > 0 {
+			matched = append(matched, matcher.selected[termIndex])
+		}
+	}
+	return matched
+}
+
 // ExtractMarkdownHeadings returns searchable heading labels while excluding
 // frontmatter and fenced examples.
 func ExtractMarkdownHeadings(content string) string {

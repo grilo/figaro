@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"figaro/internal/links"
 	"figaro/internal/notenames"
 )
 
@@ -263,10 +264,15 @@ func inspectVaultLinks(sourcePath, content string, files map[string]struct{}, ma
 	return issues, referencedAttachments
 }
 
+// inspectVaultLinkLine checks the links on one line against the vault. Targets
+// are resolved by internal/links, the rule the move rewriter and the link index
+// already follow: a note link or wikilink names a path from the vault root
+// unless it starts with "./" or "../", and a bare image embed names a file
+// beside its note. The editor opens a bare link from the vault root and never
+// falls back to a same-named sibling, so neither does this check.
 func inspectVaultLinkLine(sourcePath, line string, lineNumber int, issues []VaultHealthIssue, referenced map[string]struct{}, files map[string]struct{}, markdownFiles map[string]vaultIndexedFile) ([]VaultHealthIssue, map[string]struct{}) {
-	checkTarget := func(raw, display string, wikilink bool) {
-		target := vaultLinkTarget(sourcePath, raw, wikilink)
-		if target == "" {
+	checkTarget := func(target string, resolved bool, display string) {
+		if !resolved {
 			return
 		}
 		if _, markdown := markdownFiles[target]; markdown {
@@ -288,7 +294,8 @@ func inspectVaultLinkLine(sourcePath, line string, lineNumber int, issues []Vaul
 	for _, match := range vaultHealthMarkdownLinkRE.FindAllStringSubmatch(line, -1) {
 		if len(match) == 2 {
 			raw := markdownLinkDestination(match[1])
-			checkTarget(raw, raw, false)
+			target, resolved := links.LinkDestinationTarget(raw, sourcePath, strings.HasPrefix(match[0], "!"))
+			checkTarget(target, resolved, raw)
 		}
 	}
 	for _, match := range wikiRelationshipLinkRE.FindAllStringSubmatch(line, -1) {
@@ -296,7 +303,8 @@ func inspectVaultLinkLine(sourcePath, line string, lineNumber int, issues []Vaul
 			continue
 		}
 		raw, _, _ := strings.Cut(match[1], "|")
-		checkTarget(raw, strings.TrimSpace(raw), true)
+		target, resolved := links.WikiLinkTarget(match[1])
+		checkTarget(target, resolved, strings.TrimSpace(raw))
 	}
 	return issues, referenced
 }

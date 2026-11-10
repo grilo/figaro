@@ -431,6 +431,16 @@ production-readiness scores; see [WRITING_CORPUS_FIXES.md](../WRITING_CORPUS_FIX
 
 ### Writing rename continuity and long-note analysis
 
+`appendAll.test.js` owns that source-sized collections are appended without
+spreading them into call arguments: one 200,000-character paragraph projects
+for the lenses and a note with more emphasis marks than the argument limit
+yields spelling ranges. `writingSpelling.test.js` owns the bounded time one
+spelling pass spends on replacements and the absence of any replacement search
+for a token no dictionary word could match; `writingAnalysis.test.js` owns the
+bounded follow-up passes that add the pending replacements.
+`writingDecisions.test.js` owns that Ignore on a merged entry remembers every
+reason from the analysis the author saw.
+
 `writingPathContinuity` tests pending storage before/during rename, failure
 release and retry. `writingPathModel` coverage in the same suite distinguishes
 folder boundaries and specific merge copy names. The mounted writing-lenses

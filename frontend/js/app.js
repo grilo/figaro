@@ -10,7 +10,7 @@ import { backend, waitForBackend } from './backend.js';
 
 import { log } from './log.js';
 import { state, initState, subscribe, setState, getState } from './state.js';
-import { configureEditorWorkspace, initEditor, getEditorContent, getEditorDocumentTabId, getEditorView, openEditorSearch } from './editor.js';
+import { configureEditorWorkspace, initEditor, editorPreviewLiveContent, getEditorContent, getEditorDocumentTabId, getEditorView, openEditorSearch } from './editor.js';
 import { preloadLanguageSupport } from './languageSupport.js';
 import { initializeDiagramRenderers } from './diagramRenderer.js';
 import {
@@ -27,6 +27,7 @@ import {
     recordTabMtime,
     restoreTabCursorStates,
     updateTabTitle,
+    activeFileContentSnapshot,
     saveActiveFile as saveActiveTabFile,
     saveFileSnapshot,
     saveDrawingTab,
@@ -57,7 +58,7 @@ import { initTheme, initThemeAppearance } from './theme.js';
 import { initTabSizePreference } from './tabSizePreference.js';
 import { applySidebarLayout, initSidebarResizer } from './sidebarResizer.js';
 import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
-import { globalShortcutAction } from './core/globalShortcutModel.js';
+import { globalShortcutAction, isCloseTabShortcut, isSaveShortcut } from './core/globalShortcutModel.js';
 import { configureHistoryWorkspace, initHistoryPanel } from './historyPanel.js';
 import { initActivity } from './activity.js';
 import { configurePDFPreviewWorkspace, initPDFPreview, openPDFPreview } from './pdfPreview.js';
@@ -503,13 +504,13 @@ export function initKeyboardShortcuts() {
         }
         
         // Ctrl/Cmd + S: Save current file
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        if (isSaveShortcut(e)) {
             e.preventDefault();
             void saveActiveTabFile({ failurePrompt: 'always' }).catch(() => {});
         }
         
         // Ctrl/Cmd + W: Close current tab
-        if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+        if (isCloseTabShortcut(e)) {
             e.preventDefault();
             const activeTab = getActiveTab();
             if (activeTab) closeTab(activeTab.id);
@@ -634,7 +635,8 @@ function installStartupSaveProtection() {
         configureInterval: configureAutoSave,
         tabs: () => getState('openTabs'),
         activeId: () => getState('activeTabId'),
-        activeContent: getEditorContent,
+        // The buffer the active tab owns, never a revision preview's text.
+        activeContent: activeFileContentSnapshot,
         save: (tab, content, options) => saveFileSnapshot(tab, content, { ...options, durabilityOnly: true }),
         saveDrawing: (tab, options) => saveDrawingTab(tab.id, options),
         close: closeNativeWindow,
@@ -773,7 +775,12 @@ export async function initApp() {
                 },
             },
             getActiveTab,
-            getEditorDocumentTabId,
+            // A previewed revision is not the note: it is neither reviewed nor
+            // allowed to re-anchor the note's saved review decisions.
+            getEditorDocumentTabId: () => {
+                const tabId = getEditorDocumentTabId();
+                return editorPreviewLiveContent(tabId) === null ? tabId : null;
+            },
             getView: getEditorView,
             analysisPorts: createWritingAdapters(backend()),
             focusEditor: () => getEditorView()?.focus(),

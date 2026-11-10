@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"errors"
 	"io/fs"
 	"log"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"figaro/internal/vault"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -32,6 +35,25 @@ type vaultWatcher struct {
 }
 
 const vaultWatchDebounce = 180 * time.Millisecond
+
+// vaultWatchMaximumDelay bounds how long a batch may keep being postponed. A
+// sync client or a build writing into the vault without a 180 ms pause would
+// otherwise hold back every index and tree update for as long as it runs.
+const vaultWatchMaximumDelay = 2 * time.Second
+
+// nextVaultWatchDelay is how long to wait after an event that arrived elapsed
+// after the first event of the pending batch: the usual quiet period, cut
+// short so the batch is delivered no later than vaultWatchMaximumDelay.
+func nextVaultWatchDelay(elapsed time.Duration) time.Duration {
+	remaining := vaultWatchMaximumDelay - elapsed
+	if remaining < 0 {
+		return 0
+	}
+	if remaining < vaultWatchDebounce {
+		return remaining
+	}
+	return vaultWatchDebounce
+}
 
 // vaultWatchChange records the settled path operations in one debounced
 // filesystem batch. Passing paths through to App lets it update one indexed
@@ -104,15 +126,24 @@ func (w *vaultWatcher) Run() {
 		debounceTimer *time.Timer
 		debounceC     <-chan time.Time
 		pending       bool
+		pendingSince  time.Time
 		pendingPaths  = make(map[string]fsnotify.Op)
-		errors        = w.watcher.Errors
+		// resyncWatches defers the full watch-set walk to the end of the batch:
+		// removing a large tree reports every folder in it.
+		resyncWatches bool
+		// overflowed records that the kernel dropped events, so the batch can
+		// no longer be described path by path.
+		overflowed  bool
+		watchErrors = w.watcher.Errors
 	)
-	resetDebounce := func(event fsnotify.Event) {
-		pending = true
-		path := filepath.Clean(event.Name)
-		pendingPaths[path] |= event.Op
+	armDebounce := func() {
+		if !pending {
+			pending = true
+			pendingSince = time.Now()
+		}
+		delay := nextVaultWatchDelay(time.Since(pendingSince))
 		if debounceTimer == nil {
-			debounceTimer = time.NewTimer(vaultWatchDebounce)
+			debounceTimer = time.NewTimer(delay)
 			debounceC = debounceTimer.C
 			return
 		}
@@ -122,7 +153,7 @@ func (w *vaultWatcher) Run() {
 			default:
 			}
 		}
-		debounceTimer.Reset(vaultWatchDebounce)
+		debounceTimer.Reset(delay)
 		debounceC = debounceTimer.C
 	}
 
@@ -143,20 +174,19 @@ func (w *vaultWatcher) Run() {
 			}
 
 			// Add watches immediately for newly-created folders. For removed or
-			// renamed directories, syncDirectories prunes stale watches after the
-			// current event batch has settled.
+			// renamed directories, syncDirectories prunes stale watches once,
+			// after the current event batch has settled.
 			if event.Op&fsnotify.Create != 0 && isDirectory(event.Name) {
 				if err := w.addDirectoryTree(event.Name); err != nil {
 					log.Printf("[watcher] add directory watch: %v", err)
 				}
 			}
 			if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 && w.isWatched(event.Name) {
-				if err := w.syncDirectories(); err != nil {
-					log.Printf("[watcher] refresh directory watches: %v", err)
-				}
+				resyncWatches = true
 			}
 			if event.Op&(fsnotify.Create|fsnotify.Write|fsnotify.Remove|fsnotify.Rename) != 0 {
-				resetDebounce(event)
+				pendingPaths[filepath.Clean(event.Name)] |= event.Op
+				armDebounce()
 			}
 
 		case <-debounceC:
@@ -165,36 +195,60 @@ func (w *vaultWatcher) Run() {
 				continue
 			}
 			pending = false
-			if w.onChanges != nil {
+			if resyncWatches || overflowed {
+				if err := w.syncDirectories(); err != nil {
+					log.Printf("[watcher] refresh directory watches: %v", err)
+				}
+			}
+			changes := make([]vaultWatchChange, 0, len(pendingPaths))
+			if !overflowed {
 				paths := make([]string, 0, len(pendingPaths))
 				for path := range pendingPaths {
 					paths = append(paths, path)
 				}
 				sort.Strings(paths)
-				changes := make([]vaultWatchChange, 0, len(paths))
 				for _, path := range paths {
 					changes = append(changes, vaultWatchChange{Path: path, Op: pendingPaths[path]})
 				}
-				clear(pendingPaths)
+			}
+			clear(pendingPaths)
+			resyncWatches, overflowed = false, false
+			// An empty batch means "something changed, scope unknown": the
+			// receiver rebuilds instead of trusting an incomplete path list.
+			if w.onChanges != nil {
 				w.onChanges(changes)
 			}
 
-		case err, ok := <-errors:
+		case err, ok := <-watchErrors:
 			if !ok {
-				errors = nil
+				watchErrors = nil
 				continue
 			}
-			if err != nil {
-				log.Printf("[watcher] vault watch error: %v", err)
+			if err == nil {
+				continue
+			}
+			log.Printf("[watcher] vault watch error: %v", err)
+			if errors.Is(err, fsnotify.ErrEventOverflow) {
+				// Events were lost. Whatever was reported is no longer the
+				// whole story, so ask for one complete refresh.
+				overflowed = true
+				armDebounce()
 			}
 		}
 	}
 }
 
+// syncDirectories makes the watch set match the vault's visible folders. A
+// folder below the root that cannot be read or that vanished mid-walk is left
+// unwatched instead of ending the watch on every other folder; only a failure
+// on the vault root itself is returned.
 func (w *vaultWatcher) syncDirectories() error {
 	current := make(map[string]struct{})
 	if err := filepath.WalkDir(w.root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
+			if path != w.root && vault.IsSkippableWalkError(walkErr) {
+				return nil
+			}
 			return walkErr
 		}
 		if path != w.root && isIgnoredVaultPath(w.root, path) {
@@ -220,6 +274,9 @@ func (w *vaultWatcher) syncDirectories() error {
 			continue
 		}
 		if err := w.watcher.Add(path); err != nil {
+			if path != w.root && vault.IsSkippableWalkError(err) {
+				continue
+			}
 			return err
 		}
 		w.watched[path] = struct{}{}
@@ -240,6 +297,11 @@ func (w *vaultWatcher) addDirectoryTree(dir string) error {
 	}
 	return filepath.WalkDir(dir, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
+			// Every path here lies below the vault root, so an unreadable or
+			// vanished folder is passed over; entry may be nil for dir itself.
+			if vault.IsSkippableWalkError(walkErr) {
+				return nil
+			}
 			return walkErr
 		}
 		if isIgnoredVaultPath(w.root, path) {
@@ -258,6 +320,9 @@ func (w *vaultWatcher) addDirectoryTree(dir string) error {
 			return nil
 		}
 		if err := w.watcher.Add(clean); err != nil {
+			if vault.IsSkippableWalkError(err) {
+				return nil
+			}
 			return err
 		}
 		w.watched[clean] = struct{}{}

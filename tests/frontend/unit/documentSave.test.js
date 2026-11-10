@@ -133,6 +133,38 @@ describe('document save use case', () => {
         expect(onSaved).not.toHaveBeenCalled();
     });
 
+    test('asks about a declined conflict again only when the author saves explicitly', async () => {
+        const conflict = { success: false, error: 'File modified externally', mtime: 11 };
+        const persist = jest.fn().mockResolvedValue(conflict);
+        const confirmOverwrite = jest.fn().mockResolvedValue(false);
+        const { saver } = harness({ persist, confirmOverwrite });
+        const tab = { path: 'note.md', mtime: 10 };
+
+        // The first background save asks; "Keep editing" declines.
+        const first = saver.save(tab, 'mine');
+        // Auto-Save ticks that pile up behind the open dialog do not ask again…
+        const queued = [saver.save(tab, 'mine'), saver.save(tab, 'mine')];
+        await expect(first).resolves.toBe(conflict);
+        await expect(Promise.all(queued)).resolves.toEqual([conflict, conflict]);
+        // …and neither does any later background save.
+        await expect(saver.save(tab, 'mine again')).resolves.toBe(conflict);
+        expect(confirmOverwrite).toHaveBeenCalledTimes(1);
+        expect(persist).toHaveBeenCalledTimes(1);
+
+        // Another note is unaffected.
+        await saver.save({ path: 'other.md', mtime: 3 }, 'other');
+        expect(confirmOverwrite).toHaveBeenCalledTimes(2);
+
+        // Ctrl/Cmd+S asks again; overwriting clears the declined state.
+        persist.mockResolvedValueOnce(conflict).mockResolvedValueOnce({ success: true, mtime: 12 });
+        confirmOverwrite.mockResolvedValueOnce(true);
+        await expect(saver.save(tab, 'mine again', { failurePrompt: 'always' })).resolves.toMatchObject({ success: true });
+        expect(confirmOverwrite).toHaveBeenCalledTimes(3);
+        persist.mockResolvedValue({ success: true, mtime: 13 });
+        await expect(saver.save(tab, 'newer')).resolves.toMatchObject({ success: true });
+        expect(confirmOverwrite).toHaveBeenCalledTimes(3);
+    });
+
     test('forces an approved conflict and reports a failed optional commit', async () => {
         const persist = jest.fn()
             .mockResolvedValueOnce({ success: false, error: 'File modified externally' })

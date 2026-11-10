@@ -12,6 +12,19 @@ function tablePipes(line) {
     return positions;
 }
 
+/**
+ * Escape every pipe that would otherwise end the cell. A pipe that is already
+ * escaped stays as written, and each pipe of a run such as `||` is escaped.
+ */
+export function escapeMarkdownTablePipes(value = '') {
+    const text = String(value ?? '');
+    let escaped = '';
+    for (let index = 0; index < text.length; index += 1) {
+        escaped += text[index] === '|' && !isEscaped(text, index) ? '\\|' : text[index];
+    }
+    return escaped;
+}
+
 /** Split one GFM row while preserving every cell's authored whitespace. */
 export function parseMarkdownTableRow(line = '') {
     const text = String(line ?? '');

@@ -27,6 +27,24 @@ export function kanbanColumnsWithRetained(previousOrder, currentColumns, retaine
     return result;
 }
 
+/** The hashtag a typed column name stands for: lowercase, spaces as hyphens. */
+export function kanbanColumnHashtag(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, '-');
+}
+
+/**
+ * Why a column cannot take this name, or '' when it can. Three or six hex
+ * digits read as a color code (`#bad`, `#decade`), which Figaro never treats
+ * as a hashtag: every card of a column renamed that way would disappear.
+ */
+export function kanbanColumnNameError(value, { current = '', existing = [] } = {}) {
+    const name = kanbanColumnHashtag(value);
+    if (!/^[a-z][a-z0-9_-]*$/.test(name)) return 'Start with a letter and use only letters, numbers, underscores, or hyphens.';
+    if (/^(?:[0-9a-f]{3}|[0-9a-f]{6})$/.test(name)) return `#${name} reads as a color code, so its cards would not appear. Choose another name.`;
+    if (name !== current && existing.includes(name)) return `#${name} already exists.`;
+    return '';
+}
+
 /** Rename one column in a render order without moving it. */
 export function renameKanbanColumnInOrder(order, oldName, newName) {
     return order.map(column => column === oldName ? newName : column);

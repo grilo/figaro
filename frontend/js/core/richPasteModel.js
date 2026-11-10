@@ -1,3 +1,5 @@
+import { appendAll } from './appendAll.js';
+
 export const RICH_PASTE_MAX_HTML_CHARS = 1_000_000;
 export const RICH_PASTE_MAX_DOM_NODES = 20_000;
 
@@ -139,7 +141,7 @@ function mapOutsideFences(markdown, transform, options = {}) {
     const flush = () => {
         if (prose.length) {
             const value = prose.join('\n');
-            result.push(...(options.inlineCode === false ? transform(value) : mapInlineProse(value, transform)).split('\n'));
+            appendAll(result, (options.inlineCode === false ? transform(value) : mapInlineProse(value, transform)).split('\n'));
         }
         prose = [];
     };

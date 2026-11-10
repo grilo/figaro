@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
@@ -186,5 +187,97 @@ func TestRefreshFileTreeCachePathPublishesGeneratedFile(t *testing.T) {
 	}
 	if !reflect.DeepEqual(paths, want) {
 		t.Fatalf("tree after generated file = %#v, want %#v", paths, want)
+	}
+}
+
+// makeUnreadableVaultFolder adds a folder holding one note and removes every
+// permission from it, as ext4's lost+found has for an ordinary user. It skips
+// the test where permissions cannot deny the listing (Windows, root).
+func makeUnreadableVaultFolder(t *testing.T, vaultPath string, rel string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits do not deny directory listing on Windows")
+	}
+	writeTestFile(t, vaultPath, filepath.Join(rel, "sealed.md"), "- [ ] Sealed #todo\n[Spec](Projects/Spec.md)\n")
+	path := filepath.Join(vaultPath, rel)
+	if err := os.Chmod(path, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0755) })
+	if _, err := os.ReadDir(path); err == nil {
+		t.Skip("this user can read a mode-000 directory (running as root)")
+	}
+}
+
+func TestUnreadableFolderDoesNotHideTheRestOfTheVault(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	writeTestFile(t, vaultPath, "Inbox.md", "- [ ] Inbox #todo\n[Spec](Projects/Spec.md)\n")
+	writeTestFile(t, vaultPath, "Projects/Spec.md", "# Specification\n")
+	makeUnreadableVaultFolder(t, vaultPath, "lost+found")
+	makeUnreadableVaultFolder(t, vaultPath, "Projects/private")
+
+	tree, err := app.GetFileTree()
+	if err != nil {
+		t.Fatalf("GetFileTree failed because of an unreadable folder: %v", err)
+	}
+	listed := make([]string, 0)
+	var collect func([]*FileTreeItem)
+	collect = func(items []*FileTreeItem) {
+		for _, item := range items {
+			listed = append(listed, item.Path)
+			collect(item.Children)
+		}
+	}
+	collect(tree)
+	if want := []string{"Projects", "Projects/Spec.md", "Inbox.md"}; !reflect.DeepEqual(listed, want) {
+		t.Fatalf("file tree = %v, want the readable entries %v", listed, want)
+	}
+
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["todo"]) != 1 || board["todo"][0].File != "Inbox.md" {
+		t.Fatalf("board beside an unreadable folder = %#v, err=%v", board, err)
+	}
+	if _, err := app.GetVaultHealth(); err != nil {
+		t.Fatalf("GetVaultHealth beside an unreadable folder: %v", err)
+	}
+
+	root, err := app.openVaultRoot()
+	if err != nil {
+		t.Fatalf("open vault root: %v", err)
+	}
+	defer root.Close()
+	if current, err := vaultIndexMatchesMarkdownFiles(root, app.vaultIndex, app.vaultIndexIssue); err != nil || !current {
+		t.Fatalf("index validation beside an unreadable folder = %v, %v", current, err)
+	}
+	if rewrites, err := collectVaultLinkRewrites(root, "Projects/Spec.md", "Projects/Design.md"); err != nil || len(rewrites) != 1 {
+		t.Fatalf("full-scan rewrite collection beside an unreadable folder = %d rewrites, %v", len(rewrites), err)
+	}
+
+	result, err := app.RenamePath("Projects/Spec.md", "Projects/Design.md")
+	if err != nil || !result.Success {
+		t.Fatalf("RenamePath beside an unreadable folder: result=%+v err=%v", result, err)
+	}
+	if got := readTestFile(t, vaultPath, "Inbox.md"); got != "- [ ] Inbox #todo\n[Spec](Projects/Design.md)\n" {
+		t.Fatalf("link after the rename = %q", got)
+	}
+}
+
+func TestFileTreeStillFailsWhenTheVaultRootIsUnreadable(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	root, err := app.openVaultRoot()
+	if err != nil {
+		t.Fatalf("open vault root: %v", err)
+	}
+	defer root.Close()
+	makeUnreadableVaultFolder(t, vaultPath, "Projects")
+	if err := os.Chmod(vaultPath, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(vaultPath, 0755) })
+
+	if tree, err := app.buildTree(root.FS(), "."); err == nil {
+		t.Fatalf("buildTree of an unreadable vault root = %v, want an error", tree)
 	}
 }

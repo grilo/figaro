@@ -743,7 +743,38 @@ export function validateVegaLiteChartConfiguration(state) {
     return { valid: true, error: '' };
 }
 
-function buildVegaLiteChartSpecVersion(
+// Vega-Lite reads `.`, `[` and `]` in a field as a path into nested data. A
+// table header is one flat column name, so every reference to a column escapes
+// them; the data rows, legend domains and titles keep the header as written.
+const FIELD_REFERENCE_KEYS = new Set(['field', 'regression', 'on']);
+const FIELD_REFERENCE_LIST_KEYS = new Set(['fold', 'fields']);
+const FIELD_LITERAL_KEYS = new Set(['data', 'usermeta']);
+
+function fieldReference(name) {
+    return String(name).replace(/[\\.[\]]/gu, '\\$&');
+}
+
+function escapeFieldReferences(node, key = '') {
+    if (typeof node === 'string') return FIELD_REFERENCE_KEYS.has(key) ? fieldReference(node) : node;
+    if (Array.isArray(node)) {
+        return node.map(item => (
+            typeof item === 'string' && FIELD_REFERENCE_LIST_KEYS.has(key)
+                ? fieldReference(item)
+                : escapeFieldReferences(item)
+        ));
+    }
+    if (!node || typeof node !== 'object') return node;
+    return Object.fromEntries(Object.entries(node).map(([name, value]) => (
+        [name, FIELD_LITERAL_KEYS.has(name) ? value : escapeFieldReferences(value, name)]
+    )));
+}
+
+function buildVegaLiteChartSpecVersion(state, options = {}) {
+    const spec = buildUnescapedVegaLiteChartSpec(state, options);
+    return spec && !options.legacyFieldReferences ? escapeFieldReferences(spec) : spec;
+}
+
+function buildUnescapedVegaLiteChartSpec(
     state,
     {
         completeLegend = true,
@@ -814,19 +845,22 @@ export function createVegaLiteChartEditorStateFromSource(source) {
     const state = mergeSavedConfiguration(base, metadata.chart);
     const generated = buildVegaLiteChartSpec(state);
     const completeLegend = metadata.chart?.legendPosition !== undefined;
-    const previousGenerated = [];
+    const previousOptions = [];
     for (const legacyAxisSuppression of [false, true]) {
         for (const legacyCategoryTrendlines of [false, true]) {
-            previousGenerated.push(buildVegaLiteChartSpecVersion(state, {
-                completeLegend,
-                legacyAxisSuppression,
-                legacyCategoryTrendlines,
-            }));
+            previousOptions.push({ completeLegend, legacyAxisSuppression, legacyCategoryTrendlines });
         }
     }
-    if (state.mode === 'pie') {
-        previousGenerated.push(buildVegaLiteChartSpecVersion(state, { completeLegend, legacyPieOrder: true }));
+    if (state.mode === 'pie') previousOptions.push({ completeLegend, legacyPieOrder: true });
+    // Charts saved before column references were escaped stay managed and are
+    // rewritten correctly the next time they are applied.
+    if (state.columns.some(column => fieldReference(column.field) !== column.field)) {
+        previousOptions.push(
+            { legacyFieldReferences: true },
+            ...previousOptions.map(options => ({ ...options, legacyFieldReferences: true })),
+        );
     }
+    const previousGenerated = previousOptions.map(options => buildVegaLiteChartSpecVersion(state, options));
     const roundTrip = specsEqual(spec, generated)
         || previousGenerated.some(candidate => specsEqual(spec, candidate));
     return {

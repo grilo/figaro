@@ -303,6 +303,14 @@ column emptied while the board is closed does not reappear.
 `kanbanColumnRetentionModel.test.js` covers placement and renaming.
 `kanban_colors_test.go` keeps a color through an emptied column, another color
 change and a restart, and allows coloring, renaming and deleting an empty column.
+`app_test.go` (`TestRemoveHashtagKeepsLineStructure`,
+`TestDeleteKanbanColumnKeepsEveryTaggedLineSeparate`) owns that removing a tag
+never consumes a line break, so deleting a column cannot join lines.
+`kanban_tags_test.go` owns tag edits in any letter case and the refusal of
+column names that read as hex colors; `kanbanColumnRetentionModel.test.js` owns
+the same refusal in the rename prompt. `kanban_order_test.go` owns manual order
+and task dates following a folder merge, and the linear ordering's agreement
+with the previous search.
 
 ## Kanban paint-continuity regressions
 
@@ -758,6 +766,9 @@ npx playwright test \
 - `tests/frontend/unit/wailsRuntime.test.js` owns the adapter that exposes the
   Wails v3 runtime as `window.go.desktop.App` and `window.runtime`, only inside
   the desktop webview.
+- `tests/frontend/unit/log.test.js` owns that every log level is safe on that
+  runtime surface, which publishes `LogDebug` alone: a warning or error logged
+  inside a failure handler must not throw.
 - `internal/desktop/asset_routes_test.go` owns the native-bridge guard: the
   request shapes WebKitGTK sends from Figaro's document pass, and the hosted
   Draw.io frame, the sandboxed PDF preview, look-alike hosts, and calls without
@@ -792,6 +803,38 @@ must be rejected, and reorder/close/reopen must refresh ownership correctly.
 
 File-tree component scenarios cancel their scheduled timers after each case so
 a delayed Ready message cannot overwrite the next rename-stage assertion.
+
+`saveModel.test.js` owns the rule for which text a save writes: the buffer the
+editor holds for the tab that owns it, a tab's cached buffer otherwise, and
+nothing — never an empty file — when neither exists. `tabManager.test.js` owns
+that every save path applies it. It also owns that an ID is never open
+twice, that a rename re-keys the editor's owner, and that a CRLF note's
+Properties selection is addressed in editor offsets.
+`sessionPersistence.test.js` owns that a failure reporter that throws cannot
+strand later session writes. `historyRestore.test.js` and `gitStatus.test.js`
+own that History previews through the editor's preview API and that
+**Revert** and **Save to history** persist the displaced live text.
+`internal/links/rewrite_test.go` owns move and rename rewriting, including
+note-relative bare image embeds and untouched footnote definitions, and the
+resolver Vault Health shares; `vault_health_test.go` owns that nested notes'
+vault-root links are not reported broken.
+`documentSave.test.js` owns that a declined save conflict is not asked again
+by background saves. `globalShortcutModel.test.js` owns shortcut letters under
+Caps Lock and non-Latin layouts. `fileTreeModel.test.js` owns the shared name
+rule (dot-prefixed names refused) and expanded folders following a rename.
+`backlinks.test.js` and `relationshipModel.test.js` own paging of unlinked
+mentions and keeping the view after linking one.
+
+Backend file operations: `vault_index_test.go` owns the watcher plan (a note
+replaced by remove-and-create, folders renamed or moved outside Figaro, the
+256-note batch limit, acknowledged link rewrites) and in-place index removal on
+delete; `vault_watcher_test.go` owns the two-second delivery bound, event
+overflow and unreadable folders; `internal/history/archive_plan_test.go` owns
+the delete archive's index-versus-HEAD comparison against go-git's full status;
+`internal/mutations/plan_test.go` and `app_vaultfs_test.go` own case-only
+renames; `internal/vault/root_test.go` owns the colon rule, kept permission
+bits and skipped unreadable folders; `internal/activity/paths_test.go` and
+`activity_relocation_test.go` own that Activity never blocks a rename.
 
 Cursor updates now notify `tabCursors`; buffer-only changes notify `tabBuffers`.
 Shell/tab metadata observers subscribe to `tabPresentation`, with positive

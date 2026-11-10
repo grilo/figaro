@@ -1,6 +1,8 @@
 package desktop
 
 import (
+	"errors"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -33,6 +35,13 @@ func (a *App) planDocumentPathMove(root *os.Root, from, to string) ([]writing.Me
 		return nil, err
 	}
 	after, err := activity.PlanPathMove(before, filepath.ToSlash(from), filepath.ToSlash(to), revision)
+	if errors.Is(err, activity.ErrPathNotRecordable) || errors.Is(err, activity.ErrPathHistoryFull) {
+		// Activity continuity is a convenience; it never decides whether a note
+		// may be renamed. The move goes ahead and the history file is left as
+		// it is, so this note's earlier edits are not attributed across it.
+		log.Printf("[activity] Move from %q to %q is not recorded: %v", filepath.ToSlash(from), filepath.ToSlash(to), err)
+		return changes, nil
+	}
 	if err != nil {
 		return nil, err
 	}

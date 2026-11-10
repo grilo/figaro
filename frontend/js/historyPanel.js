@@ -11,10 +11,12 @@ import { confirmDialog, errorDialog } from './dialogs.js';
 import { statusBar } from './statusBar.js';
 import { recordRuntimeFileIssue, resolveRuntimeFileIssue } from './fileIssues.js';
 import {
-    getEditorContent,
+    closeEditorPreview,
+    editorPreviewLiveContent,
+    getEditorBufferContent,
+    getEditorDocumentTabId,
     getEditorView,
-    setEditorContent,
-    setReadOnly,
+    showEditorPreview,
 } from './editor.js';
 import { renderMarkdownDiff } from './historyDiff.js';
 import {
@@ -42,12 +44,10 @@ function saveFileSnapshot(...args) {
     return saveWorkspaceFileSnapshot(...args);
 }
 
-let liveContent = null;
 let viewingHistory = false;
 let currentFilePath = null;
 let historyListRequestId = 0;
 let historyVersionRequestId = 0;
-let historyModeRequestId = 0;
 let historyModeTabId = null;
 let viewedVersionContent = null;
 let viewedVersionHash = null;
@@ -262,11 +262,12 @@ export async function commitCurrentFileChanges() {
 
     try {
         if (tab.dirty) {
-            // A fast tab switch caches the old document on its tab before the
-            // active ID changes. Never read the replacement tab's editor text
-            // into the file whose commit was clicked.
-            const pendingContent = getState('activeTabId') === tab.id
-                ? getEditorContent()
+            // The editor answers only for the tab that owns it, and with that
+            // tab's buffer rather than a previewed revision. A fast tab switch
+            // caches the old document on its tab before ownership changes, so
+            // the replacement tab's text never reaches this file.
+            const pendingContent = getEditorDocumentTabId() === tab.id
+                ? getEditorBufferContent()
                 : readTabContent(tab);
             if (typeof pendingContent !== 'string') {
                 throw new Error('The pending editor text is not available to save safely.');
@@ -476,7 +477,7 @@ async function toggleHistoryDiff(hash, trigger) {
     const diff = document.createElement('section');
     diff.className = 'history-diff';
     diff.setAttribute('aria-label', 'Changes between the selected version and current content');
-    diff.innerHTML = renderMarkdownDiff(liveContent ?? '', viewedVersionContent).html;
+    diff.innerHTML = renderMarkdownDiff(editorPreviewLiveContent(historyModeTabId) ?? '', viewedVersionContent).html;
     action.append(diff);
     trigger.textContent = 'Hide comparison';
     trigger.setAttribute('aria-expanded', 'true');
@@ -521,27 +522,15 @@ async function viewHistoryVersion(hash) {
 }
 
 async function enterHistoryMode(versionContent, hash) {
-    const requestId = ++historyModeRequestId;
-    if (requestId !== historyModeRequestId) return;
-
-    // Cache live content if not already cached
+    // The editor adapter keeps the displaced text, its selection and its undo
+    // history, stays read-only, and keeps answering saves with the displaced
+    // text until the preview closes. Nothing here may be read as the note.
+    if (!showEditorPreview(versionContent)) return;
     if (!viewingHistory) {
-        liveContent = getEditorContent();
         historyModeTabId = getState('activeTabId');
         viewingHistory = true;
     }
-
-    // Set editor to read-only with history tint
-    const view = getEditorView();
-    if (view) {
-        view.dom.classList.add('history-mode');
-    }
-
-    if (typeof setReadOnly === 'function') setReadOnly(true);
-    if (requestId !== historyModeRequestId) return;
-
-    // Load historical content
-    setEditorContent(versionContent);
+    getEditorView()?.dom.classList.add('history-mode');
     viewedVersionContent = versionContent;
     viewedVersionHash = hash;
 
@@ -595,7 +584,11 @@ async function restoreViewedVersion() {
     }
     const restoredContent = viewedVersionContent;
     try {
-        const preserved = await saveFileSnapshot(tab, liveContent ?? '');
+        const currentContent = editorPreviewLiveContent(tab.id);
+        if (typeof currentContent !== 'string') {
+            throw new Error('The current version is no longer available to preserve.');
+        }
+        const preserved = await saveFileSnapshot(tab, currentContent);
         if (!preserved?.success) throw new Error(preserved?.error || 'The current version could not be preserved.');
         if (!preserved.historyCommitSucceeded) await backend().CommitCurrentFile(tab.path);
 
@@ -605,9 +598,8 @@ async function restoreViewedVersion() {
         // History still ends at the preserved pre-revert version and leaves
         // the restored contents as an ambiguous uncommitted worktree change.
         if (!restored.historyCommitSucceeded) await backend().CommitCurrentFile(tab.path);
-        liveContent = restoredContent;
         historyNotice = 'Restored the selected version as the latest committed version.';
-        await exitHistoryMode();
+        await exitHistoryMode({ restoredContent });
         statusBar.set('Reverted file; previous version kept in history');
         await updateHistoryCount(tab.path);
         await refreshHistoryIfOpen();
@@ -624,26 +616,13 @@ async function restoreViewedVersion() {
     }
 }
 
-async function exitHistoryMode() {
-    const requestId = ++historyModeRequestId;
+async function exitHistoryMode({ restoredContent = null } = {}) {
     viewingHistory = false;
-
-    if (requestId !== historyModeRequestId) return;
-    const view = getEditorView();
-
-    // Remove history tint + read-only
-    if (view) {
-        view.dom.classList.remove('history-mode');
-        if (typeof setReadOnly === 'function') setReadOnly(false);
-    }
-    if (requestId !== historyModeRequestId) return;
-
-    let restored;
-    // Restore live content
-    if (liveContent !== null && getState('activeTabId') === historyModeTabId) {
-        restored = setEditorContent(liveContent, historyModeTabId);
-    }
-    liveContent = null;
+    getEditorView()?.dom.classList.remove('history-mode');
+    // Synchronous on purpose: the displaced text (or the revision that was
+    // just restored) is mounted and writable again before any other handler
+    // can read, edit or save the editor.
+    closeEditorPreview(typeof restoredContent === 'string' ? { content: restoredContent } : undefined);
     historyModeTabId = null;
     viewedVersionContent = null;
     viewedVersionHash = null;
@@ -661,7 +640,6 @@ async function exitHistoryMode() {
             el.setAttribute('aria-selected', 'false');
         });
     }
-    await restored;
 }
 
 export function closeHistoryPanel({ keepSidebarOpen = false } = {}) {
@@ -672,7 +650,6 @@ export function closeHistoryPanel({ keepSidebarOpen = false } = {}) {
     // Invalidate any in-flight list or version request before changing the UI.
     historyListRequestId++;
     historyVersionRequestId++;
-    historyModeRequestId++;
     const resizer = document.getElementById('right-sidebar-resizer');
     if (sidebar && ownsSidebar) {
         delete sidebar.dataset.mode;

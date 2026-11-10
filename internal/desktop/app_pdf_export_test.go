@@ -400,6 +400,54 @@ func TestRenderChromiumPDFPassesKeepsSinglePassAndRejectsPaginationDrift(t *test
 	}
 }
 
+func TestInsertBeforeHeadEndUsesOffsetsOfTheDocumentItself(t *testing.T) {
+	const markup = `<link rel="stylesheet" href="x.css">`
+	for _, test := range []struct {
+		name     string
+		document string
+		want     string
+		inserted bool
+	}{
+		{
+			// Each "İ" loses a byte when lowercased, which used to shift the
+			// insertion point left into the closing style tag.
+			name:     "title whose lowercase is shorter",
+			document: "<html><head><title>İSTANBUL GEZİ REHBERİ</title><style>p{}</style></head><body>İ</body></html>",
+			want:     "<html><head><title>İSTANBUL GEZİ REHBERİ</title><style>p{}</style>" + markup + "</head><body>İ</body></html>",
+			inserted: true,
+		},
+		{
+			// "ẞ" loses one byte and the Kelvin sign two when lowercased;
+			// the size of the shift must not matter.
+			name:     "letters of other byte lengths and an upper-case tag",
+			document: "<HTML><HEAD><TITLE>STRAẞE K</TITLE></HEAD><BODY></BODY></HTML>",
+			want:     "<HTML><HEAD><TITLE>STRAẞE K</TITLE>" + markup + "</HEAD><BODY></BODY></HTML>",
+			inserted: true,
+		},
+		{
+			name:     "last of several head ends",
+			document: "<head></head><body><pre>&lt;/head&gt;</pre></body><!-- </head> -->",
+			want:     "<head></head><body><pre>&lt;/head&gt;</pre></body><!-- " + markup + "</head> -->",
+			inserted: true,
+		},
+		{name: "fragment without a head", document: "<p>İ</p><header></header>", want: "<p>İ</p><header></header>"},
+		{name: "empty document", document: "", want: ""},
+	} {
+		got, inserted := insertBeforeHeadEnd(test.document, markup)
+		if got != test.want || inserted != test.inserted {
+			t.Errorf("%s: insertBeforeHeadEnd = %q, %v; want %q, %v", test.name, got, inserted, test.want, test.inserted)
+		}
+	}
+
+	enriched := enrichInteractivePDFHTML("İSTANBUL GEZİ REHBERİ",
+		"<!doctype html><html><head><title>İSTANBUL GEZİ REHBERİ</title><style>body{margin:0}</style></head><body></body></html>",
+		"file:///vault/", "file:///vault/_print.css")
+	if !strings.Contains(enriched, `<style>body{margin:0}</style><meta http-equiv="Content-Security-Policy"`) ||
+		!strings.Contains(enriched, `<link rel="stylesheet" href="file:///vault/_print.css"></head><body>`) {
+		t.Fatalf("enriched PDF document broke its head: %s", enriched)
+	}
+}
+
 func TestWriteInteractivePDFWorkspaceIncludesKaTeXStylesheetAndFonts(t *testing.T) {
 	requireGeneratedKaTeXRuntime(t)
 	workspace := t.TempDir()

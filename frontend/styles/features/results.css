@@ -177,6 +177,18 @@
     margin: 10px 0 0 10px;
 }
 
+.relationship-more {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 12px 4px 0;
+}
+
+.relationship-more-count {
+    color: var(--text-dim);
+    font-size: var(--font-size-sm);
+}
+
 .relationship-empty {
     padding: 18px 12px;
     text-align: left;

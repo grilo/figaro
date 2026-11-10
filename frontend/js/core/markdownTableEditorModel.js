@@ -1,4 +1,4 @@
-import { parseMarkdownTable } from './markdownTableEditing.js';
+import { escapeMarkdownTablePipes, parseMarkdownTable } from './markdownTableEditing.js';
 
 const mergeLinePattern = /^\s*<!--\s*figaro:table-merge\s+([A-Z]+[1-9]\d*):([A-Z]+[1-9]\d*)\s*-->\s*$/iu;
 const mergeLineGlobalPattern = /^[\t ]*<!--\s*figaro:table-merge\s+[A-Z]+[1-9]\d*:[A-Z]+[1-9]\d*\s*-->[\t ]*(?:\r?\n|$)/gimu;
@@ -200,9 +200,7 @@ function withCellContent(raw, value) {
     const text = String(raw ?? '');
     const leading = text.match(/^\s*/u)?.[0] || '';
     const trailing = text.match(/\s*$/u)?.[0] || '';
-    const content = String(value ?? '')
-        .replace(/\r?\n/gu, '<br>')
-        .replace(/(^|[^\\])\|/gu, '$1\\|');
+    const content = escapeMarkdownTablePipes(String(value ?? '').replace(/\r?\n/gu, '<br>'));
     if (!content) return leading || trailing || ' ';
     return `${leading}${content}${trailing}`;
 }

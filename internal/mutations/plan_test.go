@@ -47,3 +47,32 @@ func TestCollisionNamesPreserveCompoundExcalidrawExtension(t *testing.T) {
 		t.Fatalf("merge name = %q", got)
 	}
 }
+
+func TestRenameDestinationOccupiedAllowsOnlyACaseChangeOfTheSameEntry(t *testing.T) {
+	for _, test := range []struct {
+		name                string
+		oldPath, newPath    string
+		exists, sameEntry   bool
+		wantOccupied        bool
+		wantCaseOnlyRenamed bool
+	}{
+		{name: "free destination", oldPath: "todo.md", newPath: "done.md"},
+		{name: "free case variant on a case-sensitive volume", oldPath: "todo.md", newPath: "Todo.md", wantCaseOnlyRenamed: true},
+		{name: "case change of the same entry", oldPath: "todo.md", newPath: "Todo.md", exists: true, sameEntry: true, wantCaseOnlyRenamed: true},
+		{name: "case change of a nested note", oldPath: filepath.Join("Notes", "todo.md"), newPath: filepath.Join("Notes", "TODO.md"), exists: true, sameEntry: true, wantCaseOnlyRenamed: true},
+		{name: "case change of a folder", oldPath: "notes", newPath: "Notes", exists: true, sameEntry: true, wantCaseOnlyRenamed: true},
+		{name: "case variant that is another file", oldPath: "todo.md", newPath: "Todo.md", exists: true, wantOccupied: true, wantCaseOnlyRenamed: true},
+		{name: "different name reaching the same file", oldPath: "todo.md", newPath: "alias.md", exists: true, sameEntry: true, wantOccupied: true},
+		{name: "unchanged name", oldPath: "todo.md", newPath: "todo.md", exists: true, sameEntry: true, wantOccupied: true},
+		{name: "case change of a parent folder only", oldPath: filepath.Join("Notes", "todo.md"), newPath: filepath.Join("notes", "todo.md"), exists: true, sameEntry: true, wantOccupied: true},
+		{name: "case change and a move", oldPath: filepath.Join("Notes", "todo.md"), newPath: filepath.Join("Archive", "Todo.md"), exists: true, sameEntry: true, wantOccupied: true},
+		{name: "another existing note", oldPath: "todo.md", newPath: "done.md", exists: true, wantOccupied: true},
+	} {
+		if got := IsCaseOnlyRename(test.oldPath, test.newPath); got != test.wantCaseOnlyRenamed {
+			t.Errorf("%s: IsCaseOnlyRename(%q, %q) = %v, want %v", test.name, test.oldPath, test.newPath, got, test.wantCaseOnlyRenamed)
+		}
+		if got := RenameDestinationOccupied(test.oldPath, test.newPath, test.exists, test.sameEntry); got != test.wantOccupied {
+			t.Errorf("%s: RenameDestinationOccupied(%q, %q, %v, %v) = %v, want %v", test.name, test.oldPath, test.newPath, test.exists, test.sameEntry, got, test.wantOccupied)
+		}
+	}
+}

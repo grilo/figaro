@@ -125,4 +125,76 @@ describe('shared editor document session', () => {
         }), false);
         expect(session.documentTabId()).toBe('second.md');
     });
+    test('a rejected replacement leaves the previous document attributed to its own tab', async () => {
+        const { scheduled, editor, switchDocument, session, setActiveTabId } = harness();
+        session.mount('first note', 'first.md');
+        scheduled[0]();
+        expect(session.documentTabId()).toBe('first.md');
+
+        // The editor refuses the transaction: nothing was replaced.
+        switchDocument.mockImplementationOnce(() => { throw new RangeError('Selection points outside of document'); });
+        setActiveTabId('second.md');
+        const mount = session.mount('second note', 'second.md');
+        scheduled[1]();
+
+        await expect(mount).resolves.toBe(false);
+        expect(editor.content).toBe('first note');
+        // Otherwise the next keystroke and save would write the first note's
+        // text into second.md.
+        expect(session.documentTabId()).toBe('first.md');
+    });
+
+    test('a replacement that landed before a later failure keeps the new owner', async () => {
+        const { scheduled, editor, switchDocument, session, setActiveTabId } = harness();
+        session.mount('first note', 'first.md');
+        scheduled[0]();
+
+        switchDocument.mockImplementationOnce((target, request) => {
+            target.content = request.content;
+            throw new Error('presentation could not be attached');
+        });
+        setActiveTabId('second.md');
+        const mount = session.mount('second note', 'second.md');
+        scheduled[1]();
+
+        await expect(mount).resolves.toBe(false);
+        expect(editor.content).toBe('second note');
+        expect(session.documentTabId()).toBe('second.md');
+    });
+
+    test('a renamed tab keeps ownership of the mounted document', () => {
+        const { scheduled, applyContent, editor, session, setActiveTabId } = harness();
+        session.mount('note text', 'notes/a.md');
+        setActiveTabId('notes/a.md');
+        scheduled[0]();
+        expect(session.documentTabId()).toBe('notes/a.md');
+
+        expect(session.renameDocumentTab('notes/a.md', 'notes/b.md')).toBe(true);
+        expect(session.documentTabId()).toBe('notes/b.md');
+
+        // The same buffer under its new ID is not a document switch.
+        setActiveTabId('notes/b.md');
+        session.mount('note text edited', 'notes/b.md');
+        scheduled[1]();
+        expect(applyContent).toHaveBeenCalledTimes(1);
+        expect(editor.content).toBe('note text edited');
+
+        expect(session.renameDocumentTab('unrelated.md', 'elsewhere.md')).toBe(false);
+        expect(session.renameDocumentTab('notes/b.md', 'notes/b.md')).toBe(false);
+        expect(session.documentTabId()).toBe('notes/b.md');
+    });
+
+    test('a mount queued before a rename still lands on the renamed tab', async () => {
+        const { scheduled, editor, session, setActiveTabId } = harness();
+        setActiveTabId('notes/a.md');
+        const mount = session.mount('loaded from disk', 'notes/a.md');
+
+        session.renameDocumentTab('notes/a.md', 'notes/b.md');
+        setActiveTabId('notes/b.md');
+        scheduled[0]();
+
+        await expect(mount).resolves.toBe(true);
+        expect(editor.content).toBe('loaded from disk');
+        expect(session.documentTabId()).toBe('notes/b.md');
+    });
 });

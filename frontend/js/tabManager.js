@@ -12,7 +12,7 @@ import { log } from './log.js';
 import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, graphIcon, settingsIcon, warningIcon } from './icons.js';
 import { setState, getState, subscribe, recordRecentFile, getTabIndex, getTabCursorState, setTabCursorState } from './state.js';
 import { saveSession } from './session.js';
-import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile, createEditorView, setImageBasePath, transferEditorHistory } from './editor.js';
+import { getEditorView, getEditorContent, getEditorBufferContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile, createEditorView, setImageBasePath, transferEditorHistory, renameEditorDocumentTab } from './editor.js';
 import { statusBar } from './statusBar.js';
 import { errorDialog, saveFailureDialog } from './dialogs.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
@@ -38,7 +38,7 @@ import { renderExcalidrawTab } from './excalidraw.js';
 import { isPathTabType } from './core/editableDiagramModel.js';
 import { createGraphView } from './graphView.js';
 import { initSettingsPanel } from './theme.js';
-import { isDiskFullError, isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
+import { isDiskFullError, isLatestSave, saveContentSource, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
 import { boundedAdjacentTabId, fileTabNeedsActivationRead, tabCloseNavigationPlan } from './core/tabNavigationModel.js';
@@ -258,9 +258,10 @@ function isFileBackedTab(tab) {
 
 function snapshotActiveFileTab(tab) {
     if (!tab || tab.type !== 'file') return;
-    const editor = getEditorView();
-    if (editor?.state && getEditorDocumentTabId() === tab.id) {
-        tab._content = editor.state.doc.toString();
+    // The buffer, not the visible document: a revision preview or the first
+    // frame of a staged mount must never become this tab's cached content.
+    if (getEditorView()?.state && getEditorDocumentTabId() === tab.id) {
+        tab._content = getEditorBufferContent();
     }
     const cursorState = saveCursorState(tab.id);
     if (cursorState) recordTabCursor(tab.id, cursorState);
@@ -734,7 +735,7 @@ export function initTabManager({ dictionary = null } = {}) {
 /**
  * Open a new tab or switch to existing
  */
-export function openTab(id, title, type, data = {}, forceNew = false) {
+export function openTab(id, title, type, data = {}) {
     // Home used to be a synthetic, permanent tab. Route legacy callers to the
     // un-tabbed workspace overview so it can never return to persisted state.
     if (type === 'home') {
@@ -746,20 +747,21 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     const shouldActivate = data.activate !== false;
     const preparedFile = data.preparedFile || null;
     
-    if (isSidebarWorkspaceTab({ type }) || !forceNew || data.externalFileId) {
-        const existing = isSidebarWorkspaceTab({ type })
-            ? tabs.find(tab => tab.type === type)
-            : tabs.find(tab => tab.id === id);
-        if (existing) {
-            if (existing.type === 'file' && data.line) existing.searchLine = data.line;
-            if (existing.type === 'kanban' && data.focusCol) existing.focusCol = data.focusCol;
-            if (shouldActivate) switchTab(existing.id, {
-                // A dirty buffer remains authoritative over any disk snapshot
-                // read while activating it from the file tree.
-                preparedFile: existing.dirty ? null : preparedFile,
-            });
-            return existing;
-        }
+    // Tab IDs are the only identity the workspace has. A second record with
+    // the same ID would take the edits while every lookup kept resolving to
+    // the first, so an ID that is already open is activated, never duplicated.
+    const existing = isSidebarWorkspaceTab({ type })
+        ? tabs.find(tab => tab.type === type)
+        : tabs.find(tab => tab.id === id);
+    if (existing) {
+        if (existing.type === 'file' && data.line) existing.searchLine = data.line;
+        if (existing.type === 'kanban' && data.focusCol) existing.focusCol = data.focusCol;
+        if (shouldActivate) switchTab(existing.id, {
+            // A dirty buffer remains authoritative over any disk snapshot
+            // read while activating it from the file tree.
+            preparedFile: existing.dirty ? null : preparedFile,
+        });
+        return existing;
     }
     
     const tab = {
@@ -1088,7 +1090,10 @@ async function renderFileTab(
 function fileMountSelection(tab, content, rememberedSelection = null) {
     if (!isMarkdownFilePath(tab.path)) return rememberedSelection;
     const lineNumber = Number(tab.searchLine);
-    return initialFrontmatterBodySelection(content, {
+    // Offsets address the mounted document, where every line break is one
+    // character; a CRLF source would place them past the frontmatter.
+    const source = content.includes('\r') ? content.replace(/\r\n?/g, '\n') : content;
+    return initialFrontmatterBodySelection(source, {
         rememberedSelection,
         hasLineTarget: Number.isInteger(lineNumber) && lineNumber >= 1,
     });
@@ -1412,6 +1417,8 @@ export function updateTabsForMovedPath(oldPath, newPath) {
     });
     // Publish the new records before active-id consumers resolve a renamed tab.
     setState('openTabs', tabs);
+    // The shared editor keeps showing the same buffer under its new ID.
+    for (const [previousId, nextId] of idChanges) renameEditorDocumentTab(previousId, nextId);
 
     const pinned = getState('pinnedTabs');
     const nextPinned = [...new Set(pinned.map(tabId => idChanges.get(tabId) || tabId))];
@@ -1520,7 +1527,7 @@ async function persistTabsBeforePathOperation(tabsToPrepare, operation) {
             continue;
         }
         if (!tab.dirty) continue;
-        const content = tab.id === getState('activeTabId') ? getEditorContent() : readTabContent(tab);
+        const content = contentSnapshotForTab(tab);
         if (typeof content !== 'string') {
             return { success: false, error: `Could not save "${tab.title}" before ${operation} it` };
         }
@@ -1889,13 +1896,28 @@ export function saveActiveFile(options = {}) {
     return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab), options);
 }
 
+/**
+ * The text a save of `tab` must write, or null when nothing authoritative is
+ * available. The shared editor answers only for the tab that owns it; every
+ * other tab answers from its cached buffer. A tab with neither (still loading,
+ * or never mounted) has nothing to save, and is never written as an empty file.
+ */
 function contentSnapshotForTab(tab) {
-    const ownerId = getEditorDocumentTabId();
-    if (ownerId === tab.id) return getEditorContent();
-    if (ownerId == null && getState('activeTabId') === tab.id && typeof readTabContent(tab) !== 'string') {
-        return getEditorContent();
-    }
-    return typeof readTabContent(tab) === 'string' ? readTabContent(tab) : '';
+    const cached = readTabContent(tab);
+    const source = saveContentSource({
+        ownerId: getEditorDocumentTabId(),
+        tabId: tab.id,
+        activeTabId: getState('activeTabId'),
+        hasCachedContent: typeof cached === 'string',
+    });
+    if (source === 'editor') return getEditorBufferContent();
+    return source === 'cache' ? cached : null;
+}
+
+/** The active file tab's content for a save made outside the tab manager. */
+export function activeFileContentSnapshot() {
+    const tab = getActiveTab();
+    return tab?.type === 'file' ? contentSnapshotForTab(tab) : null;
 }
 
 const saveFailureEpisodes = new Map();
@@ -1914,6 +1936,7 @@ function waitForModalClose(tabId, episode) {
 async function copyUnsavedText(tab) {
     const text = contentSnapshotForTab(tab);
     try {
+        if (typeof text !== 'string') throw new Error('The unsaved text is not available.');
         if (typeof navigator.clipboard?.writeText !== 'function') throw new Error('Clipboard access is unavailable.');
         await navigator.clipboard.writeText(text);
         statusBar.set('Unsaved text copied; the file is still not saved');

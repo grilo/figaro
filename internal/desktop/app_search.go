@@ -301,7 +301,10 @@ func (a *App) SearchNotes(query string, request NoteSearchRequest) (*NoteSearchR
 			var cached bool
 			passage, cached = passages[file.content]
 			if !cached {
-				passage = searchmodel.BestPassage(file.content, planned, variants)
+				// The index already holds the folded text, so the passage
+				// costs one token walk per line instead of normalizing,
+				// tokenizing and sorting each line of each candidate note.
+				passage = searchmodel.BestPassageNormalized(file.content, file.searchLower, planned, variants)
 				passages[file.content] = passage
 			}
 		}

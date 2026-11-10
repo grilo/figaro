@@ -12,6 +12,7 @@ import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
 import { lucideIconLabel, renderLucideIcon, searchLucideIcons } from './lucideIcons.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import { isDiskFullError } from './core/saveModel.js';
+import { vaultItemNameError } from './core/fileTreeModel.js';
 
 let activeModal = null;
 let activeModalDismiss = null;
@@ -519,14 +520,7 @@ export function renamePathDialog(path, type) {
         const cancelButton = overlay.querySelector('.custom-modal-btn-cancel');
         const confirmButton = overlay.querySelector('.custom-modal-btn-confirm');
         let lifecycle = null;
-        const validationMessage = value => {
-            const name = String(value || '').trim();
-            if (!name) return `Enter a name for the ${kind}.`;
-            if (/[\\/]/.test(name)) return 'Choose a name, not a path.';
-            if (/^\.+$/.test(name)) return 'Choose a name other than dots.';
-            if (Array.from(name).some(character => character.charCodeAt(0) < 0x20)) return 'The name contains an unsupported control character.';
-            return '';
-        };
+        const validationMessage = value => vaultItemNameError(value, `Enter a name for the ${kind}.`);
         const refreshValidation = (showInvalid = false) => {
             const value = input.value.trim();
             const message = validationMessage(value);
@@ -621,8 +615,8 @@ export function newNoteDialog(parentDirectory = '') {
         const submit = () => {
             const filename = normaliseNewNoteFilename(input.value);
             if (!filename) return showError('Enter a name for the new file.');
-            if (/[\\/]/.test(filename)) return showError('Choose a name, not a path.');
-            if (/^\.+$/.test(filename)) return showError('Choose a name other than dots.');
+            const nameError = vaultItemNameError(filename, 'Enter a name for the new file.');
+            if (nameError) return showError(nameError);
             settle(filename);
         };
         lifecycle = activateModal(overlay, {

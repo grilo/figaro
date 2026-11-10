@@ -110,31 +110,55 @@ export function createSpellcheckLinter(defaultLanguage, acceptedWords = []) {
     return view => spellcheckDiagnostics(view.state.doc.toString(), defaultLanguage, undefined, acceptedWords);
 }
 
-/** Writing worker adapter: one prose scan and one conservative lookup per unique word. */
-export async function writingSpellingObservations(source, defaultLanguage, getChecker = loadSpellchecker, { suggestions = new Map(), checkpoint = async () => {} } = {}) {
+/**
+ * Writing worker adapter: one prose scan and one conservative lookup per unique word.
+ *
+ * Every unknown word is flagged in one pass, but generating replacements is
+ * the expensive part (roughly a tenth of a second per word), so one pass
+ * spends at most `suggestionBudgetMs` on it. Words beyond the budget carry
+ * `suggestionsPending`; their replacements come from a later pass, which finds
+ * everything computed so far in the shared `suggestions` cache. A note with
+ * many unfamiliar names therefore reports at once and never has to finish all
+ * of its lookups inside a single watchdog window.
+ */
+export async function writingSpellingObservations(source, defaultLanguage, getChecker = loadSpellchecker, {
+    suggestions = new Map(), checkpoint = async () => {}, suggestionBudgetMs = 1000, now = () => performance.now(),
+} = {}) {
     const config = resolveSpellcheckConfiguration(source, defaultLanguage);
     if (!config.enabled) return [];
     const checkers = await Promise.all(config.languages.map(getChecker));
     const observations = [];
     const languageKey = config.languages.join(':');
-    let checked = 0;
+    let checked = 0, spent = 0;
     for (const range of spellcheckWordRanges(source)) {
         if (checked++ % 32 === 0) await checkpoint();
         const context = suggestionContext(source, range);
         const key = `${languageKey}:${context.sentenceStart ? '' : 'inside:'}${range.word}`;
+        let pending = false;
         if (!suggestions.has(key)) {
-            if (suggestions.size >= 4096) suggestions.delete(suggestions.keys().next().value);
-            suggestions.set(key, isCorrectlySpelledProseWord(range.word, checkers, config.languages) ? null
-                : highConfidenceSuggestions(range.word, checkers, config.languages, context).map(value => matchSuggestionCase(value, range.word)));
+            let value = null;
+            if (!isCorrectlySpelledProseWord(range.word, checkers, config.languages)) {
+                pending = spent >= suggestionBudgetMs;
+                if (!pending) {
+                    const started = now();
+                    value = highConfidenceSuggestions(range.word, checkers, config.languages, context).map(candidate => matchSuggestionCase(candidate, range.word));
+                    spent += now() - started;
+                }
+            }
+            if (!pending) {
+                if (suggestions.size >= 4096) suggestions.delete(suggestions.keys().next().value);
+                suggestions.set(key, value);
+            }
         }
-        const candidates = suggestions.get(key);
-        suggestions.delete(key); suggestions.set(key, candidates);
+        const candidates = pending ? [] : suggestions.get(key);
+        if (!pending) { suggestions.delete(key); suggestions.set(key, candidates); }
         if (candidates === null) continue;
         const replacements = range.editable === false ? [] : candidates;
         const reviewed = reviewedSpellingCorrection(range.word, config.languages);
         const bulkSafe = replacements.length === 1 && reviewed !== null && replacements[0] === matchSuggestionCase(reviewed, range.word);
         observations.push({ engine: 'spelling', version: 'nspell-2.1.5', rule: 'figaro-spelling', from: range.from, to: range.to,
-            actual: range.word, severity: 'info', replacements, bulkSafe, native: { ...range, languages: config.languages, replacements } });
+            actual: range.word, severity: 'info', replacements, bulkSafe, ...(pending ? { suggestionsPending: true } : {}),
+            native: { ...range, languages: config.languages, replacements } });
     }
     return observations;
 }

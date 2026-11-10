@@ -1,4 +1,5 @@
 import { isPathTabType } from './editableDiagramModel.js';
+import { appendAll } from './appendAll.js';
 export function normalizeFileTreeStyles(styles) {
     const entries = {};
     if (styles?.entries && typeof styles.entries === 'object') {
@@ -27,6 +28,41 @@ export function sortFileTreeItems(items, styles = {}) {
         .map((item, index) => ({ item, index, pinned: isFileTreeEntryPinned(item, styles) }))
         .sort((left, right) => Number(right.pinned) - Number(left.pinned) || left.index - right.index)
         .map(entry => entry.item);
+}
+
+/**
+ * Why a file or folder name cannot be used, or '' when it can. A name that
+ * starts with a dot is refused because Figaro hides dot-prefixed entries: the
+ * item would vanish from the tree with no way to rename it back.
+ */
+export function vaultItemNameError(value, emptyMessage = 'Enter a name.') {
+    const name = String(value || '').trim();
+    if (!name) return emptyMessage;
+    if (/[\\/]/.test(name)) return 'Choose a name, not a path.';
+    if (/^\.+$/.test(name)) return 'Choose a name other than dots.';
+    if (name.startsWith('.')) return 'Names that start with a dot are hidden in Figaro. Choose another name.';
+    if (Array.from(name).some(character => character.charCodeAt(0) < 0x20)) return 'The name contains an unsupported control character.';
+    return '';
+}
+
+/**
+ * Follow a renamed or moved folder in the set of expanded directories, so it
+ * and the folders inside it stay open and no entry is left under the old path.
+ * Returns the same set when nothing was expanded beneath `oldPath`.
+ */
+export function remapExpandedDirectories(expandedDirectories, oldPath, newPath) {
+    const expanded = expandedDirectories instanceof Set ? expandedDirectories : new Set(expandedDirectories || []);
+    if (!oldPath || !newPath || oldPath === newPath) return expanded;
+    let changed = false;
+    const next = new Set();
+    for (const path of expanded) {
+        const moved = path === oldPath
+            ? newPath
+            : String(path).startsWith(oldPath + '/') ? newPath + String(path).slice(oldPath.length) : path;
+        if (moved !== path) changed = true;
+        next.add(moved);
+    }
+    return changed ? next : expanded;
 }
 
 export function toggleExpandedDirectory(expandedDirectories, path) {
@@ -226,7 +262,7 @@ export function visibleFileTreeRows(items, expandedDirectories, styles = {}, dep
             expanded: isExpanded,
         });
         if (isExpanded) {
-            rows.push(...visibleFileTreeRows(children, expanded, styles, depth + 1, item.path));
+            appendAll(rows, visibleFileTreeRows(children, expanded, styles, depth + 1, item.path));
         }
     }
 

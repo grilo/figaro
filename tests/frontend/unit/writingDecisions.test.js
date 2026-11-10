@@ -1,5 +1,6 @@
 import { writingTestPorts } from '../support/writingPorts.js';
-import { createWritingDecisions as createDecisions } from '../../../frontend/js/usecases/writingDecisions.js';
+import { createWritingDecisions as createDecisions, rememberWritingFindings } from '../../../frontend/js/usecases/writingDecisions.js';
+import { ignoreWritingFinding } from '../../../frontend/js/views/writingInlineView.js';
 import { createWritingDecision, writingDecisionRange } from '../../../frontend/js/core/writingDecisionsModel.js';
 
 const createWritingDecisions = ports => createDecisions({ track: writingTestPorts.trackDecisions, ...ports });
@@ -259,4 +260,45 @@ test.each(['tracking first', 'load first'])('Retry recovers overlapping reload a
     expect(load).toHaveBeenCalledTimes(3);
     expect(change.mock.calls.filter(([command]) => command.action === 'remove')).toHaveLength(1);
     expect(stored).toEqual(controller.snapshot().decisions); controller.destroy();
+});
+
+test('Ignore on a merged entry remembers every reason from the analysis the author saw', async () => {
+    // "Javascript" is flagged by spelling and by terminology on the same text.
+    const source = 'We use Javascript daily for scripting.';
+    const from = source.indexOf('Javascript'), to = from + 'Javascript'.length;
+    const spelling = { id: 'f1', kind: 'grammar.spelling', title: 'Spelling', actual: 'Javascript', from, to };
+    const terminology = { id: 'f2', kind: 'style.terminology', title: 'Terminology', actual: 'Javascript', from, to };
+    const merged = { ...spelling, spanMembers: [spelling, terminology] };
+
+    // The view asks once, with every member, instead of once per member.
+    const ignore = jest.fn();
+    ignoreWritingFinding(merged, ignore);
+    expect(ignore).toHaveBeenCalledTimes(1);
+    expect(ignore).toHaveBeenCalledWith(['f1', 'f2']);
+    ignoreWritingFinding(spelling, ignore);
+    expect(ignore).toHaveBeenLastCalledWith('f1');
+
+    // Both decisions exist before the first save, which changes the review
+    // configuration and used to make the second finding look stale.
+    const saved = [];
+    let nextId = 0;
+    const builtAtFirstSave = [];
+    await expect(rememberWritingFindings({
+        ids: ['f1', 'f2'], findings: [spelling, terminology], source, language: 'en-US', type: 'occurrence',
+        createId: () => `d${++nextId}`,
+        change: async command => { if (!saved.length) builtAtFirstSave.push(nextId); saved.push(command); },
+    })).resolves.toBe(2);
+    expect(builtAtFirstSave).toEqual([2]);
+    expect(saved.map(command => [command.action, command.decision.id, command.decision.kind, command.decision.text])).toEqual([
+        ['add', 'd1', 'grammar.spelling', 'Javascript'],
+        ['add', 'd2', 'style.terminology', 'Javascript'],
+    ]);
+
+    // A member that cannot be remembered safely saves nothing at all.
+    const change = jest.fn();
+    await expect(rememberWritingFindings({
+        ids: ['f1', 'missing'], findings: [spelling], source, language: 'en-US', type: 'occurrence',
+        createId: () => 'x', change,
+    })).rejects.toThrow(/needs refreshing/);
+    expect(change).not.toHaveBeenCalled();
 });

@@ -175,37 +175,6 @@ func lineLinksToVaultPath(line, sourcePath, targetPath string) bool {
 	return false
 }
 
-func vaultLinkTarget(sourcePath, raw string, implicitMarkdown bool) string {
-	candidate := strings.TrimSpace(raw)
-	if candidate == "" || strings.HasPrefix(candidate, "#") || strings.Contains(candidate, "://") ||
-		strings.HasPrefix(strings.ToLower(candidate), "mailto:") {
-		return ""
-	}
-	candidate, _, _ = strings.Cut(candidate, "#")
-	candidate, _, _ = strings.Cut(candidate, "?")
-	decoded, err := url.PathUnescape(candidate)
-	if err != nil {
-		return ""
-	}
-	candidate = strings.TrimSpace(decoded)
-	if candidate == "" {
-		return ""
-	}
-	if implicitMarkdown && filepath.Ext(candidate) == "" {
-		candidate += ".md"
-	}
-	if strings.HasPrefix(candidate, "/") {
-		candidate = strings.TrimPrefix(candidate, "/")
-	} else {
-		candidate = filepath.Join(filepath.Dir(sourcePath), candidate)
-	}
-	clean := filepath.ToSlash(filepath.Clean(candidate))
-	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
-		return ""
-	}
-	return clean
-}
-
 func standaloneTitleRangeOutsideLinks(line, title string) (int, int, bool) {
 	title = strings.TrimSpace(title)
 	titleRunes := utf8.RuneCountInString(title)

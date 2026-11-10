@@ -132,6 +132,66 @@ describe('Editor Module - CodeMirror Initialization', () => {
         expect(protectedAt(source.indexOf('Plain prose') + 2)).toBe(false);
     });
 
+    test('treats code, raw HTML, URLs and frontmatter as literal text for source-rewriting conveniences', async () => {
+        const { EditorState } = await import('@codemirror/state');
+        const { markdownLanguage } = await import('@codemirror/lang-markdown');
+        const { markdownLiteralContextAt } = await import('../frontend/js/editor.js');
+        const source = [
+            '---',
+            'pattern: "[^a]"',
+            '---',
+            '',
+            'Prose with a note.[^1] and `[^b]` inline.',
+            '',
+            '```js',
+            'const re = /[^c]+/;',
+            '```',
+            '',
+            '[^1]: The definition.',
+        ].join('\n');
+        const state = EditorState.create({ doc: source, extensions: [markdownLanguage] });
+        const literalAt = needle => markdownLiteralContextAt(state, source.indexOf(needle) + 2);
+
+        expect(literalAt('[^a]')).toBe(true);
+        expect(literalAt('[^b]')).toBe(true);
+        expect(literalAt('[^c]')).toBe(true);
+        expect(literalAt('[^1] and')).toBe(false);
+        expect(literalAt('[^1]: The')).toBe(false);
+    });
+
+    test('finds the rendered block beside the cursor line exactly as a whole-note scan would', async () => {
+        const { EditorState } = await import('@codemirror/state');
+        const { ensureSyntaxTree } = await import('@codemirror/language');
+        const { markdownLanguage } = await import('@codemirror/lang-markdown');
+        const { adjacentVimRenderedBlock, vimRenderedBlockRanges } = await import('../frontend/js/editor.js');
+        const source = [
+            '---', 'title: Note', '---', 'Intro paragraph.', '```js', 'const a = 1;', '```', 'Between blocks.',
+            '| A | B |', '| - | - |', '| 1 | 2 |', '', '> quote', '    indented code', 'Tail.',
+        ].join('\n');
+        const base = EditorState.create({ doc: source, extensions: [markdownLanguage] });
+        ensureSyntaxTree(base, source.length, 5000);
+        const all = vimRenderedBlockRanges(base);
+        expect(all.map(range => range.kind)).toEqual(expect.arrayContaining(['source', 'table']));
+
+        for (let number = 1; number <= base.doc.lines; number += 1) {
+            const state = base.update({ selection: { anchor: base.doc.line(number).from } }).state;
+            for (const forward of [true, false]) {
+                const expected = all.find(range => {
+                    const fromLine = state.doc.lineAt(range.from).number;
+                    const toLine = state.doc.lineAt(Math.max(range.from, range.to - 1)).number;
+                    return forward ? fromLine === number + 1 : toLine === number - 1;
+                }) || null;
+                expect(adjacentVimRenderedBlock({ state }, forward)).toEqual(expected);
+            }
+        }
+        // From "Intro paragraph." the fence below is entered; from "Tail." nothing is below.
+        const intro = base.update({ selection: { anchor: source.indexOf('Intro') } }).state;
+        expect(adjacentVimRenderedBlock({ state: intro }, true)).toMatchObject({ kind: 'source', from: source.indexOf('```js') });
+        expect(adjacentVimRenderedBlock({ state: intro }, false)).toMatchObject({ frontmatter: true });
+        const tail = base.update({ selection: { anchor: source.indexOf('Tail.') } }).state;
+        expect(adjacentVimRenderedBlock({ state: tail }, true)).toBeNull();
+    });
+
     test('delegates Windows printable and dead-key input to the native editor', async () => {
         const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
@@ -753,6 +813,264 @@ describe('Editor Module - CodeMirror Initialization', () => {
                 setState('openTabs', []);
                 setState('activeTabId', null);
             }
+        });
+
+        test('mounts a CRLF source whose requested selection lies past the CodeMirror document', async () => {
+            const { setState } = await import('../frontend/js/state.js');
+            const { initEditor, createEditorView, getEditorDocumentTabId, setEditorContent } = await import('../frontend/js/editor.js');
+            const source = '---\r\ntitle: x\r\ntags: a\r\n---\r\n';
+            const tab = { id: 'crlf.md', path: 'crlf.md', title: 'crlf.md', type: 'file' };
+
+            setState('openTabs', [tab]);
+            setState('activeTabId', tab.id);
+            await initEditor();
+            const view = createEditorView();
+            // 29 addresses the raw source; CodeMirror keeps 25 characters.
+            await expect(setEditorContent(source, tab.id, { anchor: source.length, head: source.length })).resolves.toBe(true);
+
+            expect(view.state.doc.toString()).toBe('---\ntitle: x\ntags: a\n---\n');
+            expect(view.state.selection.main.head).toBe(view.state.doc.length);
+            expect(getEditorDocumentTabId()).toBe(tab.id);
+
+            setState('openTabs', []);
+            setState('activeTabId', null);
+        });
+
+        test('records edits against a note whose tab ID changed with its path', async () => {
+            const { setState, getState } = await import('../frontend/js/state.js');
+            const {
+                initEditor, createEditorView, getEditorDocumentTabId, renameEditorDocumentTab, setEditorContent,
+            } = await import('../frontend/js/editor.js');
+            const ports = await configureTaskWorkspace();
+            await initEditor();
+            const view = createEditorView();
+
+            setState('openTabs', [{ id: 'notes/a.md', path: 'notes/a.md', title: 'a.md', type: 'file' }]);
+            setState('activeTabId', 'notes/a.md');
+            await setEditorContent('original text', 'notes/a.md');
+
+            // What a rename does: the same buffer continues under a new ID.
+            setState('openTabs', [{ id: 'notes/b.md', path: 'notes/b.md', title: 'b.md', type: 'file' }]);
+            expect(renameEditorDocumentTab('notes/a.md', 'notes/b.md')).toBe(true);
+            setState('activeTabId', 'notes/b.md');
+            ports.recordTabEdit.mockClear();
+
+            view.dispatch({ changes: { from: 0, insert: 'typed after rename ' }, userEvent: 'input.type' });
+
+            expect(getEditorDocumentTabId()).toBe('notes/b.md');
+            expect(ports.recordTabEdit).toHaveBeenCalledWith('notes/b.md', expect.anything());
+            expect(getState('openTabs')[0]).toEqual(expect.objectContaining({ id: 'notes/b.md', dirty: true }));
+
+            setState('openTabs', []);
+            setState('activeTabId', null);
+        });
+
+        test('a staged large Markdown mount never exposes or accepts edits to half a note', async () => {
+            const { undoDepth } = await import('@codemirror/commands');
+            const { setState } = await import('../frontend/js/state.js');
+            const {
+                initEditor, createEditorView, getEditorBufferContent, getEditorContent, getEditorDocumentTabId, setEditorContent,
+            } = await import('../frontend/js/editor.js');
+            const ports = await configureTaskWorkspace();
+            await initEditor();
+            jest.useFakeTimers();
+            const view = createEditorView();
+            const paragraph = `${'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(12)}\n\n`;
+            const source = `# Large\n\n${paragraph.repeat(Math.ceil((300 * 1024) / paragraph.length))}`;
+            try {
+                setState('openTabs', [
+                    { id: 'large.md', path: 'large.md', title: 'large.md', type: 'file' },
+                    { id: 'kanban', title: 'Kanban', type: 'kanban' },
+                ]);
+                setState('activeTabId', 'large.md');
+                const mounted = setEditorContent(source, 'large.md');
+                await jest.advanceTimersByTimeAsync(0);
+                await expect(mounted).resolves.toBe(true);
+
+                // Only the leading chunk is in CodeMirror until the next frame…
+                expect(getEditorDocumentTabId()).toBe('large.md');
+                expect(view.state.doc.length).toBeLessThan(source.length);
+                // …but every reader already sees the whole note,
+                expect(getEditorContent()).toBe(source);
+                expect(getEditorBufferContent()).toBe(source);
+                // and an authored change cannot land on the half document.
+                const prefix = view.state.doc;
+                ports.recordTabEdit.mockClear();
+                view.dispatch({ changes: { from: 0, insert: 'k' }, userEvent: 'input.type' });
+                expect(view.state.doc).toBe(prefix);
+                expect(ports.recordTabEdit).not.toHaveBeenCalled();
+
+                // Leaving for a workspace panel does not abandon the tail.
+                setState('activeTabId', 'kanban');
+                await jest.advanceTimersByTimeAsync(50);
+                expect(view.state.doc.toString()).toBe(source);
+                expect(undoDepth(view.state)).toBe(0);
+
+                view.dispatch({ changes: { from: 0, insert: 'k' }, userEvent: 'input.type' });
+                expect(view.state.doc.length).toBe(source.length + 1);
+                expect(ports.recordTabEdit).toHaveBeenCalledWith('large.md', expect.anything());
+            } finally {
+                view.destroy();
+                jest.clearAllTimers();
+                jest.useRealTimers();
+                setState('openTabs', []);
+                setState('activeTabId', null);
+            }
+        });
+
+        test('a revision preview never becomes the note: saves, edits and undo keep the displaced text', async () => {
+            const { redo, undo, undoDepth } = await import('@codemirror/commands');
+            const { setState } = await import('../frontend/js/state.js');
+            const {
+                initEditor, createEditorView, closeEditorPreview, editorPreviewLiveContent, getEditorBufferContent,
+                getEditorContent, setEditorContent, showEditorPreview,
+            } = await import('../frontend/js/editor.js');
+            const ports = await configureTaskWorkspace();
+            await initEditor();
+            const view = createEditorView();
+            try {
+                setState('openTabs', [{ id: 'note.md', path: 'note.md', title: 'note.md', type: 'file' }]);
+                setState('activeTabId', 'note.md');
+                await setEditorContent('Live text', 'note.md');
+                view.dispatch({ changes: { from: view.state.doc.length, insert: ' edit' }, selection: { anchor: 4 } });
+                expect(undoDepth(view.state)).toBe(1);
+                expect(editorPreviewLiveContent('note.md')).toBeNull();
+
+                expect(showEditorPreview('Old revision')).toBe(true);
+                expect(view.state.doc.toString()).toBe('Old revision');
+                expect(view.state.readOnly).toBe(true);
+                expect(getEditorContent()).toBe('Old revision');
+                // Every save and snapshot still answers with the unsaved text.
+                expect(getEditorBufferContent()).toBe('Live text edit');
+                expect(editorPreviewLiveContent('note.md')).toBe('Live text edit');
+                expect(editorPreviewLiveContent('other.md')).toBeNull();
+
+                // A rendered checkbox, a properties widget or a lens fix dispatches
+                // directly; none of them may turn the revision into a dirty buffer.
+                ports.recordTabEdit.mockClear();
+                view.dispatch({ changes: { from: 0, to: 1, insert: 'x' }, userEvent: 'input.task-checkbox' });
+                expect(view.state.doc.toString()).toBe('Old revision');
+                expect(ports.recordTabEdit).not.toHaveBeenCalled();
+                expect(undo(view)).toBe(false);
+
+                // A second revision replaces the first without losing the stash.
+                expect(showEditorPreview('Older revision')).toBe(true);
+                expect(getEditorBufferContent()).toBe('Live text edit');
+
+                expect(closeEditorPreview()).toBe(true);
+                expect(view.state.doc.toString()).toBe('Live text edit');
+                expect(view.state.readOnly).toBe(false);
+                expect(view.state.selection.main.anchor).toBe(4);
+                expect(editorPreviewLiveContent('note.md')).toBeNull();
+                expect(getEditorBufferContent()).toBe('Live text edit');
+                // Undo steps back through the author's own edit, not the preview.
+                expect(undoDepth(view.state)).toBe(1);
+                expect(undo(view)).toBe(true);
+                expect(view.state.doc.toString()).toBe('Live text');
+                expect(redo(view)).toBe(true);
+                expect(view.state.doc.toString()).toBe('Live text edit');
+
+                // Restoring a revision mounts it as the note with a fresh history.
+                expect(showEditorPreview('Old revision')).toBe(true);
+                expect(closeEditorPreview({ content: 'Old revision' })).toBe(true);
+                expect(view.state.doc.toString()).toBe('Old revision');
+                expect(view.state.readOnly).toBe(false);
+                expect(undo(view)).toBe(false);
+                expect(closeEditorPreview()).toBe(false);
+            } finally {
+                closeEditorPreview();
+                setState('openTabs', []);
+                setState('activeTabId', null);
+            }
+        });
+
+        test('a preview whose tab lost the editor only releases the read-only state', async () => {
+            const { setState } = await import('../frontend/js/state.js');
+            const {
+                initEditor, createEditorView, closeEditorPreview, getEditorBufferContent, setEditorContent, showEditorPreview,
+            } = await import('../frontend/js/editor.js');
+            await configureTaskWorkspace();
+            await initEditor();
+            const view = createEditorView();
+            try {
+                setState('openTabs', [
+                    { id: 'note.md', path: 'note.md', title: 'note.md', type: 'file' },
+                    { id: 'other.md', path: 'other.md', title: 'other.md', type: 'file' },
+                ]);
+                setState('activeTabId', 'note.md');
+                await setEditorContent('Live text', 'note.md');
+                expect(showEditorPreview('Old revision')).toBe(true);
+
+                // Another note is mounted while the preview is still registered.
+                setState('activeTabId', 'other.md');
+                await setEditorContent('Other note', 'other.md');
+                expect(getEditorBufferContent()).toBe('Other note');
+
+                expect(closeEditorPreview()).toBe(false);
+                expect(view.state.doc.toString()).toBe('Other note');
+                expect(view.state.readOnly).toBe(false);
+                view.dispatch({ changes: { from: 0, insert: 'x' } });
+                expect(view.state.doc.toString()).toBe('xOther note');
+            } finally {
+                closeEditorPreview();
+                setState('openTabs', []);
+                setState('activeTabId', null);
+            }
+        });
+
+        test('a click on a negated character class in code does not create a footnote definition', async () => {
+            const { setState } = await import('../frontend/js/state.js');
+            const { initEditor, createEditorView, handleFootnoteNavigation, setEditorContent } = await import('../frontend/js/editor.js');
+            await configureTaskWorkspace();
+            await initEditor();
+            const view = createEditorView();
+            const source = 'Regex:\n\n```js\nconst re = /[^a-z]+/;\n```\n\nSee the note.[^1]\n';
+            setState('openTabs', [{ id: 'regex.md', path: 'regex.md', title: 'regex.md', type: 'file' }]);
+            setState('activeTabId', 'regex.md');
+            await setEditorContent(source, 'regex.md');
+            const event = { preventDefault: jest.fn() };
+
+            expect(handleFootnoteNavigation(event, view, source.indexOf('[^a-z]') + 2)).toBe(false);
+            expect(view.state.doc.toString()).toBe(source);
+            expect(event.preventDefault).not.toHaveBeenCalled();
+
+            // A real reference in prose still gets its missing definition.
+            expect(handleFootnoteNavigation(event, view, source.indexOf('[^1]') + 2)).toBe(true);
+            expect(view.state.doc.toString()).toContain('[^1]: ');
+
+            setState('openTabs', []);
+            setState('activeTabId', null);
+        });
+
+        test('completes an empty link only where the author typed Markdown', async () => {
+            const { setState } = await import('../frontend/js/state.js');
+            const { initEditor, createEditorView, setEditorContent } = await import('../frontend/js/editor.js');
+            await configureTaskWorkspace();
+            await initEditor();
+            const view = createEditorView();
+            const source = 'Prose \n\n```js\ncall \n```\n';
+            setState('openTabs', [{ id: 'notes/code.md', path: 'notes/code.md', title: 'code.md', type: 'file' }]);
+            setState('activeTabId', 'notes/code.md');
+            await setEditorContent(source, 'notes/code.md');
+            const type = async (needle, text, userEvent = 'input.type') => {
+                const at = view.state.doc.toString().indexOf(needle) + needle.length;
+                view.dispatch({ changes: { from: at, insert: text }, selection: { anchor: at + text.length }, userEvent });
+                await Promise.resolve();
+            };
+
+            // Code keeps what was typed.
+            await type('call ', 'handlers[name]()');
+            expect(view.state.doc.toString()).toContain('call handlers[name]()');
+            // Text that was not typed (an undo, a programmatic insert) is left alone.
+            await type('Prose ', '[Later]()', 'undo');
+            expect(view.state.doc.toString()).toContain('Prose [Later]()');
+            // Typing the same in prose completes the link beside the note.
+            await type('[Later]()', ' [Plan]()');
+            expect(view.state.doc.toString()).toContain('[Plan](notes/Plan.md)');
+            expect(view.state.doc.toString()).toContain('call handlers[name]()');
+
+            setState('openTabs', []);
+            setState('activeTabId', null);
         });
 
         test('opens and closes the native find panel', async () => {

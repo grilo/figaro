@@ -1,6 +1,8 @@
 /**
- * Application logger — writes to the console and forwards debug lines to the
- * native runtime's LogDebug when the desktop adapter provides one.
+ * Application logger — writes to the console and forwards a line to the native
+ * runtime only for the levels that runtime publishes. The Wails v3 adapter
+ * provides LogDebug alone, so logging a warning or an error must never depend
+ * on a native method: these calls sit inside failure handlers.
  */
 
 // Lazy-init: Wails runtime may not be available when this module first loads.
@@ -15,25 +17,29 @@ function rt() {
     return _rt;
 }
 
+function forward(method, msg, details) {
+    const runtime = rt();
+    if (typeof runtime?.[method] !== 'function') return;
+    try {
+        runtime[method]([msg, ...details].map(String).join(' '));
+    } catch (_) { /* A logger must not turn a recoverable failure into a thrown one. */ }
+}
+
 export const log = {
-    debug(msg) {
-        const r = rt();
-        console.log('[DEBUG]', msg);
-        if (r) r.LogDebug(String(msg));
+    debug(msg, ...details) {
+        console.log('[DEBUG]', msg, ...details);
+        forward('LogDebug', msg, details);
     },
-    info(msg) {
-        const r = rt();
-        console.info('[INFO]', msg);
-        if (r) r.LogInfo(String(msg));
+    info(msg, ...details) {
+        console.info('[INFO]', msg, ...details);
+        forward('LogInfo', msg, details);
     },
-    warn(msg) {
-        const r = rt();
-        console.warn('[WARN]', msg);
-        if (r) r.LogWarning(String(msg));
+    warn(msg, ...details) {
+        console.warn('[WARN]', msg, ...details);
+        forward('LogWarning', msg, details);
     },
-    error(msg) {
-        const r = rt();
-        console.error('[ERROR]', msg);
-        if (r) r.LogError(String(msg));
+    error(msg, ...details) {
+        console.error('[ERROR]', msg, ...details);
+        forward('LogError', msg, details);
     }
 };

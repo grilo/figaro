@@ -16,7 +16,8 @@ carry initial cursor seeds, but their `cursorState` is not the live value.
 snapshots read it synchronously without waiting for rendering or a debounce.
 Structural tab publications reconcile lifetimes/seeds and rebuild the tab-position
 index; renames that replace an ID transfer its latest cursor before removing the
-old entry. Known single-record edit/content transitions use that index, classify
+old entry and re-key the shared editor's document owner, so the mounted buffer
+keeps recording edits under its new ID. Known single-record edit/content transitions use that index, classify
 only the changed record and skip cursor reconciliation when ID/type/seed are
 unchanged. The immutable tab-array copy remains linear in the number of tabs.
 
@@ -39,7 +40,9 @@ editor adapter transfers any parked undo history to the replacement record. A cu
 update never invokes presentation subscribers, serializes tab metadata, or
 calls the native title bridge. Cursor positions stay in memory; the session is
 written on tab switch, window blur or quit, and an unchanged snapshot is never
-rewritten. Note saves still read the current editor.
+rewritten. Note saves read the buffer the editor holds for its tab
+(`getEditorBufferContent`): the mounted source, or the text a revision preview
+displaces.
 
 Each authored edit captures the immutable document in its tab's `_content`
 handle alongside the dirty flag and generation, requiring one buffer publication.

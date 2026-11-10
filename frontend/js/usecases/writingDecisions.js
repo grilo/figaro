@@ -1,5 +1,21 @@
 /** One document's durable decisions, through injected storage and background tracking ports. */
-import { writingDecisionFailure } from '../core/writingDecisionsModel.js';
+import { createWritingDecision, writingDecisionFailure } from '../core/writingDecisionsModel.js';
+
+/**
+ * Remember one decision per finding, all taken from the analysis the author
+ * acted on. Every decision is built before the first is saved: saving changes
+ * the review configuration, which would otherwise make the remaining findings
+ * of a merged entry look stale and leave the entry only partly ignored. If any
+ * decision cannot be built, nothing is saved.
+ */
+export async function rememberWritingFindings({ ids, findings, source, language, type, createId, change }) {
+    const commands = [].concat(ids).map(id => ({
+        action: 'add',
+        decision: createWritingDecision(findings.find(item => item.id === id), source, language, type, createId()),
+    }));
+    for (const command of commands) await change(command);
+    return commands.length;
+}
 export function createWritingDecisions({ load, change, track, schedule, unschedule, onChange = () => {} }) {
     let decisions = [], status = 'loading', error = '', pending, disposed = false;
     let source, timer, sourceTimer, sourceWork, restoreWork, trackingError = '', activeIds, version = 0;

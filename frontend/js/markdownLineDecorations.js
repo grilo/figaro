@@ -2,6 +2,7 @@ import { canMapMarkdownInlineEdit } from 'codemirror-live-markdown';
 import { Decoration, ViewPlugin, WidgetType } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { markdownExtraLinePlan, markdownListIndentPlan, markdownListNodePlan } from './core/markdownLineModel.js';
+import { appendAll } from './core/appendAll.js';
 import { taskCheckboxLabel, taskCheckboxReplacement } from './core/taskCheckboxModel.js';
 import { markdownIndentationMetrics, markdownListHangingIndentAttributes, markdownBlockquoteHangingIndentAttributes } from './markdownIndentation.js';
 import { sourceRevealIndex, updateSourceReveal } from './sourceReveal.js';
@@ -131,8 +132,8 @@ function lineProjection(consumer, read, render, sensitive) {
                     const active = selections.some(range => range.from <= block.to && range.to >= block.from);
                     if (active) visibleIndices.add(blocks.length);
                     blocks.push(block);
-                    decorations.push(...(active ? block.active : block.passive));
-                } else decorations.push(...block.passive);
+                    appendAll(decorations, active ? block.active : block.passive);
+                } else appendAll(decorations, block.passive);
             }
             this.value = { blocks, visibleIndices, revealIndex: sourceRevealIndex(blocks), decorations: Decoration.set(decorations, true) };
         }

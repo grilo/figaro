@@ -65,33 +65,67 @@ func (a *App) saveKanbanOrderConfig(config kanbanOrderConfig) error {
 // orderedKanbanCards applies saved preferences without hiding newly discovered
 // cards. Exact file/line matches win, then file/text matches, and every
 // unmatched card retains its index order at the end.
+//
+// The cards are indexed once by both identities, so a board costs time in
+// proportion to its cards plus its saved references instead of their product.
+// Each queue lists card positions in board order, which keeps the choice among
+// identical cards the same as a front-to-back search: the earliest one not yet
+// placed.
 func orderedKanbanCards(cards []KanbanCard, order []KanbanCardOrderRef) []KanbanCard {
 	if len(cards) < 2 || len(order) == 0 {
 		return append([]KanbanCard(nil), cards...)
 	}
+	type exactIdentity struct {
+		file string
+		line int
+		text string
+	}
+	type textIdentity struct {
+		file string
+		text string
+	}
+	byLine := make(map[exactIdentity][]int, len(cards))
+	byText := make(map[textIdentity][]int, len(cards))
+	for index, card := range cards {
+		file := filepath.ToSlash(card.File)
+		exact := exactIdentity{file: file, line: card.Line, text: card.Text}
+		byLine[exact] = append(byLine[exact], index)
+		loose := textIdentity{file: file, text: card.Text}
+		byText[loose] = append(byText[loose], index)
+	}
+
 	result := make([]KanbanCard, 0, len(cards))
 	used := make([]bool, len(cards))
-	appendMatch := func(ref KanbanCardOrderRef, exactLine bool) bool {
-		for index, card := range cards {
-			if used[index] || filepath.ToSlash(card.File) != filepath.ToSlash(ref.File) {
-				continue
-			}
-			if exactLine && (card.Line != ref.Line || card.Text != ref.Text) {
-				continue
-			}
-			if !exactLine && card.Text != ref.Text {
-				continue
-			}
-			used[index] = true
-			result = append(result, card)
-			return true
+	// firstUnused returns the earliest card in a queue that is still unplaced
+	// and the queue that remains after it; cards placed through the other
+	// identity are dropped on the way.
+	firstUnused := func(queue []int) (int, []int) {
+		for len(queue) > 0 && used[queue[0]] {
+			queue = queue[1:]
 		}
-		return false
+		if len(queue) == 0 {
+			return -1, nil
+		}
+		return queue[0], queue[1:]
 	}
 	for _, ref := range order {
-		if !appendMatch(ref, true) {
-			appendMatch(ref, false)
+		file := filepath.ToSlash(ref.File)
+		index := -1
+		exact := exactIdentity{file: file, line: ref.Line, text: ref.Text}
+		if queue, found := byLine[exact]; found {
+			index, byLine[exact] = firstUnused(queue)
 		}
+		if index < 0 {
+			loose := textIdentity{file: file, text: ref.Text}
+			if queue, found := byText[loose]; found {
+				index, byText[loose] = firstUnused(queue)
+			}
+		}
+		if index < 0 {
+			continue
+		}
+		used[index] = true
+		result = append(result, cards[index])
 	}
 	for index, card := range cards {
 		if !used[index] {

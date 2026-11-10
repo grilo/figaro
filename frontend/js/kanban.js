@@ -1,5 +1,5 @@
 import { readTabContent } from './usecases/tabContent.js';
-import { droppedKanbanColumns, kanbanColumnsWithRetained, renameKanbanColumnInOrder } from './core/kanbanColumnRetentionModel.js';
+import { droppedKanbanColumns, kanbanColumnHashtag, kanbanColumnNameError, kanbanColumnsWithRetained, renameKanbanColumnInOrder } from './core/kanbanColumnRetentionModel.js';
 import { countEditorWork, deferEditorWork } from './editorDiagnostics.js';
 import { backend } from './backend.js';
 import { createKanbanBufferProjection, overlayKanbanCards } from './core/kanbanBufferModel.js';
@@ -1617,16 +1617,11 @@ async function renameColumn(oldName) {
         label: 'Column hashtag',
         confirmLabel: 'Rename column',
         help: 'Spaces become hyphens. Use letters, numbers, underscores, and hyphens.',
-        validate: value => {
-            const sanitized = String(value || '').trim().toLowerCase().replace(/\s+/g, '-');
-            if (!/^[a-z][a-z0-9_-]*$/i.test(sanitized)) return 'Start with a letter and use only letters, numbers, underscores, or hyphens.';
-            if (sanitized !== oldName && kanbanColumns.includes(sanitized)) return `#${sanitized} already exists.`;
-            return '';
-        },
+        validate: value => kanbanColumnNameError(value, { current: oldName, existing: kanbanColumns }),
     });
     if (!newName || newName === oldName) return;
     
-    const sanitized = newName.trim().toLowerCase().replace(/\s+/g, '-');
+    const sanitized = kanbanColumnHashtag(newName);
 
     const mutationId = beginKanbanMutation();
     

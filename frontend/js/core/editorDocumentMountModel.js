@@ -48,4 +48,21 @@ export function markdownPresentationStagePlan(content) {
     };
 }
 
+/**
+ * Whether a transaction may change the mounted text. `replacement` marks the
+ * adapter's own source installs: a mount, the tail of a staged mount, or a
+ * revision preview. They are the only changes accepted while the editor is
+ * read-only or still holds just the leading chunk of a staged mount, so a
+ * widget that dispatches directly cannot edit either state.
+ */
+export function documentChangeAllowed({
+    docChanged = false,
+    replacement = false,
+    readOnly = false,
+    halfMounted = false,
+} = {}) {
+    if (!docChanged || replacement) return true;
+    return !readOnly && !halfMounted;
+}
+
 export { LARGE_MARKDOWN_DOCUMENT_BYTES };

@@ -28,6 +28,11 @@ describe('Markdown table editor draft model', () => {
 
         const changed = updateMarkdownTableEditorCell(state, 1, 0, 'Alpha | A');
         expect(serializeMarkdownTableEditorState(changed)).toBe(source.replace('Alpha', 'Alpha \\| A'));
+        // Each pipe of a run is escaped, so the row keeps its column count and
+        // the table can be opened in the editor again.
+        const doubled = updateMarkdownTableEditorCell(state, 1, 0, 'a || b');
+        expect(serializeMarkdownTableEditorState(doubled)).toBe(source.replace('Alpha', 'a \\|\\| b'));
+        expect(createMarkdownTableEditorState(serializeMarkdownTableEditorState(doubled)).valid).toBe(true);
         const multiline = updateMarkdownTableEditorCell(state, 1, 0, 'Alpha\nA');
         expect(serializeMarkdownTableEditorState(multiline)).toBe(source.replace('Alpha', 'Alpha<br>A'));
         expect(serializeMarkdownTableEditorState(state)).toBe(source);

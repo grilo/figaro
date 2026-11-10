@@ -179,3 +179,31 @@ func TestAppStartupTimingBridgeRejectsContentAndClosesAfterReady(t *testing.T) {
 		t.Fatalf("unexpected stages: %v", stages)
 	}
 }
+
+func TestStartFileManagerReapsTheLauncherWhenItExits(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the process table is inspected through /proc")
+	}
+	launcher, err := exec.LookPath("true")
+	if err != nil {
+		t.Skipf("no short-lived launcher stand-in: %v", err)
+	}
+	command := exec.Command(launcher)
+	if err := startFileManager(command); err != nil {
+		t.Fatalf("start launcher: %v", err)
+	}
+	// An exited child that nobody waits for keeps its process-table entry as
+	// a zombie; the entry disappears only once the child has been reaped.
+	entry := fmt.Sprintf("/proc/%d/stat", command.Process.Pid)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		status, err := os.ReadFile(entry)
+		if err != nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the launcher was never reaped; its process-table entry is still %q", strings.TrimSpace(string(status)))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

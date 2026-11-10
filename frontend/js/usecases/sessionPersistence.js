@@ -33,22 +33,27 @@ export function createSessionPersistence({
 
     async function drain() {
         running = true;
-        while (pending) {
-            const job = pending;
-            pending = null;
-            const serialized = JSON.stringify(job.snapshot);
-            try {
-                if (serialized !== lastWritten) {
-                    await writeSession(job.snapshot);
-                    lastWritten = serialized;
+        try {
+            while (pending) {
+                const job = pending;
+                pending = null;
+                try {
+                    const serialized = JSON.stringify(job.snapshot);
+                    if (serialized !== lastWritten) {
+                        await writeSession(job.snapshot);
+                        lastWritten = serialized;
+                    }
+                } catch (error) {
+                    // A reporter that throws must not strand this queue: the
+                    // next workspace change still has to reach the disk.
+                    try { reportFailure('save', error); } catch (_) { /* reported best-effort */ }
+                } finally {
+                    job.resolve();
                 }
-            } catch (error) {
-                reportFailure('save', error);
-            } finally {
-                job.resolve();
             }
+        } finally {
+            running = false;
         }
-        running = false;
     }
 
     function save() {

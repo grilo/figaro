@@ -1,4 +1,5 @@
 import {
+    documentChangeAllowed,
     editorDocumentMountPlan,
     editorDocumentMountChunks,
     LARGE_MARKDOWN_DOCUMENT_BYTES,
@@ -45,5 +46,16 @@ describe('editor document mount policy', () => {
             ready: ['frontmatter'],
             deferred: ['image', 'diagram', 'table', 'math'],
         });
+    });
+    test('accepts only the adapter\'s own source installs while read-only or half mounted', () => {
+        expect(documentChangeAllowed({ docChanged: true })).toBe(true);
+        // A rendered checkbox or a lens fix dispatches without the marker.
+        expect(documentChangeAllowed({ docChanged: true, readOnly: true })).toBe(false);
+        expect(documentChangeAllowed({ docChanged: true, halfMounted: true })).toBe(false);
+        // A mount, a staged tail and a revision preview carry it.
+        expect(documentChangeAllowed({ docChanged: true, replacement: true, readOnly: true })).toBe(true);
+        expect(documentChangeAllowed({ docChanged: true, replacement: true, halfMounted: true })).toBe(true);
+        // Selection and effect transactions are never filtered.
+        expect(documentChangeAllowed({ docChanged: false, readOnly: true, halfMounted: true })).toBe(true);
     });
 });

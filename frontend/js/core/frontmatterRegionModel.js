@@ -16,6 +16,16 @@ function nextLineStart(source, end) {
     return end < source.length ? end + 1 : source.length;
 }
 
+/** Whether a note's first line can open frontmatter; a BOM may precede the boundary. */
+export function opensFrontmatter(firstLine) {
+    return OPENING_BOUNDARY_RE.test(String(firstLine ?? '').replace(/^\uFEFF/, ''));
+}
+
+/** Whether a later line closes frontmatter. */
+export function closesFrontmatter(line) {
+    return CLOSING_BOUNDARY_RE.test(String(line ?? ''));
+}
+
 export function getFrontmatterRegion(source) {
     const text = String(source || '');
     const openingFrom = text.charCodeAt(0) === 0xFEFF ? 1 : 0;

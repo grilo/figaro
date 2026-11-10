@@ -74,6 +74,23 @@ async function renderedPieGeometry(spec, categoryField) {
     return { slices, labels };
 }
 
+async function renderedMarkItems(spec) {
+    const { vega, vegaLite } = loadVendoredVega();
+    const compiled = vegaLite.compile({ ...spec, width: 320 }).spec;
+    const view = new vega.View(vega.parse(compiled), { renderer: 'none' });
+    await view.runAsync();
+    const items = {};
+    const collect = node => {
+        if (node?.marktype && node.role === 'mark') {
+            (items[node.marktype] ||= []).push(...node.items);
+        }
+        (node?.items || []).forEach(collect);
+    };
+    collect(view.scenegraph().root);
+    view.finalize();
+    return items;
+}
+
 describe('Vega-Lite Chart Editor model', () => {
     test('maps a rectangular Markdown table to typed, reversible chart state', () => {
         const state = createVegaLiteChartEditorStateFromTable(table);
@@ -557,5 +574,74 @@ describe('Vega-Lite Chart Editor model', () => {
             .toMatchObject({ valid: false, error: expect.stringContaining('numeric') });
         expect(createVegaLiteChartEditorStateFromSource('{"mark":"bar"}'))
             .toMatchObject({ valid: false, error: expect.stringContaining('not created') });
+    });
+    test('charts columns whose headers contain dots or brackets instead of drawing nothing', async () => {
+        // Vega-Lite reads "." and "[…]" in a field as a path into nested data.
+        const dotted = [
+            '| Item No. | Rev. 2024 | Cost [EUR] |',
+            '| --- | ---: | ---: |',
+            '| A.1 | 42 | 28 |',
+            '| B.2 | 51 | 31 |',
+            '| C.3 | 64 | 37 |',
+        ].join('\n');
+        const state = createVegaLiteChartEditorStateFromTable(dotted);
+        expect(state.columns.map(column => column.field)).toEqual(['Item No.', 'Rev. 2024', 'Cost [EUR]']);
+        const finite = values => values.length > 0 && values.every(Number.isFinite);
+
+        // Default Cartesian chart: bars for the first series, a line for the second.
+        const cartesian = await renderedMarkItems(buildVegaLiteChartSpec(state));
+        expect(cartesian.rect.map(item => item.datum['Rev. 2024'])).toEqual([42, 51, 64]);
+        expect(finite(cartesian.rect.map(item => item.height))).toBe(true);
+        expect(cartesian.rect.every(item => item.height > 0)).toBe(true);
+        expect(cartesian.line.map(item => item.datum['Cost [EUR]'])).toEqual(expect.arrayContaining([28, 31, 37]));
+        expect(finite(cartesian.line.map(item => item.y))).toBe(true);
+
+        // Stacked bars fold both columns; the legend still names the headers as written.
+        const stacked = createVegaLiteChartEditorStateFromTable(dotted);
+        stacked.columns.forEach(column => { if (column.kind === 'series') column.mark = 'stacked'; });
+        const stackedSpec = buildVegaLiteChartSpec(stacked);
+        const folded = await renderedMarkItems(stackedSpec);
+        expect(folded.rect).toHaveLength(6);
+        expect([...new Set(folded.rect.map(item => item.datum.figaro_series))].sort()).toEqual(['Cost [EUR]', 'Rev. 2024']);
+        expect(folded.rect.map(item => item.datum.figaro_value).sort((a, b) => a - b)).toEqual([28, 31, 37, 42, 51, 64]);
+        expect(Object.keys(stackedSpec.data.values[0])).toEqual(expect.arrayContaining(['Item No.', 'Rev. 2024', 'Cost [EUR]']));
+
+        // A trendline regresses the dotted column and keeps its category labels.
+        const trend = createVegaLiteChartEditorStateFromTable(dotted);
+        trend.columns.find(column => column.field === 'Rev. 2024').trendline = true;
+        const trended = await renderedMarkItems(buildVegaLiteChartSpec(trend));
+        expect(trended.line.some(item => Number.isFinite(item.datum['Rev. 2024']) && item.datum['Item No.'] === 'A.1')).toBe(true);
+
+        // Pie slices and their percentage labels.
+        const pie = createVegaLiteChartEditorStateFromTable(dotted);
+        pie.mode = 'pie';
+        pie.pie.valueField = 'Rev. 2024';
+        const slices = await renderedMarkItems(buildVegaLiteChartSpec(pie));
+        expect(slices.arc.map(item => item.datum['Item No.'])).toEqual(['A.1', 'B.2', 'C.3']);
+        expect(slices.arc.every(item => Math.abs(item.endAngle - item.startAngle) > 0.1)).toBe(true);
+        expect(slices.text.map(item => item.text).filter(text => /%$/.test(text))).toHaveLength(3);
+    });
+
+    test('keeps a chart saved before column references were escaped as a managed chart', () => {
+        const dotted = [
+            '| Item | Rev. 2024 |',
+            '| --- | ---: |',
+            '| A | 42 |',
+            '| B | 51 |',
+        ].join('\n');
+        const state = createVegaLiteChartEditorStateFromTable(dotted);
+        const current = buildVegaLiteChartSpec(state);
+        const serialized = JSON.stringify(current);
+        // One backslash in the reference is two in its JSON text.
+        expect(serialized).toContain('Rev\\\\. 2024');
+
+        // What earlier versions wrote: the header itself as the field reference.
+        const legacy = JSON.parse(serialized.replaceAll('Rev\\\\. 2024', 'Rev. 2024'));
+        expect(JSON.stringify(legacy)).not.toContain('\\\\');
+        expect(createVegaLiteChartEditorStateFromSource(JSON.stringify(legacy))).toMatchObject({ valid: true, roundTrip: true });
+        expect(createVegaLiteChartEditorStateFromSource(JSON.stringify(current))).toMatchObject({ valid: true, roundTrip: true });
+        // Headers without path syntax produce exactly the spec they always did.
+        const plain = buildVegaLiteChartSpec(createVegaLiteChartEditorStateFromTable(table));
+        expect(JSON.stringify(plain)).not.toContain('\\\\');
     });
 });

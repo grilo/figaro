@@ -3,6 +3,10 @@ import { spellingPossessive } from './spellingModel.js';
 import { reviewedSpellingWord } from './spellingVocabulary.js';
 
 const maxSpellcheckSuggestions = 5;
+// No dictionary word is this long. Generating corrections for a longer token
+// (a DNA sequence, a hash, a pasted run of letters) costs seconds and hundreds
+// of megabytes in Hunspell's edit search and can never find a real word.
+export const maxSuggestionWordLength = 48;
 const proseSuggestionPattern = /^\p{L}+(?:[’'-]\p{L}+)*$/u;
 const contractionSpellings = new Set(['can\'t', 'couldn\'t', 'don\'t', 'doesn\'t', 'didn\'t', 'hasn\'t', 'haven\'t', 'hadn\'t',
     'isn\'t', 'aren\'t', 'wasn\'t', 'weren\'t', 'won\'t', 'wouldn\'t', 'shouldn\'t', 'needn\'t', 'mustn\'t', 'it\'s', 'that\'s',
@@ -199,6 +203,7 @@ function sharedBoundaryLetters(left, right) {
  */
 export function highConfidenceSuggestions(word, checkers, languages, { sentenceStart = true } = {}) {
     word = word.normalize('NFC');
+    if (Array.from(word).length > maxSuggestionWordLength) return [];
     if (reviewedSpellingWord(word, languages)) return [];
     const possessive = spellingPossessive(word, languages);
     if (possessive) {

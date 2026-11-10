@@ -13,6 +13,20 @@ export function createSaveSnapshot(tab, content, options = {}) {
     });
 }
 
+/**
+ * Decide which text a save of `tabId` may write. The shared editor answers
+ * only for the tab that owns it; every other tab answers from its cached
+ * buffer. A tab with neither (still loading, or never mounted) has nothing
+ * authoritative to save: 'none' must never become an empty file.
+ */
+export function saveContentSource({ ownerId = null, tabId, activeTabId = null, hasCachedContent = false } = {}) {
+    if (tabId == null) return 'none';
+    if (ownerId === tabId) return 'editor';
+    // Before any document is mounted the editor still belongs to the active tab.
+    if (ownerId == null && activeTabId === tabId && !hasCachedContent) return 'editor';
+    return hasCachedContent ? 'cache' : 'none';
+}
+
 export function isLatestSave(tab, snapshot) {
     return tab?._saveGeneration === snapshot?.generation;
 }

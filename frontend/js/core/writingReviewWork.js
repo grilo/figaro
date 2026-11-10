@@ -2,6 +2,7 @@ import { remapWritingDecision, writingDecisionRange } from './writingDecisionsMo
 import { resolveWritingFindings, remapWritingDismissals, valeWritingObservations } from './writingAnalysisModel.js';
 import { inlineWritingFindings } from './writingInlineModel.js';
 import { filterAcceptedSpelling } from './spellingDictionaryModel.js';
+import { appendAll } from './appendAll.js';
 import { writingReviewCards } from './writingReviewModel.js';
 
 /** Pure background transformations; the adapter owns workers and deadlines. */
@@ -12,7 +13,7 @@ export function trackWritingDecisions({ decisions, before, after, changes }) {
 
 export function resolveWritingReview({ job, projection, observations, spelling = [], valeOutput, identities = [], identitySource, nextIdentity = 0 }) {
     const combined = [...observations, ...filterAcceptedSpelling(spelling, job.spelling.words, job.spelling.language)];
-    if (valeOutput !== undefined) combined.push(...valeWritingObservations(valeOutput, projection));
+    if (valeOutput !== undefined) appendAll(combined, valeWritingObservations(valeOutput, projection));
     const result = resolveWritingFindings({ source: job.source, projection, observations: combined, preferences: job.preferences,
         decisions: job.decisions || [], language: job.language });
     const key = item => `${item.kind}:${item.intent}:${item.from}:${item.to}`;

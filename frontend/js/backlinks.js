@@ -8,7 +8,7 @@ import { setState, getState, subscribe } from './state.js';
 import { getLinkStylePreference } from './linkStyle.js';
 import { errorDialog } from './dialogs.js';
 import { statusBar } from './statusBar.js';
-import { relationshipWindow } from './core/relationshipModel.js';
+import { relationshipPage, relationshipWindow } from './core/relationshipModel.js';
 
 let backlinksRequestId = 0;
 const backlinksResultsRequestIds = new Map();
@@ -18,6 +18,9 @@ let workspacePorts = null;
 const RELATIONSHIP_VIRTUAL_THRESHOLD = 120;
 const RELATIONSHIP_WINDOW_SIZE = 96;
 const RELATIONSHIP_ROW_STRIDE = 126;
+// A common title can be mentioned on thousands of lines. Mentions are revealed
+// a page at a time instead of building one card per line up front.
+const UNLINKED_PAGE_SIZE = 100;
 
 export function configureBacklinksWorkspace(ports) {
     if (
@@ -112,13 +115,18 @@ export async function updateBacklinksForActiveTab() {
  * @param {string} targetPath - Target file path
  * @param {string} containerId - Container element ID
  */
-export async function loadBacklinksResults(targetPath, containerId) {
+export async function loadBacklinksResults(targetPath, containerId, { keepView = false } = {}) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const requestId = (backlinksResultsRequestIds.get(containerId) || 0) + 1;
     backlinksResultsRequestIds.set(containerId, requestId);
     
-    container.innerHTML = '<div class="results-loading">Loading relationships...</div>';
+    // A refresh after linking one mention keeps the list, the revealed pages
+    // and the scroll position in place instead of starting over at the top.
+    const previous = keepView ? relationshipRenderStates.get(container) : null;
+    const scroller = container.closest('.backlinks-view-wrapper');
+    const scrollTop = previous && scroller ? scroller.scrollTop : 0;
+    if (!previous) container.innerHTML = '<div class="results-loading">Loading relationships...</div>';
     
     try {
         const [backlinks, unlinked] = await Promise.all([
@@ -129,6 +137,7 @@ export async function loadBacklinksResults(targetPath, containerId) {
         const backlinkRange = backlinks.length > RELATIONSHIP_VIRTUAL_THRESHOLD
             ? relationshipWindow(backlinks.length, { windowSize: RELATIONSHIP_WINDOW_SIZE })
             : { start: 0, end: backlinks.length };
+        const unlinkedShown = relationshipPage(unlinked.length, previous?.unlinkedShown, UNLINKED_PAGE_SIZE).end;
         relationshipRenderStates.set(container, {
             backlinks,
             backlinkRange,
@@ -136,14 +145,17 @@ export async function loadBacklinksResults(targetPath, containerId) {
             rowStride: RELATIONSHIP_ROW_STRIDE,
             targetPath,
             unlinked,
+            unlinkedShown,
         });
         container.innerHTML = renderRelationshipSections(
             backlinks,
             unlinked,
             targetPath,
             backlinkRange,
+            unlinkedShown,
         );
         initRelationshipWindowing(container);
+        if (previous && scroller) scroller.scrollTop = scrollTop;
         
         // Click delegation on container for left/middle-click behavior
         container.onclick = (e) => {
@@ -151,6 +163,11 @@ export async function loadBacklinksResults(targetPath, containerId) {
             if (linkAction) {
                 e.preventDefault();
                 void linkUnlinkedMention(linkAction, targetPath, containerId);
+                return;
+            }
+            if (e.target.closest('.relationship-more-action')) {
+                e.preventDefault();
+                showMoreUnlinkedMentions(container);
                 return;
             }
             const card = e.target.closest('.result-card');
@@ -225,11 +242,40 @@ function renderRelationshipSections(
     unlinked,
     targetPath,
     backlinkRange = { start: 0, end: backlinks.length },
+    unlinkedShown = unlinked.length,
 ) {
+    const unlinkedPage = relationshipPage(unlinked.length, unlinkedShown, UNLINKED_PAGE_SIZE);
     return `
         ${renderRelationshipSection('Backlinks', 'Notes that already link here.', backlinks, 'No backlinks found', false, targetPath, backlinkRange)}
-        ${renderRelationshipSection('Unlinked mentions', 'Plain-text mentions that you may want to link.', unlinked, 'No unlinked mentions found', true, targetPath)}
+        ${renderRelationshipSection('Unlinked mentions', 'Plain-text mentions that you may want to link.', unlinked, 'No unlinked mentions found', true, targetPath, { start: 0, end: unlinkedPage.end })}
     `;
+}
+
+function renderUnlinkedMore(page) {
+    if (!page.remaining) return '';
+    return `<div class="relationship-more">
+                <button type="button" class="ui-button relationship-more-action">Show ${page.next} more</button>
+                <span class="relationship-more-count">${page.remaining} more ${page.remaining === 1 ? 'mention' : 'mentions'} not shown</span>
+            </div>`;
+}
+
+/** Reveal the next page of unlinked mentions in place and move focus into it. */
+function showMoreUnlinkedMentions(container) {
+    const state = relationshipRenderStates.get(container);
+    const results = container.querySelector('[data-relationship-section="unlinked"]');
+    if (!state || !results) return false;
+    const current = relationshipPage(state.unlinked.length, state.unlinkedShown, UNLINKED_PAGE_SIZE);
+    if (!current.remaining) return false;
+    const next = relationshipPage(state.unlinked.length, current.end + current.next, UNLINKED_PAGE_SIZE);
+    state.unlinkedShown = next.end;
+    const more = results.parentElement.querySelector('.relationship-more');
+    results.insertAdjacentHTML('beforeend', renderRelationshipCards(
+        state.unlinked, true, state.targetPath, { start: current.end, end: next.end },
+    ));
+    if (more) more.outerHTML = renderUnlinkedMore(next);
+    // The button that was activated may be gone; continue from the first new card.
+    results.children[current.end]?.querySelector('.relationship-open')?.focus({ preventScroll: true });
+    return true;
 }
 
 function renderRelationshipSection(
@@ -255,6 +301,7 @@ function renderRelationshipSection(
                  data-relationship-section="${unlinked ? 'unlinked' : 'backlinks'}">
                 ${cards || `<div class="results-empty relationship-empty">${emptyMessage}</div>`}
             </div>
+            ${unlinked ? renderUnlinkedMore(relationshipPage(results.length, range.end, UNLINKED_PAGE_SIZE)) : ''}
         </section>
     `;
 }
@@ -398,7 +445,7 @@ async function linkUnlinkedMention(button, targetPath, containerId) {
         if (!result?.success) throw new Error(result?.error || 'The mention could not be linked.');
         await workspace().refreshTabsForUpdatedLinks([sourcePath]);
         await updateBacklinksForActiveTab();
-        await loadBacklinksResults(targetPath, containerId);
+        await loadBacklinksResults(targetPath, containerId, { keepView: true });
         statusBar.set('Linked mention to note');
     } catch (error) {
         log.warn('Could not link unlinked mention:', error);

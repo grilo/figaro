@@ -1,9 +1,11 @@
 package desktop
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -443,5 +445,472 @@ func TestColdIndexTextPoolSharesImmutableSearchRepresentations(t *testing.T) {
 	}
 	if first.content != second.content || first.searchLower != second.searchLower {
 		t.Fatal("identical text pool changed searchable content")
+	}
+}
+
+func TestPlanVaultWatchChangeFollowsTheDiskNotTheOperation(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		op       fsnotify.Op
+		markdown bool
+		state    vaultWatchPathState
+		want     vaultWatchPlan
+	}{
+		{
+			name: "note rewritten by remove and create is read again",
+			op:   fsnotify.Remove | fsnotify.Create, markdown: true, state: vaultWatchPathRegularFile,
+			want: vaultWatchPlan{indexNote: true, treeChanged: true, kanbanChanged: true},
+		},
+		{
+			name: "note replaced by rename is read again",
+			op:   fsnotify.Rename | fsnotify.Create | fsnotify.Write, markdown: true, state: vaultWatchPathRegularFile,
+			want: vaultWatchPlan{indexNote: true, treeChanged: true, kanbanChanged: true},
+		},
+		{
+			name: "note written in place refreshes only its cards",
+			op:   fsnotify.Write, markdown: true, state: vaultWatchPathRegularFile,
+			want: vaultWatchPlan{indexNote: true, kanbanChanged: true},
+		},
+		{
+			name: "note that is gone is forgotten",
+			op:   fsnotify.Remove, markdown: true, state: vaultWatchPathMissing,
+			want: vaultWatchPlan{forgetSubtree: true, treeChanged: true, kanbanChanged: true},
+		},
+		{
+			name: "note created and deleted within the window is forgotten",
+			op:   fsnotify.Create | fsnotify.Write, markdown: true, state: vaultWatchPathMissing,
+			want: vaultWatchPlan{forgetSubtree: true, treeChanged: true, kanbanChanged: true},
+		},
+		{
+			name: "note replaced by a symbolic link is forgotten",
+			op:   fsnotify.Create, markdown: true, state: vaultWatchPathOther,
+			want: vaultWatchPlan{forgetSubtree: true, treeChanged: true, kanbanChanged: true},
+		},
+		{
+			name: "folder that appeared is reconciled",
+			op:   fsnotify.Create, state: vaultWatchPathDirectory,
+			want: vaultWatchPlan{reconcileFolder: true, treeChanged: true},
+		},
+		{
+			name: "folder replaced in place is reconciled",
+			op:   fsnotify.Rename | fsnotify.Create, state: vaultWatchPathDirectory,
+			want: vaultWatchPlan{reconcileFolder: true, treeChanged: true},
+		},
+		{
+			name: "folder named like a note is still a folder",
+			op:   fsnotify.Create, markdown: true, state: vaultWatchPathDirectory,
+			want: vaultWatchPlan{reconcileFolder: true, treeChanged: true},
+		},
+		{
+			name: "folder whose listing changed only refreshes its tree entry",
+			op:   fsnotify.Write, state: vaultWatchPathDirectory,
+			want: vaultWatchPlan{touchEntry: true},
+		},
+		{
+			name: "folder renamed away or removed is forgotten with its notes",
+			op:   fsnotify.Rename, state: vaultWatchPathMissing,
+			want: vaultWatchPlan{forgetSubtree: true, treeChanged: true},
+		},
+		{
+			name: "attachment written in place refreshes only its tree entry",
+			op:   fsnotify.Write, state: vaultWatchPathRegularFile,
+			want: vaultWatchPlan{touchEntry: true},
+		},
+		{
+			name: "attachment that appeared changes only the tree",
+			op:   fsnotify.Create, state: vaultWatchPathRegularFile,
+			want: vaultWatchPlan{treeChanged: true},
+		},
+		{
+			name: "folder replaced by a plain file leaves no notes behind",
+			op:   fsnotify.Remove | fsnotify.Create, state: vaultWatchPathRegularFile,
+			want: vaultWatchPlan{forgetSubtree: true, treeChanged: true},
+		},
+		{
+			name: "operation the watcher does not forward needs nothing",
+			op:   fsnotify.Chmod, markdown: true, state: vaultWatchPathRegularFile,
+			want: vaultWatchPlan{},
+		},
+	} {
+		if got := planVaultWatchChange(test.op, test.markdown, test.state); got != test.want {
+			t.Errorf("%s: plan = %+v, want %+v", test.name, got, test.want)
+		}
+	}
+}
+
+func TestVaultWatcherReindexesNoteRewrittenByRemoveAndCreate(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Before #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	initialIndex := app.vaultIndex
+
+	notePath := filepath.Join(vaultPath, "tasks.md")
+	for _, save := range []struct {
+		op      fsnotify.Op
+		content string
+		tag     string
+	}{
+		// Vim and "git checkout" unlink the note and create it again.
+		{op: fsnotify.Remove | fsnotify.Create | fsnotify.Write, content: "- [ ] Rewritten #review\n", tag: "review"},
+		// Editors that save through a sibling temporary file rename over it.
+		{op: fsnotify.Rename | fsnotify.Create, content: "- [ ] Replaced #urgent\n", tag: "urgent"},
+	} {
+		if err := os.Remove(notePath); err != nil {
+			t.Fatalf("external remove: %v", err)
+		}
+		if err := os.WriteFile(notePath, []byte(save.content), 0644); err != nil {
+			t.Fatalf("external create: %v", err)
+		}
+		result := app.applyVaultFilesystemChanges([]vaultWatchChange{{Path: notePath, Op: save.op}})
+		if !result.kanbanChanged || !result.treeChanged {
+			t.Fatalf("rewritten note result = %#v, want tree and Kanban refresh", result)
+		}
+		if app.vaultIndex != initialIndex {
+			t.Fatal("an externally rewritten note rebuilt the whole index")
+		}
+		board, err := app.GetKanbanBoard()
+		if err != nil {
+			t.Fatalf("GetKanbanBoard: %v", err)
+		}
+		if len(board[save.tag]) != 1 || board[save.tag][0].File != "tasks.md" {
+			t.Fatalf("board after op %v = %#v, want the rewritten note's %s card", save.op, board, save.tag)
+		}
+		results, err := app.SearchFiles(strings.Fields(save.content)[3], false)
+		if err != nil || len(results) != 1 || results[0].Path != "tasks.md" {
+			t.Fatalf("search after op %v = %#v, err=%v; the note left the index", save.op, results, err)
+		}
+	}
+}
+
+func TestVaultWatcherFollowsFolderRenamedOutsideFigaro(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	writeTestFile(t, vaultPath, "Projects/plan.md", "- [ ] Plan #todo\n")
+	writeTestFile(t, vaultPath, "Projects/2025/roadmap.md", "- [ ] Roadmap #todo\n")
+	writeTestFile(t, vaultPath, "Projects-archive.md", "- [ ] Sibling name #todo\n")
+	writeTestFile(t, vaultPath, "Inbox.md", "- [ ] Inbox #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	initialIndex := app.vaultIndex
+
+	if err := os.Rename(filepath.Join(vaultPath, "Projects"), filepath.Join(vaultPath, "Work")); err != nil {
+		t.Fatalf("external folder rename: %v", err)
+	}
+	result := app.applyVaultFilesystemChanges([]vaultWatchChange{
+		{Path: filepath.Join(vaultPath, "Projects"), Op: fsnotify.Rename},
+		{Path: filepath.Join(vaultPath, "Work"), Op: fsnotify.Create},
+	})
+	if !result.treeChanged || !result.kanbanChanged {
+		t.Fatalf("folder rename result = %#v, want tree and Kanban refresh", result)
+	}
+	if app.vaultIndex != initialIndex {
+		t.Fatal("a small external folder rename rebuilt the whole index")
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil {
+		t.Fatalf("GetKanbanBoard: %v", err)
+	}
+	files := make([]string, 0)
+	for _, card := range board["todo"] {
+		files = append(files, card.File)
+	}
+	if want := []string{"Inbox.md", "Projects-archive.md", "Work/2025/roadmap.md", "Work/plan.md"}; !reflect.DeepEqual(files, want) {
+		t.Fatalf("todo card files after folder rename = %v, want %v", files, want)
+	}
+
+	outside := filepath.Join(t.TempDir(), "Work")
+	if err := os.Rename(filepath.Join(vaultPath, "Work"), outside); err != nil {
+		t.Skipf("cannot move a folder out of the temporary vault: %v", err)
+	}
+	result = app.applyVaultFilesystemChanges([]vaultWatchChange{{Path: filepath.Join(vaultPath, "Work"), Op: fsnotify.Rename}})
+	if !result.treeChanged || !result.kanbanChanged {
+		t.Fatalf("folder moved out result = %#v, want tree and Kanban refresh", result)
+	}
+	board, err = app.GetKanbanBoard()
+	if err != nil || len(board["todo"]) != 2 {
+		t.Fatalf("board after the folder left the vault = %#v, err=%v; want only the two root notes", board, err)
+	}
+	if results, err := app.SearchFiles("Roadmap", false); err != nil || len(results) != 0 {
+		t.Fatalf("search still finds a note in the departed folder: %#v, err=%v", results, err)
+	}
+}
+
+func TestVaultWatcherIndexesFolderMovedIntoVaultByTheSingleNoteRules(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	writeTestFile(t, vaultPath, "Inbox.md", "- [ ] Inbox #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	initialIndex := app.vaultIndex
+
+	staging := filepath.Join(t.TempDir(), "Imported")
+	writeTestFile(t, staging, "note.md", "- [ ] Imported #todo\n")
+	writeTestFile(t, staging, "deep/er/nested.MD", "- [ ] Nested #review\n")
+	writeTestFile(t, staging, "binary.md", "not\x00text")
+	writeTestFile(t, staging, ".obsidian/hidden.md", "- [ ] Hidden #todo\n")
+	writeTestFile(t, staging, "photo.png", "png")
+	if err := os.Symlink(filepath.Join(vaultPath, "Inbox.md"), filepath.Join(staging, "linked.md")); err != nil {
+		t.Logf("symbolic links unavailable, continuing without one: %v", err)
+	}
+	if err := os.Rename(staging, filepath.Join(vaultPath, "Imported")); err != nil {
+		t.Skipf("cannot move a folder into the temporary vault: %v", err)
+	}
+
+	result := app.applyVaultFilesystemChanges([]vaultWatchChange{{Path: filepath.Join(vaultPath, "Imported"), Op: fsnotify.Create}})
+	if !result.treeChanged || !result.kanbanChanged {
+		t.Fatalf("folder moved in result = %#v, want tree and Kanban refresh", result)
+	}
+	if len(result.paths) != 1 || result.paths[0] != "Imported" {
+		t.Fatalf("folder moved in paths = %v, want [Imported]", result.paths)
+	}
+	if app.vaultIndex != initialIndex {
+		t.Fatal("a small folder moved into the vault rebuilt the whole index")
+	}
+	indexed := app.vaultIndex.pathsAtOrBelow("Imported")
+	if want := []string{"Imported/deep/er/nested.MD", "Imported/note.md"}; !reflect.DeepEqual(indexed, want) {
+		t.Fatalf("indexed notes below the new folder = %v, want %v", indexed, want)
+	}
+	issues := app.GetVaultFileIssues()
+	if len(issues) != 1 || issues[0].Path != "Imported/binary.md" || issues[0].Code != fileIssueBinary {
+		t.Fatalf("file issues = %#v, want the binary note recorded like a single changed note", issues)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["todo"]) != 2 || len(board["review"]) != 1 {
+		t.Fatalf("board after folder moved in = %#v, err=%v", board, err)
+	}
+
+	// The same folder reported again, as after Figaro's own move, needs no work.
+	repeated := app.applyVaultFilesystemChanges([]vaultWatchChange{{Path: filepath.Join(vaultPath, "Imported", "deep"), Op: fsnotify.Create}})
+	if repeated.kanbanChanged {
+		t.Fatalf("an already indexed folder asked for a Kanban refresh: %#v", repeated)
+	}
+}
+
+func TestVaultWatcherRebuildsOnceWhenNewFoldersHoldTooManyNotes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	writeTestFile(t, vaultPath, "Inbox.md", "- [ ] Inbox #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	for index := 0; index <= maximumIncrementalWatchedNotes; index++ {
+		writeTestFile(t, vaultPath, fmt.Sprintf("Bulk/note-%03d.md", index), "- [ ] Bulk #todo\n")
+	}
+	result := app.applyVaultFilesystemChanges([]vaultWatchChange{{Path: filepath.Join(vaultPath, "Bulk"), Op: fsnotify.Create}})
+	if app.vaultIndex != nil {
+		t.Fatal("a folder with more notes than the incremental limit was indexed one note at a time")
+	}
+	if !result.treeChanged || !result.kanbanChanged || result.paths != nil {
+		t.Fatalf("oversized folder result = %#v, want a full refresh with unknown scope", result)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["todo"]) != maximumIncrementalWatchedNotes+2 {
+		t.Fatalf("rebuilt board holds %d todo cards, err=%v; want %d", len(board["todo"]), err, maximumIncrementalWatchedNotes+2)
+	}
+}
+
+func TestVaultWatcherRebuildsOnceWhenOneBatchRewritesTooManyNotes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	// What "git pull" does to a busy vault: hundreds of notes rewritten, each
+	// reported as its own event rather than as one new folder.
+	changes := make([]vaultWatchChange, 0, maximumIncrementalWatchedNotes+1)
+	for index := 0; index <= maximumIncrementalWatchedNotes; index++ {
+		name := fmt.Sprintf("Pulled/note-%03d.md", index)
+		writeTestFile(t, vaultPath, name, "- [ ] Before #todo\n")
+		changes = append(changes, vaultWatchChange{Path: filepath.Join(vaultPath, filepath.FromSlash(name)), Op: fsnotify.Write})
+	}
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	for index := 0; index <= maximumIncrementalWatchedNotes; index++ {
+		writeTestFile(t, vaultPath, fmt.Sprintf("Pulled/note-%03d.md", index), "- [ ] After #wip\n")
+	}
+
+	// One fewer than the limit is still applied note by note.
+	withinLimit := app.applyVaultFilesystemChanges(changes[:maximumIncrementalWatchedNotes])
+	if app.vaultIndex == nil || withinLimit.paths == nil {
+		t.Fatalf("a batch within the limit was not applied incrementally: %#v", withinLimit)
+	}
+
+	result := app.applyVaultFilesystemChanges(changes)
+	if app.vaultIndex != nil {
+		t.Fatal("a batch above the incremental limit was indexed one note at a time")
+	}
+	if !result.treeChanged || !result.kanbanChanged || result.paths != nil {
+		t.Fatalf("oversized batch result = %#v, want a full refresh with unknown scope", result)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["wip"]) != maximumIncrementalWatchedNotes+1 || len(board["todo"]) != 0 {
+		t.Fatalf("rebuilt board: %d wip, %d todo, err=%v", len(board["wip"]), len(board["todo"]), err)
+	}
+}
+
+func TestRenameAcknowledgesItsOwnLinkRewritesToTheWatcher(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	writeTestFile(t, vaultPath, "Target.md", "# Target\n")
+	writeTestFile(t, vaultPath, "notes/source.md", "- [ ] See [Target](Target.md) #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	result, err := app.RenamePath("Target.md", "Renamed.md")
+	if err != nil || !result.Success || !reflect.DeepEqual(result.UpdatedLinks, []string{"notes/source.md"}) {
+		t.Fatalf("RenamePath: result=%+v err=%v", result, err)
+	}
+	indexed := app.vaultIndex
+
+	// The watcher's echo of Figaro's own rewrite must not re-read the note,
+	// replace the index or ask the frontend for another refresh.
+	echo := app.applyVaultFilesystemChanges([]vaultWatchChange{{
+		Path: filepath.Join(vaultPath, "notes", "source.md"),
+		Op:   fsnotify.Create | fsnotify.Write,
+	}})
+	if echo.treeChanged || echo.kanbanChanged || len(echo.paths) != 0 {
+		t.Fatalf("echo of an in-app link rewrite = %#v, want it acknowledged", echo)
+	}
+	if app.vaultIndex != indexed {
+		t.Fatal("echo of an in-app link rewrite replaced the index")
+	}
+	// A later outside edit of the same note is still picked up.
+	writeTestFile(t, vaultPath, "notes/source.md", "- [ ] Edited outside #wip\n")
+	external := app.applyVaultFilesystemChanges([]vaultWatchChange{{Path: filepath.Join(vaultPath, "notes", "source.md"), Op: fsnotify.Write}})
+	if !external.kanbanChanged {
+		t.Fatalf("external edit after the acknowledgement = %#v, want a Kanban refresh", external)
+	}
+}
+
+func TestDeletePathDropsOnlyTheDeletedNotesFromTheIndex(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	writeTestFile(t, vaultPath, "Keep.md", "- [ ] Keep #todo\n")
+	writeTestFile(t, vaultPath, "Single.md", "- [ ] Single #solo\n")
+	writeTestFile(t, vaultPath, "Trash/a.md", "- [ ] A #scrap\n")
+	writeTestFile(t, vaultPath, "Trash/deep/b.md", "- [ ] B #scrap\n")
+	writeTestFile(t, vaultPath, "Trashcan.md", "- [ ] Not inside Trash #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	warm := app.vaultIndex
+	columns := func() []string {
+		result, err := app.GetKanbanColumns()
+		if err != nil {
+			t.Fatalf("GetKanbanColumns: %v", err)
+		}
+		return result["columns"].([]string)
+	}
+	if !slices.Contains(columns(), "solo") || !slices.Contains(columns(), "scrap") {
+		t.Fatalf("columns before deleting = %v", columns())
+	}
+
+	for _, path := range []string{"Single.md", "Trash"} {
+		result, err := app.DeletePath(path)
+		if err != nil || !result.Success {
+			t.Fatalf("DeletePath(%s): result=%+v err=%v", path, result, err)
+		}
+		// The index is edited in place: nothing else in the vault is re-read.
+		if app.vaultIndex != warm {
+			t.Fatalf("deleting %s rebuilt the vault index", path)
+		}
+	}
+
+	if got := app.vaultIndex.paths; !reflect.DeepEqual(got, []string{"Keep.md", "Trashcan.md"}) {
+		t.Fatalf("indexed notes after deleting = %v", got)
+	}
+	if slices.Contains(columns(), "solo") || slices.Contains(columns(), "scrap") {
+		t.Fatalf("columns after deleting their only notes = %v", columns())
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["todo"]) != 2 || len(board["scrap"]) != 0 {
+		t.Fatalf("board after deleting = %#v, err=%v", board, err)
+	}
+	response, err := app.SearchNotes("Single", NoteSearchRequest{})
+	if err != nil || len(response.Results) != 0 {
+		t.Fatalf("search still finds a deleted note: %+v, err=%v", response, err)
+	}
+}
+
+func TestVaultWatcherDoesNotRereadFolderFigaroJustMoved(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	writeTestFile(t, vaultPath, "Projects/plan.md", "- [ ] Plan #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	if result, err := app.RenamePath("Projects", "Work"); err != nil || !result.Success {
+		t.Fatalf("RenamePath: result=%+v err=%v", result, err)
+	}
+	movedIndex := app.vaultIndex
+	revision := movedIndex.revision
+
+	result := app.applyVaultFilesystemChanges([]vaultWatchChange{
+		{Path: filepath.Join(vaultPath, "Projects"), Op: fsnotify.Rename},
+		{Path: filepath.Join(vaultPath, "Work"), Op: fsnotify.Create},
+	})
+	if result.kanbanChanged {
+		t.Fatalf("watcher echo of Figaro's own folder move = %#v, want no Kanban refresh", result)
+	}
+	if app.vaultIndex != movedIndex || movedIndex.revision != revision {
+		t.Fatal("watcher echo of Figaro's own folder move re-indexed notes that were already current")
+	}
+}
+
+func TestVaultWatchBatchTellsAnExactNameFromACaseVariant(t *testing.T) {
+	vaultPath := t.TempDir()
+	writeTestFile(t, vaultPath, "Notes/Todo.md", "# Todo\n")
+	root, err := os.OpenRoot(vaultPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	batch := newVaultWatchBatch()
+	if !batch.listsExactName(root, filepath.Join("Notes", "Todo.md")) {
+		t.Fatal("the note's own spelling was not found in its folder listing")
+	}
+	if batch.listsExactName(root, filepath.Join("Notes", "todo.md")) {
+		t.Fatal("a case variant was taken for the listed name")
+	}
+	if !batch.listsExactName(root, "Notes") || batch.listsExactName(root, "notes") {
+		t.Fatal("top-level folder names were not compared exactly")
+	}
+	// A folder that cannot be listed leaves the earlier lookup in charge.
+	if !batch.listsExactName(root, filepath.Join("Missing", "note.md")) {
+		t.Fatal("an unlistable folder overruled a successful lookup")
+	}
+}
+
+func TestVaultWatcherDropsOldSpellingAfterCaseOnlyRename(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+	if !vaultFoldsLetterCase(t, vaultPath) {
+		t.Skip("on a case-sensitive filesystem the old spelling simply no longer exists")
+	}
+	writeTestFile(t, vaultPath, "todo.md", "- [ ] Task #todo\n")
+	writeTestFile(t, vaultPath, "Notes/inner.md", "- [ ] Inner #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("GetKanbanBoard: %v", err)
+	}
+	for _, rename := range [][2]string{{"todo.md", "Todo.md"}, {"Notes", "notes"}} {
+		if err := os.Rename(filepath.Join(vaultPath, rename[0]), filepath.Join(vaultPath, rename[1])); err != nil {
+			t.Fatalf("external rename %v: %v", rename, err)
+		}
+	}
+	app.applyVaultFilesystemChanges([]vaultWatchChange{
+		{Path: filepath.Join(vaultPath, "Notes"), Op: fsnotify.Rename},
+		{Path: filepath.Join(vaultPath, "Todo.md"), Op: fsnotify.Create},
+		{Path: filepath.Join(vaultPath, "notes"), Op: fsnotify.Create},
+		{Path: filepath.Join(vaultPath, "todo.md"), Op: fsnotify.Rename},
+	})
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("GetKanbanBoard after renames: %v", err)
+	}
+	if want := []string{"Todo.md", "notes/inner.md"}; !reflect.DeepEqual(app.vaultIndex.paths, want) {
+		t.Fatalf("indexed paths after case-only renames = %v, want %v", app.vaultIndex.paths, want)
 	}
 }

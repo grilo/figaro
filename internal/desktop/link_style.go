@@ -88,6 +88,13 @@ func (a *App) ChangeLinkStyle(value string, rewrite bool) (*LinkStyleResult, err
 	}
 
 	a.resetFileVersionsLocked()
+	if len(applied) > 0 {
+		// A conversion can rewrite most of the vault. The index and cached tree
+		// are rebuilt once from disk rather than left describing the old link
+		// syntax until the watcher has re-read every note.
+		a.invalidateVaultIndexLocked()
+		a.invalidateFileTreeCacheLocked()
+	}
 	updated := make([]string, 0, len(rewrites))
 	for _, item := range rewrites {
 		updated = append(updated, filepath.ToSlash(item.path))

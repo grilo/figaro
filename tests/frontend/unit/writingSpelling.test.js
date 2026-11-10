@@ -235,3 +235,45 @@ test.each(['en-US', 'en-GB'])('%s reviewed software, keyboard and note-taking vo
     const miscased = await writingSpellingObservations('macos Macos ui gtk gantt webkitgtk', language, async () => checker);
     expect(miscased.map(item => item.actual)).toEqual(['macos', 'Macos', 'ui', 'gtk', 'gantt', 'webkitgtk']);
 });
+
+test('one spelling pass flags every unknown word but spends a bounded time generating suggestions', async () => {
+    const checker = dictionary('en-US');
+    const words = ['Speling', 'wrods', 'recieve', 'definately', 'seperate', 'occured'];
+    const source = `${words.join(' and ')}. These words are spelled correctly.`;
+    // Each replacement lookup "costs" 200 ms on this clock: the 500 ms budget covers three.
+    let clock = 0;
+    const now = () => { clock += 100; return clock; };
+    const suggestions = new Map();
+    const pass = () => writingSpellingObservations(source, 'en-US', async () => checker, { suggestions, suggestionBudgetMs: 250, now });
+
+    const first = await pass();
+    expect(first.map(item => item.actual)).toEqual(words);
+    expect(first.filter(item => !item.suggestionsPending).map(item => item.actual)).toEqual(words.slice(0, 3));
+    expect(first.filter(item => item.suggestionsPending).every(item => item.replacements.length === 0)).toBe(true);
+    expect(first.find(item => item.actual === 'recieve').replacements).toContain('receive');
+
+    // The next pass reuses what is cached and continues where the budget ended.
+    const second = await pass();
+    expect(second.some(item => item.suggestionsPending)).toBe(false);
+    expect(second.find(item => item.actual === 'occured').replacements).toContain('occurred');
+    expect(second.slice(0, 3).map(item => item.replacements)).toEqual(first.slice(0, 3).map(item => item.replacements));
+
+    // With the default budget and a real clock an ordinary note finishes in one pass.
+    const fresh = await writingSpellingObservations(source, 'en-US', async () => checker);
+    expect(fresh.some(item => item.suggestionsPending)).toBe(false);
+});
+
+test('never searches for corrections of a token no dictionary word could match', async () => {
+    const suggest = jest.fn(() => ['never']);
+    const checker = { correct: () => false, suggest };
+    const sequence = 'ACGT'.repeat(250);
+    const source = `Sequence ${sequence} ends.`;
+
+    const menu = await spellcheckSuggestionsAtPosition(source, source.indexOf(sequence) + 5, 'en-US', async () => checker);
+
+    expect(menu).toMatchObject({ word: sequence, suggestions: [] });
+    expect(suggest).not.toHaveBeenCalled();
+    const observations = await writingSpellingObservations(source, 'en-US', async () => checker);
+    expect(observations.find(item => item.actual === sequence)).toMatchObject({ replacements: [] });
+    expect(suggest.mock.calls.flat().some(word => word.length > 48)).toBe(false);
+});

@@ -3,6 +3,7 @@ package activity
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -11,7 +12,24 @@ import (
 
 const MaxPathHistoryBytes = 4 * 1024 * 1024
 
+// maxPathMoves bounds the recorded move list.
+const maxPathMoves = 10000
+
 const PathsFile = ".config/activity-paths.json"
+
+// A move that cannot be recorded costs only activity continuity for the moved
+// note: its earlier edits stop being attributed across the move. Callers test
+// for these two errors to let the move itself go ahead; every other error
+// (unreadable, corrupt or unsupported history) still means the history file
+// needs attention before it is rewritten.
+var (
+	// ErrPathNotRecordable reports a source or destination the history
+	// format cannot hold, such as a name containing ":".
+	ErrPathNotRecordable = errors.New("activity path cannot be recorded")
+	// ErrPathHistoryFull reports that the history holds its maximum number
+	// of moves or bytes.
+	ErrPathHistoryFull = errors.New("activity path history is full")
+)
 
 type PathMove struct {
 	From     string `json:"from"`
@@ -53,8 +71,8 @@ func ReadPathHistory(data []byte) (PathHistory, error) {
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return result, fmt.Errorf("invalid trailing activity path history")
 	}
-	if len(result.Moves) > 10000 {
-		return result, fmt.Errorf("activity path history is full")
+	if len(result.Moves) > maxPathMoves {
+		return result, ErrPathHistoryFull
 	}
 	if result.Version != 1 {
 		return result, fmt.Errorf("unsupported activity path history version")
@@ -66,24 +84,32 @@ func ReadPathHistory(data []byte) (PathHistory, error) {
 	}
 	return result, nil
 }
+
+// PlanPathMove returns the history with one more move appended. It fails with
+// ErrPathNotRecordable or ErrPathHistoryFull when this move cannot be added to
+// an otherwise sound history, and with another error when the history itself
+// or the revision is invalid.
 func PlanPathMove(data []byte, from, to, revision string) ([]byte, error) {
 	history, err := ReadPathHistory(data)
 	if err != nil {
 		return nil, err
 	}
-	if !validPath(from) || !validPath(to) || !validRevision(revision) {
+	if !validRevision(revision) {
 		return nil, fmt.Errorf("invalid activity relocation")
+	}
+	if !validPath(from) || !validPath(to) {
+		return nil, ErrPathNotRecordable
 	}
 	if from == to {
 		return data, nil
 	}
-	if len(history.Moves) >= 10000 {
-		return nil, fmt.Errorf("activity path history is full")
+	if len(history.Moves) >= maxPathMoves {
+		return nil, ErrPathHistoryFull
 	}
 	history.Moves = append(history.Moves, PathMove{from, to, revision})
 	after, err := json.MarshalIndent(history, "", "  ")
 	if len(after) > MaxPathHistoryBytes {
-		return nil, fmt.Errorf("activity path history is full")
+		return nil, ErrPathHistoryFull
 	}
 	return after, err
 }

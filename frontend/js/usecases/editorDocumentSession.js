@@ -36,10 +36,12 @@ export function createEditorDocumentSession({
             try {
                 schedule(() => {
                     let mounted = false;
+                    let previousContent;
                     try {
                         if (editorUnavailable(editor) || pendingRequest !== request) return;
                         if (request.tabId != null && readActiveTabId() !== request.tabId) return;
-                        const contentChanged = readContent(editor) !== request.content;
+                        previousContent = readContent(editor);
+                        const contentChanged = previousContent !== request.content;
                         if (!request.documentChanged && !contentChanged) {
                             if (request.cursorState) restoreSelection(request.tabId, request.cursorState);
                             mounted = true;
@@ -57,6 +59,14 @@ export function createEditorDocumentSession({
                         }
                         mounted = true;
                     } catch (error) {
+                        // A rejected replacement leaves the previous document
+                        // mounted. It stays attributed to its own tab, so the
+                        // next edit or save cannot write that text into the
+                        // tab whose mount failed.
+                        if (request.documentChanged && documentTabId === request.tabId
+                            && stillMounted(editor, previousContent)) {
+                            documentTabId = request.previousTabId;
+                        }
                         reportFailure(error);
                     } finally {
                         resolve(mounted);
@@ -69,8 +79,31 @@ export function createEditorDocumentSession({
         });
     }
 
+    function stillMounted(editor, content) {
+        try {
+            return readContent(editor) === content;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    /**
+     * Follow a tab whose ID changed with its path. The mounted document, its
+     * owner and any queued mount keep referring to the same buffer, so edits
+     * made after a rename are still recorded against the renamed tab.
+     */
+    function renameDocumentTab(previousTabId, nextTabId) {
+        if (previousTabId == null || nextTabId == null || previousTabId === nextTabId) return false;
+        const renamed = documentTabId === previousTabId;
+        if (renamed) documentTabId = nextTabId;
+        if (pendingRequest?.tabId === previousTabId) pendingRequest.tabId = nextTabId;
+        if (pendingRequest?.previousTabId === previousTabId) pendingRequest.previousTabId = nextTabId;
+        return renamed;
+    }
+
     return {
         mount,
+        renameDocumentTab,
         documentTabId: () => documentTabId,
     };
 }

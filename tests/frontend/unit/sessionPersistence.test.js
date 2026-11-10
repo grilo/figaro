@@ -123,6 +123,26 @@ test.each([false, true])('slow session writes coalesce to the latest snapshot an
     expect(writeSession.mock.calls[2][0].cursorStates['note.md'].head).toBe(200);
 });
 
+test('a failure reporter that throws does not strand later session writes', async () => {
+    let head = 0;
+    const writeSession = jest.fn().mockRejectedValueOnce(new Error('busy')).mockResolvedValue({ success: true });
+    const persistence = createSessionPersistence({
+        writeSession,
+        reportFailure: () => { throw new TypeError('logger unavailable'); },
+        readWorkspace: () => ({
+            openTabs: [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', cursorState: { anchor: head, head } }],
+            activeTabId: 'note.md',
+        }),
+    });
+
+    await persistence.save();
+    head = 7;
+    await persistence.save();
+
+    expect(writeSession).toHaveBeenCalledTimes(2);
+    expect(writeSession.mock.calls[1][0].cursorStates['note.md'].head).toBe(7);
+});
+
 test('skips an identical workspace but retries one whose write failed', async () => {
     let workspace = { openTabs: [{ id: 'note.md', type: 'file', title: 'Note', path: 'note.md' }], activeTabId: 'note.md' };
     const writeSession = jest.fn().mockRejectedValueOnce(new Error('busy')).mockResolvedValue({ success: true });

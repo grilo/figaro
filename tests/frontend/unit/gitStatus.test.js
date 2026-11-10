@@ -9,12 +9,15 @@ jest.mock('../frontend/js/state.js', () => ({
     getState: jest.fn(key => mockState[key]),
 }));
 
-const mockGetEditorContent = jest.fn(() => 'pending text');
+const mockGetEditorBufferContent = jest.fn(() => 'pending text');
+const mockGetEditorDocumentTabId = jest.fn(() => 'note.md');
 jest.mock('../frontend/js/editor.js', () => ({
-    getEditorContent: (...args) => mockGetEditorContent(...args),
+    getEditorBufferContent: (...args) => mockGetEditorBufferContent(...args),
+    getEditorDocumentTabId: (...args) => mockGetEditorDocumentTabId(...args),
     getEditorView: jest.fn(() => null),
-    setEditorContent: jest.fn(),
-    setReadOnly: jest.fn(),
+    showEditorPreview: jest.fn(() => true),
+    closeEditorPreview: jest.fn(() => true),
+    editorPreviewLiveContent: jest.fn(() => null),
 }));
 
 const mockSaveFileSnapshot = jest.fn();
@@ -95,6 +98,24 @@ describe('quiet local-history action', () => {
         expect(document.getElementById('git-status').textContent).toBe('Save to history');
         expect(document.getElementById('git-status').disabled).toBe(true);
         expect(document.getElementById('git-status').hidden).toBe(true);
+    });
+
+    test('saves the tab\'s cached buffer when the shared editor belongs to another note', async () => {
+        mockState.openTabs[0].dirty = true;
+        mockState.openTabs[0]._content = 'cached text of note.md';
+        mockGetEditorDocumentTabId.mockReturnValueOnce('other.md');
+        mockSaveFileSnapshot.mockImplementation(async tab => {
+            tab.dirty = false;
+            return { success: true, mtime: 12 };
+        });
+        await updateGitStatus('note.md');
+        window.go.desktop.App.FileHasUncommittedChanges.mockResolvedValue(false);
+
+        await expect(commitCurrentFileChanges()).resolves.toBe(true);
+
+        expect(mockSaveFileSnapshot).toHaveBeenCalledWith(mockState.openTabs[0], 'cached text of note.md');
+        expect(mockGetEditorBufferContent).not.toHaveBeenCalled();
+        delete mockState.openTabs[0]._content;
     });
 
     test('reuses the successful single-file Auto-Commit after saving instead of committing twice', async () => {

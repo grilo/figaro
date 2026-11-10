@@ -18,6 +18,11 @@ export function createDocumentSave({
 }) {
     const queues = new Map();
     const generations = new Map();
+    // A conflict the author answered with "keep editing" stays answered for
+    // background saves of that path. Auto-Save and tab switches would
+    // otherwise ask the same question on every attempt, and the attempts
+    // queued while the dialog was open would each ask it again.
+    const declinedConflicts = new Map();
 
     async function persistSnapshot(snapshot, queue, acknowledge) {
         const write = expectedMtime => persist({
@@ -26,6 +31,9 @@ export function createDocumentSave({
             content: snapshot.content,
             expectedMtime,
         });
+
+        const explicit = snapshot.failurePrompt !== 'once';
+        if (!explicit && declinedConflicts.has(snapshot.path)) return declinedConflicts.get(snapshot.path);
 
         let persistedResult = null;
         try {
@@ -37,7 +45,10 @@ export function createDocumentSave({
             }
             if (firstDisposition === 'conflict') {
                 const overwrite = await confirmOverwrite(snapshot, result);
-                if (!overwrite) return result;
+                if (!overwrite) {
+                    declinedConflicts.set(snapshot.path, result);
+                    return result;
+                }
                 result = await write(0);
                 successMessage = 'Saved (forced)';
                 if (saveResultDisposition(result) !== 'saved') {
@@ -46,6 +57,7 @@ export function createDocumentSave({
             }
 
             persistedResult = result;
+            declinedConflicts.delete(snapshot.path);
             queue.mtime = result.mtime;
             onPersisted(snapshot, result);
             acknowledge(result);

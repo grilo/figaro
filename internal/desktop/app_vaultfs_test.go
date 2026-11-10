@@ -658,3 +658,158 @@ func TestCopyExternalPathsRejectsSymlinks(t *testing.T) {
 		t.Fatalf("expected symlink rejection, got %+v", result)
 	}
 }
+
+// vaultFoldsLetterCase reports whether the test vault sits on a volume where
+// "note.md" and "NOTE.md" are one entry, as on default macOS and Windows.
+func vaultFoldsLetterCase(t *testing.T, vaultPath string) bool {
+	t.Helper()
+	probe := filepath.Join(vaultPath, "case-probe.tmp")
+	if err := os.WriteFile(probe, nil, 0600); err != nil {
+		t.Fatalf("write case probe: %v", err)
+	}
+	defer os.Remove(probe)
+	_, err := os.Stat(filepath.Join(vaultPath, "CASE-PROBE.TMP"))
+	return err == nil
+}
+
+func directoryNames(t *testing.T, directory string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatalf("list %q: %v", directory, err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), ".") {
+			names = append(names, entry.Name())
+		}
+	}
+	return names
+}
+
+func TestRenamePathChangesOnlyLetterCaseOnCaseInsensitiveVolume(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	if !vaultFoldsLetterCase(t, vaultPath) {
+		t.Skip("the temporary filesystem is case-sensitive, so a case variant is simply a free name")
+	}
+	writeTestFile(t, vaultPath, "todo.md", "- [ ] Task #todo\n")
+	writeTestFile(t, vaultPath, "index.md", "[Tasks](todo.md)\n")
+	writeTestFile(t, vaultPath, "Notes/inner.md", "# Inner\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("GetKanbanBoard: %v", err)
+	}
+
+	result, err := app.RenamePath("todo.md", "Todo.md")
+	if err != nil || !result.Success {
+		t.Fatalf("case-only rename of a note: result=%+v err=%v", result, err)
+	}
+	if names := directoryNames(t, vaultPath); !slices.Contains(names, "Todo.md") || slices.Contains(names, "todo.md") {
+		t.Fatalf("vault entries after the rename = %v, want Todo.md in place of todo.md", names)
+	}
+	if got := readTestFile(t, vaultPath, "index.md"); got != "[Tasks](Todo.md)\n" {
+		t.Fatalf("link to the renamed note = %q", got)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["todo"]) != 1 || board["todo"][0].File != "Todo.md" {
+		t.Fatalf("board after the rename = %#v, err=%v", board, err)
+	}
+
+	result, err = app.RenamePath("Notes", "notes")
+	if err != nil || !result.Success {
+		t.Fatalf("case-only rename of a folder: result=%+v err=%v", result, err)
+	}
+	if names := directoryNames(t, vaultPath); !slices.Contains(names, "notes") || slices.Contains(names, "Notes") {
+		t.Fatalf("vault entries after the folder rename = %v, want notes in place of Notes", names)
+	}
+
+	// The same name again is still an occupied destination.
+	if result, err := app.RenamePath("Todo.md", "Todo.md"); err != nil || result.Success || result.Error != "Destination exists" {
+		t.Fatalf("rename onto the identical name: result=%+v err=%v", result, err)
+	}
+}
+
+func TestRenamePathRefusesCaseVariantThatIsASeparateEntry(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	if vaultFoldsLetterCase(t, vaultPath) {
+		t.Skip("a case-insensitive filesystem cannot hold two entries that differ only by case")
+	}
+	refuse := func(t *testing.T, oldRel, newRel string) {
+		t.Helper()
+		result, err := app.RenamePath(oldRel, newRel)
+		if err != nil || result.Success || result.Error != "Destination exists" {
+			t.Fatalf("RenamePath(%q, %q): result=%+v err=%v; want Destination exists", oldRel, newRel, result, err)
+		}
+	}
+
+	t.Run("another note", func(t *testing.T) {
+		writeTestFile(t, vaultPath, "plain/todo.md", "source")
+		writeTestFile(t, vaultPath, "plain/Todo.md", "other note")
+		refuse(t, "plain/todo.md", "plain/Todo.md")
+		if readTestFile(t, vaultPath, "plain/todo.md") != "source" || readTestFile(t, vaultPath, "plain/Todo.md") != "other note" {
+			t.Fatal("a refused case-variant rename changed a note")
+		}
+	})
+	t.Run("hard link to the same file", func(t *testing.T) {
+		writeTestFile(t, vaultPath, "linked/todo.md", "shared")
+		if err := os.Link(filepath.Join(vaultPath, "linked", "todo.md"), filepath.Join(vaultPath, "linked", "Todo.md")); err != nil {
+			t.Skipf("hard links unavailable: %v", err)
+		}
+		refuse(t, "linked/todo.md", "linked/Todo.md")
+		if names := directoryNames(t, filepath.Join(vaultPath, "linked")); len(names) != 2 {
+			t.Fatalf("entries after the refused rename = %v, want both names kept", names)
+		}
+	})
+	t.Run("symbolic link to the case variant", func(t *testing.T) {
+		writeTestFile(t, vaultPath, "symbolic/Todo.md", "the real note")
+		if err := os.Symlink("Todo.md", filepath.Join(vaultPath, "symbolic", "todo.md")); err != nil {
+			t.Skipf("symbolic links unavailable: %v", err)
+		}
+		refuse(t, "symbolic/todo.md", "symbolic/Todo.md")
+		info, err := os.Lstat(filepath.Join(vaultPath, "symbolic", "Todo.md"))
+		if err != nil || !info.Mode().IsRegular() || readTestFile(t, vaultPath, "symbolic/Todo.md") != "the real note" {
+			t.Fatalf("the real note was replaced by the link that pointed at it: info=%v err=%v", info, err)
+		}
+	})
+}
+
+func TestEnsureWelcomeNoteGreetsOnlyAVaultWithoutAnyNote(t *testing.T) {
+	welcomeCreated := func(t *testing.T, prepare func(vaultPath string)) bool {
+		t.Helper()
+		app, vaultPath := newTestApp(t)
+		t.Cleanup(func() { _ = os.RemoveAll(vaultPath) })
+		prepare(vaultPath)
+		app.ensureWelcomeNote()
+		_, err := os.Stat(filepath.Join(vaultPath, "Welcome.md"))
+		if err != nil && !os.IsNotExist(err) {
+			t.Fatalf("inspect Welcome.md: %v", err)
+		}
+		return err == nil
+	}
+
+	if !welcomeCreated(t, func(string) {}) {
+		t.Fatal("an empty vault did not receive Welcome.md")
+	}
+	if !welcomeCreated(t, func(vaultPath string) {
+		writeTestFile(t, vaultPath, "assets/photo.png", "png")
+		writeTestFile(t, vaultPath, ".trash/old.md", "# Deleted\n")
+		outside := filepath.Join(t.TempDir(), "outside.md")
+		if err := os.WriteFile(outside, []byte("# Outside\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_ = os.Symlink(outside, filepath.Join(vaultPath, "linked.md"))
+	}) {
+		t.Fatal("a vault whose only Markdown is hidden or linked from outside did not receive Welcome.md")
+	}
+	for name, note := range map[string]string{
+		"note in a folder":            "Projects/2025/plan.md",
+		"upper-case extension":        "Journal/Today.MD",
+		"note at the top level":       "Inbox.md",
+		"mixed-case nested extension": "Areas/Health/Log.Md",
+	} {
+		if welcomeCreated(t, func(vaultPath string) { writeTestFile(t, vaultPath, note, "# Mine\n") }) {
+			t.Errorf("%s: Welcome.md was created in a vault that already holds %s", name, note)
+		}
+	}
+}

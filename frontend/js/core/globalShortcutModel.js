@@ -3,10 +3,41 @@
  * consume the same physical key event. Character keys are normalized because
  * browsers expose shifted letters as uppercase values.
  */
+/**
+ * The Latin letter a shortcut event stands for. `key` holds the typed
+ * character: uppercase under Caps Lock, and a letter of another script on
+ * layouts such as Cyrillic or Greek, where only the physical key (`code`)
+ * identifies the shortcut. A Latin `key` always wins, so Dvorak and similar
+ * layouts keep their own letters.
+ */
+export function shortcutLetter(event = {}) {
+    const key = String(event.key || '');
+    if (/^[a-z]$/i.test(key)) return key.toLowerCase();
+    const physical = /^Key([A-Z])$/.exec(String(event.code || ''));
+    if (physical && /^\p{L}$/u.test(key)) return physical[1].toLowerCase();
+    return key.toLowerCase();
+}
+
+function commandLetter(event) {
+    // AltGr reports Ctrl+Alt on Windows; those combinations type characters.
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return '';
+    return shortcutLetter(event);
+}
+
+/** Ctrl/Cmd+S, including under Caps Lock and on non-Latin layouts. */
+export function isSaveShortcut(event = {}) {
+    return commandLetter(event) === 's';
+}
+
+/** Ctrl/Cmd+W, including under Caps Lock and on non-Latin layouts. */
+export function isCloseTabShortcut(event = {}) {
+    return commandLetter(event) === 'w';
+}
+
 export function globalShortcutAction(event = {}) {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
 
-    const key = String(event.key || '').toLowerCase();
+    const key = shortcutLetter(event);
     const shifted = Boolean(event.shiftKey);
 
     if (key === 'f') return shifted ? 'global-search' : 'document-find';

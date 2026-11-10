@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"figaro/internal/vault"
 )
 
 // ============================================================================
@@ -315,6 +317,10 @@ func (a *App) remapFileTreeCachePathLocked(oldRel string, newRel string) {
 	a.invalidateVaultHealthCacheLocked()
 }
 
+// buildTree lists one vault directory and everything visible beneath it. A
+// folder that cannot be read (ext4's lost+found, a chmod 000 directory) and an
+// entry that vanished while being listed are left out, so one of them cannot
+// empty the whole tree; only a failure on dir itself is returned.
 func (a *App) buildTree(vaultFS fs.FS, dir string) ([]*FileTreeItem, error) {
 	entries, err := fs.ReadDir(vaultFS, dir)
 	if err != nil {
@@ -332,6 +338,9 @@ func (a *App) buildTree(vaultFS fs.FS, dir string) ([]*FileTreeItem, error) {
 		// its target), which lets the tree consistently omit symlinks.
 		info, err := e.Info()
 		if err != nil {
+			if vault.IsSkippableWalkError(err) {
+				continue
+			}
 			return nil, err
 		}
 		if info.Mode()&fs.ModeSymlink != 0 {
@@ -344,6 +353,9 @@ func (a *App) buildTree(vaultFS fs.FS, dir string) ([]*FileTreeItem, error) {
 		if info.IsDir() {
 			children, err := a.buildTree(vaultFS, rel)
 			if err != nil {
+				if vault.IsSkippableWalkError(err) {
+					continue
+				}
 				return nil, err
 			}
 			items = append(items, &FileTreeItem{

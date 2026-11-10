@@ -7,6 +7,7 @@
  */
 
 import { getFrontmatterRegionAt } from './frontmatter.js';
+import { closesFrontmatter, opensFrontmatter } from './core/frontmatterRegionModel.js';
 
 export const frontmatterProperties = [
     { label: 'title', detail: 'Note title', apply: 'title: ', type: 'property' },
@@ -112,13 +113,30 @@ function valueCompletions(before, context, getFileTree, getActiveFilePath) {
 }
 
 /**
+ * The leading source a completion at `position` needs: the note through its
+ * closing boundary, the whole note while its frontmatter is still open, or
+ * null when the position cannot be in frontmatter. This source answers every
+ * completion query in a Markdown note, and almost all of them are typed in the
+ * body: those stop at the first line without materializing the note.
+ */
+function frontmatterSourceAt(doc, position) {
+    if (!opensFrontmatter(doc.line(1).text)) return null;
+    for (let number = 2; number <= doc.lines; number += 1) {
+        const line = doc.line(number);
+        if (!closesFrontmatter(line.text)) continue;
+        return position < line.from ? doc.sliceString(0, Math.min(doc.length, line.to + 1)) : null;
+    }
+    return doc.toString();
+}
+
+/**
  * Construct a CodeMirror completion source scoped to leading YAML frontmatter.
  * Getters keep the source current as the active note or file tree changes.
  */
 export function createFrontmatterCompletionSource({ getFileTree, getActiveFilePath } = {}) {
     return context => {
-        const source = context.state.doc.toString();
-        const region = getFrontmatterRegionAt(source, context.pos);
+        const source = frontmatterSourceAt(context.state.doc, context.pos);
+        const region = source === null ? null : getFrontmatterRegionAt(source, context.pos);
         if (!region) return null;
 
         const line = context.state.doc.lineAt(context.pos);

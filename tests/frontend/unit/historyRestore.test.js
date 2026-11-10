@@ -10,13 +10,16 @@ jest.mock('../frontend/js/state.js', () => ({
 }));
 
 const mockEditorView = { dom: document.createElement('div') };
-const mockSetEditorContent = jest.fn();
-const mockSetReadOnly = jest.fn();
+const mockShowEditorPreview = jest.fn(() => true);
+const mockCloseEditorPreview = jest.fn(() => true);
+const mockPreviewLiveContent = jest.fn(() => 'unsaved current version');
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn(() => mockEditorView),
-    getEditorContent: jest.fn(() => 'unsaved current version'),
-    setEditorContent: (...args) => mockSetEditorContent(...args),
-    setReadOnly: (...args) => mockSetReadOnly(...args),
+    getEditorBufferContent: jest.fn(() => 'unsaved current version'),
+    getEditorDocumentTabId: jest.fn(() => 'note.md'),
+    showEditorPreview: (...args) => mockShowEditorPreview(...args),
+    closeEditorPreview: (...args) => mockCloseEditorPreview(...args),
+    editorPreviewLiveContent: (...args) => mockPreviewLiveContent(...args),
 }));
 
 const mockSaveFileSnapshot = jest.fn().mockResolvedValue({ success: true, mtime: 11 });
@@ -77,20 +80,34 @@ describe('history restore workflow', () => {
         expect(document.querySelector('.history-item')).not.toBeNull();
     });
 
-    test('switching from Versions to Activity waits for the owned live buffer to return', async () => {
+    test('switching from Versions to Activity returns the owned live buffer before Activity opens', async () => {
         updateHistoryCount('note.md'); await settle();
         document.getElementById('history-count').click(); await settle();
         document.querySelectorAll('.history-item')[1].click(); await settle();
-        let restore;
-        mockSetEditorContent.mockImplementationOnce(() => new Promise(resolve => { restore = resolve; }));
+        expect(mockShowEditorPreview).toHaveBeenCalledWith('historical version');
+        expect(mockEditorView.dom.classList).toContain('history-mode');
         const openActivity = jest.fn(); configureHistoryPaneTabs({ activity: openActivity });
         // Rebuild the shared tabs after installing the Activity owner.
         const tabs = document.querySelector('.history-pane-tabs');
         const button = [...tabs.querySelectorAll('button')].find(item => item.textContent === 'Activity');
         button.disabled = false; button.click(); await settle();
-        expect(mockSetEditorContent.mock.calls.at(-1)[1]).toBe('note.md');
-        expect(openActivity).not.toHaveBeenCalled();
-        restore(); await settle(); expect(openActivity).toHaveBeenCalledTimes(1);
+        expect(mockCloseEditorPreview).toHaveBeenCalledTimes(1);
+        expect(mockCloseEditorPreview).toHaveBeenCalledWith(undefined);
+        expect(openActivity).toHaveBeenCalledTimes(1);
+        expect(mockCloseEditorPreview.mock.invocationCallOrder[0])
+            .toBeLessThan(openActivity.mock.invocationCallOrder[0]);
+        expect(mockEditorView.dom.classList).not.toContain('history-mode');
+    });
+
+    test('does not enter history mode when the editor refuses the preview', async () => {
+        mockShowEditorPreview.mockReturnValueOnce(false);
+        updateHistoryCount('note.md'); await settle();
+        document.getElementById('history-count').click(); await settle();
+        document.querySelectorAll('.history-item')[1].click(); await settle();
+
+        expect(document.querySelector('.history-banner')).toBeNull();
+        expect(document.querySelector('.history-revert-button')).toBeNull();
+        expect(mockEditorView.dom.classList).not.toContain('history-mode');
     });
 
     test('commits the restored snapshot and refreshes History after a non-destructive revert', async () => {
@@ -113,8 +130,7 @@ describe('history restore workflow', () => {
         expect(document.querySelector('.history-revert-copy')).toBeNull();
         expect(document.querySelector('.history-list').textContent).not.toMatch(/latest123|older123/);
         expect(document.querySelector('.history-banner .history-restore-button')).toBeNull();
-        expect(mockSetReadOnly).toHaveBeenCalledWith(true);
-        expect(mockSetEditorContent).toHaveBeenCalledWith('historical version');
+        expect(mockShowEditorPreview).toHaveBeenCalledWith('historical version');
 
         const compare = document.querySelector('.history-diff-toggle');
         compare.click();
@@ -149,8 +165,8 @@ describe('history restore workflow', () => {
             'historical version',
         ]);
         expect(window.go.desktop.App.CommitCurrentFile.mock.calls).toEqual([['note.md'], ['note.md']]);
-        expect(mockSetReadOnly).toHaveBeenLastCalledWith(false);
-        expect(mockSetEditorContent).toHaveBeenLastCalledWith('historical version', 'note.md');
+        expect(mockPreviewLiveContent).toHaveBeenCalledWith('note.md');
+        expect(mockCloseEditorPreview).toHaveBeenLastCalledWith({ content: 'historical version' });
         expect(document.querySelectorAll('.history-item')).toHaveLength(3);
         expect(document.querySelector('.history-current-notice').textContent).toBe('Restored the selected version as the latest committed version.');
         expect(document.querySelector('.history-item-latest').textContent).toContain('Latest committed');
@@ -197,7 +213,29 @@ describe('history restore workflow', () => {
             'The selected version was not applied. Your current file remains available.',
         );
         expect(window.go.desktop.App.CommitCurrentFile).not.toHaveBeenCalled();
-        expect(mockSetReadOnly).not.toHaveBeenCalledWith(false);
+        expect(mockCloseEditorPreview).not.toHaveBeenCalled();
         expect(document.querySelector('.history-revert-button').disabled).toBe(false);
+    });
+
+    test('refuses to revert when the displaced current text is no longer held by the editor', async () => {
+        updateHistoryCount('note.md');
+        await settle();
+        document.getElementById('history-count').click();
+        await settle();
+        document.querySelectorAll('.history-item')[1].click();
+        await settle();
+        mockConfirmDialog.mockResolvedValueOnce('confirm');
+        mockPreviewLiveContent.mockReturnValueOnce(null);
+
+        document.querySelector('.history-revert-button').click();
+        await settle();
+
+        // Never preserve an empty file as the "current version".
+        expect(mockSaveFileSnapshot).not.toHaveBeenCalled();
+        expect(mockErrorDialog).toHaveBeenCalledWith(
+            'Couldn’t revert this file',
+            expect.any(Error),
+            'The selected version was not applied. Your current file remains available.',
+        );
     });
 });

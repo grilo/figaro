@@ -2,6 +2,7 @@ import { createWritingParagraphChecks } from './usecases/writingParagraphChecks.
 import { localTextlintMessages, offsetTextlintMessage, writingParagraphChunks } from './core/writingIncrementalModel.js';
 import { localParagraphRule } from './writingParagraphRule.js';
 import { writingSloplessCache } from './writingSloplessCache.js';
+import { appendAll } from './core/appendAll.js';
 // Concrete package adapter: the kernel executes the actual pinned rule modules.
 import { TextlintKernel } from '@textlint/kernel';
 import textPluginModule from '@textlint/textlint-plugin-text';
@@ -62,7 +63,7 @@ export function createIncrementalWritingTextlint() {
             const results = await prose.checkMany(chunks, checkpoint, (values, chunk) => values.map(value => localTextlintMessages(value, chunk)));
             for (let at = 0; at < chunks.length; at++) {
                 const chunk = chunks[at], values = results[at];
-                for (let i = 0; i < values.length; i++) messages[i].push(...values[i].map(message => offsetTextlintMessage(message, chunk)));
+                for (let i = 0; i < values.length; i++) appendAll(messages[i], values[i].map(message => offsetTextlintMessage(message, chunk)));
             }
             return [textlintWritingObservations(messages[0], input), sloplessWritingObservations(messages[1], input)].flat();
         },

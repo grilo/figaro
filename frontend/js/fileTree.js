@@ -38,6 +38,8 @@ import {
     selectedMergeNotePaths,
     sortFileTreeItems,
     toggleExpandedDirectory,
+    remapExpandedDirectories,
+    vaultItemNameError,
     toggleSelectedPath,
     visibleFileTreeRows,
 } from './core/fileTreeModel.js';
@@ -2147,10 +2149,10 @@ function handleContextMenu(e) {
                             path: external.path,
                             mtime: external.mtime,
                             externalFileId: targetExternalFileId,
-                        }, true);
+                        });
                     }
                 } else if (isEditableDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath)) {
-                    openTab(targetPath, targetPath.split('/').pop(), editableDiagramKind(targetPath) || 'file', { path: targetPath }, true);
+                    openTab(targetPath, targetPath.split('/').pop(), editableDiagramKind(targetPath) || 'file', { path: targetPath });
                 } else {
                     await openManagedFileWithDefaultApplication(targetPath);
                 }
@@ -2440,11 +2442,12 @@ async function createNewFolderIn(targetPath, targetType) {
         context: parentDir ? parentDir + '/' : 'Vault root',
         validate: validateTreeItemName,
     });
-    if (!name) return;
+    const folderName = String(name || '').trim();
+    if (!folderName) return;
     
     try {
         const result = await backend().CreateDirectory(
-            parentDir ? `${parentDir}/${name}` : name
+            parentDir ? `${parentDir}/${folderName}` : folderName
         );
         
         if (result.success) {
@@ -2486,6 +2489,10 @@ function remapTreeSelection(oldPath, newPath) {
             .map(entry => ({ ...entry, path: remapTreePath(entry.path, oldPath, newPath) }));
         setInternalClipboard(remappedClipboard, internalClipboard.operation);
     }
+
+    const expanded = getState('expandedDirs');
+    const nextExpanded = remapExpandedDirectories(expanded, oldPath, newPath);
+    if (nextExpanded !== expanded) setState('expandedDirs', nextExpanded);
 }
 
 async function renameTreePath(path, type) {
@@ -2713,12 +2720,7 @@ export async function deletePath(path, type = 'file') {
 }
 
 function validateTreeItemName(value) {
-    const name = String(value || '').trim();
-    if (!name) return 'Enter a name.';
-    if (/[\\/]/.test(name)) return 'Choose a name, not a path.';
-    if (/^\.+$/.test(name)) return 'Choose a name other than dots.';
-    if (Array.from(name).some(character => character.charCodeAt(0) < 0x20)) return 'The name contains an unsupported control character.';
-    return '';
+    return vaultItemNameError(value);
 }
 
 /**

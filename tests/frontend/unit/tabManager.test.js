@@ -34,19 +34,25 @@ jest.mock('../frontend/js/state.js', () => {
     persistState: jest.fn()
 }); });
 
-jest.mock('../frontend/js/editor.js', () => ({
-    getEditorView: jest.fn().mockReturnValue({ isDestroyed: false }),
-    getEditorContent: jest.fn().mockReturnValue(''),
-    getEditorDocumentTabId: jest.fn().mockReturnValue(null),
-    setEditorContent: jest.fn(),
-    focusEditor: jest.fn(),
-    saveCursorState: jest.fn().mockReturnValue({ anchor: 0, head: 0 }),
-    restoreCursorState: jest.fn(),
-    createEditorView: jest.fn(),
-    configureEditorForFile: jest.fn().mockResolvedValue(true),
-    setImageBasePath: jest.fn(),
-    transferEditorHistory: jest.fn(),
-}));
+jest.mock('../frontend/js/editor.js', () => {
+    const getEditorContent = jest.fn().mockReturnValue('');
+    return {
+        getEditorView: jest.fn().mockReturnValue({ isDestroyed: false }),
+        getEditorContent,
+        // Without a revision preview the owned buffer is the mounted source.
+        getEditorBufferContent: jest.fn(() => getEditorContent()),
+        getEditorDocumentTabId: jest.fn().mockReturnValue(null),
+        renameEditorDocumentTab: jest.fn(),
+        setEditorContent: jest.fn(),
+        focusEditor: jest.fn(),
+        saveCursorState: jest.fn().mockReturnValue({ anchor: 0, head: 0 }),
+        restoreCursorState: jest.fn(),
+        createEditorView: jest.fn(),
+        configureEditorForFile: jest.fn().mockResolvedValue(true),
+        setImageBasePath: jest.fn(),
+        transferEditorHistory: jest.fn(),
+    };
+});
 
 jest.mock('../frontend/js/statusBar.js', () => ({
     statusBar: { set: jest.fn(), clearAfter: jest.fn(), revealEditorScale: jest.fn() }
@@ -98,7 +104,7 @@ jest.mock('../frontend/js/excalidraw.js', () => ({
 }));
 
 import { state, setState, getState, subscribe, getTabCursorState } from '../frontend/js/state.js';
-import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState } from '../frontend/js/editor.js';
+import { getEditorView, getEditorContent, getEditorBufferContent, getEditorDocumentTabId, renameEditorDocumentTab, setEditorContent, focusEditor, saveCursorState } from '../frontend/js/editor.js';
 import { initSettingsPanel } from '../frontend/js/theme.js';
 import { createGraphView } from '../frontend/js/graphView.js';
 import { setAutoCommitEnabled } from '../frontend/js/automation.js';
@@ -131,6 +137,7 @@ import {
     closeTabsForDeletedPath,
     saveFileSnapshot,
     saveActiveFile,
+    activeFileContentSnapshot,
     renderTabBar 
 } from '../frontend/js/tabManager.js';
 
@@ -169,6 +176,7 @@ describe('Tab Manager', () => {
         localStorage.clear();
         getEditorDocumentTabId.mockReturnValue(null);
         getEditorContent.mockReturnValue('');
+        getEditorBufferContent.mockImplementation(() => getEditorContent());
         configureTabManagerWorkspace({ confirm: confirmDialog });
         confirmDialog.mockResolvedValue(true);
         saveFailureDialog.mockResolvedValue(false);
@@ -442,11 +450,32 @@ describe('Tab Manager', () => {
             expect(getState('openTabs').length).toBe(1);
         });
 
-        test('should force new tab when forceNew is true', () => {
-            openTab('test.md', 'Test', 'file', { path: 'test.md' });
-            const tab2 = openTab('test.md', 'Test 2', 'file', { path: 'test.md' }, true);
-            
-            expect(getState('openTabs').length).toBe(2);
+        test('never opens a second record for an ID that is already open', async () => {
+            // "Open in New Tab" on an open note used to add a duplicate ID:
+            // edits landed on the copy while every lookup resolved the original.
+            const first = openTab('test.md', 'Test', 'file', { path: 'test.md' });
+            await testUtils.waitFor(0);
+            openTab('other.md', 'Other', 'file', { path: 'other.md' });
+            await testUtils.waitFor(0);
+
+            const again = openTab('test.md', 'Test 2', 'file', { path: 'test.md' });
+            await testUtils.waitFor(0);
+
+            expect(again.id).toBe(first.id);
+            expect(getState('openTabs').map(tab => tab.id)).toEqual(['test.md', 'other.md']);
+            expect(getState('activeTabId')).toBe('test.md');
+        });
+
+        test('mounts a CRLF note with its Properties selection addressed in editor offsets', async () => {
+            const source = '---\r\ntitle: x\r\ntags: a\r\n---\r\n';
+            window.go.desktop.App.ReadFile.mockResolvedValueOnce({ path: 'crlf.md', content: source, mtime: 1 });
+
+            openTab('crlf.md', 'crlf.md', 'file', { path: 'crlf.md' });
+            await testUtils.waitFor(0);
+
+            // CodeMirror stores one character per line break: 25, not 29.
+            const mounted = source.replace(/\r\n/g, '\n').length;
+            expect(setEditorContent).toHaveBeenCalledWith(source, 'crlf.md', { anchor: mounted, head: mounted });
         });
 
         test('should generate unique ID for new-file tabs', () => {
@@ -1208,6 +1237,38 @@ describe('Tab Manager', () => {
             expect(getState('pinnedTabs')).toEqual(['archive/notes/diagram.drawio.svg']);
         });
 
+        test('renaming the mounted note moves the shared editor\'s ownership to its new ID', () => {
+            mockState.openTabs = [
+                { id: 'notes/a.md', title: 'a.md', type: 'file', path: 'notes/a.md' },
+                { id: 'other.md', title: 'other.md', type: 'file', path: 'other.md' },
+            ];
+            mockState.activeTabId = 'notes/a.md';
+
+            expect(updateTabsForMovedPath('notes/a.md', 'notes/b.md')).toBe(true);
+
+            // Without this the editor keeps answering for 'notes/a.md', which is
+            // no longer a tab: later edits are not marked dirty or saved.
+            expect(renameEditorDocumentTab).toHaveBeenCalledTimes(1);
+            expect(renameEditorDocumentTab).toHaveBeenCalledWith('notes/a.md', 'notes/b.md');
+            expect(getState('activeTabId')).toBe('notes/b.md');
+        });
+
+        test('saves the owning tab\'s buffer, not another tab\'s visible text, before a move', async () => {
+            mockState.openTabs = [
+                { id: 'a.md', title: 'a.md', type: 'file', path: 'a.md', dirty: true, _content: 'A draft', _editGeneration: 1 },
+                { id: 'b.md', title: 'b.md', type: 'file', path: 'b.md' },
+            ];
+            // A became active, but the shared editor still shows B.
+            mockState.activeTabId = 'a.md';
+            getEditorDocumentTabId.mockReturnValue('b.md');
+            getEditorContent.mockReturnValue('B visible text');
+
+            await expect(prepareTabsForPathMove('a.md')).resolves.toEqual({ success: true });
+
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('a.md', 'A draft', 0);
+        });
+
         test('deleting the active saved file among three notes activates the previous buffer and lets both survivors close', async () => {
             const paths = ['delete-first.md', 'delete-second.md', 'delete-third.md'];
             const readFile = window.go.desktop.App.ReadFile;
@@ -1499,6 +1560,53 @@ describe('Tab Manager', () => {
             
             const tab = getState('openTabs').find(t => t.id === 'tab1');
             expect(tab.dirty).toBe(true);
+        });
+    });
+
+    describe('authoritative save content', () => {
+        test('writes nothing for a tab the editor does not own and that has no cached buffer', async () => {
+            // The note is active but still loading: the shared editor shows
+            // another note and this tab has no buffer of its own yet. Ctrl+S
+            // used to fall back to '' and empty the file on disk.
+            mockState.openTabs = [
+                { id: 'loading.md', title: 'loading.md', type: 'file', path: 'loading.md', mtime: 4 },
+                { id: 'shown.md', title: 'shown.md', type: 'file', path: 'shown.md' },
+            ];
+            mockState.activeTabId = 'loading.md';
+            getEditorDocumentTabId.mockReturnValue('shown.md');
+            getEditorContent.mockReturnValue('text of shown.md');
+
+            await expect(saveActiveFile()).resolves.toBeNull();
+
+            expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
+            expect(activeFileContentSnapshot()).toBeNull();
+        });
+
+        test('saves the buffer the editor holds for its tab rather than the text it currently shows', async () => {
+            // A revision preview shows an old version in the shared editor
+            // while the tab's unsaved text stays its content.
+            mockState.openTabs = [
+                { id: 'note.md', title: 'note.md', type: 'file', path: 'note.md', dirty: true, _editGeneration: 1 },
+                { id: 'other.md', title: 'other.md', type: 'file', path: 'other.md', _content: 'other' },
+            ];
+            mockState.activeTabId = 'note.md';
+            getEditorDocumentTabId.mockReturnValue('note.md');
+            getEditorContent.mockReturnValue('OLD revision from history');
+            getEditorBufferContent.mockReturnValue('unsaved live text');
+
+            expect(activeFileContentSnapshot()).toBe('unsaved live text');
+            await saveActiveFile();
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenLastCalledWith('note.md', 'unsaved live text', 0);
+
+            mockState.openTabs = mockState.openTabs.map(tab => (
+                tab.id === 'note.md' ? { ...tab, dirty: true, _editGeneration: 2 } : tab
+            ));
+            window.go.desktop.App.SaveFileToDisk.mockClear();
+            switchTab('other.md');
+            await testUtils.waitFor(0);
+
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFileToDisk.mock.calls[0].slice(0, 2)).toEqual(['note.md', 'unsaved live text']);
         });
     });
 

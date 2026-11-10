@@ -7,6 +7,7 @@ import {
     normalizedCodeLanguage,
     richClipboardDecision,
 } from './core/richPasteModel.js';
+import { escapeMarkdownTablePipes } from './core/markdownTableEditing.js';
 
 const semanticSelector = [
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -193,11 +194,10 @@ function prepareClipboardDocument(document) {
 }
 
 function escapedTableCell(markdown) {
-    return String(markdown || '')
+    return escapeMarkdownTablePipes(String(markdown || '')
         .trim()
         .replace(/\n{2,}/g, '<br>')
-        .replace(/\n/g, '<br>')
-        .replace(/(^|[^\\])\|/g, '$1\\|');
+        .replace(/\n/g, '<br>'));
 }
 
 function tableMarkdown(table, service) {

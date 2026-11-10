@@ -1167,6 +1167,51 @@ func TestUpdateTaskTagRecordsFirstNonTodoDateAndPreservesOverride(t *testing.T) 
 	}
 }
 
+func TestRemoveHashtagKeepsLineStructure(t *testing.T) {
+	content := "# List\n\n- [ ] Buy milk #shopping\n- [ ] Buy eggs #shopping \t\r\n\n#shopping\nNext #shopping paragraph.\n"
+	want := "# List\n\n- [ ] Buy milk \n- [ ] Buy eggs \r\n\n\nNext paragraph.\n"
+
+	if got := removeHashtag(content, "shopping"); got != want {
+		t.Errorf("removeHashtag() = %q, want %q", got, want)
+	}
+}
+
+func TestDeleteKanbanColumnKeepsEveryTaggedLineSeparate(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "list.md", "- [ ] Buy milk #shopping\n- [ ] Buy eggs #shopping\n\nNext paragraph.\n")
+	app.syncKanbanColumns()
+
+	result, err := app.DeleteKanbanColumn("shopping")
+	if err != nil {
+		t.Fatalf("DeleteKanbanColumn error: %v", err)
+	}
+	if success, _ := result["success"].(bool); !success {
+		t.Fatalf("DeleteKanbanColumn failed: %v", result["error"])
+	}
+
+	want := "- [ ] Buy milk \n- [ ] Buy eggs \n\nNext paragraph.\n"
+	if got := readTestFile(t, vaultPath, "list.md"); got != want {
+		t.Errorf("note after deleting the column = %q, want %q", got, want)
+	}
+}
+
+func TestRemoveTagFromTaskKeepsCRLFLineEnding(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Fix bug #todo\r\n- [ ] Next\r\n")
+
+	result, err := app.RemoveTagFromTask("tasks.md", 1, "todo")
+	if err != nil || !result.Success {
+		t.Fatalf("RemoveTagFromTask: result=%+v err=%v", result, err)
+	}
+	if got, want := readTestFile(t, vaultPath, "tasks.md"), "- [ ] Fix bug \r\n- [ ] Next\r\n"; got != want {
+		t.Errorf("note after removing the tag = %q, want %q", got, want)
+	}
+}
+
 func TestRemoveTagFromTask(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

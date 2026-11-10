@@ -3,8 +3,7 @@ import { subscribeEditorUpdates } from './editorUpdates.js';
 import { deferEditorWork, readEditorDocument } from './editorDiagnostics.js';
 import { createWritingPathContinuity } from './usecases/writingPathContinuity.js';
 import { movedWritingPath } from './core/writingPathModel.js';
-import { createWritingDecision } from './core/writingDecisionsModel.js';
-import { createWritingDecisions } from './usecases/writingDecisions.js';
+import { createWritingDecisions, rememberWritingFindings } from './usecases/writingDecisions.js';
 import { createWritingDecisionsView } from './views/writingDecisionsView.js';
 import { Transaction } from '@codemirror/state';
 import { isolateHistory } from '@codemirror/commands';
@@ -169,14 +168,14 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
             resultsView.announce(applied ? 'Suggestion applied. Undo restores the original wording.' : 'This suggestion needs refreshing. Nothing was changed.');
             return applied;
         },
-        async remember(id, type, previous) {
+        // `ids` is one finding, or every finding a merged entry covers.
+        async remember(ids, type, previous) {
             const store = decisions;
             await store.flushSource();
             if (!currentAnalysis(previous)) { refreshAnalysis(true); throw new Error('This suggestion needs refreshing. Nothing was changed.'); }
             const state = analysis.snapshot(), fresh = editorSnapshot();
-            const finding = state.groups.flatMap(group => group.findings).find(item => item.id === id);
-            const command = { action: 'add', decision: createWritingDecision(finding, fresh.source, fresh.language, type, crypto.randomUUID()) };
-            await store.change(command);
+            await rememberWritingFindings({ ids, type, findings: state.groups.flatMap(group => group.findings),
+                source: fresh.source, language: fresh.language, createId: () => crypto.randomUUID(), change: command => store.change(command) });
         },
         ignore(id, previous) { return actions.remember(id, 'occurrence', previous); },
         acceptAcronym(id, previous) { return actions.remember(id, 'acronym', previous); },

@@ -208,13 +208,28 @@ func (a *App) SetColumnColor(name string, color string) (map[string]interface{},
 	}, nil
 }
 
-// RenameKanbanColumn renames a column and updates all file occurrences.
+// hexColorColumnNameError explains why a tag that reads as a color code can
+// never be a column. findHashtags ignores such tags so "#fff" in a note stays
+// a color, which means cards moved or renamed to one would leave the board.
+const hexColorColumnNameError = "A column name of exactly 3 or 6 hexadecimal characters, such as \"bad\" or \"decade\", is read as a color code and its cards would disappear from the board. Choose a different name."
+
+// isHexColorTag reports whether a tag name is one findHashtags treats as a
+// hex color (#RGB or #RRGGBB) instead of a Kanban hashtag.
+func isHexColorTag(name string) bool {
+	return hexColorRe.MatchString(name)
+}
+
+// RenameKanbanColumn renames a column and updates all file occurrences. A new
+// name that reads as a hex color is refused before anything is rewritten.
 func (a *App) RenameKanbanColumn(oldName string, newName string) (map[string]interface{}, error) {
 	oldName = strings.TrimSpace(strings.ToLower(oldName))
 	newName = strings.TrimSpace(strings.ToLower(newName))
 
 	if !kanbanColumnNameRe.MatchString(newName) || !kanbanColumnNameRe.MatchString(oldName) {
 		return map[string]interface{}{"success": false, "error": "Invalid column name"}, nil
+	}
+	if isHexColorTag(newName) {
+		return map[string]interface{}{"success": false, "error": hexColorColumnNameError}, nil
 	}
 
 	a.vaultMu.Lock()
@@ -324,8 +339,12 @@ func (a *App) DeleteKanbanColumn(name string) (map[string]interface{}, error) {
 	}, nil
 }
 
-// UpdateTaskTag changes a tag on a specific line in a file (card drag).
+// UpdateTaskTag changes a tag on a specific line in a file (card drag). The
+// old tag is matched in any letter case, as the board lists it.
 func (a *App) UpdateTaskTag(filePath string, lineNum int, oldTag string, newTag string) (*SaveFileResult, error) {
+	if isHexColorTag(newTag) {
+		return &SaveFileResult{Success: false, Error: hexColorColumnNameError}, nil
+	}
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 

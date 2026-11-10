@@ -24,6 +24,25 @@ describe('frontmatter completions', () => {
         expect(completions(completionContext('---\ntitle: Test\n---\npri'))).toBeNull();
     });
 
+    test('answers body completions without materializing the note', () => {
+        const completions = createFrontmatterCompletionSource();
+        const body = 'A paragraph of prose.\n'.repeat(2000);
+        for (const source of [`# Title\n${body}`, `---\ntitle: Test\n---\n${body}`, `\uFEFF---\ntitle: Test\n...\n${body}`]) {
+            const context = completionContext(source);
+            const materialize = jest.spyOn(context.state.doc, 'toString');
+
+            expect(completions(context)).toBeNull();
+            expect(materialize).not.toHaveBeenCalled();
+        }
+
+        // Inside the block only the frontmatter itself is read.
+        const source = `---\npri\n---\n${body}`;
+        const context = completionContext(source, source.indexOf('\n---', 4));
+        const materialize = jest.spyOn(context.state.doc, 'toString');
+        expect(completions(context).options.some(option => option.label === 'title')).toBe(true);
+        expect(materialize).not.toHaveBeenCalled();
+    });
+
     test('also assists while the user is still creating an unclosed frontmatter block', () => {
         const completions = createFrontmatterCompletionSource();
         const source = '---\nsta';

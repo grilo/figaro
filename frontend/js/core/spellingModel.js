@@ -2,6 +2,7 @@ import { parser, GFM } from '@lezer/markdown';
 import { getFrontmatterRegion } from './frontmatterRegionModel.js';
 import { wikiLinkRanges } from './noteLinks.js';
 import { writingTechnicalRanges } from './writingTechnicalModel.js';
+import { appendAll } from './appendAll.js';
 import { writingFootnoteRanges } from './writingFootnoteModel.js';
 import { writingAcronymDefinitions } from './writingTextlintModel.js';
 
@@ -29,7 +30,7 @@ export function spellingSource(source) {
     }
     const hidden = frontmatter ? [frontmatter] : [], references = new Set(), implicit = [], delimiters = [];
     const wiki = wikiLinkRanges(text);
-    hidden.push(...footnotes);
+    appendAll(hidden, footnotes);
     markdown.parse(parsed).iterate({ enter(node) {
         if (['EmphasisMark', 'StrikethroughMark'].includes(node.name)) delimiters.push({ from: node.from, to: node.to });
         if (node.name === 'LinkReference') {
@@ -52,7 +53,8 @@ export function spellingSource(source) {
     // before looking for identifiers, without changing any source offsets.
     const syntax = text.split('');
     for (const range of delimiters) for (let at = range.from; at < range.to; at++) syntax[at] = ' ';
-    hidden.push(...delimiters, ...writingTechnicalRanges(syntax.join('')));
+    appendAll(hidden, delimiters);
+    appendAll(hidden, writingTechnicalRanges(syntax.join('')));
     hidden.sort((a, b) => a.from - b.from);
     const pieces = []; let end = 0;
     for (const range of hidden) {

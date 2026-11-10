@@ -576,10 +576,31 @@ func enrichInteractivePDFHTML(title string, htmlContent string, baseURL string, 
 	if stylesheetURL != "" {
 		injection += `<link rel="stylesheet" href="` + html.EscapeString(stylesheetURL) + `">`
 	}
-	if headEnd := strings.LastIndex(strings.ToLower(htmlContent), "</head>"); headEnd >= 0 {
-		return htmlContent[:headEnd] + injection + htmlContent[headEnd:]
+	if enriched, inserted := insertBeforeHeadEnd(htmlContent, injection); inserted {
+		return enriched
 	}
 	return "<!doctype html><html><head><meta charset=\"utf-8\"><title>" + html.EscapeString(title) + "</title>" + injection + "</head><body>" + htmlContent + "</body></html>"
+}
+
+// insertBeforeHeadEnd places markup immediately before the document's last
+// "</head>", in whatever letter case the tag is written, and reports whether
+// the document had one. The tag is located in the document itself: an offset
+// taken from a lowercased copy is wrong whenever lowercasing changes a
+// letter's byte length ("İ" is two bytes and its lowercase is one), which put
+// the markup inside the preceding element for titles such as "İSTANBUL".
+func insertBeforeHeadEnd(document string, markup string) (string, bool) {
+	const headEndTag = "</head>"
+	for end := len(document); end > 0; {
+		start := strings.LastIndexByte(document[:end], '<')
+		if start < 0 {
+			break
+		}
+		if len(document)-start >= len(headEndTag) && equalASCIIFold(document[start:start+len(headEndTag)], headEndTag) {
+			return document[:start] + markup + document[start:], true
+		}
+		end = start
+	}
+	return document, false
 }
 
 func writeInteractivePDFWorkspace(bundle AssetFS, workspace string, document string) (string, error) {
@@ -587,9 +608,7 @@ func writeInteractivePDFWorkspace(bundle AssetFS, workspace string, document str
 	if err != nil {
 		return "", err
 	}
-	if headEnd := strings.LastIndex(strings.ToLower(document), "</head>"); headEnd >= 0 {
-		document = document[:headEnd] + `<link rel="stylesheet" href="` + html.EscapeString(katexURL) + `">` + document[headEnd:]
-	}
+	document, _ = insertBeforeHeadEnd(document, `<link rel="stylesheet" href="`+html.EscapeString(katexURL)+`">`)
 	inputHTML := filepath.Join(workspace, "document.html")
 	if err := os.WriteFile(inputHTML, []byte(document), 0600); err != nil {
 		return "", fmt.Errorf("write PDF document: %w", err)

@@ -1094,7 +1094,21 @@ input and Windows/macOS native runtimes were not tested.
 
 `editorDocumentSession.test.js` owns the pure scheduling and ownership rule:
 every real tab-owner change requests a history swap, including when two
-buffers have identical source. `editor.test.js` supplies the real CodeMirror
+buffers have identical source. It also owns that a rejected replacement leaves
+the previous document attributed to its own tab and that a renamed tab keeps
+ownership of the mounted document and of a queued mount. `editor.test.js` owns
+the same boundaries in real CodeMirror: a CRLF source mounts with a clamped
+selection, a staged large mount exposes the whole source and refuses edits
+until its tail lands, and a revision preview keeps the displaced text for
+saves, refuses direct dispatches, and returns the selection and undo history.
+`editorDocumentMountModel.test.js` and `editorPreviewModel.test.js` own the
+pure change-permission and preview-close rules behind them. `editor.test.js`
+also owns literal-context detection, footnote clicks and empty-link autofill
+staying out of code, and the bounded Vim adjacent-block lookup matching a
+whole-note scan. `markdownTableEditing.test.js` owns pipe escaping shared by
+the Table Editor and rich paste; `vegaLiteChartEditorModel.test.js` owns
+charts whose headers contain dots or brackets; `frontmatterCompletions.test.js`
+owns that body completions never materialize the note. `editor.test.js` supplies the real CodeMirror
 component boundary: edit file A, mount file B, verify Undo cannot change B,
 edit and undo within B, repeat the identical-source switch, return to A and
 restore only A's operations, then prove a changed source invalidates its stale

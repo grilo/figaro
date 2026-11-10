@@ -77,10 +77,12 @@ import { createDocumentKeyBindings } from './codeMirrorProfiles.js';
 import { markdownInlineFormatPlan } from './core/markdownInlineFormatting.js';
 import { createEditorDocumentSession } from './usecases/editorDocumentSession.js';
 import {
+    documentChangeAllowed,
     editorDocumentMountChunks,
     editorDocumentMountPlan,
     markdownPresentationStagePlan,
 } from './core/editorDocumentMountModel.js';
+import { editorPreviewClosePlan } from './core/editorPreviewModel.js';
 import { createLinkedNoteFromCompletion } from './usecases/createLinkedNoteFromCompletion.js';
 import { createDiagramImage } from './usecases/createDiagramImage.js';
 import {
@@ -108,7 +110,7 @@ import {
     highlightActiveLineGutter, keymap,
 } from '@codemirror/view';
 import {
-    Compartment, EditorSelection, EditorState, Prec, RangeSetBuilder,
+    Annotation, Compartment, EditorSelection, EditorState, Prec, RangeSetBuilder,
     StateEffect, StateField, Transaction,
 } from '@codemirror/state';
 import {
@@ -658,6 +660,23 @@ function hashtagCompletionContextAllowed(context) {
 }
 
 const richPasteProtectedNode = /(?:Code|HTML|Link|URL|Image|Escape|Entity)/i;
+const markdownLiteralNode = /(?:Code|HTML|Comment|Processing|URL)/i;
+
+/**
+ * Whether Markdown-looking text at `position` is literal: the file is not
+ * Markdown, or the position lies in frontmatter, code, raw HTML or a URL.
+ * Conveniences that rewrite the source, such as creating a footnote definition
+ * or completing an empty link, must leave those contexts alone.
+ */
+export function markdownLiteralContextAt(state, position) {
+    if (activeFileLanguage.kind !== 'markdown') return true;
+    const frontmatter = vimFrontmatterRange(state.doc);
+    if (frontmatter && position < frontmatter.to) return true;
+    for (let node = syntaxTree(state).resolveInner(position, -1); node; node = node.parent) {
+        if (markdownLiteralNode.test(node.name)) return true;
+    }
+    return false;
+}
 const markdownLinkPasteProtectedNode = /(?:Code|HorizontalRule|HTML|Link|Comment|Processing|Escape|Entity|Image|Mark|URL)/i;
 
 function markdownURLPasteInsertion(state, clipboardText) {
@@ -732,32 +751,46 @@ export function markdownRichPasteProtectedContext(state) {
     return protectedRange;
 }
 
-/** Return rendered block source ranges that Vim's vertical motions can enter. */
-export function vimRenderedBlockRanges(state) {
+/**
+ * Return rendered block source ranges that Vim's vertical motions can enter.
+ * With `within`, only blocks overlapping that source range are collected, so
+ * a held j or k inspects one line of the syntax tree instead of the note.
+ */
+export function vimRenderedBlockRanges(state, within = null) {
     const ranges = [];
     const frontmatter = vimFrontmatterRange(state.doc);
-    if (frontmatter) ranges.push(frontmatter);
+    if (frontmatter && (!within || (frontmatter.from <= within.to && frontmatter.to >= within.from))) {
+        ranges.push(frontmatter);
+    }
 
     syntaxTree(state).iterate({
+        ...(within ? { from: within.from, to: within.to } : {}),
         enter: node => {
             if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
                 ranges.push({ from: node.from, to: node.to, kind: 'source' });
+                return false;
             } else if (node.name === 'Table') {
                 ranges.push({ from: node.from, to: node.to, kind: 'table' });
+                return false;
             }
+            return undefined;
         },
     });
 
     return ranges.sort((left, right) => left.from - right.from || right.to - left.to);
 }
 
-function adjacentVimRenderedBlock(view, forward) {
-    const selection = view.state.selection.main;
-    const currentLine = view.state.doc.lineAt(selection.head).number;
-    return vimRenderedBlockRanges(view.state).find(range => {
-        const fromLine = view.state.doc.lineAt(range.from).number;
-        const toLine = view.state.doc.lineAt(Math.max(range.from, range.to - 1)).number;
-        return forward ? fromLine === currentLine + 1 : toLine === currentLine - 1;
+/** The rendered block that begins on the next line, or ends on the previous one. */
+export function adjacentVimRenderedBlock(view, forward) {
+    const doc = view.state.doc;
+    const currentLine = doc.lineAt(view.state.selection.main.head).number;
+    const adjacentNumber = forward ? currentLine + 1 : currentLine - 1;
+    if (adjacentNumber < 1 || adjacentNumber > doc.lines) return null;
+    const adjacent = doc.line(adjacentNumber);
+    return vimRenderedBlockRanges(view.state, { from: adjacent.from, to: adjacent.to }).find(range => {
+        const fromLine = doc.lineAt(range.from).number;
+        const toLine = doc.lineAt(Math.max(range.from, range.to - 1)).number;
+        return forward ? fromLine === adjacentNumber : toLine === adjacentNumber;
     }) || null;
 }
 
@@ -1909,6 +1942,11 @@ function createEmptyLinkAutofillPlugin() {
             const before = documentText.sliceString(lineStart, selection.head);
             const emptyLink = before.match(/\[([^\]]+)\]\(\)$/);
             if (!emptyLink) return;
+            // Only what the author just typed as Markdown is completed: never
+            // code such as `handlers[name]()`, and never text that arrived by
+            // a mount, an undo or another programmatic change.
+            if (!update.transactions.some(transaction => transaction.isUserEvent('input.type'))
+                || markdownLiteralContextAt(update.state, selection.head)) return;
 
             let fileName = emptyLink[1].trim() + '.md';
             const activeTab = getActiveTab();
@@ -2126,6 +2164,7 @@ function createEditorView() {
             verticalMotionViewportExtension(),
             vimCompartment.of([]),
             readOnlyCompartment.of([]),
+            EditorState.changeFilter.of(allowsDocumentChange),
             tabSizeCompartment.of(editorTabSizeExtensions()),
             imageBasePathCompartment.of(imageFieldForPath('')),
             imageVaultRefreshExtension,
@@ -2294,9 +2333,67 @@ function createEditorView() {
 }
 
 function getEditorView() { return editorView || getState('editorView'); }
-function getEditorContent() { const v = getEditorView(); return v ? readEditorDocument(v.state.doc, 'editor.content') : ''; }
+
+/** The mounted source: what the editor shows, or is one frame from showing. */
+function getEditorContent() {
+    const v = getEditorView();
+    if (!v) return '';
+    return stagedMarkdownSource(v) ?? readEditorDocument(v.state.doc, 'editor.content');
+}
+
+/**
+ * The text the editor holds for the tab that owns it: what a save, a tab
+ * snapshot or an exit must persist. It differs from the mounted source only
+ * while a revision preview displaces it.
+ */
+function getEditorBufferContent() {
+    const preview = shownEditorPreview();
+    return preview ? preview.liveContent : getEditorContent();
+}
 
 let _programmaticChange = false;
+
+// Marks the transactions through which this adapter installs a source: a
+// mount, the tail of a staged mount, and a revision preview. They are the only
+// document changes accepted while the editor is read-only or half mounted.
+const documentReplacement = Annotation.define();
+
+// A staged Markdown mount shows only its leading chunk until the next frame.
+// Until the tail lands the requested source remains the mounted source for
+// every reader and authored changes are refused, so neither a keystroke nor a
+// save can observe half a note.
+let pendingMarkdownTail = null;
+
+// A revision preview displaces the owning tab's text in the shared editor.
+// That text stays the tab's content until the preview closes.
+let editorPreview = null;
+
+function stagedMarkdownSource(view) {
+    const pending = pendingMarkdownTail;
+    return pending && pending.view === view && view.state.doc === pending.prefixDocument
+        ? pending.request.content
+        : null;
+}
+
+function shownEditorPreview() {
+    const preview = editorPreview;
+    const view = getEditorView();
+    return preview && view && !view.isDestroyed
+        && view.state.doc === preview.previewDocument
+        && editorDocumentSession.documentTabId() === preview.tabId
+        ? preview
+        : null;
+}
+
+function allowsDocumentChange(transaction) {
+    return documentChangeAllowed({
+        docChanged: transaction.docChanged,
+        replacement: transaction.annotation(documentReplacement) === true,
+        readOnly: transaction.startState.readOnly,
+        halfMounted: Boolean(pendingMarkdownTail)
+            && transaction.startState.doc === pendingMarkdownTail.prefixDocument,
+    });
+}
 
 function editorHistoryTab(tabId) {
     if (tabId == null) return null;
@@ -2324,11 +2421,7 @@ function historyExtensionsForDocument(request) {
     }
 
     try {
-        const restoredState = EditorState.fromJSON(saved, {
-            extensions: [history()],
-        }, { history: historyField });
-        const restoredHistory = restoredState.field(historyField);
-        return [history(), historyField.init(() => restoredHistory)];
+        return historyExtensionsFromSnapshot(saved);
     } catch (error) {
         editorHistoryByTab.delete(tab);
         log.warn('Could not restore editor undo history:', error);
@@ -2336,24 +2429,106 @@ function historyExtensionsForDocument(request) {
     }
 }
 
+/** Rebuild the undo field serialized for a document that is mounted again unchanged. */
+function historyExtensionsFromSnapshot(saved) {
+    const restoredState = EditorState.fromJSON(saved, {
+        extensions: [history()],
+    }, { history: historyField });
+    const restoredHistory = restoredState.field(historyField);
+    return [history(), historyField.init(() => restoredHistory)];
+}
+
 function dispatchEditorContent(view, request, excludeFromHistory = false, effects = []) {
     _programmaticChange = true;
-    const selection = normalizedCursorState(request.cursorState, request.content.length);
+    // CodeMirror stores one "\n" per line break, so the selection is clamped to
+    // the inserted text rather than to a source that may contain CRLF.
+    const insert = view.state.toText(request.content);
+    const selection = normalizedCursorState(request.cursorState, insert.length);
     view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: request.content },
+        changes: { from: 0, to: view.state.doc.length, insert },
         ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
         ...(effects.length ? { effects } : {}),
-        ...(excludeFromHistory
-            ? { annotations: Transaction.addToHistory.of(false) }
-            : {}),
+        annotations: excludeFromHistory
+            ? [documentReplacement.of(true), Transaction.addToHistory.of(false)]
+            : documentReplacement.of(true),
     });
+    // Only a replacement that landed makes a half-mounted source obsolete.
+    discardPendingMarkdownTail();
+}
+
+function cancelScheduledFrame(frame) {
+    if (frame === null || frame === undefined) return;
+    const cancel = window.cancelAnimationFrame || window.clearTimeout;
+    cancel(frame);
+}
+
+function discardPendingMarkdownTail() {
+    const pending = pendingMarkdownTail;
+    if (!pending) return;
+    pendingMarkdownTail = null;
+    cancelScheduledFrame(pending.frame);
+}
+
+/**
+ * Append the rest of a staged Markdown mount and restore the buffer's undo
+ * history. Returns true once the complete source is mounted. If neither the
+ * append nor a whole remount can land, the prefix stays read-only and the
+ * requested source stays authoritative for readers.
+ */
+function completePendingMarkdownTail() {
+    const pending = pendingMarkdownTail;
+    if (!pending) return false;
+    const { view, request } = pending;
+    cancelScheduledFrame(pending.frame);
+    pending.frame = null;
+    if (view.isDestroyed || view.state.doc !== pending.prefixDocument
+        || editorDocumentSession.documentTabId() !== request.tabId) {
+        pendingMarkdownTail = null;
+        return false;
+    }
+    try {
+        _programmaticChange = true;
+        const insert = view.state.toText(pending.tail);
+        const selection = normalizedCursorState(request.cursorState, view.state.doc.length + insert.length);
+        view.dispatch({
+            changes: { from: view.state.doc.length, insert },
+            ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
+            annotations: [documentReplacement.of(true), Transaction.addToHistory.of(false)],
+        });
+        pendingMarkdownTail = null;
+    } catch (error) {
+        _programmaticChange = false;
+        log.warn('Could not append the rest of a large Markdown document; mounting it whole:', error);
+        try {
+            dispatchEditorContent(view, { ...request, cursorState: null }, true);
+        } catch (remountError) {
+            _programmaticChange = false;
+            log.warn('Could not finish mounting a large Markdown document:', remountError);
+            return false;
+        }
+    }
+    try {
+        view.dispatch({ effects: historyCompartment.reconfigure(historyExtensionsForDocument(request)) });
+    } catch (error) {
+        log.warn('Could not restore undo history after a staged Markdown mount:', error);
+        try {
+            view.dispatch({ effects: historyCompartment.reconfigure(history()) });
+        } catch (_) { /* The shared editor may already have been destroyed. */ }
+    }
+    return true;
+}
+
+/** Complete a staged mount now, then attach its Markdown presentation. */
+function finishPendingMarkdownMount() {
+    const pending = pendingMarkdownTail;
+    if (!pending) return;
+    if (completePendingMarkdownTail()) scheduleDeferredMarkdownPresentation(pending.view, pending.request);
 }
 
 function cancelDeferredMarkdownPresentation() {
     deferredMarkdownGeneration += 1;
     if (deferredMarkdownFrame === null) return;
-    const cancel = window.cancelAnimationFrame || window.clearTimeout;
-    cancel(deferredMarkdownFrame);
+    cancelScheduledFrame(deferredMarkdownFrame);
     deferredMarkdownFrame = null;
 }
 
@@ -2403,35 +2578,16 @@ function scheduleDeferredMarkdownPresentation(view, request) {
 
 function scheduleDeferredMarkdownMount(view, request, chunks) {
     cancelDeferredMarkdownPresentation();
-    const generation = deferredMarkdownGeneration;
-    const prefixDocument = view.state.doc;
     const schedule = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
     view.dom.dataset.markdownPresentationState = 'pending';
-    deferredMarkdownFrame = schedule(() => {
-        deferredMarkdownFrame = null;
-        if (generation !== deferredMarkdownGeneration || view.isDestroyed
-            || getState('activeTabId') !== request.tabId
-            || editorDocumentSession.documentTabId() !== request.tabId
-            || view.state.doc !== prefixDocument) return;
-        try {
-            _programmaticChange = true;
-            const selection = normalizedCursorState(request.cursorState, request.content.length);
-            view.dispatch({
-                changes: { from: view.state.doc.length, insert: chunks[1] },
-                ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
-                annotations: Transaction.addToHistory.of(false),
-            });
-            view.dispatch({
-                effects: historyCompartment.reconfigure(historyExtensionsForDocument(request)),
-            });
-            scheduleDeferredMarkdownPresentation(view, request);
-        } catch (error) {
-            _programmaticChange = false;
-            try {
-                view.dispatch({ effects: historyCompartment.reconfigure(history()) });
-            } catch (_) { /* The shared editor may already have been destroyed. */ }
-            log.warn('Could not finish mounting a large Markdown document:', error);
-        }
+    // The tail belongs to the mounted source, not to the presentation stages:
+    // cancelling those, or activating another workspace tab, never abandons
+    // it. Only a replacement of the document makes it obsolete.
+    const pending = { view, request, tail: chunks[1], prefixDocument: view.state.doc, frame: null };
+    pendingMarkdownTail = pending;
+    pending.frame = schedule(() => {
+        pending.frame = null;
+        if (pendingMarkdownTail === pending) finishPendingMarkdownMount();
     });
 }
 
@@ -2440,15 +2596,18 @@ const editorDocumentSession = createEditorDocumentSession({
     readEditor: getEditorView,
     editorUnavailable: view => !view || view.isDestroyed,
     readActiveTabId: () => getState('activeTabId'),
-    readContent: view => view.state.doc.toString(),
+    readContent: view => stagedMarkdownSource(view) ?? view.state.doc.toString(),
     beforeReplace() {
         // Preserve the outgoing dirty document before this shared editor
         // receives another tab's source.
         flushPendingContentNotification();
         cancelPendingStatsUpdate();
     },
-    switchDocument(view, request, contentChanged) {
+    switchDocument(view, request, sourceChanged) {
         captureEditorHistory(view, request.previousTabId);
+        // A half-mounted source is never adopted by another buffer, even one
+        // whose text is identical: the incoming document is installed whole.
+        const contentChanged = sourceChanged || stagedMarkdownSource(view) !== null;
         try {
             const mountPlan = editorDocumentMountPlan({
                 languageKind: activeFileLanguage.kind,
@@ -2512,6 +2671,10 @@ const editorDocumentSession = createEditorDocumentSession({
         }
     },
     applyContent(view, request) {
+        // The same buffer receives new text (a reload after a link rewrite, for
+        // example). Finish a staged mount first so its history and Markdown
+        // presentation are restored before the replacement lands.
+        finishPendingMarkdownMount();
         dispatchEditorContent(view, request);
     },
     restoreSelection: restoreCursorState,
@@ -2778,18 +2941,123 @@ function setImageBasePath(docPath) {
 }
 
 
-function setReadOnly(on) {
-    const v = getEditorView();
-    if (!v || !readOnlyCompartment) return;
-    v.dispatch({
-        effects: readOnlyCompartment.reconfigure(
-            on ? EditorState.readOnly.of(true) : []
-        )
-    });
-    // Also toggle contenteditable for clipboard
-    if (v.contentDOM) {
-        v.contentDOM.setAttribute('contenteditable', on ? 'false' : 'true');
+/**
+ * Show another revision of the owning tab's note without making it that tab's
+ * content. The displaced text, selection and undo history are kept and come
+ * back with closeEditorPreview; meanwhile the editor is read-only and
+ * getEditorBufferContent keeps returning the displaced text.
+ */
+function showEditorPreview(content) {
+    const view = getEditorView();
+    const tabId = editorDocumentSession.documentTabId();
+    if (!view || view.isDestroyed || typeof content !== 'string' || tabId == null
+        || getState('activeTabId') !== tabId) return false;
+    if (!shownEditorPreview()) {
+        if (editorPreview) closeEditorPreview();
+        // Settle the live buffer first: its dirty-content notification, and
+        // the tail of a staged mount, describe the text being displaced.
+        flushPendingContentNotification();
+        cancelPendingStatsUpdate();
+        finishPendingMarkdownMount();
+        if (pendingMarkdownTail) return false;
+        const selection = view.state.selection.main;
+        editorPreview = {
+            tabId,
+            liveContent: readEditorDocument(view.state.doc, 'editor.content'),
+            history: view.state.field(historyField, false) ? view.state.toJSON({ history: historyField }) : null,
+            selection: { anchor: selection.anchor, head: selection.head },
+            previewDocument: view.state.doc,
+        };
+        view.dispatch({
+            effects: [
+                historyCompartment.reconfigure([]),
+                readOnlyCompartment.reconfigure(EditorState.readOnly.of(true)),
+            ],
+        });
+        // contenteditable follows read-only so the clipboard cannot edit it either.
+        view.contentDOM?.setAttribute('contenteditable', 'false');
     }
+    try {
+        dispatchEditorContent(view, { content, cursorState: null }, true);
+    } catch (error) {
+        _programmaticChange = false;
+        log.warn('Could not show a revision preview:', error);
+        closeEditorPreview();
+        return false;
+    }
+    editorPreview.previewDocument = view.state.doc;
+    return true;
+}
+
+/**
+ * Leave a revision preview. The displaced text returns with its selection and
+ * undo history, or `content` replaces it when a revision was restored. A
+ * preview whose tab no longer owns the editor only releases the read-only
+ * state: that tab's content was never the previewed text.
+ */
+function closeEditorPreview({ content = null } = {}) {
+    const preview = editorPreview;
+    if (!preview) return false;
+    const view = getEditorView();
+    if (!view || view.isDestroyed) {
+        editorPreview = null;
+        return false;
+    }
+    const ownsEditor = editorDocumentSession.documentTabId() === preview.tabId;
+    const plan = editorPreviewClosePlan({
+        ownsEditor,
+        showsPreview: view.state.doc === preview.previewDocument,
+        liveContent: preview.liveContent,
+        restoredContent: content,
+    });
+    if (plan.replaceWith !== null) {
+        try {
+            dispatchEditorContent(view, {
+                content: plan.replaceWith,
+                cursorState: plan.restoreSelection ? preview.selection : null,
+            }, true);
+        } catch (error) {
+            // Keep the preview read-only and the displaced text authoritative
+            // rather than let a revision become editable, savable content.
+            _programmaticChange = false;
+            log.warn('Could not restore the editor after a revision preview:', error);
+            return false;
+        }
+    }
+    editorPreview = null;
+    const effects = [readOnlyCompartment.reconfigure([])];
+    if (plan.history !== 'keep') {
+        effects.push(historyCompartment.reconfigure(previewHistoryExtensions(preview, plan.history === 'restore')));
+    }
+    view.dispatch({ effects });
+    view.contentDOM?.setAttribute('contenteditable', 'true');
+    return plan.replaceWith !== null;
+}
+
+function previewHistoryExtensions(preview, liveTextRestored) {
+    if (!liveTextRestored || !preview.history) return history();
+    try {
+        return historyExtensionsFromSnapshot(preview.history);
+    } catch (error) {
+        log.warn('Could not restore editor undo history after a revision preview:', error);
+        return history();
+    }
+}
+
+/** The text a shown revision preview displaces for `tabId`, or null. */
+function editorPreviewLiveContent(tabId) {
+    const preview = shownEditorPreview();
+    return preview && preview.tabId === tabId ? preview.liveContent : null;
+}
+
+/**
+ * Keep the shared editor attributed to a tab whose ID changed with its path.
+ * Without this an open note that is renamed or moved keeps its old ID as
+ * document owner, and later edits are neither marked dirty nor saved.
+ */
+function renameEditorDocumentTab(previousTabId, nextTabId) {
+    if (editorPreview?.tabId === previousTabId) editorPreview.tabId = nextTabId;
+    return editorDocumentSession.renameDocumentTab(previousTabId, nextTabId);
 }
 
 /** Toggle the editor's line-number gutter without replacing the document. */
@@ -3017,10 +3285,15 @@ function footnoteReturnKey(label) {
     return `${getState('activeTabId') || 'editor'}\u0000${label}`;
 }
 
-function handleFootnoteNavigation(event, view, position) {
+/**
+ * Follow a clicked footnote reference or definition, creating the definition
+ * when it is missing. A `[^…]` that is only text in code, such as a regular
+ * expression's negated class, is not a footnote and is left untouched.
+ */
+export function handleFootnoteNavigation(event, view, position) {
     const line = view.state.doc.lineAt(position);
     const token = getFootnoteAtPosition(line.text, position - line.from);
-    if (!token) return false;
+    if (!token || markdownLiteralContextAt(view.state, position)) return false;
 
     const text = view.state.doc.toString();
     const key = footnoteReturnKey(token.label);
@@ -3874,7 +4147,8 @@ function updateVimStatus(mode) {
 }
 
 export { initEditor, createEditorView, getEditorView,
-    getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor,
+    getEditorContent, getEditorBufferContent, getEditorDocumentTabId, setEditorContent, focusEditor,
+    showEditorPreview, closeEditorPreview, editorPreviewLiveContent, renameEditorDocumentTab,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
-    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setVimRevealBlocks, setImageBasePath, setReadOnly, setLineNumbers, setMarkdownBlockGuides, setMarkdownLint, setSpellcheck,
+    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setVimRevealBlocks, setImageBasePath, setLineNumbers, setMarkdownBlockGuides, setMarkdownLint, setSpellcheck,
     configureEditorForFile, getEditorTabSize, normalizeWebKitShiftTab, setEditorTabSize };

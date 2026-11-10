@@ -1,4 +1,6 @@
-import { globalShortcutAction, isSidebarToggleShortcut } from '../frontend/js/core/globalShortcutModel.js';
+import {
+    globalShortcutAction, isCloseTabShortcut, isSaveShortcut, isSidebarToggleShortcut, shortcutLetter,
+} from '../frontend/js/core/globalShortcutModel.js';
 
 describe('global shortcut policy', () => {
     test('opens writing lenses on Ctrl/Cmd+Shift+L without stealing unshifted keys', () => {
@@ -24,5 +26,31 @@ describe('global shortcut policy', () => {
         expect(globalShortcutAction({ key: 'N', metaKey: true, shiftKey: true })).toBe('daily-note');
         expect(globalShortcutAction({ key: 'n', ctrlKey: true, repeat: true })).toBeNull();
         expect(globalShortcutAction({ key: 'n', ctrlKey: true, altKey: true })).toBeNull();
+    });
+    test('saves and closes under Caps Lock and on layouts whose keys are not Latin letters', () => {
+        expect(isSaveShortcut({ key: 's', code: 'KeyS', ctrlKey: true })).toBe(true);
+        expect(isSaveShortcut({ key: 's', code: 'KeyS', metaKey: true })).toBe(true);
+        // Caps Lock reports the uppercase letter without Shift.
+        expect(isSaveShortcut({ key: 'S', code: 'KeyS', ctrlKey: true })).toBe(true);
+        // Russian and Greek layouts type their own letters on the physical S key.
+        expect(isSaveShortcut({ key: 'ы', code: 'KeyS', ctrlKey: true })).toBe(true);
+        expect(isSaveShortcut({ key: 'σ', code: 'KeyS', metaKey: true })).toBe(true);
+        expect(isCloseTabShortcut({ key: 'ц', code: 'KeyW', ctrlKey: true })).toBe(true);
+        expect(isCloseTabShortcut({ key: 'W', code: 'KeyW', ctrlKey: true })).toBe(true);
+    });
+
+    test('keeps a Latin layout\'s own letters and never fires on character input', () => {
+        // Dvorak: the physical S key types "o"; its "s" lives on another key.
+        expect(isSaveShortcut({ key: 'o', code: 'KeyS', ctrlKey: true })).toBe(false);
+        expect(isSaveShortcut({ key: 's', code: 'Semicolon', ctrlKey: true })).toBe(true);
+        // AltGr arrives as Ctrl+Alt on Windows and types a character (Polish ś).
+        expect(isSaveShortcut({ key: 'ś', code: 'KeyS', ctrlKey: true, altKey: true })).toBe(false);
+        expect(isSaveShortcut({ key: 's', code: 'KeyS' })).toBe(false);
+        expect(isSaveShortcut({ key: 'S', code: 'KeyS', ctrlKey: true, shiftKey: true })).toBe(false);
+        expect(isCloseTabShortcut({ key: 's', code: 'KeyS', ctrlKey: true })).toBe(false);
+        expect(shortcutLetter({ key: 'Enter', code: 'Enter' })).toBe('enter');
+        expect(shortcutLetter({ key: 'Process', code: 'KeyS' })).toBe('process');
+        // The other global shortcuts follow the same physical-key fallback.
+        expect(globalShortcutAction({ key: 'а', code: 'KeyF', ctrlKey: true })).toBe('document-find');
     });
 });

@@ -566,8 +566,8 @@ becoming active. Missing, rejected, or inadmissible reads leave the previous
 buffer, active tab, and save target intact and show a retryable error. A superseded
 read cannot change the new active tab or show a stale error. Prepared snapshots
 and owned dirty buffers retain their existing activation path.
-- Opening a tab checks if it already exists; if so, it switches to it. A `forceNew` override allows
-  creating a duplicate.
+- Opening a tab checks if it already exists; if so, it switches to it. A file is never open in two
+  tabs: **Open in New Tab** on a note that is already open activates its tab.
 - File clicks from the sidebar or links open in the "main" file slot (replacing the current file tab
   rather than stacking).
 - Switching tabs hides the previous view, shows the appropriate view for the new tab, and restores
@@ -648,7 +648,7 @@ ignores superseded list reads and reads completing after unmount.
 | **Delete** | After confirmation, saves dirty open files under the target, captures the exact current path in local Git history, durably registers it in `.config/recently-deleted.json`, then removes the target recursively without moving it to the system Trash. A dirty Draw.io editor or Excalidraw drawing that cannot be saved, failed archive, or failed recovery-record write leaves the target untouched. Successful deletion refreshes discovery data without stale cards, search results, backlinks, or dates and shows **Deleted “name” · Undo** for ten seconds. Restore publishes a complete staged reconstruction atomically, refuses to replace an occupied path, and removes only the restored recovery record. |
 | **Move** | Moves a file or folder to a target directory. The live status bar immediately names the item being moved, the file tree is marked busy, and another drag cannot start the same operation until it settles. It prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. A validated warm index limits rewrite planning and moved projections to affected paths; any stale snapshot selects the complete root-scoped scan/rebuild before correctness can be traded for speed. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. |
 | **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. A current warm index and file-tree projection retain unrelated entries and add only the copied subtree, while exact watcher acknowledgements prevent a second refresh; unobserved external Markdown changes select the complete rebuild fallback. Copying a folder into itself or one of its descendants is refused because it would recurse. |
-| **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline and disables an unchanged rename. After dirty source buffers are safely saved, Figaro previews exact incoming Markdown references. If any other notes reference the file, a second dialog reports their count and offers **Update references**, **Keep references unchanged**, or **Cancel rename**; no incoming references means no second question. The selected policy and filesystem rename are executed together before open-tab paths and affected notes refresh. A same-folder Markdown name variant still offers **Open existing**, **Rename anyway**, or cancellation before any open tab is saved or path is moved. Folder renames retain automatic link preservation. |
+| **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline and disables an unchanged rename. Create and rename refuse a name that starts with a dot, because Figaro hides dot-prefixed entries and the item could not be renamed back. A rename that changes only letter case (`todo.md` to `Todo.md`) succeeds on case-insensitive volumes, where both names are one entry. Recording Activity continuity never blocks a rename: a path the history format cannot hold (one containing `:`), or a full move history, is renamed without that record. After dirty source buffers are safely saved, Figaro previews exact incoming Markdown references. If any other notes reference the file, a second dialog reports their count and offers **Update references**, **Keep references unchanged**, or **Cancel rename**; no incoming references means no second question. The selected policy and filesystem rename are executed together before open-tab paths and affected notes refresh. A same-folder Markdown name variant still offers **Open existing**, **Rename anyway**, or cancellation before any open tab is saved or path is moved. Folder renames retain automatic link preservation. |
 
 Markdown name comparison removes the `.md` suffix, applies Unicode compatibility
 normalization and lowercasing, then ignores characters other than letters and
@@ -780,7 +780,7 @@ those workflows, and Figaro never merges notes automatically.
 | Menu item | Available on | Behavior |
 |-----------|-------------|----------|
 | Open | Managed-only internal file | Opens the exact regular vault file in the operating system's default application, matching double-click. Directories, missing paths, traversal, and symbolic links are refused. |
-| Open in New Tab | Markdown or CodeMirror-supported source file | Opens file in a new tab (doesn't replace current file tab) |
+| Open in New Tab | Markdown or CodeMirror-supported source file | Opens file in a new tab (doesn't replace current file tab); a file that is already open is activated instead |
 | Merge Notes | Selected Markdown file (2+ selected notes) | Appends checked source notes to the active/context-selected master with an interactive checkbox list. Disabled unless the operation selection contains at least two Markdown notes; an unselected open note does not satisfy that menu requirement. |
 | Cut | File or Directory | Marks the selected internal set for one deferred move; the next Paste uses the safe link-aware move/merge workflow and retains unresolved entries after a partial failure. Shortcut hint: Ctrl/Cmd+X. |
 | Copy | File or Directory | Places the selected internal set on Figaro's repeatable copy clipboard without changing the sources. Shortcut hint: Ctrl/Cmd+C. |
@@ -1239,7 +1239,9 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   Clicking an unresolved reference inserts `[^1]: ` immediately after the complete source paragraph
   as one undoable edit, preserves at least one blank line on each side, focuses the editor after the
   trailing space, and keeps all navigation inside the active note. A later click finds that new
-  definition rather than inserting a duplicate.
+  definition rather than inserting a duplicate. A `[^…]` that is literal text — inside code, raw
+  HTML, a URL, or Properties, such as a regular expression's negated class — is not a footnote and
+  a click on it changes nothing.
 - **Callouts**: `> [!note]`, `> [!warning]`, `> [!info]`, `> [!tip]`, `> [!danger]`, `> [!example]`
   blocks render with colored left borders and tinted backgrounds matching the callout type (via
   `--callout-*-color` variables).
@@ -1550,6 +1552,9 @@ cannot represent safely falls back to Markdown syntax rather than creating a bro
 - Typing `[link text]()` and pressing `)` automatically fills the URL with `(link text.md)`, using
   the current file's directory as the parent path.
 - Spaces in the generated filename are encoded as `%20`.
+- Only typed Markdown is completed. Code such as `handlers[name]()`, raw HTML, URLs, Properties and
+  non-Markdown files are left as typed, and text that arrives by opening a note, Undo or another
+  programmatic change is never rewritten.
 
 ### 4.5 Link Click Behavior
 
@@ -1794,8 +1799,11 @@ horizontal rules, quotes, highlights, footnotes, callouts (6 types), code block 
   also be colored, renamed or deleted. Choosing a color replaces the header's neutral palette icon
   with that color's swatch, while choosing "no color" restores the neutral icon.
 - **Rename column**: Prompts for new name; all occurrences of old `#tag` replaced across vault.
-- **Delete column**: Confirms, then removes `#tag` from every line in vault. System columns
-  protected.
+  A name of three or six hexadecimal digits (`bad`, `decade`) is refused with an explanation:
+  Figaro reads such a hashtag as a color code, so the column's cards would disappear.
+- **Delete column**: Confirms, then removes `#tag` from every line in vault, together with the
+  spaces that follow it on that line. Line breaks are kept, so each tagged line stays its own line.
+  System columns protected.
 
 ### 6.6 Task Actions
 - **Click a card**: opens the source file in the editor, scrolled to the line containing the tag.
@@ -1866,7 +1874,7 @@ horizontal rules, quotes, highlights, footnotes, callouts (6 types), code block 
 - Exact unique task text (ignoring checkbox and column tags only) follows line shifts and column
   changes. Duplicates match only while their source task sequence and positions are unchanged.
   Ambiguous edits retain dates for explicit **Reconnect**; existing target schedules cannot be
-  overwritten. Figaro renames remap metadata paths. Known saves refresh metadata references and
+  overwritten. Figaro renames and folder merges remap metadata paths. Known saves refresh metadata references and
   persistent reminder badges without refetching the board. Uniquely matched date-only source edits
   rebind the existing schedule without resetting its start/end; collisions are refused and a failed
   note write restores the original metadata.
@@ -1924,9 +1932,11 @@ once at its earliest matching line, and save/move projections refresh targets.
   while a nonzero link-styled button keeps the pointer cursor and opens
   Relationships with click, Enter, or Space.
 - A backlink set above 120 results mounts a moving 96-card window with logical accessible
-  position/set size and complete Tab reachability. Unlinked-mention action cards remain fully
-  mounted so each result's source and **Link this mention** controls keep their established two-stop
-  order.
+  position/set size and complete Tab reachability. Unlinked mentions keep each result's source and
+  **Link this mention** controls in their established two-stop order and are revealed 100 at a
+  time: **Show 100 more** appends the next page in place, states how many remain, and moves focus
+  to the first new result. Linking a mention refreshes the list without returning to its top or
+  collapsing revealed pages.
 
 ### 7.2 Vault Health
 - **Settings → Vault care → Review…** opens a user-triggered, read-only health tab.
@@ -1941,6 +1951,10 @@ once at its earliest matching line, and save/move projections refresh targets.
   large and overlaps by at least 80 percent.
 - External URLs, `mailto:` links, fenced code, dot-directories, and symlinks are excluded. The scan
   never edits, moves, or deletes files.
+- A link is resolved as the editor opens it (§13.1, §26.2): a note link or wikilink names a path
+  from the vault root unless it starts with `./` or `../`, a leading `/` is the root, and an image
+  embed with a bare path names a file beside its note. There is no fallback to a same-named
+  sibling.
 - Each finding carries a vault-relative source path and, where applicable, line number. Selecting a
   normal finding opens that source note at the finding; selecting a possible duplicate opens both
   notes for manual comparison. The existing merge command remains separate and retains its explicit
@@ -3030,9 +3044,11 @@ platform before compilation.
    tabs as metadata only, then read and mount the one selected file with its saved cursor state.
    Await the scheduled document replacement before considering that restored activation complete. A
    very large Markdown source is installed in two line-boundary chunks without entering Undo
-   history. Its leading frontmatter and only the image, diagram, table, or math stages indicated by
-   the source are prioritized across guarded animation frames; dormant authoring fields attach
-   afterward without rescanning the outgoing document. Switching files cancels unfinished stages.
+   history. Until the second chunk lands the note cannot be edited and every save or snapshot reads
+   the complete source, so half a note is never written. Its leading frontmatter and only the
+   image, diagram, table, or math stages indicated by the source are prioritized across guarded
+   animation frames; dormant authoring fields attach afterward without rescanning the outgoing
+   document. Switching files cancels unfinished presentation stages, never the source itself.
    Resolve operating-system launch documents through the import/keep-outside choice before starting
    full-vault work.
 5. Eagerly initialize Calendar, Kanban, Graph, global search, backlinks, History, Activity, Document
@@ -3044,6 +3060,10 @@ platform before compilation.
 6. Start the initial file-tree read and any remaining language warm-up concurrently with the index.
    Native debounced vault notifications replace polling; content-only changes do not reload the
    tree, and Figaro's own saved snapshots do not request an already-known Kanban board again.
+   A note that another tool saves by replacing the file (an editor's safe write, `git checkout`)
+   stays in search, backlinks and Kanban, and a folder renamed, moved in or removed outside
+   Figaro carries its notes with it. A burst that touches more than 256 notes, or one in which
+   the system dropped events, refreshes everything once.
 7. Show the un-tabbed workspace overview only when no session or launch document restored a tab.
    Hide successful index progress once the index and tree settle; the status bar can still indicate
    writing preparation. Publish `window._appReady` after the remaining eager startup promises
@@ -3095,6 +3115,10 @@ outside it, the browser debugging fallback is installed explicitly with the same
 - Conventional Wikilink: `[[relative/path/to/file.md|Display Text]]` (target first, alias second).
 - Date links: `[YYYY-MM-DD](YYYY-MM-DD.md)` — treated specially by the calendar system.
 - Links are relative to the vault root.
+- Moving or renaming a file rewrites the links and image embeds that resolve to it. An image embed
+  follows the image path rules in §26.2, so a bare `![…](photo.png)` names the file beside its note
+  and is rewritten as a note-relative path; the same bare path in a note link names a vault path.
+  A footnote definition (`[^1]: Text…`) is prose and is never rewritten.
 - The selected Links style governs new autocomplete insertions, not which syntax can be opened or
   rendered; both remain supported throughout the vault.
 
@@ -3202,6 +3226,11 @@ outside it, the browser debugging fallback is installed explicitly with the same
 | Ctrl+W / Cmd+W | App | Close current tab |
 | Drag resizer | Sidebar edge | Resize sidebar width |
 
+Letter shortcuts handled by the app (Save, Close tab, Find, Search, Quick Note, daily note, sidebar
+and Writing lenses) follow the letter the key types and ignore Caps Lock. On a layout whose keys
+type another script, such as Cyrillic or Greek, the physical key position stands in for the Latin
+letter. AltGr combinations always type their character.
+
 ---
 
 ## 15. Known Limitations
@@ -3244,7 +3273,12 @@ outside it, the browser debugging fallback is installed explicitly with the same
   dirty in-memory copy.
 - All file paths are validated to stay within the vault root. Path traversal and symlink escapes are
   rejected, and vault walks omit symlinks.
-- Writes use root-scoped, atomic file helpers. A move and a file rename with **Update references**
+- Writes use root-scoped, atomic file helpers. Saving over an existing file keeps exactly its
+  permission bits. On Linux and macOS a colon is an ordinary filename character (`1:1 Alice.md`);
+  only a drive form such as `C:` or `C:/…` is refused there, while Windows refuses every
+  second-character colon. A folder Figaro may not read is left out of the tree, index, link
+  rewrites and watch set instead of failing them for the rest of the vault. A move and a file
+  rename with **Update references**
   collect link rewrites before changing paths, apply them after the move, and attempt rollback if
   the rewrite phase fails. File rename preview uses the same exact collector without writing; **Keep
   references unchanged** performs only the validated path move.
@@ -3892,8 +3926,12 @@ toggle: it records the current target contents before direct filesystem removal.
   and a preservation failure leaves the historical view open with the current version intact.
 - **Click the latest version** (top entry) → exits history mode (no need for read-only on current
   version).
+- A shown version is never the note. While it is on screen the note's own text, including unsaved
+  edits, stays its content: Auto-Save, Ctrl/Cmd+S, **Save to history**, switching tabs, and exit
+  protection all write that text. The version cannot be changed, including through rendered
+  controls such as task checkboxes, and writing lenses do not review it.
 - Closing the panel (× button, History count click, or tab switch) restores the live editor content
-  instantly.
+  instantly, with its selection and undo history.
 - Switching tabs closes the current pane; returning restores that tab’s selected History view and
   Activity scope for the session when its source still matches. Switching from a historical version
   to Activity first restores the owned live buffer.
@@ -3963,7 +4001,8 @@ toggle: it records the current target contents before direct filesystem removal.
 - **File changed on disk** offers **Overwrite file** or **Keep editing** without assuming who
   changed the file. Cancelling leaves the tab dirty and preserves its in-memory snapshot; it does
   not reload or discard content automatically. An approved overwrite supplies the version for
-  subsequent saves.
+  subsequent saves. **Keep editing** stays answered for that note's background saves: Auto-Save
+  and tab switches do not ask again, while **Ctrl/Cmd+S** and exit protection do.
 - The backend keeps a monotonic per-file version when filesystem timestamps are too coarse to
   distinguish rapid successive writes.
 
@@ -4133,8 +4172,9 @@ was auto-saved to disk — but if the save failed (permission error, network iss
 content was permanently lost.
 
 ### 29.2 Fix
-- **Cache on switch-away**: Before switching tabs, the current editor content is cached as
-  `tab._content`.
+- **Cache on switch-away**: Before switching tabs, the buffer the editor holds for the tab is
+  cached as `tab._content`. That is the tab's own text, never a History version on screen or the
+  first half of a staged mount.
 - **Restore from cache**: When switching back to a dirty tab, cached content is restored directly to
   the editor — no disk read needed.
 - **Isolate undo on switch**: Mounting a different file serializes the outgoing open buffer's

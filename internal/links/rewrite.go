@@ -15,10 +15,12 @@ import (
 
 // These cover ordinary Markdown/image links and reference definitions. The
 // rewriter leaves code fences untouched and preserves optional titles,
-// fragments, aliases, and surrounding Markdown syntax.
+// fragments, aliases, and surrounding Markdown syntax. A footnote definition
+// ("[^1]: Prose…") shares the reference-definition shape but holds prose, so a
+// label that starts with "^" is never read as a link.
 var (
 	markdownInlineLinkRe    = regexp.MustCompile(`(!?\[[^\]\r\n]*\]\(\s*)(<[^>\r\n]+>|[^)\s\r\n]+)([^)\r\n]*\))`)
-	markdownReferenceLinkRe = regexp.MustCompile(`^(\s*\[[^\]\r\n]+\]:\s*)(<[^>\r\n]+>|[^\s\r\n]+)([^\r\n]*)`)
+	markdownReferenceLinkRe = regexp.MustCompile(`^(\s*\[[^\]\r\n^][^\]\r\n]*\]:\s*)(<[^>\r\n]+>|[^\s\r\n]+)([^\r\n]*)`)
 	wikiLinkRe              = regexp.MustCompile(`\[\[([^\]\r\n]+)\]\]`)
 )
 
@@ -28,6 +30,10 @@ const (
 	markdownVaultPath markdownLinkPathStyle = iota
 	markdownRelativePath
 	markdownRootPath
+	// markdownNoteRelativePath is an image embed written without "./". The
+	// editor, the PDF preview and the export all read such a path from beside
+	// the note, unlike a bare note link, which names a vault path.
+	markdownNoteRelativePath
 )
 
 // NormalizeVaultPath returns a slash-separated vault-relative path.
@@ -110,7 +116,7 @@ func MarkdownLinkOccurrences(content string, sourceRel string) []MarkdownLinkOcc
 				if len(match) < 3 {
 					continue
 				}
-				if target, ok := markdownDestinationTarget(match[2], sourceRel); ok {
+				if target, ok := markdownDestinationTarget(match[2], sourceRel, isImageEmbed(match[1])); ok {
 					occurrences = append(occurrences, MarkdownLinkOccurrence{Target: target, Line: lineIndex + 1, Source: strings.TrimSpace(line)})
 				}
 			}
@@ -119,25 +125,64 @@ func MarkdownLinkOccurrences(content string, sourceRel string) []MarkdownLinkOcc
 			if len(match) != 2 {
 				continue
 			}
-			target, _, _ := strings.Cut(match[1], "|")
-			target, _ = splitMarkdownLinkSuffix(strings.TrimSpace(target))
-			decoded, err := url.PathUnescape(target)
-			if err != nil || isExternalMarkdownDestination(decoded) {
-				continue
-			}
-			if !strings.HasSuffix(strings.ToLower(decoded), ".md") {
-				decoded += ".md"
-			}
-			clean, err := vault.RelativePath(decoded)
-			if err == nil && clean != "." {
-				occurrences = append(occurrences, MarkdownLinkOccurrence{Target: filepath.ToSlash(clean), Line: lineIndex + 1, Source: strings.TrimSpace(line)})
+			if target, ok := WikiLinkTarget(match[1]); ok {
+				occurrences = append(occurrences, MarkdownLinkOccurrence{Target: target, Line: lineIndex + 1, Source: strings.TrimSpace(line)})
 			}
 		}
 	}
 	return occurrences
 }
 
-func markdownDestinationTarget(destination string, sourceRel string) (string, bool) {
+// LinkDestinationTarget returns the vault path that a Markdown link or image
+// destination written in the note sourceRel names. It is the one statement of
+// the app's resolution rule, shared by the move rewriter, the link index and
+// Vault Health:
+//
+//   - a leading "/" names a path from the vault root;
+//   - "./" and "../" are relative to the note's folder;
+//   - any other path in a note link names a path from the vault root;
+//   - any other path in an image embed (image true) is relative to the note.
+//
+// The destination may carry angle brackets, a "?query" or a "#fragment". The
+// result is false for an external URL, a bare fragment, or a path that leaves
+// the vault.
+func LinkDestinationTarget(destination string, sourceRel string, image bool) (string, bool) {
+	return markdownDestinationTarget(strings.TrimSpace(destination), sourceRel, image)
+}
+
+// WikiLinkTarget returns the vault note named by the body of a wikilink, the
+// text between "[[" and "]]". A wikilink always names a note from the vault
+// root: an alias after "|" and a "#heading" are dropped, and ".md" is added
+// unless the target already ends with it, so "[[v1.2 Notes]]" is the note
+// "v1.2 Notes.md". The result is false when the body names no note, as in
+// "[[#Heading]]", or a path outside the vault.
+func WikiLinkTarget(body string) (string, bool) {
+	target, _, _ := strings.Cut(body, "|")
+	target, _ = splitMarkdownLinkSuffix(strings.TrimSpace(target))
+	if target == "" {
+		return "", false
+	}
+	decoded, err := url.PathUnescape(target)
+	if err != nil || isExternalMarkdownDestination(decoded) {
+		return "", false
+	}
+	if !strings.HasSuffix(strings.ToLower(decoded), ".md") {
+		decoded += ".md"
+	}
+	clean, err := vault.RelativePath(decoded)
+	if err != nil || clean == "." {
+		return "", false
+	}
+	return filepath.ToSlash(clean), true
+}
+
+// isImageEmbed reports whether an inline-link opening ("![alt](") embeds an
+// image. A reference definition never matches: its use is not visible there.
+func isImageEmbed(opening string) bool {
+	return strings.HasPrefix(opening, "!")
+}
+
+func markdownDestinationTarget(destination string, sourceRel string, image bool) (string, bool) {
 	if strings.HasPrefix(destination, "<") && strings.HasSuffix(destination, ">") {
 		destination = destination[1 : len(destination)-1]
 	}
@@ -149,7 +194,7 @@ func markdownDestinationTarget(destination string, sourceRel string) (string, bo
 	if err != nil {
 		return "", false
 	}
-	target, _, ok := resolveMarkdownLinkTarget(sourceRel, decoded)
+	target, _, ok := resolveMarkdownLinkTarget(sourceRel, decoded, image)
 	return target, ok
 }
 
@@ -168,7 +213,7 @@ func rewriteMarkdownLinksForPathMapping(content string, sourceRel string, future
 
 		line = markdownInlineLinkRe.ReplaceAllStringFunc(line, func(match string) string {
 			parts := markdownInlineLinkRe.FindStringSubmatch(match)
-			destination, changed := rewriteMarkdownDestination(parts[2], sourceRel, futureSourceRel, oldRel, newRel)
+			destination, changed := rewriteMarkdownDestination(parts[2], sourceRel, futureSourceRel, oldRel, newRel, isImageEmbed(parts[1]))
 			if !changed {
 				return match
 			}
@@ -176,7 +221,7 @@ func rewriteMarkdownLinksForPathMapping(content string, sourceRel string, future
 		})
 		line = markdownReferenceLinkRe.ReplaceAllStringFunc(line, func(match string) string {
 			parts := markdownReferenceLinkRe.FindStringSubmatch(match)
-			destination, changed := rewriteMarkdownDestination(parts[2], sourceRel, futureSourceRel, oldRel, newRel)
+			destination, changed := rewriteMarkdownDestination(parts[2], sourceRel, futureSourceRel, oldRel, newRel, false)
 			if !changed {
 				return match
 			}
@@ -189,7 +234,7 @@ func rewriteMarkdownLinksForPathMapping(content string, sourceRel string, future
 	return strings.Join(lines, "")
 }
 
-func rewriteMarkdownDestination(destination string, sourceRel string, futureSourceRel string, oldRel string, newRel string) (string, bool) {
+func rewriteMarkdownDestination(destination string, sourceRel string, futureSourceRel string, oldRel string, newRel string, image bool) (string, bool) {
 	bracketed := strings.HasPrefix(destination, "<") && strings.HasSuffix(destination, ">")
 	pathValue := destination
 	if bracketed {
@@ -204,14 +249,15 @@ func rewriteMarkdownDestination(destination string, sourceRel string, futureSour
 	if err != nil {
 		return destination, false
 	}
-	targetRel, style, ok := resolveMarkdownLinkTarget(sourceRel, decoded)
+	targetRel, style, ok := resolveMarkdownLinkTarget(sourceRel, decoded, image)
 	if !ok {
 		return destination, false
 	}
 	futureTargetRel := MovedVaultPath(targetRel, oldRel, newRel)
 	targetMoved := futureTargetRel != targetRel
 	sourceMoved := sourceRel != futureSourceRel
-	if !targetMoved && !(sourceMoved && style == markdownRelativePath) {
+	followsSource := style == markdownRelativePath || style == markdownNoteRelativePath
+	if !targetMoved && !(sourceMoved && followsSource) {
 		return destination, false
 	}
 
@@ -244,7 +290,7 @@ func isExternalMarkdownDestination(value string) bool {
 	return err == nil && parsed.IsAbs()
 }
 
-func resolveMarkdownLinkTarget(sourceRel string, destination string) (string, markdownLinkPathStyle, bool) {
+func resolveMarkdownLinkTarget(sourceRel string, destination string, image bool) (string, markdownLinkPathStyle, bool) {
 	style := markdownVaultPath
 	candidate := destination
 	switch {
@@ -253,6 +299,10 @@ func resolveMarkdownLinkTarget(sourceRel string, destination string) (string, ma
 		candidate = strings.TrimLeft(destination, "/")
 	case destination == "." || destination == ".." || strings.HasPrefix(destination, "./") || strings.HasPrefix(destination, "../"):
 		style = markdownRelativePath
+		sourceDir := filepath.Dir(filepath.FromSlash(sourceRel))
+		candidate = filepath.Join(sourceDir, filepath.FromSlash(destination))
+	case image:
+		style = markdownNoteRelativePath
 		sourceDir := filepath.Dir(filepath.FromSlash(sourceRel))
 		candidate = filepath.Join(sourceDir, filepath.FromSlash(destination))
 	}
@@ -265,14 +315,15 @@ func resolveMarkdownLinkTarget(sourceRel string, destination string) (string, ma
 
 func formatMarkdownLinkTarget(targetRel string, sourceRel string, style markdownLinkPathStyle) (string, error) {
 	targetRel = NormalizeVaultPath(targetRel)
-	if style == markdownRelativePath {
+	if style == markdownRelativePath || style == markdownNoteRelativePath {
 		sourceDir := filepath.Dir(filepath.FromSlash(sourceRel))
 		relative, err := filepath.Rel(sourceDir, filepath.FromSlash(targetRel))
 		if err != nil {
 			return "", err
 		}
 		targetRel = filepath.ToSlash(relative)
-		if !strings.HasPrefix(targetRel, ".") {
+		// A bare embed stays bare; only an explicit "./" form keeps its prefix.
+		if style == markdownRelativePath && !strings.HasPrefix(targetRel, ".") {
 			targetRel = "./" + targetRel
 		}
 	}

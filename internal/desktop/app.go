@@ -3,9 +3,9 @@ package desktop
 import (
 	"context"
 	"figaro/internal/startup"
+	"figaro/internal/vault"
 	"figaro/internal/writing"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,8 +15,6 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/fsnotify/fsnotify"
 )
 
 // ============================================================================
@@ -132,38 +130,98 @@ func findHashtags(content string) []string {
 	return tags
 }
 
-// replaceHashtag replaces all occurrences of #oldTag with #newTag, respecting boundaries.
+// standaloneHashtagRanges returns the byte ranges of every standalone #tag in
+// content, in order. The tag is matched without regard to ASCII letter case,
+// as findHashtags reports it: "#TODO" is a card in the "todo" column and must
+// be found by that name. Hashtag names are ASCII, so no other folding applies.
+//
+// This runs once per Kanban card, so it scans the text directly instead of
+// compiling a pattern per call.
+func standaloneHashtagRanges(content, tag string) [][2]int {
+	// A tag ends at a word boundary and is followed by whitespace, which only
+	// a name ending in a letter, digit or underscore can satisfy.
+	if tag == "" || !isHashtagWordByte(tag[len(tag)-1]) {
+		return nil
+	}
+	var ranges [][2]int
+	for start := 0; start < len(content); {
+		offset := strings.IndexByte(content[start:], '#')
+		if offset < 0 {
+			break
+		}
+		start += offset
+		end := start + 1 + len(tag)
+		if end > len(content) || !equalASCIIFold(content[start+1:end], tag) ||
+			(end < len(content) && isHashtagWordByte(content[end])) {
+			start++
+			continue
+		}
+		if isHashtagBoundaryOK(content, start, end) {
+			ranges = append(ranges, [2]int{start, end})
+		}
+		start = end
+	}
+	return ranges
+}
+
+func isHashtagWordByte(value byte) bool {
+	return value == '_' || (value >= '0' && value <= '9') ||
+		(value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z')
+}
+
+func equalASCIIFold(left, right string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := 0; index < len(left); index++ {
+		a, b := left[index], right[index]
+		if a >= 'A' && a <= 'Z' {
+			a += 'a' - 'A'
+		}
+		if b >= 'A' && b <= 'Z' {
+			b += 'a' - 'A'
+		}
+		if a != b {
+			return false
+		}
+	}
+	return true
+}
+
+// replaceHashtag replaces every standalone #oldTag, in any letter case, with
+// #newTag.
 func replaceHashtag(content, oldTag, newTag string) string {
-	pat := regexp.MustCompile(`#` + regexp.QuoteMeta(oldTag) + `\b`)
+	ranges := standaloneHashtagRanges(content, oldTag)
+	if len(ranges) == 0 {
+		return content
+	}
 	var result strings.Builder
 	last := 0
-	for _, idx := range pat.FindAllStringSubmatchIndex(content, -1) {
-		if isHashtagBoundaryOK(content, idx[0], idx[1]) {
-			result.WriteString(content[last:idx[0]])
-			result.WriteString("#" + newTag)
-			last = idx[1]
-		}
+	for _, match := range ranges {
+		result.WriteString(content[last:match[0]])
+		result.WriteString("#" + newTag)
+		last = match[1]
 	}
 	result.WriteString(content[last:])
 	return result.String()
 }
 
-// removeHashtag removes all standalone occurrences of #tag with trailing whitespace.
+// removeHashtag removes every standalone #tag, in any letter case, together
+// with the spaces and tabs that follow it on the same line. A line break is
+// never consumed: the function also runs over whole notes, where swallowing it
+// would join the tagged line with the one below.
 func removeHashtag(content, tag string) string {
-	pat := regexp.MustCompile(`#` + regexp.QuoteMeta(tag) + `\b`)
+	ranges := standaloneHashtagRanges(content, tag)
+	if len(ranges) == 0 {
+		return content
+	}
 	var result strings.Builder
 	last := 0
-	for _, idx := range pat.FindAllStringSubmatchIndex(content, -1) {
-		if isHashtagBoundaryOK(content, idx[0], idx[1]) {
-			result.WriteString(content[last:idx[0]])
-			last = idx[1]
-			for last < len(content) {
-				r, size := utf8.DecodeRuneInString(content[last:])
-				if !unicode.IsSpace(r) {
-					break
-				}
-				last += size
-			}
+	for _, match := range ranges {
+		result.WriteString(content[last:match[0]])
+		last = match[1]
+		for last < len(content) && (content[last] == ' ' || content[last] == '\t') {
+			last++
 		}
 	}
 	result.WriteString(content[last:])
@@ -378,7 +436,10 @@ Use #tagname to create tags — they automatically become kanban columns.
 *Built with ❤️ using Go, Wails, and CodeMirror 6.*
 `
 
-// ensureWelcomeNote creates Welcome.md if the vault has no markdown files yet.
+// ensureWelcomeNote creates Welcome.md only in a vault that holds no Markdown
+// note anywhere. A vault whose notes all live in folders already has content,
+// so the search follows the index's rules (any letter case of ".md", no hidden
+// folders, no symbolic links) and stops at the first note it finds.
 func (a *App) ensureWelcomeNote() {
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
@@ -389,15 +450,13 @@ func (a *App) ensureWelcomeNote() {
 		return
 	}
 	defer root.Close()
-	entries, err := fs.ReadDir(root.FS(), ".")
+	hasNotes, err := vault.HasMarkdown(root)
 	if err != nil {
 		log.Printf("[vault] Cannot read vault: %v", err)
 		return
 	}
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".md") {
-			return
-		}
+	if hasNotes {
+		return
 	}
 	if err := writeRootFileAtomic(root, "Welcome.md", []byte(welcomeContent), 0644); err != nil {
 		log.Printf("[vault] Cannot create Welcome.md: %v", err)
@@ -617,6 +676,7 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 			result.treeChanged = true
 			result.kanbanChanged = true
 		} else {
+			batch := newVaultWatchBatch()
 			for _, change := range changes {
 				rel, err := filepath.Rel(a.vaultPath, change.Path)
 				if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
@@ -636,70 +696,9 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 				if scoped {
 					result.paths = append(result.paths, filepath.ToSlash(cleanRel))
 				}
-
-				if !strings.EqualFold(filepath.Ext(cleanRel), ".md") {
-					if change.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
-						a.removeVaultFileIssuesBelow(cleanRel)
-					}
-					if change.Op&fsnotify.Write != 0 {
-						if info, statErr := root.Lstat(cleanRel); statErr == nil {
-							a.updateFileTreeCacheFileLocked(cleanRel, info)
-						}
-					}
-					if change.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
-						result.treeChanged = true
-					}
-					continue
-				}
-				if change.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
-					a.removeVaultIndexPathLocked(cleanRel)
-					result.treeChanged = true
-					result.kanbanChanged = true
-					continue
-				}
-				if change.Op&(fsnotify.Create|fsnotify.Write) == 0 {
-					continue
-				}
-				info, err := root.Stat(cleanRel)
-				if err != nil || info.IsDir() {
-					a.removeVaultIndexPathLocked(cleanRel)
-					result.treeChanged = true
-					result.kanbanChanged = true
-					continue
-				}
-				if issue := vaultFileMetadataIssue(filepath.ToSlash(cleanRel), info); issue != nil {
-					a.setVaultFileIssue(cleanRel, issue)
-					a.removeVaultIndexFileLocked(cleanRel)
-					result.kanbanChanged = true
-					if change.Op&fsnotify.Create != 0 {
-						result.treeChanged = true
-					}
-					continue
-				}
-				content, err := root.ReadFile(cleanRel)
-				if err != nil {
-					log.Printf("[watcher] read changed note %q: %v", cleanRel, err)
-					a.setVaultFileIssue(cleanRel, vaultFileReadIssue(filepath.ToSlash(cleanRel), err))
-					a.removeVaultIndexFileLocked(cleanRel)
-					result.kanbanChanged = true
-					if change.Op&fsnotify.Create != 0 {
-						result.treeChanged = true
-					}
-					continue
-				}
-				if issue := vaultFileContentIssue(filepath.ToSlash(cleanRel), content); issue != nil {
-					a.setVaultFileIssue(cleanRel, issue)
-					a.removeVaultIndexFileLocked(cleanRel)
-					result.kanbanChanged = true
-					if change.Op&fsnotify.Create != 0 {
-						result.treeChanged = true
-					}
-					continue
-				}
-				a.updateVaultIndexFileLocked(cleanRel, info, string(content))
-				result.kanbanChanged = true
-				if change.Op&fsnotify.Create != 0 {
-					result.treeChanged = true
+				if !a.applyVaultWatchChangeLocked(root, cleanRel, change.Op, &result, batch) {
+					scoped = false
+					break
 				}
 			}
 			root.Close()

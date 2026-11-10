@@ -144,5 +144,7 @@ test('lists corrections before suggestions and reviews a word flagged by two len
     expect(onApply).toHaveBeenCalledWith('direct-very', 0, undefined);
     suggestion.querySelector('[aria-label="Ignore Simpler word"]').click();
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(onDismiss.mock.calls.map(call => call[0])).toEqual(['plain-very', 'direct-very']);
+    // One request covers both reasons, so the second cannot be rejected as
+    // stale once the first decision changes the review configuration.
+    expect(onDismiss.mock.calls.map(call => call[0])).toEqual([['plain-very', 'direct-very']]);
 });

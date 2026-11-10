@@ -745,6 +745,38 @@ func (index *vaultIndex) removePath(path string) {
 	index.paths = index.paths[:len(index.paths)-1]
 }
 
+// pathsAtOrBelow returns the indexed notes at path or inside the folder it
+// names, found through the sorted path list without visiting every note.
+func (index *vaultIndex) pathsAtOrBelow(path string) []string {
+	matches := make([]string, 0)
+	if _, found := index.files[path]; found {
+		matches = append(matches, path)
+	}
+	prefix := path + "/"
+	for position := sort.SearchStrings(index.paths, prefix); position < len(index.paths) &&
+		strings.HasPrefix(index.paths[position], prefix); position++ {
+		matches = append(matches, index.paths[position])
+	}
+	return matches
+}
+
+func (index *vaultIndex) holdsPathAtOrBelow(path string) bool {
+	if _, found := index.files[path]; found {
+		return true
+	}
+	prefix := path + "/"
+	position := sort.SearchStrings(index.paths, prefix)
+	return position < len(index.paths) && strings.HasPrefix(index.paths[position], prefix)
+}
+
+// matchesMetadata reports whether the indexed record still describes the file
+// on disk. Size, modification time and mode are the cheapest evidence that a
+// note was not rewritten behind the index.
+func (file vaultIndexedFile) matchesMetadata(info fs.FileInfo) bool {
+	return file.size == info.Size() &&
+		file.modTimeNano == info.ModTime().UnixNano() && file.mode == info.Mode()
+}
+
 func (index *vaultIndex) columns() []string {
 	custom := make([]string, 0, len(index.tags))
 	for tag := range index.tags {

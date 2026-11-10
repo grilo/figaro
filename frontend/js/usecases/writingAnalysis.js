@@ -2,6 +2,11 @@ import { selectedWritingLenses, validateWritingFix } from '../core/writingAnalys
 import { writingLensSupportsLanguage } from '../core/writingLensesModel.js';
 import { planWritingBulkFix } from '../core/writingReviewModel.js';
 import { canRetainWritingResults } from '../core/writingRetentionModel.js';
+import { appendAll } from '../core/appendAll.js';
+
+// Enough bounded passes for a few hundred unfamiliar words; more than that
+// continues with the next analysis, from the worker's retained cache.
+const maxSpellingSuggestionPasses = 64;
 
 /** Own one active snapshot and its bounded latest replacement through injected effects. */
 export function createWritingAnalysis({ retext, vale, spelling, review, schedule, unschedule, onChange = () => {} }) {
@@ -62,7 +67,7 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
                 try {
                     const value = await retext.analyze(job.source);
                     if (!active()) return;
-                    projection = value.projection; observations.push(...value.observations); states.retext = 'complete'; await resolve();
+                    projection = value.projection; appendAll(observations, value.observations); states.retext = 'complete'; await resolve();
                 } catch (error) {
                     if (active()) { states.retext = /timed out/i.test(error.message) ? 'timed out' : 'failed'; if (valeWanted) states.vale = 'unavailable'; await resolve(); }
                     return;
@@ -77,10 +82,24 @@ export function createWritingAnalysis({ retext, vale, spelling, review, schedule
             })(),
             (async () => {
                 if (!spellEnabled) return;
+                let values;
                 try {
-                    const values = await spelling(job.source, job.spelling.language);
+                    values = await spelling(job.source, job.spelling.language);
                     if (active()) { spellings = values; states.spelling = 'complete'; await resolve(); }
-                } catch (error) { if (active()) { states.spelling = /timed out/i.test(error.message) ? 'timed out' : 'failed'; await resolve(); } }
+                } catch (error) {
+                    if (active()) { states.spelling = /timed out/i.test(error.message) ? 'timed out' : 'failed'; await resolve(); }
+                    return;
+                }
+                // Every unknown word is already flagged. Replacements beyond one
+                // pass's time budget arrive through further bounded passes over
+                // the same source; a failed or cancelled pass only stops them.
+                try {
+                    for (let pass = 0; pass < maxSpellingSuggestionPasses && active() && values.some(item => item.suggestionsPending); pass++) {
+                        values = await spelling(job.source, job.spelling.language);
+                        if (!active()) return;
+                        spellings = values; await resolve();
+                    }
+                } catch (_) { /* The flagged words stay; suggestions resume with the next analysis. */ }
             })(),
         ]);
         running = false;

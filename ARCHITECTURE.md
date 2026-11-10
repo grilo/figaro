@@ -998,8 +998,20 @@ Figaro writes known Markdown files atomically and updates that one index entry
 in the same vault lock. The recursive native watcher sends a debounced set of
 changed paths to the backend: a one-file external edit similarly rereads and
 reprojects only that file, while creates/removes update the tree as needed.
+Operations are OR-ed per path over the quiet period, so the pure
+`planVaultWatchChange` decides from what the path is on disk now, never from
+the operation alone: a note saved by remove-and-create is read again, a folder
+that vanished takes its indexed notes with it, and a folder that appeared has
+its Markdown reconciled by the single-note rules without re-reading notes
+whose metadata already matches. One batch may index or drop at most 256 notes
+one at a time; beyond that the index is invalidated for a single rebuild. The
+quiet period is 180 ms but a batch is never postponed past two seconds, watch
+sets are resynchronized once per batch, and a kernel event overflow is
+delivered as an unknown-scope refresh instead of being logged and lost.
 Recent Figaro-originated write events are recognized so the watcher does not
-repeat the save work. After an internal copy reaches disk, an active watcher is
+repeat the save work; that includes the link rewrites of a rename, move or
+merge. A link-style conversion, which may rewrite most notes, invalidates the
+index and cached tree once instead. After an internal copy reaches disk, an active watcher is
 the production authority for intervening external changes, so a current index
 parses only the copied subtree and exact copied paths acknowledge the
 corresponding watcher batch. Watcher-less adapters retain the complete
@@ -1373,7 +1385,12 @@ File-tree deletion is a separate, explicit history boundary. The frontend
 first persists dirty affected CodeMirror tabs; the backend then holds the vault
 write lock while the history adapter enumerates the target through `os.Root`,
 stages the exact current target—including tracked children already removed—and
-creates or identifies the commit that reconstructs it. The pure
+creates or identifies the commit that reconstructs it. Whether anything else
+is staged, and whether the target itself changed, is read by the pure
+`compareArchiveIndexWithHead` from the Git index and the cached HEAD tree; no
+repository-wide status is taken, and unmerged, intent-to-add or submodule
+entries select the complete-status fallback. The deleted notes are then
+dropped from the shared index in place rather than through a rebuild. The pure
 `internal/recovery` registry rules order, find, and remove opaque records; the
 desktop coordinator atomically persists those records in vault-local
 `.config/recently-deleted.json` before `RemoveAll`. The archive path refuses
@@ -1673,7 +1690,12 @@ only on request. Shared view helpers disclose extra alternatives and explain rul
 before technical evidence; configured lens controls start collapsed.
 Spelling runs the existing conservative nspell implementation in a separate
 cancellable worker, with current-source eligibility and up to 4,096 cached lookups keyed by language
-and exact word across edits.
+and exact word across edits. One pass flags every unknown word but spends a
+bounded time generating replacements; the rest carry `suggestionsPending` and
+the analysis use case repeats the pass over the unchanged source until the
+cache is complete, so a note with many unfamiliar words reports at once and
+never needs all lookups inside one watchdog window. A token longer than any
+dictionary word gets no replacement search at all.
 `core/spellingModel.js` uses the eagerly bundled Lezer Markdown parser for
 UTF-16 eligibility shared by spelling, context menus and background resolution.
 Reference IDs/definitions and indented code are excluded. Defined implicit
@@ -1912,10 +1934,38 @@ only the image, diagram, table, or math stages whose markers occur in the
 incoming source. Dormant authoring fields attach afterward, preserving the
 ability to type new syntax without placing their initial scans on the ready
 path. Feature scanners have cheap marker exits and frontmatter materializes
-only the leading prefix. The active tab and document owner guard every stage;
-switching away cancels queued work, while edits made after source completion
-are retained. Visible source, saved cursor, isolated undo history, and the
-complete Markdown feature set are unchanged—only their scheduling differs.
+only the leading prefix. The source itself is never left half mounted: until
+the tail lands the requested text remains the mounted source for every reader
+(`getEditorContent`), authored changes are refused, and the tail is appended
+whenever the document and its owner still match. Activating a workspace panel
+or cancelling presentation stages does not abandon it; only a replacement of
+the document makes it obsolete. The active tab and document owner guard each
+presentation stage, and switching away cancels those. Visible source, saved
+cursor, isolated undo history, and the complete Markdown feature set are
+unchanged—only their scheduling differs.
+
+Ownership follows the buffer, not the path. File-tab IDs are paths, so a rename
+or move calls the session's `renameDocumentTab` and the mounted document keeps
+recording edits under its new ID without a remount. A replacement the editor
+rejects leaves the previous document attributed to its own tab. The adapter
+installs every source through transactions carrying one `documentReplacement`
+annotation, and a change filter applying the pure `documentChangeAllowed` rule
+accepts nothing else while the editor is read-only or half mounted, so widgets
+that dispatch directly cannot edit those states. Selections are clamped to the inserted CodeMirror text, which keeps
+one character per line break whatever the source used.
+
+A revision preview (`showEditorPreview` / `closeEditorPreview`) displaces the
+owning tab's text without becoming it. The adapter keeps the displaced text,
+selection and serialized undo field, removes history, and makes the editor
+read-only; closing follows the pure `core/editorPreviewModel.js` plan and
+restores all three synchronously, mounts a restored revision with fresh
+history, or only releases the read-only state when another document has
+replaced the preview. Persistence never reads the visible document directly:
+`getEditorBufferContent` returns the displaced text while a preview is shown
+and the mounted source otherwise. `saveContentSource` in `core/saveModel.js`
+decides which text a save may write: the editor's buffer for the tab that owns
+it, a tab's cached buffer otherwise, and nothing — never an empty file — for a
+tab with neither.
 
 Edits publish dirty state, generation and an immutable lazy content handle in one
 transition. `usecases/tabContent.js` resolves either that handle or a saved string
@@ -2692,8 +2742,8 @@ Document observers follow the same rule. A changed editor document is kept as
 CodeMirror's immutable text snapshot until the next animation frame, when the
 latest dirty snapshot is published to Kanban and PDF-preview consumers. Tab
 switches await their scheduled live-document replacement, while saves
-materialize the current editor document synchronously, so coalescing cannot
-lose a buffer. Word/character statistics are intentionally
+materialize the buffer the editor holds for its tab synchronously, so
+coalescing cannot lose a buffer. Word/character statistics are intentionally
 settled after a short typing pause and reuse that latest materialized snapshot
 where possible, avoiding a whole-document tokenization per keypress.
 

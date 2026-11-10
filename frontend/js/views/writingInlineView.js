@@ -18,11 +18,14 @@ export function writingFindingExamples(finding) {
         .map(member => createWritingExamplesView(member));
 }
 
-/** Ignore every finding an entry covers; one finding keeps the direct call. */
+/**
+ * Ignore every finding an entry covers in one request, so all of them are
+ * checked against the analysis the author saw. One finding keeps the direct
+ * call; a merged entry passes every member's ID together.
+ */
 export function ignoreWritingFinding(finding, ignore) {
     const members = writingFindingMembers(finding);
-    if (members.length === 1) return ignore(members[0].id);
-    return members.reduce((previous, member) => previous.then(() => ignore(member.id)), Promise.resolve());
+    return ignore(members.length === 1 ? members[0].id : members.map(member => member.id));
 }
 /** Compose the approved menu surface and standard buttons for an inline review. */
 export function createWritingInlineView({ findings, stale = false, onApply, onApplyAll, bulkCount = () => 0, onIgnore, onAcceptAcronym, onAddWord, onClose }) {

@@ -1,6 +1,7 @@
 import nspell from 'nspell';
 import { spellingPossessive } from './spellingModel.js';
 import { reviewedSpellingCorrection } from './spellingSuggestionsModel.js';
+import { appendAll } from './appendAll.js';
 
 // Noun-only S (regular plural) and M (possessive) rules from the pinned
 // dictionary-en 4.0.0 and dictionary-en-gb 3.0.0 affixes. Real-dictionary
@@ -94,7 +95,7 @@ export function vaultSpellingWords({ tree = [], tags = [] } = {}, limit = vaultS
     const pending = [...(Array.isArray(tree) ? tree : [])];
     while (pending.length && words.size < limit) {
         const item = pending.shift();
-        if (item?.type === 'directory') pending.push(...(item.children || []));
+        if (item?.type === 'directory') appendAll(pending, item.children || []);
         else if (item?.type === 'file' && noteExtension.test(item.name || '')) add(item.name.replace(noteExtension, ''));
     }
     for (const tag of Array.isArray(tags) ? tags : []) add(tag);

@@ -67,11 +67,17 @@ describe('markdown editor interactions', () => {
             'recordTabEdit', 'replaceActiveFileTab', 'saveActiveFile', 'saveFileSnapshot', 'switchTab']
             .map(name => [name, jest.fn()])));
         view = createEditorView();
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '[Local note]()' }, selection: { anchor: 14 } });
+        // Autofill answers typing only, so each edit carries the typing event.
+        const type = (insert, anchor) => view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert },
+            selection: { anchor },
+            userEvent: 'input.type',
+        });
+        type('[Local note]()', 14);
         await Promise.resolve();
         expect(view.state.doc.toString()).toBe('[Local note](Local%20note.md)');
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '[Old]()' }, selection: { anchor: 7 } });
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'Current text' }, selection: { anchor: 12 } });
+        type('[Old]()', 7);
+        type('Current text', 12);
         await Promise.resolve();
         expect(view.state.doc.toString()).toBe('Current text');
     });

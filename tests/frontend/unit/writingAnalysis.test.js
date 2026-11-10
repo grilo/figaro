@@ -121,6 +121,47 @@ test('writing spelling reanalyzes after dictionary changes and hides accepted wo
     controller.destroy();
 });
 
+test('spelling flags every unknown word at once and adds late suggestions through bounded follow-up passes', async () => {
+    const { controller, spelling } = harness();
+    const source = 'Speling and Wrods';
+    const observation = (actual, replacements, pending, text = source) => ({ engine: 'spelling', rule: 'figaro-spelling',
+        from: text.indexOf(actual), to: text.indexOf(actual) + actual.length, actual, replacements,
+        ...(pending ? { suggestionsPending: true } : {}) });
+    // One pass's time budget covered the first word only.
+    spelling
+        .mockResolvedValueOnce([observation('Speling', ['Spelling']), observation('Wrods', [], true)])
+        .mockResolvedValueOnce([observation('Speling', ['Spelling']), observation('Wrods', ['Words'])]);
+    const published = [];
+    const initial = snapshot({ source, preferences: { lenses: ['spelling'] }, spelling: { enabled: true, language: 'en-US', words: [] } });
+    const stop = () => published.push(controller.snapshot().findings.map(item => [item.actual, item.fixes.map(fix => fix.replacement)]));
+    controller.update(initial, { immediate: true });
+    await jest.advanceTimersByTimeAsync(0); stop();
+
+    expect(spelling).toHaveBeenCalledTimes(2);
+    expect(spelling).toHaveBeenLastCalledWith(source, 'en-US');
+    expect(controller.snapshot().states.spelling).toBe('complete');
+    expect(controller.snapshot().count).toBe(2);
+    expect(published.at(-1)).toEqual([['Speling', ['Spelling']], ['Wrods', ['Words']]]);
+
+    // A follow-up pass that fails keeps the words that are already flagged.
+    spelling.mockReset();
+    spelling.mockResolvedValueOnce([observation('Wrods', [], true, 'Wrods')]).mockRejectedValueOnce(new Error('Writing analysis timed out'));
+    controller.update({ ...initial, revision: 2, source: 'Wrods', configuration: 'two' }, { immediate: true });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(spelling).toHaveBeenCalledTimes(2);
+    expect(controller.snapshot().states.spelling).toBe('complete');
+    expect(controller.snapshot().findings.map(item => item.actual)).toEqual(['Wrods']);
+
+    // A pass that never stops reporting pending work is not repeated forever.
+    spelling.mockReset();
+    spelling.mockResolvedValue([observation('Wrods', [], true, 'Wrods')]);
+    controller.update({ ...initial, revision: 3, source: 'Wrods', configuration: 'three' }, { immediate: true });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(spelling.mock.calls.length).toBeGreaterThan(1);
+    expect(spelling.mock.calls.length).toBeLessThanOrEqual(65);
+    controller.destroy();
+});
+
 test('adding a base word refreshes personal plurals and possessives in pane and inline review, scoped to English', async () => {
     const { controller, spelling } = harness();
     const words = ['figarowords', 'figaroword’s', 'figarowords’', 'figarwords'];

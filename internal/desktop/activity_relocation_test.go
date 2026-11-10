@@ -1,10 +1,12 @@
 package desktop
 
 import (
+	"encoding/json"
 	"figaro/internal/activity"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -180,4 +182,66 @@ func TestActivityMetadataRollbackRemovesNewSidecarAndRestoresWritingChoices(t *t
 	if readTestFile(t, dir, writingLensesPath) != before {
 		t.Fatal("rollback lost writing choices")
 	}
+}
+
+func TestRenameGoesAheadWhenActivityCannotRecordTheMove(t *testing.T) {
+	t.Run("name with a colon", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows file names cannot contain a colon")
+		}
+		dir := t.TempDir()
+		app := activityApp(t, dir)
+		writeTestFile(t, dir, "Meetings/Notes.md", "Keep this decision.")
+		if err := app.history.CommitFile("Meetings/Notes.md"); err != nil {
+			t.Fatal(err)
+		}
+		for _, move := range [][2]string{
+			{"Meetings/Notes.md", "Meetings/Agenda: Alice.md"},
+			{"Meetings/Agenda: Alice.md", "Meetings/1:1 Alice.md"},
+			{"Meetings/1:1 Alice.md", "1:1 Alice.md"},
+		} {
+			result, err := app.RenamePath(move[0], move[1])
+			if err != nil || !result.Success {
+				t.Fatalf("RenamePath(%q, %q): result=%+v err=%v", move[0], move[1], result, err)
+			}
+		}
+		if got := readTestFile(t, dir, "1:1 Alice.md"); got != "Keep this decision." {
+			t.Fatalf("renamed note content = %q", got)
+		}
+		if _, err := os.Stat(filepath.Join(dir, activity.PathsFile)); !os.IsNotExist(err) {
+			t.Fatalf("an unrecordable move wrote the activity path history: %v", err)
+		}
+	})
+
+	t.Run("full history", func(t *testing.T) {
+		dir := t.TempDir()
+		app := activityApp(t, dir)
+		writeTestFile(t, dir, "Note.md", "Keep this decision.")
+		if err := app.history.CommitFile("Note.md"); err != nil {
+			t.Fatal(err)
+		}
+		full := activity.PathHistory{Version: 1}
+		for len(full.Moves) < 10000 {
+			full.Moves = append(full.Moves, activity.PathMove{From: "a.md", To: "b.md", Revision: strings.Repeat("a", 40)})
+		}
+		fullData, err := json.Marshal(full)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeTestFile(t, dir, activity.PathsFile, string(fullData))
+
+		result, err := app.RenamePath("Note.md", "Renamed.md")
+		if err != nil || !result.Success {
+			t.Fatalf("RenamePath with a full activity history: result=%+v err=%v", result, err)
+		}
+		if got := readTestFile(t, dir, "Renamed.md"); got != "Keep this decision." {
+			t.Fatalf("renamed note content = %q", got)
+		}
+		if got := readTestFile(t, dir, activity.PathsFile); got != string(fullData) {
+			t.Fatal("a full activity path history was rewritten")
+		}
+		if _, err := app.GetFileActivity("Renamed.md"); err != nil {
+			t.Fatalf("activity for the renamed note is unavailable: %v", err)
+		}
+	})
 }

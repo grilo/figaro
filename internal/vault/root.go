@@ -10,18 +10,25 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 // RelativePath normalizes a frontend-supplied path without permitting an
 // absolute path or traversal above the vault root.
 func RelativePath(rel string) (string, error) {
+	return relativePathFor(runtime.GOOS, rel)
+}
+
+// relativePathFor is RelativePath with the operating system passed in, so the
+// drive-letter rule of each platform can be tested on any of them.
+func relativePathFor(goos string, rel string) (string, error) {
 	rel = strings.ReplaceAll(rel, "\\", "/")
 	rel = strings.TrimLeft(rel, "/")
 	if strings.ContainsRune(rel, '\x00') {
 		return "", fmt.Errorf("invalid path contains NUL")
 	}
-	if len(rel) > 1 && rel[1] == ':' {
+	if hasDrivePrefix(goos, rel) {
 		return "", fmt.Errorf("Windows absolute paths not allowed: %s", rel)
 	}
 
@@ -35,6 +42,23 @@ func RelativePath(rel string) (string, error) {
 	return clean, nil
 }
 
+// hasDrivePrefix reports whether a slash-separated path starts like a Windows
+// drive. On Windows any second-character colon selects a drive or an alternate
+// data stream, so all of them are refused. Elsewhere a colon is an ordinary
+// filename character ("1:1 Alice.md", "a: note.md"); only an unmistakable drive
+// form, an ASCII letter and a colon alone or followed by a separator, is
+// refused there.
+func hasDrivePrefix(goos string, rel string) bool {
+	if len(rel) < 2 || rel[1] != ':' {
+		return false
+	}
+	if goos == "windows" {
+		return true
+	}
+	letter := rel[0] | 0x20
+	return letter >= 'a' && letter <= 'z' && (len(rel) == 2 || rel[2] == '/')
+}
+
 // ValidatePath forces Root to resolve existing path components. A missing
 // final component is valid for create operations.
 func ValidatePath(root *os.Root, rel string) error {
@@ -46,7 +70,8 @@ func ValidatePath(root *os.Root, rel string) error {
 }
 
 // WriteFileAtomic writes a root-relative file through a random temporary file
-// and then renames it into place. Existing permissions are retained.
+// and then renames it into place. A file that already exists keeps exactly its
+// permission bits; a new file gets mode as filtered by the process umask.
 func WriteFileAtomic(root *os.Root, rel string, data []byte, mode os.FileMode) error {
 	dir := filepath.Dir(rel)
 	if dir != "." {
@@ -54,8 +79,10 @@ func WriteFileAtomic(root *os.Root, rel string, data []byte, mode os.FileMode) e
 			return err
 		}
 	}
+	replacesExisting := false
 	if info, err := root.Stat(rel); err == nil {
 		mode = info.Mode().Perm()
+		replacesExisting = true
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -74,6 +101,9 @@ func WriteFileAtomic(root *os.Root, rel string, data []byte, mode os.FileMode) e
 		if err != nil {
 			return err
 		}
+		if replacesExisting {
+			restorePermissions(file, mode.Perm())
+		}
 
 		if _, err := file.Write(data); err != nil {
 			return closeAndRemove(root, file, tempRel, "write temporary file", err)
@@ -90,6 +120,18 @@ func WriteFileAtomic(root *os.Root, rel string, data []byte, mode os.FileMode) e
 		return nil
 	}
 	return fmt.Errorf("create temporary file for %s: too many collisions", rel)
+}
+
+// restorePermissions gives the temporary replacement the permission bits of
+// the file it replaces. Creating it applied the process umask, which would
+// otherwise turn a group-writable 0664 note into 0644 on every save. Filesystems
+// with synthetic permissions (FAT, some network mounts) refuse the change; the
+// save then proceeds with the bits the filesystem chose, as it always did.
+func restorePermissions(file *os.File, mode os.FileMode) {
+	if info, err := file.Stat(); err == nil && info.Mode().Perm() == mode {
+		return
+	}
+	_ = file.Chmod(mode)
 }
 
 // CreateFile creates a root-relative file without replacing an existing file.
@@ -232,9 +274,56 @@ func WalkMarkdownMetadataWithProgress(root *os.Root, visitor MarkdownMetadataVis
 	return nil
 }
 
+// WalkMarkdownMetadata visits every ordinary Markdown file once, in path
+// order, without reading it and without a progress pre-pass. A visitor that
+// returns fs.SkipAll ends the walk early without an error.
+func WalkMarkdownMetadata(root *os.Root, visitor MarkdownMetadataVisitor) error {
+	return walkMarkdownFiles(root, func(file markdownFile) error {
+		return visitor(root, filepath.ToSlash(file.rel), file.info)
+	})
+}
+
+// IsSkippableWalkError reports whether a failure met on one entry below the
+// vault root should leave that entry out instead of failing the whole walk: a
+// folder the user may not read (ext4's lost+found, a chmod 000 directory) or an
+// entry that vanished between being listed and being inspected. A failure on
+// the vault root itself is never skippable; callers check that themselves.
+func IsSkippableWalkError(err error) bool {
+	return errors.Is(err, fs.ErrPermission) || errors.Is(err, fs.ErrNotExist)
+}
+
+// HasMarkdown reports whether the vault holds at least one ordinary Markdown
+// file, by the same rules as WalkMarkdown. It stops at the first one found,
+// and looks at the top level first so that the usual vault, with a note beside
+// its folders, is settled by one listing instead of a descent into them.
+func HasMarkdown(root *os.Root) (bool, error) {
+	entries, err := fs.ReadDir(root.FS(), ".")
+	if err != nil {
+		return false, fmt.Errorf("walk vault path %q: %w", ".", err)
+	}
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && isMarkdownName(entry.Name()) {
+			return true, nil
+		}
+	}
+	found := false
+	err = walkMarkdownFiles(root, func(markdownFile) error {
+		found = true
+		return fs.SkipAll
+	})
+	return found, err
+}
+
+func isMarkdownName(name string) bool {
+	return strings.HasSuffix(strings.ToLower(name), ".md")
+}
+
 func walkMarkdownFiles(root *os.Root, visitor func(markdownFile) error) error {
 	return fs.WalkDir(root.FS(), ".", func(rel string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
+			if rel != "." && IsSkippableWalkError(walkErr) {
+				return nil
+			}
 			return fmt.Errorf("walk vault path %q: %w", rel, walkErr)
 		}
 		if rel == "." {
@@ -245,6 +334,9 @@ func walkMarkdownFiles(root *os.Root, visitor func(markdownFile) error) error {
 		}
 		info, err := entry.Info()
 		if err != nil {
+			if IsSkippableWalkError(err) {
+				return nil
+			}
 			return fmt.Errorf("inspect vault path %q: %w", rel, err)
 		}
 		if info.Mode()&fs.ModeSymlink != 0 {
@@ -256,7 +348,7 @@ func walkMarkdownFiles(root *os.Root, visitor func(markdownFile) error) error {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
+		if !isMarkdownName(entry.Name()) {
 			return nil
 		}
 		return visitor(markdownFile{rel: rel, info: info})

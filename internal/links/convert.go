@@ -220,7 +220,7 @@ func resolveExistingNote(sourceRel string, destination string, noteExists func(s
 	if err != nil || strings.ContainsAny(decoded, "|]\r\n") {
 		return "", "", false
 	}
-	target, _, ok := resolveMarkdownLinkTarget(sourceRel, decoded)
+	target, _, ok := resolveMarkdownLinkTarget(sourceRel, decoded, false)
 	if !ok {
 		return "", "", false
 	}
