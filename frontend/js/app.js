@@ -776,11 +776,13 @@ export async function initApp() {
     initRawTextPreview();
     const dictionaryReady = startupTimings.measure('dictionary', () => spellingDictionary.restore()).catch(error => log.warn('Could not load the spelling dictionary:', error));
     const writingReady = startupTimings.measure('writing', () => {
+        const analysisPorts = createWritingAdapters(backend());
         writingLensesController = initWritingLenses({
             dictionary: spellingDictionary,
             dictionaryReady,
             setSpelling: spelling => {
-                setSpellcheck(spelling);
+                // Right-click suggestions come from the spelling worker.
+                setSpellcheck({ ...spelling, suggest: analysisPorts.spelling.suggest });
                 // Context-menu spelling accepts the same personal and vault words as review.
                 if (Array.isArray(spelling?.words)) setSpellingWords(spelling.words);
             },
@@ -800,7 +802,7 @@ export async function initApp() {
                 return editorPreviewLiveContent(tabId) === null ? tabId : null;
             },
             getView: getEditorView,
-            analysisPorts: createWritingAdapters(backend()),
+            analysisPorts,
             focusEditor: () => getEditorView()?.focus(),
             loadDecisions: path => backend().WritingDecisionsLoad(path),
             changeDecisions: (path, command) => backend().WritingDecisionsChange(path, command),

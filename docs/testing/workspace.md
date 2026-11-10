@@ -921,10 +921,11 @@ blob/tree/commit failure with index rollback and intact saved text, external
 index changes, ignored files, deletion, path containment, and a worktree adapter
 that rejects directory traversal. `internal/desktop/slow_history_test.go` checks
 that saving can proceed under the history path lock and that a waiting rename
-retains the newly saved text. `commit_count_test.go` owns that the retained
-revision counts equal the file log through branches, merges, rewrites and
-random histories, walk the log once, follow new revisions, and give way to a
-full walk beyond the chain limit. Run these packages with `go test -race` as well as
+retains the newly saved text. `path_history_test.go` owns that the retained
+per-path history and revision count equal a brute-force parent-diff reference
+through branches, merges, rewrites and random histories, list autosaves behind
+a newer branch tip, walk once, follow new revisions, and give way to a full
+walk beyond the chain limit. Run these packages with `go test -race` as well as
 the existing rooted filesystem, archive/recovery, and mutation regressions.
 These deterministic checks simulate slow Git I/O; responsiveness on the affected
 Windows/OneDrive/antivirus installation still requires a packaged native check.

@@ -42,7 +42,7 @@ describe('diagram renderer startup', () => {
             + '<a href="&#106;ava&#9;script:alert(3)"><text>Encoded</text></a>'
             + '<a xlink:href="https://example.com/docs"><text>Docs</text></a><a href="notes/other.md"><text>Note</text></a>'
             + '<use href="#icon"/><image href="data:image/png;base64,iVBORw0KGgo="/><script>alert(4)</script>'
-            + '<foreignObject><div><a href="data:text/html,x">data</a><img src="x.png" onerror="alert(5)"></div></foreignObject></svg>';
+            + '<foreignObject><div><a href="data:text/html,x">data</a><img src="/vault/x.png" onerror="alert(5)"></div></foreignObject></svg>';
         window.mermaid.render.mockResolvedValue({ svg: hostile });
         const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
 
@@ -54,7 +54,7 @@ describe('diagram renderer startup', () => {
             const addresses = [...host.querySelectorAll('*')].flatMap(element => [...element.attributes]
                 .filter(attribute => /^(?:xlink:)?(?:href|src)$/.test(attribute.name)).map(attribute => attribute.value));
             expect(addresses).toEqual([
-                'https://example.com/docs', 'notes/other.md', '#icon', 'data:image/png;base64,iVBORw0KGgo=', 'x.png',
+                'https://example.com/docs', 'notes/other.md', '#icon', 'data:image/png;base64,iVBORw0KGgo=', '/vault/x.png',
             ]);
             expect(host.textContent).toContain('StartEncodedDocsNote');
             expect(host.querySelector('a').getAttribute('target')).toBe('_blank');
@@ -70,6 +70,73 @@ describe('diagram renderer startup', () => {
 
         const svg = await renderDiagramSVG('mermaid', 'flowchart TD\n  A --> B', 'exact');
         expect(svg).toBe(rendered.replaceAll('keep', window.mermaid.render.mock.calls[0][0]));
+    });
+
+    test('gives Mermaid a label policy that removes loads from outside the vault and that a diagram cannot replace', async () => {
+        const { initializeDiagramRenderers } = await import('../frontend/js/diagramRenderer.js');
+        initializeDiagramRenderers();
+        const [config] = window.mermaid.initialize.mock.calls[0];
+        expect(config.secure).toEqual(expect.arrayContaining(['secure', 'securityLevel', 'dompurifyConfig']));
+        expect(config.dompurifyConfig).toMatchObject({ FORBID_TAGS: ['style'], RETURN_TRUSTED_TYPE: true });
+        const { createHTML } = config.dompurifyConfig.TRUSTED_TYPES_POLICY;
+        expect(createHTML('plain & text')).toBe('plain & text');
+        expect(createHTML('<b>bold</b><br><img src="/vault/a.png">')).toBe('<b>bold</b><br><img src="/vault/a.png">');
+        expect(createHTML('<img src="https://example.com/t.png" alt="t"><span style="background:url(//example.com/s.png)">x</span>'
+            + '<a href="https://example.com/docs">docs</a>'))
+            .toBe('<img alt="t"><span>x</span><a href="https://example.com/docs">docs</a>');
+    });
+
+    test('refuses a Mermaid render whose label policy removed an outside load, and draws an ordinary one', async () => {
+        window.mermaid.render.mockImplementation(async (_id, source) => {
+            const { createHTML } = window.mermaid.initialize.mock.calls[0][0].dompurifyConfig.TRUSTED_TYPES_POLICY;
+            createHTML(source.includes('remote') ? '<img src="https://example.com/t.png">' : '<b>label</b>');
+            return { svg: '<svg><text>drawn</text></svg>' };
+        });
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+
+        await expect(renderDiagramSVG('mermaid', 'flowchart TD\n  A[remote]')).rejects.toMatchObject({
+            code: 'mermaid-resource-refused',
+            message: expect.stringContaining('“https://example.com/t.png”'),
+        });
+        await expect(renderDiagramSVG('mermaid', 'flowchart TD\n  A[local]')).resolves.toContain('drawn');
+    });
+
+    test.each([
+        ['an image', '<svg><image href="https://example.com/i.png"/></svg>', 'https://example.com/i.png'],
+        ['a stylesheet url()', '<svg><style>#x .a{background:url(//example.com/s.png)}</style></svg>', '//example.com/s.png'],
+        ['a style attribute', '<svg><g style="fill:url(file:///etc/x.svg#p)"/></svg>', 'file:///etc/x.svg#p'],
+    ])('refuses a finished Mermaid SVG that would load %s from outside the vault', async (_name, svg, address) => {
+        window.mermaid.render.mockResolvedValue({ svg });
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+
+        await expect(renderDiagramSVG('mermaid', 'flowchart TD\n  A --> B')).rejects.toMatchObject({
+            code: 'mermaid-resource-refused',
+            message: expect.stringContaining(`“${address}”`),
+        });
+    });
+
+    test('refuses outside loads in a diagram\'s config, image shapes and style statements before Mermaid draws', async () => {
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        const refused = { code: 'mermaid-resource-refused' };
+
+        await expect(renderDiagramSVG('mermaid', 'stateDiagram-v2\n  classDef x background:url(//example.com/c.png)'))
+            .rejects.toMatchObject(refused);
+        expect(window.mermaid.parse).not.toHaveBeenCalled();
+
+        window.mermaid.parse.mockResolvedValueOnce({ diagramType: 'flowchart-v2', config: { themeCSS: 'span{background:\\75rl(https://example.com/t.png)}' } });
+        await expect(renderDiagramSVG('mermaid', 'flowchart TD\n  A --> B')).rejects.toMatchObject(refused);
+
+        const vertices = new Map([['A', { id: 'A', img: '/vault/ok.png' }], ['B', { id: 'B', img: 'https://example.com/i.png' }]]);
+        window.mermaid.mermaidAPI = { getDiagramFromText: jest.fn().mockResolvedValue({ db: { getVertices: () => vertices } }) };
+        await expect(renderDiagramSVG('mermaid', 'flowchart TD\n  A@{ img: "/vault/ok.png" }\n  B@{ img: "…" }'))
+            .rejects.toMatchObject({ ...refused, message: expect.stringContaining('“https://example.com/i.png”') });
+        expect(window.mermaid.render).not.toHaveBeenCalled();
+
+        vertices.delete('B');
+        await expect(renderDiagramSVG('mermaid', 'flowchart TD\n  A@{ img: "/vault/ok.png" }')).resolves.toBe('<svg></svg>');
+        window.mermaid.parse.mockRejectedValueOnce(new Error('Parse error on line 2'));
+        await expect(renderDiagramSVG('mermaid', 'flowchart TD\n  A -->')).rejects.toThrow('Parse error on line 2');
+        expect(window.mermaid.render).toHaveBeenCalledTimes(1);
     });
 
     test('rejects unsafe Mermaid frontmatter before calling the vendored parser', async () => {

@@ -22,6 +22,12 @@ describe('PDF preview image source planning', () => {
             path: 'shared/portrait.png',
             suffix: '?raw=1',
         });
+        // A colon is part of a file name, as in the editor.
+        expect(planPDFPreviewImageSource('notes/report.md', 'Re:%20chart.png')).toEqual({
+            kind: 'vault',
+            path: 'notes/Re: chart.png',
+            suffix: '',
+        });
     });
 
     test.each([

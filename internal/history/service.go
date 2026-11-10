@@ -56,11 +56,11 @@ type Service struct {
 	activityCache map[string]*activity.Document
 	commitHead    plumbing.Hash
 	commitEntries map[string]gitPathState
-	// commitCounts retains every path's revision count for one state of the
+	// pathHistory retains every path's revisions for one state of the
 	// references; the two counters record how it was kept current.
-	commitCounts        *commitCountIndex
-	commitCountBuilds   int
-	commitCountAdvances int
+	pathHistory         *pathHistoryIndex
+	pathHistoryBuilds   int
+	pathHistoryAdvances int
 }
 
 // New initializes or opens a Git repository in the vault directory.
@@ -468,7 +468,9 @@ func (h *Service) notifyCommitLocked() {
 	}
 }
 
-// GetFileHistory returns the Git log for a specific file.
+// GetFileHistory returns the revisions, across all references and newest
+// committer time first, in which a file differs from the parent revision (for
+// a merge, from every parent).
 func (h *Service) GetFileHistory(relPath string) ([]Entry, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -479,35 +481,13 @@ func (h *Service) getFileHistoryLocked(relPath string) ([]Entry, error) {
 	if h.repo == nil {
 		return nil, fmt.Errorf("history service not initialized")
 	}
-
-	fileName := filepath.ToSlash(relPath)
-	// Let go-git filter the log by paths changed in each commit instead of
-	// opening every commit tree and merely checking whether the file happened
-	// to exist at that point in history. This also keeps the status-bar count
-	// accurate when other notes are committed.
-	commits, err := h.repo.Log(&git.LogOptions{
-		Order:    git.LogOrderCommitterTime,
-		All:      true,
-		FileName: &fileName,
-	})
+	// The History panel asks each time it opens; the retained index answers
+	// without walking the repository again (see pathHistoryLocked).
+	index, err := h.pathHistoryLocked()
 	if err != nil {
-		return nil, fmt.Errorf("get log: %w", err)
+		return nil, err
 	}
-	defer commits.Close()
-
-	var entries []Entry
-	err = commits.ForEach(func(commit *object.Commit) error {
-		entries = append(entries, Entry{
-			Hash:      commit.Hash.String(),
-			Timestamp: float64(commit.Author.When.UnixNano()) / 1e9,
-			Message:   commit.Message,
-		})
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("iterate commits: %w", err)
-	}
-	return entries, nil
+	return index.entries(filepath.ToSlash(relPath)), nil
 }
 
 // GetFileVersion returns a file's content at a specific commit hash.

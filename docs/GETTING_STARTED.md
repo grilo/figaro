@@ -82,6 +82,12 @@ Notes remain Markdown files; images, code, and diagrams keep their normal file
 formats. Unsupported files can still be organized in the tree and opened in
 their default application.
 
+Figaro shows only images stored in your vault. An image that points at the
+web, such as `![logo](https://example.com/logo.png)`, shows a short notice
+instead: Figaro never loads content from the internet, so opening a note
+cannot reveal to anyone that you read it. Hover the notice to see the address;
+to show the image, save it into the vault and link to that file.
+
 ## Make the workspace comfortable
 
 Use **Settings** to choose a theme, fonts, text width, and editor preferences.

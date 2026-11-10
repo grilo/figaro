@@ -533,6 +533,7 @@ func (a *App) prepareInteractivePDFDocument(title string, htmlContent string, so
 	}
 	sourceDir := a.vaultAbsolutePath(sourceDirRel)
 	htmlContent = rewritePrintableVaultLinks(htmlContent, a.vaultPath)
+	htmlContent = rewritePrintableRootImages(htmlContent, a.vaultPath)
 	return enrichInteractivePDFHTML(title, htmlContent, localFileURL(sourceDir, true), stylesheetURL), sourceDir, nil
 }
 
@@ -553,6 +554,30 @@ func rewritePrintableVaultLinks(document string, vaultPath string) string {
 			return match
 		}
 		return `href="` + html.EscapeString(localFileURL(filepath.Join(vaultPath, rel), false)+parts[2]) + `"`
+	})
+}
+
+var printableRootImageRe = regexp.MustCompile(`(<img\b[^>]*?\ssrc=")(/[^/"?#][^"?#]*)([?#][^"]*)?"`)
+
+// rewritePrintableRootImages gives an image addressed from the vault root
+// ("/attachments/a.png", or "/vault/attachments/a.png" as the live preview
+// writes it) the vault file it names. The document's base is the note's
+// folder, so a browser would otherwise read such a path from the root of the
+// disk. Other sources, protocol-relative "//host" addresses included, are left
+// as written.
+func rewritePrintableRootImages(document string, vaultPath string) string {
+	return printableRootImageRe.ReplaceAllStringFunc(document, func(match string) string {
+		parts := printableRootImageRe.FindStringSubmatch(match)
+		encoded := strings.TrimPrefix(parts[2], "/vault/")
+		decoded, err := url.PathUnescape(html.UnescapeString(strings.TrimLeft(encoded, "/")))
+		if err != nil {
+			return match
+		}
+		rel, err := vaultRelativePath(decoded)
+		if err != nil || rel == "." {
+			return match
+		}
+		return parts[1] + html.EscapeString(localFileURL(filepath.Join(vaultPath, rel), false)+html.UnescapeString(parts[3])) + `"`
 	})
 }
 

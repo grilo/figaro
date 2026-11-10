@@ -10,7 +10,8 @@
       "frontend/js/referenceLinks.js",
       "frontend/js/editorLinkCompletions.js",
       "frontend/js/core/completionTriggerModel.js",
-      "frontend/js/footnotes.js"
+      "frontend/js/footnotes.js",
+      "frontend/js/core/linkDestinationModel.js"
     ],
     "docs": [
       "docs/PROMPT.md#45-link-click-behavior",
@@ -28,7 +29,8 @@
       "tests/frontend/unit/markdownLinksProjection.test.js",
       "tests/frontend/unit/completionTriggerModel.test.js",
       "tests/frontend/unit/editorLinkCompletions.test.js",
-      "tests/frontend/unit/markdownInteraction.test.js"
+      "tests/frontend/unit/markdownInteraction.test.js",
+      "tests/frontend/unit/linkDestinationModel.test.js"
     ],
     "extraChecks": [
       "Follow docs/testing/editor.md for pointer, selection, or cursor changes; navigation planning alone is covered below the browser layer.",
@@ -64,6 +66,10 @@
       "frontend/js/footnotes.js": [
         "getFootnoteAtPosition",
         "resolveFootnoteNavigation"
+      ],
+      "frontend/js/core/linkDestinationModel.js": [
+        "isExternalLinkDestination",
+        "OPAQUE_URL_SCHEMES"
       ]
     }
   },
@@ -115,7 +121,8 @@
       "frontend/js/core/editorBlockActionLayoutModel.js",
       "frontend/js/core/markdownTableEditing.js",
       "frontend/js/frontmatterCompletions.js",
-      "frontend/js/core/vimExModel.js"
+      "frontend/js/core/vimExModel.js",
+      "frontend/js/core/markdownImageModel.js"
     ],
     "docs": [
       "docs/LIVEPREVIEW.md#4-block-widget-geometry-contract",
@@ -198,7 +205,8 @@
       "tests/frontend/unit/frontmatterPresentationModel.test.js",
       "tests/frontend/unit/frontmatter.test.js",
       "tests/frontend/unit/vimExModel.test.js",
-      "tests/frontend/unit/vimCommands.test.js"
+      "tests/frontend/unit/vimCommands.test.js",
+      "tests/frontend/unit/markdownImageModel.test.js"
     ],
     "extraChecks": [
       "Run the affected existing editorUX or vimVisualRows Playwright scenario for geometry changes and repeat in the packaged native webview.",
@@ -364,6 +372,9 @@
       ],
       "frontend/js/core/vimExModel.js": [
         "vimEditTargetPath"
+      ],
+      "frontend/js/core/markdownImageModel.js": [
+        "markdownImageSourceIsOutsideVault"
       ]
     }
   },
@@ -818,7 +829,9 @@
       "frontend/js/tabManager.js",
       "frontend/styles/features/settings.css",
       "frontend/js/settingsNavigation.js",
-      "frontend/js/writingLenses.js"
+      "frontend/js/writingLenses.js",
+      "frontend/js/writingSpellingWorker.js",
+      "frontend/js/writingWorkerClient.js"
     ],
     "docs": [
       "docs/WRITING_ENGINE.md#editorial-scope-and-source-safety",
@@ -838,7 +851,8 @@
       "tests/frontend/unit/writingQuality.test.js",
       "tests/frontend/unit/spellingDictionarySettings.test.js",
       "tests/frontend/unit/writingLenses.test.js",
-      "tests/frontend/unit/spellingWordAt.test.js"
+      "tests/frontend/unit/spellingWordAt.test.js",
+      "tests/frontend/unit/writingWorkerClient.test.js"
     ],
     "extraChecks": [
       "Personal-word resolution and shared technical masking also need writing. Persistence changes need go test ./internal/settings ./internal/desktop -run SpellingDictionary. Package mapping changes need the existing productionBundle boundary."
@@ -881,7 +895,9 @@
       ],
       "frontend/js/spellcheck.js": [
         "writingSpellingObservations",
-        "spellcheckSuggestionsAtPosition"
+        "spellcheckSuggestionsAtPosition",
+        "spellingSuggestionRequest",
+        "spellingWordSuggestions"
       ]
     }
   },
@@ -1522,7 +1538,7 @@
       "frontend/js/core/editorPreviewModel.js",
       "internal/history/archive_plan.go",
       "internal/activity/paths.go",
-      "internal/history/commit_count.go"
+      "internal/history/path_history.go"
     ],
     "docs": [
       "ARCHITECTURE.md#git-status-and-history-restoration",
@@ -1539,7 +1555,7 @@
       "tests/frontend/unit/editorPreviewModel.test.js"
     ],
     "extraChecks": [
-      "Run go test -race ./internal/history ./internal/desktop for Git/filesystem changes, including commit_plan_test.go, commit_file_test.go, archive_plan_test.go (delete staging against full worktree status), commit_count_test.go (retained revision counts against the file log), and desktop/slow_history_test.go; use actual temporary repositories."
+      "Run go test -race ./internal/history ./internal/desktop for Git/filesystem changes, including commit_plan_test.go, commit_file_test.go, archive_plan_test.go (delete staging against full worktree status), path_history_test.go (retained per-path history and counts against a parent-diff reference), and desktop/slow_history_test.go; use actual temporary repositories."
     ],
     "symbols": {
       "frontend/js/editor.js": [
@@ -1684,7 +1700,8 @@
         "diagramRenderIdentity",
         "renderDiagramSVG",
         "createVegaResourceGuard",
-        "mermaidSvgWithoutScriptLinks"
+        "safeMermaidSvg",
+        "renderMermaidWithinVault"
       ],
       "frontend/js/core/previewCache.js": [
         "createPreviewCache"
@@ -1717,7 +1734,13 @@
         "planVegaResourceAccess",
         "vegaResourceRefusalMessage",
         "VEGA_VAULT_ROUTE",
-        "mermaidSvgAttributeIsUnsafe"
+        "mermaidSvgAttributeIsUnsafe",
+        "mermaidResourceRefusal",
+        "mermaidCssRefusal",
+        "mermaidMarkupResourceRefusal",
+        "mermaidSourceResourceRefusal",
+        "mermaidConfigResourceRefusal",
+        "mermaidResourceRefusalMessage"
       ]
     }
   },
@@ -1934,7 +1957,8 @@
       "scripts/package-desktop.sh",
       "frontend/js/log.js",
       "internal/desktop/window_close_gate.go",
-      "internal/desktop/update_download.go"
+      "internal/desktop/update_download.go",
+      "frontend/index.html"
     ],
     "docs": [
       "ARCHITECTURE.md#wails-v3-bridge-asset-routes-and-updates",
@@ -1947,12 +1971,14 @@
       "tests/frontend/unit/updateSettings.test.js",
       "tests/frontend/unit/log.test.js",
       "tests/frontend/unit/editorSaveProtection.test.js",
-      "tests/frontend/unit/windowChrome.test.js"
+      "tests/frontend/unit/windowChrome.test.js",
+      "tests/frontend/unit/contentSecurityPolicy.test.js"
     ],
     "extraChecks": [
       "Run go test ./internal/desktop ./internal/updates ./internal/repositorycheck for the bridge guard, updater (including a fake GitHub API), and release-workflow contracts.",
       "Linux builds need GTK 4 and WebKitGTK 6.0 headers; launch packaged builds under xvfb-run and confirm no [security] refusals for Figaro's own bridge calls.",
-      "The restart swap, Windows and macOS packaging, a real GitHub check, and a close the operating system asks for (Alt+F4, window-manager or taskbar close, the macOS close button, Quit) are manual on packaged builds; the close gate is unit-tested in window_close_gate_test.go, and the operating-system close was checked only in the packaged Linux build (WebKitGTK), so Windows and macOS still need it."
+      "The restart swap, Windows and macOS packaging, a real GitHub check, and a close the operating system asks for (Alt+F4, window-manager or taskbar close, the macOS close button, Quit) are manual on packaged builds; the close gate is unit-tested in window_close_gate_test.go, and the operating-system close was checked only in the packaged Linux build (WebKitGTK), so Windows and macOS still need it.",
+      "Main-window content security policy changes need the browser check npx playwright test tests/e2e/noExternalContent.spec.js and a packaged start on each platform (WebKitGTK, WebView2, WKWebView), because a wrong policy stops the app from loading."
     ],
     "symbols": {
       "frontend/js/wailsRuntime.js": [

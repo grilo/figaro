@@ -1,5 +1,6 @@
 import {
     clearMarkdownImageSize,
+    markdownImageSourceIsOutsideVault,
     markdownImageDisplaySize,
     markdownImageResizePlan,
     parseMarkdownImageAlt,
@@ -118,5 +119,21 @@ describe('Markdown image sizing model', () => {
         });
         expect(bottomLimited.height).toBe(312);
         expect(bottomLimited.width / bottomLimited.height).toBeCloseTo(190 / 291, 2);
+    });
+});
+
+describe('images outside the vault', () => {
+    test.each([
+        'https://ex.test/pixel.png', 'HTTP://ex.test/a.png', '//ex.test/a.png', 'file:///etc/a.png',
+        'ftp://ex.test/a.png', ' https://ex.test/a.png ',
+    ])('%s is not loaded', source => {
+        expect(markdownImageSourceIsOutsideVault(source)).toBe(true);
+    });
+
+    test.each([
+        'photo.png', './photo.png', '../assets/photo.png', '/attachments/photo.png', 'Re: chart.png',
+        'data:image/png;base64,AA==', 'blob:http://localhost/abc', '', '#fragment',
+    ])('%s is a vault or inline image', source => {
+        expect(markdownImageSourceIsOutsideVault(source)).toBe(false);
     });
 });

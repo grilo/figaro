@@ -117,3 +117,26 @@ test('long-note worker budget remains bounded and actually terminates stalled an
     await jest.advanceTimersByTimeAsync(1); await rejected; expect(workers[0].terminate).toHaveBeenCalledTimes(1);
     client.destroy();
 });
+
+test('a lookup runs beside a pending analysis without cancelling it, and giving up on one keeps the worker', async () => {
+    const { client, workers } = harness({ cooperative: true });
+    const worker = workers[0]; worker.onmessage({ data: { ready: true } });
+    const analysis = client.analyze('long note'); await Promise.resolve();
+    const job = worker.postMessage.mock.calls[0][0];
+
+    const answered = client.lookup({ word: 'teh' }); await Promise.resolve(); await Promise.resolve();
+    const asked = worker.postMessage.mock.calls.at(-1)[0];
+    expect(asked).toEqual({ lookupId: expect.any(Number), lookup: { word: 'teh' } });
+    worker.onmessage({ data: { lookupId: asked.lookupId, result: { suggestions: ['the'] } } });
+    await expect(answered).resolves.toEqual({ suggestions: ['the'] });
+
+    const abandoned = client.lookup({ word: 'slow' }, 100); const timedOut = expect(abandoned).rejects.toThrow('timed out');
+    await jest.advanceTimersByTimeAsync(100); await timedOut;
+    expect(worker.terminate).not.toHaveBeenCalled();
+
+    worker.onmessage({ data: { id: job.id, result: 'review' } });
+    await expect(analysis).resolves.toBe('review');
+    const failed = client.lookup({ word: 'gone' }); await Promise.resolve(); await Promise.resolve();
+    const rejected = expect(failed).rejects.toThrow('closed');
+    client.destroy(); await rejected;
+});

@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -196,5 +197,54 @@ func TestUpdateTaskTagRefusesNewTagReadAsHexColor(t *testing.T) {
 	}
 	if got := readTestFile(t, vaultPath, "tasks.md"); got != note {
 		t.Fatalf("refused tag change rewrote the note: %q", got)
+	}
+}
+
+// Renaming or deleting a column rewrites every note that uses its tag, but only
+// notes Figaro would open as text: an oversized note is not read, and a binary
+// or non-UTF-8 one is left byte for byte as it was.
+func TestColumnRewritesSkipNotesFigaroDoesNotOpenAsText(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "plain.md", "- [ ] Call #urgent\n")
+	binary := "- [ ] Call #urgent now\x00\x01\n"
+	writeTestFile(t, vaultPath, "binary.md", binary)
+	latin1 := "- [ ] Caf\xe9 #urgent\n"
+	writeTestFile(t, vaultPath, "latin1.md", latin1)
+	// A sparse file costs no memory or disk, yet reports a size over the limit.
+	huge := filepath.Join(vaultPath, "huge.md")
+	writeTestFile(t, vaultPath, "huge.md", "- [ ] Call #urgent\n")
+	if err := os.Truncate(huge, maxEditableFileBytes+1); err != nil {
+		t.Fatal(err)
+	}
+	hugeBefore, err := os.Stat(huge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.syncKanbanColumns()
+
+	if _, err := app.RenameKanbanColumn("urgent", "soon"); err != nil {
+		t.Fatalf("RenameKanbanColumn: %v", err)
+	}
+	if got := readTestFile(t, vaultPath, "plain.md"); got != "- [ ] Call #soon\n" {
+		t.Fatalf("plain note = %q, want the tag renamed", got)
+	}
+	if _, err := app.DeleteKanbanColumn("soon"); err != nil {
+		t.Fatalf("DeleteKanbanColumn: %v", err)
+	}
+	if got := readTestFile(t, vaultPath, "plain.md"); got != "- [ ] Call \n" {
+		t.Fatalf("plain note = %q, want the tag removed", got)
+	}
+	if got := readTestFile(t, vaultPath, "binary.md"); got != binary {
+		t.Fatalf("binary note was rewritten: %q", got)
+	}
+	if got := readTestFile(t, vaultPath, "latin1.md"); got != latin1 {
+		t.Fatalf("non-UTF-8 note was rewritten: %q", got)
+	}
+	hugeAfter, err := os.Stat(huge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(hugeBefore, hugeAfter) || hugeAfter.Size() != hugeBefore.Size() || !hugeAfter.ModTime().Equal(hugeBefore.ModTime()) {
+		t.Fatal("oversized note was rewritten")
 	}
 }

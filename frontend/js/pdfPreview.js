@@ -24,6 +24,8 @@ import { getEditorContent, getEditorView } from './editor.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
 import { claimRightPane, registerRightPaneMode } from './rightPaneCoordinator.js';
 import { planPDFPreviewImageSource } from './core/pdfPreviewImageModel.js';
+import { isExternalLinkDestination } from './core/linkDestinationModel.js';
+import { vaultPathForNoteLink } from './core/linkedNoteNavigationModel.js';
 
 const previewDebounceMs = 320;
 let workspacePorts = null;
@@ -186,8 +188,7 @@ export function resolvePDFPreviewStylesheetPath(notePath, stylesheetReference) {
 
 function resolveCSSAssetPath(stylesheetPath, value) {
     const raw = String(value || '').trim();
-    if (!raw || raw.startsWith('#') || raw.startsWith('/') || raw.startsWith('data:') || raw.startsWith('//') ||
-        /^[a-z][a-z0-9+.-]*:/i.test(raw)) return raw;
+    if (!raw || raw.startsWith('/') || isExternalLinkDestination(raw)) return raw;
 
     const hashIndex = raw.search(/[?#]/);
     const relativePath = hashIndex < 0 ? raw : raw.slice(0, hashIndex);
@@ -502,19 +503,21 @@ function externalPreviewURL(href) {
 }
 
 function isExplicitPreviewURL(href) {
-    const value = String(href || '').trim();
-    return value.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(value);
+    return isExternalLinkDestination(String(href || '').trim());
 }
 
 function resolvePreviewVaultLink(href) {
     const { path, fragmentID } = splitPreviewLinkReference(href);
     if (!path) return { path: '', fragmentID };
 
+    // Printable wikilinks carry an explicit /vault/ path. A Markdown link is
+    // read as the editor reads it: "/" starts at the vault root, "./" and
+    // "../" at this note's folder, and anything else is a vault path.
     const normalizedPath = decodePreviewPath(path);
-    const vaultPath = normalizedPath.startsWith('/vault/')
-        ? normalizeVaultPath(normalizedPath.slice('/vault/'.length))
-        : normalizeVaultPath(normalizedPath, parentDirectory(preview.path));
-    return { path: vaultPath, fragmentID };
+    const destination = normalizedPath.startsWith('/vault/')
+        ? normalizedPath.slice('/vault/'.length)
+        : vaultPathForNoteLink(normalizedPath, preview.path);
+    return { path: destination === null ? '' : normalizeVaultPath(destination), fragmentID };
 }
 
 function openExternalPreviewURL(url) {

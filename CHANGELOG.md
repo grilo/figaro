@@ -10,6 +10,11 @@ remain as originally published.
 
 ### Changed
 
+- Figaro no longer loads anything from the internet on its own. An image in
+  a note that points at the web, such as `![](https://example.com/logo.png)`,
+  shows a notice with its address instead of the picture; save the image into
+  the vault to show it. Draw.io editing and update checks you turn on are the
+  only exceptions.
 - **Relationships** shows unlinked mentions 100 at a time. **Show 100 more**
   reveals the next page in place, and linking a mention no longer sends you
   back to the top of the list.
@@ -39,6 +44,10 @@ remain as originally published.
 - The version count in the status bar no longer re-reads the vault's whole
   history after every save, and right-clicking a word in a long note opens the
   spelling menu without re-reading the whole note.
+- The first spelling right-click in each language no longer pauses the
+  editor while the dictionary loads: suggestions are looked up in the
+  background, usually from what the writing review has already checked.
+- **History** opens without re-reading the vault's whole history each time.
 
 ### Fixed
 
@@ -134,9 +143,27 @@ remain as originally published.
   instead of recreating the old file.
 - A Kanban column named like a built-in word, such as `#constructor`, no
   longer shows a broken badge.
+- **History** lists every saved version of a note again when the vault has
+  another Git branch with newer commits. Some autosaved versions were left
+  out.
+- A Draw.io diagram renamed or moved while it is still opening now opens
+  under its new name instead of staying on "Opening diagram…".
+- Links in **PDF Preview** open the note the editor opens: a name with a colon,
+  such as `Re: plan.md`, is a note rather than a web address, and a path such
+  as `projects/plan.md` starts at the vault root. Wikilinks to such notes print
+  as links.
+- A PDF export finds an image written from the vault root, such as
+  `/attachments/chart.png`, instead of leaving it out.
+- Renaming or deleting a Kanban column no longer reads notes over the 50 MB
+  editor limit or rewrites notes Figaro cannot open as text.
+- On macOS and Windows, a folder can no longer be moved or copied into itself
+  through a differently capitalized spelling of its own name.
 
 ### Security
 
+- The main window now has a content security policy: images, fonts, styles,
+  scripts and requests can come only from Figaro itself, so nothing in a note
+  or a bug can make Figaro contact another site.
 - Text from your vault is always shown as text. A link destination, a file or
   folder name, or a Kanban column name or color containing HTML could
   previously run script inside Figaro when hovered or listed.
@@ -145,6 +172,10 @@ remain as originally published.
   it.
 - A Mermaid `click` link with a `javascript:` address is removed from the
   rendered diagram.
+- Opening a note no longer lets its Mermaid diagrams contact the network.
+  Images and stylesheet references in labels, image shapes, theme CSS and
+  style statements load only from the open vault or inline data, and a
+  diagram that asks for anything else shows an error instead.
 - PDF export loads images, fonts and stylesheets only from the vault.
 - A PDF browser path left in a vault's settings by an old version is no longer
   adopted, because Figaro would run it at the next export. If export cannot

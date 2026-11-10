@@ -97,6 +97,33 @@ describe('draw.io editor protocol', () => {
         expect(refreshFileTree).toHaveBeenCalled();
     });
 
+    test.each([
+        ['finishes reading', old => Promise.resolve({ path: old, mtime: 10, content: '<svg xmlns="http://www.w3.org/2000/svg"></svg>' })],
+        ['fails to read', () => Promise.reject(new Error('Diagram file was not found'))],
+    ])('a diagram renamed while it is opening is opened under its new name when the old read %s', async (_case, oldRead) => {
+        const opened = 'Diagrams/flow.drawio.svg';
+        const renamed = 'Archive/renamed.drawio.svg';
+        let finishOldRead;
+        window.go.desktop.App.ReadDiagram = jest.fn(path => path === opened
+            ? new Promise((resolve, reject) => { finishOldRead = () => oldRead(path).then(resolve, reject); })
+            : Promise.resolve({ path, mtime: 12, content: '<svg xmlns="http://www.w3.org/2000/svg"></svg>' }));
+        panel.dataset.tabId = opened;
+        const rendering = renderDrawioTab(panel, { id: opened, path: opened, title: 'flow.drawio.svg', mtime: 0 });
+        expect(panel.textContent).toContain('Opening diagram');
+
+        // What the tab owner does to the panel once the file has moved.
+        panel.dataset.tabId = renamed;
+        panel._drawioPath = renamed;
+        finishOldRead();
+        await rendering;
+
+        expect(window.go.desktop.App.ReadDiagram).toHaveBeenLastCalledWith(renamed);
+        expect(recordTabMtime).toHaveBeenLastCalledWith(renamed, 12);
+        expect(panel.querySelector('.drawio-frame')).not.toBeNull();
+        expect(panel.textContent).not.toContain('Opening diagram');
+        expect(panel._drawioPath).toBe(renamed);
+    });
+
     test('a diagram renamed while its editor is open marks and saves the renamed tab, never the old path', async () => {
         const opened = 'Diagrams/flow.drawio.svg';
         const renamed = 'Archive/renamed.drawio.svg';

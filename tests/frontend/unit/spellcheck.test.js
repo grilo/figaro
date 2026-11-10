@@ -4,6 +4,8 @@ import {
     spellcheckSuggestionsAtPosition,
     spellcheckWordAtPosition,
     spellcheckWordRanges,
+    spellingWordSuggestions,
+    writingSpellingObservations,
 } from '../frontend/js/spellcheck.js';
 
 describe('offline Markdown spellcheck', () => {
@@ -174,5 +176,42 @@ describe('offline Markdown spellcheck', () => {
         } finally {
             if (previousFetch) global.fetch = previousFetch; else delete global.fetch;
         }
+    });
+
+    test('a right-click hands the word to the lookup it is given and never loads a dictionary itself', async () => {
+        const getChecker = jest.fn();
+        const lookup = jest.fn(async () => ({ suggestions: ['the'] }));
+        const source = 'Start. Then teh end.';
+        await expect(spellcheckSuggestionsAtPosition(source, source.indexOf('teh') + 1, 'en-US', getChecker, [], lookup))
+            .resolves.toEqual({ from: source.indexOf('teh'), to: source.indexOf('teh') + 3, word: 'teh', suggestions: ['the'] });
+        expect(lookup).toHaveBeenCalledWith({ word: 'teh', languages: ['en-US'], sentenceStart: true, editable: true });
+        expect(getChecker).not.toHaveBeenCalled();
+
+        lookup.mockResolvedValueOnce(null);
+        await expect(spellcheckSuggestionsAtPosition(source, 1, 'en-US', getChecker, [], lookup)).resolves.toBeNull();
+        await expect(spellcheckSuggestionsAtPosition('Figaro teh', 2, 'en-US', getChecker, ['figaro'], lookup)).resolves.toBeNull();
+        expect(lookup).toHaveBeenCalledTimes(2);
+    });
+
+    test('the worker answers a looked-up word from what the review already computed', async () => {
+        const suggest = jest.fn(word => (word === 'teh' ? ['the'] : []));
+        const getChecker = jest.fn(async () => ({ correct: word => word === 'the' || word === 'Fine', suggest }));
+        const cache = new Map();
+        await writingSpellingObservations('Fine teh.', 'en-US', getChecker, { suggestions: cache });
+        const calls = suggest.mock.calls.length;
+
+        await expect(spellingWordSuggestions({ word: 'teh', languages: ['en-US'], sentenceStart: true }, getChecker, cache))
+            .resolves.toEqual({ suggestions: ['the'] });
+        await expect(spellingWordSuggestions({ word: 'Fine', languages: ['en-US'], sentenceStart: true }, getChecker, cache)).resolves.toBeNull();
+        await expect(spellingWordSuggestions({ word: 'teh', languages: ['en-US'], sentenceStart: true, editable: false }, getChecker, cache))
+            .resolves.toEqual({ suggestions: [] });
+        expect(suggest).toHaveBeenCalledTimes(calls);
+
+        // A word the review has not reached is computed once and remembered.
+        await expect(spellingWordSuggestions({ word: 'tehn', languages: ['en-US'], sentenceStart: true }, getChecker, cache)).resolves.toEqual({ suggestions: [] });
+        await spellingWordSuggestions({ word: 'tehn', languages: ['en-US'], sentenceStart: true }, getChecker, cache);
+        expect(suggest.mock.calls.filter(([word]) => word === 'tehn')).toHaveLength(1);
+        // A dictionary that cannot load gives no answer instead of an error.
+        await expect(spellingWordSuggestions({ word: 'x', languages: ['en-US'] }, async () => { throw new Error('missing'); })).resolves.toBeNull();
     });
 });

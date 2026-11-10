@@ -1,3 +1,5 @@
+import { isExternalLinkDestination } from './linkDestinationModel.js';
+
 function normalizeVaultPath(value, baseDirectory = '') {
     const source = String(value || '').trim().replaceAll('\\', '/');
     if (!source || source.startsWith('/') || source.startsWith('//') || /^[A-Za-z]:/.test(source)
@@ -29,8 +31,7 @@ function passthrough(source) {
 /** Plan one printable image source without touching the DOM or browser URL state. */
 export function planPDFPreviewImageSource(notePath, source) {
     const raw = String(source || '').trim();
-    if (!raw || raw.startsWith('#') || raw.startsWith('//')
-        || /^(?:data|blob):/i.test(raw) || /^[a-z][a-z0-9+.-]*:/i.test(raw)) return passthrough(raw);
+    if (!raw || isExternalLinkDestination(raw)) return passthrough(raw);
 
     const suffixIndex = raw.search(/[?#]/);
     const rawPath = suffixIndex < 0 ? raw : raw.slice(0, suffixIndex);

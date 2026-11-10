@@ -109,6 +109,19 @@ describe('Mermaid click directives and icons through the vendored engine', () =>
         expect(host.querySelector('script')).toBeNull();
     });
 
+    // DOMPurify inside the bundle must hand each label to Figaro's policy.
+    // What the browser fetches, and that vault images still draw, is owned by
+    // tests/e2e/mermaidRenderer.spec.js: jsdom never finishes loading an image.
+    test.each([
+        ['a flowchart', "flowchart LR\n  A[\"<img src='https://example.com/t.png'> Start\"] --> B"],
+        ['a class diagram', "classDiagram\n  class A[\"<img src='https://example.com/t.png'>\"]"],
+        ['a state diagram', "stateDiagram-v2\n  s1: <span style='background:url(//example.com/t.png)'>x</span>"],
+    ])('refuses %s whose label HTML loads an image from outside the vault', async (_name, source) => {
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        await expect(renderDiagramSVG('mermaid', source, 'outside')).rejects.toMatchObject({ code: 'mermaid-resource-refused' });
+        expect(document.body.innerHTML).not.toContain('example.com');
+    });
+
     // The reason Mermaid is not run at its `strict` level: that level's
     // sanitizer removes every <use>, and with them these icons.
     test.each(['Annotations', 'File-Type Icons via Config Maps'])('the bundled tree-view template “%s” keeps its file and folder icons', async title => {

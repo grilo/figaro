@@ -82,12 +82,18 @@ export async function renderDrawioTab(panel, tab) {
 
     try {
         const result = await backend().ReadDiagram(tab.path);
-        if (!panel.isConnected || panel._drawioRequestId !== requestId || panel._drawioPath !== tab.path) return;
+        if (!panel.isConnected || panel._drawioRequestId !== requestId) return;
+        // The file was renamed or moved while it was being read: open it again
+        // under the name the tab now has.
+        if (panel._drawioPath !== tab.path) return renderDrawioTab(panel, currentDrawioTab(panel, tab));
         if (!result) throw new Error('Diagram file was not found');
 
         workspace().recordTabMtime(tab.id, result.mtime);
         mountDrawioEditor(panel, { ...tab, mtime: result.mtime }, result.content || '');
     } catch (error) {
+        if (panel.isConnected && panel._drawioRequestId === requestId && panel._drawioPath !== tab.path) {
+            return renderDrawioTab(panel, currentDrawioTab(panel, tab));
+        }
         log.error('Unable to open draw.io diagram:', error);
         if (panel.isConnected && panel._drawioRequestId === requestId) {
             panel.innerHTML = `<div class="drawio-view"><div class="drawio-error">${escapeHtml(error?.message || 'Could not open this diagram.')}</div></div>`;

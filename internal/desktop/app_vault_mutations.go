@@ -368,11 +368,8 @@ func (a *App) MovePath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 	if err != nil {
 		return nil, err
 	}
-	if sourceInfo.IsDir() && mutations.IsSameOrDescendant(
-		sourceClean,
-		targetClean,
-		goruntime.GOOS == "windows",
-	) {
+	if sourceInfo.IsDir() && (mutations.IsSameOrDescendant(sourceClean, targetClean, false) ||
+		directoryHoldsPath(root, sourceInfo, targetClean)) {
 		return &SaveFileResult{Success: false, Error: "Cannot move a directory into itself"}, nil
 	}
 	if err := root.MkdirAll(targetClean, 0755); err != nil {
@@ -420,6 +417,23 @@ func (a *App) MovePath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 	return a.renamePathLocked(sourceClean, newRel, true)
 }
 
+// directoryHoldsPath reports whether path is the directory described by
+// directory, or lies beneath it, by comparing directory entries rather than
+// names. A folder name that differs only in letter case or Unicode
+// normalization reaches the same folder on volumes that fold names (macOS and
+// Windows by default) and a different one elsewhere; the filesystem settles
+// which. Parts of path that do not exist yet are skipped.
+func directoryHoldsPath(root *os.Root, directory fs.FileInfo, path string) bool {
+	for current := filepath.Clean(path); ; current = filepath.Dir(current) {
+		if info, err := root.Lstat(current); err == nil && os.SameFile(info, directory) {
+			return true
+		}
+		if current == "." {
+			return false
+		}
+	}
+}
+
 // planDirectoryMerge observes how the destination of a folder merge relates to
 // its source on disk and asks the pure plan whether the merge may run. Both
 // folders must exist. Entries are compared by identity, not by name, so a case
@@ -438,17 +452,7 @@ func planDirectoryMerge(root *os.Root, source string, targetDirectory string) (m
 	}
 	facts.DestinationIsSource = os.SameFile(sourceInfo, destinationInfo)
 
-	// The target is inside the source when the source is the target or one
-	// of the target's ancestors.
-	for current := filepath.Clean(targetDirectory); ; current = filepath.Dir(current) {
-		if info, err := root.Lstat(current); err == nil && os.SameFile(info, sourceInfo) {
-			facts.TargetInsideSource = true
-			break
-		}
-		if current == "." {
-			break
-		}
-	}
+	facts.TargetInsideSource = directoryHoldsPath(root, sourceInfo, targetDirectory)
 	// The source is inside the destination when the destination is one of
 	// the source's ancestors; below is the path from that ancestor down.
 	below := filepath.Base(source)
@@ -844,12 +848,11 @@ func (a *App) CopyPath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 	if targetInfo.Mode()&fs.ModeSymlink != 0 || !targetInfo.IsDir() {
 		return &SaveFileResult{Success: false, Error: "Paste destination is not a folder"}, nil
 	}
-	if validationError := mutations.ValidateCopy(
-		sourceClean,
-		targetClean,
-		sourceInfo.IsDir(),
-		goruntime.GOOS == "windows",
-	); validationError != "" {
+	validationError := mutations.ValidateCopy(sourceClean, targetClean, sourceInfo.IsDir(), false)
+	if validationError == "" && sourceInfo.IsDir() && directoryHoldsPath(root, sourceInfo, targetClean) {
+		validationError = mutations.RecursiveCopyError
+	}
+	if validationError != "" {
 		return &SaveFileResult{Success: false, Error: validationError}, nil
 	}
 

@@ -1006,3 +1006,56 @@ func TestMergeDirectoryRecognizesItsOwnFoldersByIdentityOnCaseFoldingVolumes(t *
 		t.Fatalf("refused merges changed the vault:\n got %v\nwant %v", after, before)
 	}
 }
+
+// A folder cannot be moved or copied into itself under another spelling of its
+// own name on a volume that folds letter case (macOS and Windows by default).
+func TestMoveAndCopyRefuseACaseVariantOfTheFolderItselfOnCaseFoldingVolumes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	if !vaultFoldsLetterCase(t, vaultPath) {
+		t.Skip("the temporary filesystem is case-sensitive, so a case variant is a separate folder")
+	}
+	writeTestFile(t, vaultPath, "Projects/plan.md", "plan")
+	before := vaultUserFiles(t, vaultPath)
+	moved, err := app.MovePath("Projects", "projects/archive")
+	if err != nil {
+		t.Fatalf("MovePath: %v", err)
+	}
+	if moved.Success || moved.Error != "Cannot move a directory into itself" {
+		t.Fatalf("MovePath into a case variant of itself = %+v", moved)
+	}
+	copied, err := app.CopyPath("Projects", "PROJECTS")
+	if err != nil {
+		t.Fatalf("CopyPath: %v", err)
+	}
+	if copied.Success || copied.Error != mutations.RecursiveCopyError {
+		t.Fatalf("CopyPath into a case variant of itself = %+v", copied)
+	}
+	if after := vaultUserFiles(t, vaultPath); !reflect.DeepEqual(after, before) {
+		t.Fatalf("refused move and copy changed the vault:\n got %v\nwant %v", after, before)
+	}
+}
+
+// Where names do not fold, a folder spelled differently is another folder, and
+// moving or copying into it is ordinary.
+func TestMoveAndCopyIntoAFolderSpelledInAnotherCaseOnCaseSensitiveVolumes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	if vaultFoldsLetterCase(t, vaultPath) {
+		t.Skip("a case-folding filesystem cannot hold two folders that differ only by case")
+	}
+	writeTestFile(t, vaultPath, "Projects/plan.md", "plan")
+	writeTestFile(t, vaultPath, "projects/old.md", "old")
+	copied, err := app.CopyPath("Projects", "projects")
+	if err != nil || !copied.Success {
+		t.Fatalf("CopyPath = %+v, %v", copied, err)
+	}
+	moved, err := app.MovePath("Projects", "projects")
+	if err != nil {
+		t.Fatalf("MovePath: %v", err)
+	}
+	if moved.Success || moved.Error == "Cannot move a directory into itself" {
+		t.Fatalf("MovePath = %+v, want only the existing copy to be in the way", moved)
+	}
+	if got := readTestFile(t, vaultPath, "projects/Projects/plan.md"); got != "plan" {
+		t.Fatalf("copied note = %q", got)
+	}
+}

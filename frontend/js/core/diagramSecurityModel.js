@@ -138,10 +138,332 @@ export function planVegaResourceAccess(uri, { context = 'dataflow', baseUrl = ''
     return { action: 'load', reason: null, url: resolved.pathname + resolved.search };
 }
 
-/** The message a chart's error state shows for a refused data or image source. */
-export function vegaResourceRefusalMessage(uri) {
+function quotedSource(uri) {
     const text = String(uri ?? '').trim();
     const source = text.length > 80 ? `${text.slice(0, 79)}…` : text;
-    return `This chart asks for ${source ? `“${source}”` : 'an empty address'}. `
+    return source ? `“${source}”` : 'an empty address';
+}
+
+/** The message a chart's error state shows for a refused data or image source. */
+export function vegaResourceRefusalMessage(uri) {
+    return `This chart asks for ${quotedSource(uri)}. `
         + `Charts only load data and images from this vault, never from the network or elsewhere on this computer. Use a ${VEGA_VAULT_ROUTE}… path.`;
+}
+
+// ---------------------------------------------------------------------------
+// What a Mermaid diagram may load while it renders. Mermaid draws into the
+// live page to measure text, so an image or a CSS url() reached by a note's
+// diagram is fetched during the render, before any finished SVG could be
+// cleaned. The same vault-only rule as Vega charts therefore has to hold for
+// every address Mermaid could hand the page.
+
+const CSS_IMAGE_FUNCTIONS = new Set(['image-set', '-webkit-image-set', 'cross-fade', '-webkit-cross-fade']);
+const CSS_WHITESPACE = /[ \t\n\r\f]/;
+const CSS_IDENT_CHAR = /[A-Za-z0-9_-]/;
+
+function isCssIdentStart(text, index) {
+    const char = text[index];
+    if (char === undefined) return false;
+    if (char === '\\') return text[index + 1] !== undefined && text[index + 1] !== '\n';
+    return CSS_IDENT_CHAR.test(char) || char.charCodeAt(0) >= 0x80;
+}
+
+/** Decode the CSS escape starting at text[index] (a backslash). */
+function readCssEscape(text, index) {
+    const hex = /^[0-9a-fA-F]{1,6}/.exec(text.slice(index + 1, index + 7));
+    if (hex) {
+        let end = index + 1 + hex[0].length;
+        if (text[end] === '\r' && text[end + 1] === '\n') end += 2;
+        else if (CSS_WHITESPACE.test(text[end] || '')) end += 1;
+        const codePoint = Number.parseInt(hex[0], 16);
+        const valid = codePoint > 0 && codePoint <= 0x10ffff && (codePoint < 0xd800 || codePoint > 0xdfff);
+        return { value: valid ? String.fromCodePoint(codePoint) : '�', end };
+    }
+    if (index + 1 >= text.length) return { value: '�', end: index + 1 };
+    return { value: text[index + 1], end: index + 2 };
+}
+
+function readCssIdent(text, index) {
+    let value = '';
+    let at = index;
+    while (isCssIdentStart(text, at)) {
+        if (text[at] === '\\') {
+            const escape = readCssEscape(text, at);
+            value += escape.value;
+            at = escape.end;
+        } else {
+            value += text[at];
+            at += 1;
+        }
+    }
+    return { value, end: at };
+}
+
+function readCssString(text, index) {
+    const quote = text[index];
+    let value = '';
+    let at = index + 1;
+    while (at < text.length && text[at] !== quote && text[at] !== '\n') {
+        if (text[at] === '\\') {
+            if (text[at + 1] === '\n') { at += 2; continue; }
+            const escape = readCssEscape(text, at);
+            value += escape.value;
+            at = escape.end;
+        } else {
+            value += text[at];
+            at += 1;
+        }
+    }
+    return { value, end: Math.min(text.length, at + 1) };
+}
+
+function skipCssSpace(text, index, comments) {
+    let at = index;
+    for (;;) {
+        while (CSS_WHITESPACE.test(text[at] || '')) at += 1;
+        if (!comments || text[at] !== '/' || text[at + 1] !== '*') return at;
+        const close = text.indexOf('*/', at + 2);
+        at = close < 0 ? text.length : close + 2;
+    }
+}
+
+/** The argument of a url( token that starts at text[index], just past the parenthesis. */
+function readCssUrlArgument(text, index) {
+    const start = skipCssSpace(text, index, false);
+    if (text[start] === '"' || text[start] === '\'') return readCssString(text, start);
+    let value = '';
+    let at = start;
+    while (at < text.length && text[at] !== ')' && !CSS_WHITESPACE.test(text[at])) {
+        if (text[at] === '\\') {
+            const escape = readCssEscape(text, at);
+            value += escape.value;
+            at = escape.end;
+        } else {
+            value += text[at];
+            at += 1;
+        }
+    }
+    return { value, end: at };
+}
+
+/**
+ * Every address a piece of CSS would fetch: the target of each url(), each
+ * string inside image-set() or cross-fade(), and each @import. Escapes are
+ * decoded the way a browser's CSS tokenizer decodes them, so `\75 rl(` is
+ * still a url().
+ *
+ * With `strings: false` the text is not trusted to be CSS (a whole diagram
+ * source): quotes do not open strings that could hide a url(, comments are not
+ * skipped, and only the url( and image functions themselves are read.
+ */
+export function cssResourceAddresses(text, { strings = true } = {}) {
+    const css = String(text ?? '');
+    const addresses = [];
+    const functions = [];
+    let at = 0;
+    while (at < css.length) {
+        const char = css[at];
+        if (strings && char === '/' && css[at + 1] === '*') {
+            const close = css.indexOf('*/', at + 2);
+            at = close < 0 ? css.length : close + 2;
+            continue;
+        }
+        if (char === '"' || char === '\'') {
+            const insideImageFunction = CSS_IMAGE_FUNCTIONS.has(functions[functions.length - 1]);
+            if (strings || insideImageFunction) {
+                const string = readCssString(css, at);
+                if (insideImageFunction) addresses.push({ address: string.value, kind: 'image' });
+                at = string.end;
+                continue;
+            }
+            at += 1;
+            continue;
+        }
+        if (char === '@') {
+            const keyword = readCssIdent(css, at + 1);
+            if (keyword.value.toLowerCase() === 'import') {
+                let next = skipCssSpace(css, keyword.end, strings);
+                let address = '';
+                if (css[next] === '"' || css[next] === '\'') {
+                    const string = readCssString(css, next);
+                    address = string.value;
+                    next = string.end;
+                } else {
+                    const name = readCssIdent(css, next);
+                    if (name.value.toLowerCase() === 'url' && css[name.end] === '(') {
+                        functions.push('url');
+                        const argument = readCssUrlArgument(css, name.end + 1);
+                        address = argument.value;
+                        next = argument.end;
+                    }
+                }
+                addresses.push({ address, kind: 'import' });
+                at = Math.max(next, keyword.end);
+                continue;
+            }
+            at = Math.max(at + 1, keyword.end);
+            continue;
+        }
+        if (isCssIdentStart(css, at)) {
+            const ident = readCssIdent(css, at);
+            at = ident.end;
+            if (css[at] !== '(') continue;
+            const name = ident.value.toLowerCase();
+            functions.push(name);
+            if (name === 'url') {
+                const argument = readCssUrlArgument(css, at + 1);
+                addresses.push({ address: argument.value, kind: 'image' });
+                at = argument.end;
+                continue;
+            }
+            at += 1;
+            continue;
+        }
+        if (char === '(') functions.push('(');
+        else if (char === ')') functions.pop();
+        at += 1;
+    }
+    return addresses;
+}
+
+function sameDocumentReference(value, base) {
+    if (value.startsWith('#')) return true;
+    const resolved = base ? parsedURL(value, base) : null;
+    if (!resolved || !resolved.hash) return false;
+    return resolved.href.slice(0, resolved.href.length - resolved.hash.length)
+        === base.href.slice(0, base.href.length - base.hash.length);
+}
+
+/**
+ * Whether a Mermaid diagram may load `uri` as an image: a file of the open
+ * vault on the application's own origin, an inline `data:image/…`, or a
+ * reference into the drawing itself (`#id`, as markers and icons use). An
+ * empty address loads nothing. Returns the refused address, or null.
+ */
+export function mermaidResourceRefusal(uri, { baseUrl = '' } = {}) {
+    const value = String(uri ?? '').trim();
+    if (!value) return null;
+    if (sameDocumentReference(value, parsedURL(String(baseUrl || '')))) return null;
+    return planVegaResourceAccess(value, { context: 'image', baseUrl }).action === 'load' ? null : value;
+}
+
+/** The first address in some CSS that a diagram may not load (an @import never may), or null. */
+export function mermaidCssRefusal(css, { baseUrl = '' } = {}) {
+    for (const { address, kind } of cssResourceAddresses(css)) {
+        if (kind === 'import') return address || '@import';
+        const refused = mermaidResourceRefusal(address, { baseUrl });
+        if (refused !== null) return refused;
+    }
+    return null;
+}
+
+const MERMAID_RESOURCE_ATTRIBUTES = new Set(['src', 'poster', 'background', 'data', 'lowsrc', 'dynsrc']);
+const MERMAID_LINK_ELEMENTS = new Set(['a', 'area']);
+const MERMAID_CSS_ATTRIBUTES = new Set([
+    'style', 'fill', 'stroke', 'filter', 'mask', 'clip-path', 'cursor',
+    'marker', 'marker-start', 'marker-mid', 'marker-end',
+]);
+
+/** The addresses of a `srcset` or `imagesrcset` value, without their descriptors. */
+export function srcsetAddresses(value) {
+    const text = String(value ?? '');
+    const addresses = [];
+    let at = 0;
+    while (at < text.length) {
+        while (at < text.length && /[\s,]/.test(text[at])) at += 1;
+        let end = at;
+        while (end < text.length && !/\s/.test(text[end])) end += 1;
+        if (end === at) break;
+        const candidate = text.slice(at, end);
+        if (candidate.endsWith(',')) {
+            addresses.push(candidate.replace(/,+$/, ''));
+            at = end;
+            continue;
+        }
+        addresses.push(candidate);
+        let depth = 0;
+        at = end;
+        while (at < text.length && (text[at] !== ',' || depth > 0)) {
+            if (text[at] === '(') depth += 1;
+            else if (text[at] === ')') depth = Math.max(0, depth - 1);
+            at += 1;
+        }
+    }
+    return addresses;
+}
+
+/**
+ * The first address an element attribute in Mermaid output or label HTML
+ * would load against the vault-only rule, or null. Links (`<a href>`,
+ * `action`) are navigation rather than loads and are judged by
+ * mermaidSvgAttributeIsUnsafe instead. `value` is the parsed attribute value.
+ */
+export function mermaidMarkupResourceRefusal(elementName, attributeName, value, { baseUrl = '' } = {}) {
+    const element = String(elementName || '').toLowerCase();
+    const name = String(attributeName || '').toLowerCase();
+    const text = String(value ?? '');
+    if (name === 'srcset' || name === 'imagesrcset') {
+        for (const address of srcsetAddresses(text)) {
+            const refused = mermaidResourceRefusal(address, { baseUrl });
+            if (refused !== null) return refused;
+        }
+        return null;
+    }
+    if (MERMAID_RESOURCE_ATTRIBUTES.has(name)) return mermaidResourceRefusal(text, { baseUrl });
+    if (name === 'href' || name === 'xlink:href') {
+        return MERMAID_LINK_ELEMENTS.has(element) ? null : mermaidResourceRefusal(text, { baseUrl });
+    }
+    return MERMAID_CSS_ATTRIBUTES.has(name) ? mermaidCssRefusal(text, { baseUrl }) : null;
+}
+
+/**
+ * The first CSS address anywhere in a diagram's source that would leave the
+ * application: another host, a protocol-relative or `file:` address, or any
+ * scheme but `data:`. Mermaid copies `classDef`, `style` and similar
+ * statements of many diagram types into the page's CSS, so the source is
+ * searched without knowing each grammar. Ordinary text can mention `url(`,
+ * so an address on the application's own origin is left to the exact checks
+ * of the parsed configuration, the label HTML and the finished SVG.
+ */
+export function mermaidSourceResourceRefusal(source, { baseUrl = '' } = {}) {
+    const base = parsedURL(String(baseUrl || ''));
+    for (const { address } of cssResourceAddresses(source, { strings: false })) {
+        const value = address.trim();
+        if (!value || value.startsWith('#')) continue;
+        const resolved = base ? parsedURL(value, base) : parsedURL(value);
+        if (!resolved) continue;
+        if (resolved.protocol === 'data:') continue;
+        if (!base || resolved.protocol !== base.protocol || resolved.host !== base.host || resolved.username || resolved.password) {
+            return value;
+        }
+    }
+    return null;
+}
+
+/**
+ * The first address a diagram's own configuration (frontmatter `config` and
+ * `%%{init}%%` directives, as Mermaid parsed them) would load through CSS:
+ * `themeCSS`, a font family or a theme variable is written into the drawing's
+ * stylesheet or style attributes as given. Every string is checked, whichever
+ * key holds it.
+ */
+export function mermaidConfigResourceRefusal(config, { baseUrl = '' } = {}) {
+    const seen = new Set();
+    const visit = (value, depth) => {
+        if (typeof value === 'string') return mermaidCssRefusal(value, { baseUrl });
+        if (!value || typeof value !== 'object' || depth > 16 || seen.has(value)) return null;
+        seen.add(value);
+        for (const entry of Array.isArray(value) ? value : Object.values(value)) {
+            const refused = visit(entry, depth + 1);
+            if (refused !== null) return refused;
+        }
+        return null;
+    };
+    return visit(config, 0);
+}
+
+/** The message a diagram's error state shows for a refused image or stylesheet. */
+export function mermaidResourceRefusalMessage(uri) {
+    return `This diagram asks for ${quotedSource(uri)}. `
+        + `Diagrams only load images from this vault, never from the network or elsewhere on this computer. Use a ${VEGA_VAULT_ROUTE}… path.`;
 }

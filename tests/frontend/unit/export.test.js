@@ -62,6 +62,8 @@ function setDiagramRenderers() {
     const vegaViews = [];
     window.mermaid = {
         initialize: jest.fn(),
+        parse: jest.fn().mockResolvedValue({ diagramType: 'flowchart-v2' }),
+        mermaidAPI: { getDiagramFromText: jest.fn().mockResolvedValue({ db: { getVertices: () => new Map() } }) },
         render: jest.fn().mockResolvedValue({
             svg: '<svg data-diagram="mermaid" viewBox="0 0 10 10"><text>Mermaid</text></svg>',
         }),
@@ -219,6 +221,14 @@ describe('Interactive PDF export', () => {
 		expect(link.getAttribute('href')).toBe('/vault/docs/Guide%20Note.md#start');
 		expect(link.dataset.wikilinkTarget).toBe('docs/Guide Note.md#start');
 		expect(printable.querySelector('code').textContent).toBe('[[literal.md|code]]');
+	});
+
+	test('renders a wikilink to a note whose name contains a colon', () => {
+		const printable = parseHTML(renderPrintableMarkdown('See [[Re: plan]] and [[https://example.com|site]].', 'Wikilinks'));
+		const links = [...printable.querySelectorAll('a.figaro-wikilink')];
+
+		expect(links.map(link => link.getAttribute('href'))).toEqual(['/vault/Re%3A%20plan.md']);
+		expect(links[0].textContent).toBe('Re: plan');
 	});
 
     test('renders aligned Markdown tables with the printable preview and PDF styling contract', () => {
@@ -703,11 +713,11 @@ describe('Interactive PDF export', () => {
         const printable = parseHTML(await renderPrintableMarkdownWithDiagrams(content, 'Visuals'));
         const diagrams = Array.from(printable.querySelectorAll('.figaro-print-diagram'));
 
-        expect(window.mermaid.initialize).toHaveBeenCalledWith({
+        expect(window.mermaid.initialize).toHaveBeenCalledWith(expect.objectContaining({
             startOnLoad: false,
             theme: 'default',
             securityLevel: 'loose',
-        });
+        }));
         expect(window.mermaid.render).toHaveBeenCalledWith(
             expect.stringMatching(/^figaro-print-diagram-mermaid-/),
             styledMermaid
@@ -813,6 +823,7 @@ describe('Interactive PDF export', () => {
     test('keeps source fences printable when a diagram renderer is unavailable or fails', async () => {
         window.mermaid = {
             initialize: jest.fn(),
+            parse: jest.fn().mockResolvedValue({ diagramType: 'flowchart-v2' }),
             render: jest.fn().mockRejectedValue(new Error('invalid Mermaid')),
         };
         const content = [

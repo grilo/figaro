@@ -1,6 +1,14 @@
 import {
     MAX_MERMAID_SOURCE_LENGTH,
+    cssResourceAddresses,
+    mermaidConfigResourceRefusal,
+    mermaidCssRefusal,
+    mermaidMarkupResourceRefusal,
+    mermaidResourceRefusal,
+    mermaidResourceRefusalMessage,
+    mermaidSourceResourceRefusal,
     mermaidSvgAttributeIsUnsafe,
+    srcsetAddresses,
     planMermaidSourceRender,
     planVegaResourceAccess,
     vegaResourceRefusalMessage,
@@ -165,5 +173,90 @@ describe('Vega resource policy', () => {
         expect(long).toContain('…”');
         expect(long.length).toBeLessThan(260);
         expect(vegaResourceRefusalMessage(null)).toContain('an empty address');
+    });
+});
+
+describe('Mermaid vault-only resource policy', () => {
+    const baseUrl = 'wails://wails.localhost/';
+    const page = { baseUrl };
+
+    test('reads every address CSS would fetch, decoding escapes as a browser does', () => {
+        const css = '@import "theme.css"; /* url(https://ignored.example/c.png) */'
+            + ' a{background:\\75 rl( //example.com/a.png )} b{background:image-set(url(/vault/b.png) 1x, \'https://example.com/b.png\' 2x)}'
+            + ' c{background:url("/vault/c\\"d.png")} @font-face{src:url(https://example.com/f.woff2)}';
+        expect(cssResourceAddresses(css)).toEqual([
+            { address: 'theme.css', kind: 'import' },
+            { address: '//example.com/a.png', kind: 'image' },
+            { address: '/vault/b.png', kind: 'image' },
+            { address: 'https://example.com/b.png', kind: 'image' },
+            { address: '/vault/c"d.png', kind: 'image' },
+            { address: 'https://example.com/f.woff2', kind: 'image' },
+        ]);
+        // As plain text, a quote cannot hide a later url( from the search.
+        expect(cssResourceAddresses('A["it\'s"]; classDef x fill:url(//example.com/x.png)', { strings: false }))
+            .toEqual([{ address: '//example.com/x.png', kind: 'image' }]);
+    });
+
+    test.each([
+        ['/vault/notes/a.png', null],
+        ['data:image/png;base64,AAAA', null],
+        ['#arrowhead', null],
+        ['wails://wails.localhost/#arrowhead', null],
+        ['', null],
+        ['https://example.com/t.png', 'https://example.com/t.png'],
+        ['//example.com/t.png', '//example.com/t.png'],
+        ['file:///etc/passwd', 'file:///etc/passwd'],
+        ['data:text/html,x', 'data:text/html,x'],
+        ['a.png', 'a.png'],
+        ['/vault/../app.js', '/vault/../app.js'],
+    ])('a diagram may load %j only from the vault, inline or inside itself', (address, refused) => {
+        expect(mermaidResourceRefusal(address, page)).toBe(refused);
+    });
+
+    test('judges CSS by every address it loads and never allows an @import', () => {
+        expect(mermaidCssRefusal('a{fill:url(#m);background:url(/vault/a.png)}', page)).toBeNull();
+        expect(mermaidCssRefusal('a{background:url(/vault/a.png),url(https://example.com/b.png)}', page)).toBe('https://example.com/b.png');
+        expect(mermaidCssRefusal('@import url(/vault/theme.css);', page)).toBe('/vault/theme.css');
+        expect(mermaidCssRefusal('@import;', page)).toBe('@import');
+    });
+
+    test('treats image and style attributes as loads and links as navigation', () => {
+        const judge = (element, attribute, value) => mermaidMarkupResourceRefusal(element, attribute, value, page);
+        expect(judge('img', 'src', 'https://example.com/a.png')).toBe('https://example.com/a.png');
+        expect(judge('img', 'src', '/vault/a.png')).toBeNull();
+        expect(judge('img', 'srcset', '/vault/a.png 1x, https://example.com/b.png 2x')).toBe('https://example.com/b.png');
+        expect(judge('video', 'poster', '//example.com/p.png')).toBe('//example.com/p.png');
+        expect(judge('td', 'background', 'https://example.com/t.png')).toBe('https://example.com/t.png');
+        expect(judge('image', 'href', 'https://example.com/i.png')).toBe('https://example.com/i.png');
+        expect(judge('use', 'xlink:href', '#icon-folder')).toBeNull();
+        expect(judge('span', 'style', 'color:red;background:url(//example.com/s.png)')).toBe('//example.com/s.png');
+        expect(judge('path', 'marker-end', 'url(#arrow)')).toBeNull();
+        expect(judge('a', 'href', 'https://example.com/docs')).toBeNull();
+        expect(judge('span', 'title', 'url(https://example.com/x)')).toBeNull();
+        expect(srcsetAddresses('a.png 1x, data:image/png;base64,AA,BB 2x,c.png')).toEqual(['a.png', 'data:image/png;base64,AA,BB', 'c.png']);
+    });
+
+    test('searches a whole diagram source only for CSS addresses that leave the application', () => {
+        expect(mermaidSourceResourceRefusal('stateDiagram-v2\n classDef x background:url(//example.com/c.png)', page))
+            .toBe('//example.com/c.png');
+        expect(mermaidSourceResourceRefusal('C4Context\n UpdateElementStyle(a, $bgColor="url(https://example.com/c4.png)")', page))
+            .toBe('https://example.com/c4.png');
+        // Text that merely mentions url( with a local address is left to the exact checks.
+        expect(mermaidSourceResourceRefusal('flowchart LR\n A["new URL(req.url)"] --> B["url(#x)"]', page)).toBeNull();
+        expect(mermaidSourceResourceRefusal('flowchart LR\n A["url(data:image/png;base64,AA)"]', page)).toBeNull();
+    });
+
+    test('checks every string of a parsed diagram configuration as CSS', () => {
+        expect(mermaidConfigResourceRefusal({ theme: 'base', themeVariables: { primaryColor: '#fff' } }, page)).toBeNull();
+        expect(mermaidConfigResourceRefusal({ themeCSS: 'span{background:url(https://example.com/t.png)}' }, page))
+            .toBe('https://example.com/t.png');
+        expect(mermaidConfigResourceRefusal({ sequence: { actorFontFamily: 'x;background:url(//example.com/f.png)' } }, page))
+            .toBe('//example.com/f.png');
+        expect(mermaidConfigResourceRefusal(undefined, page)).toBeNull();
+    });
+
+    test('names the refused address in the diagram error', () => {
+        expect(mermaidResourceRefusalMessage('https://example.com/t.png')).toBe('This diagram asks for “https://example.com/t.png”. '
+            + 'Diagrams only load images from this vault, never from the network or elsewhere on this computer. Use a /vault/… path.');
     });
 });

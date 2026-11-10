@@ -1,3 +1,5 @@
+import { isExternalLinkDestination } from './linkDestinationModel.js';
+
 export const MARKDOWN_IMAGE_MIN_WIDTH = 1;
 export const MARKDOWN_IMAGE_MIN_HEIGHT = 1;
 export const MARKDOWN_IMAGE_VERTICAL_LIMIT_MULTIPLIER = 10;
@@ -133,3 +135,19 @@ export function markdownImageResizePlan({
         height: Math.max(1, Math.round(nextWidth / aspect)),
     };
 }
+
+/**
+ * Figaro shows only images stored in the vault or written into the note: a
+ * vault path, `data:image/…` or a `blob:` the page made itself. Anything else
+ * — a web address, `//host`, `file:` or another scheme — is not loaded, so
+ * opening a note never contacts the internet. A colon alone does not make an
+ * address (`Re: chart.png` is a file), by the link rule of linkDestinationModel.
+ */
+export function markdownImageSourceIsOutsideVault(source) {
+    const value = String(source ?? '').trim();
+    if (!value || value.startsWith('#')) return false;
+    if (/^data:image\//i.test(value) || /^blob:/i.test(value)) return false;
+    return isExternalLinkDestination(value);
+}
+
+export const MARKDOWN_IMAGE_OUTSIDE_VAULT_MESSAGE = 'Image not shown: Figaro only shows images stored in your vault and never loads content from the internet.';

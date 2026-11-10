@@ -110,9 +110,11 @@ Chrome, Chromium, Brave, or Edge; macOS can also use its built-in WebKit engine.
 
 Editing, search, planning, local history, and writing review run on your
 computer. Figaro does not require an account, analytics service, or proprietary
-storage format. Optional Draw.io editing opens the hosted diagrams.net editor;
-the saved diagram stays in your notes folder. Figaro asks GitHub for updates only
-when you turn on update checks or choose Check now.
+storage format. Figaro never contacts the internet on its own: notes show only
+images stored in your vault, never ones from the web. The exceptions are
+Draw.io editing, which opens the hosted diagrams.net editor (the saved diagram
+stays in your notes folder), and update checks, which ask GitHub only when you
+turn them on or choose Check now.
 
 Figaro works with one vault at a time. It has no built-in cloud sync,
 encryption, mobile app, or plugin system. Local history helps recover changes

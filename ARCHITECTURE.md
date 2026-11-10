@@ -714,6 +714,21 @@ real effect boundaries; pure functions do not need wrapper interfaces.
 
 ### Wails v3 bridge, asset routes, and updates
 
+The main window loads nothing from outside the application on its own.
+`frontend/index.html` declares a content security policy in its first
+`<meta>` elements: every fetch directive allows only `'self'`, `wails:` (the
+Linux and macOS asset scheme) and `http://wails.localhost` (Windows), plus
+inline `data:`/`blob:` where a load needs it, and `frame-src` adds only
+`https://embed.diagrams.net` for the Draw.io editor. Scripts keep
+`'unsafe-inline'` for the theme and locale bootstraps and the importmap, and
+`'unsafe-eval'` for Vega, so the policy confines what a page can reach rather
+than which script runs; escaping vault text (`core/htmlEscape.js`) is what
+keeps injected script out. The Markdown image widget does not rely on the
+policy alone: `markdownImageSourceIsOutsideVault` decides before any request
+and shows why. `contentSecurityPolicy.test.js` keeps the policy free of other
+hosts, and `noExternalContent.spec.js` proves a hostile note contacts nothing.
+The PDF preview frame has its own stricter policy.
+
 `Run` creates the Wails application before opening the vault, because Wails
 handles the updater's helper-process mode inside `application.New`. It then
 registers the bound `App` and a lifecycle service whose startup and shutdown
@@ -1518,10 +1533,13 @@ nothing. Records are withdrawn again for sources a failed write or removal
 left in the vault. The result carries `deleted_ids` beside `deleted`, and the
 shared index is updated for the affected notes only.
 
-The status bar's revision count does not walk the history per call.
-`commit_count.go` keeps a `commitCountIndex` for one state of the repository's
-references: the first `GetCommitCount` walks the log once and records the
-count of every path, later calls answer from memory while the references are
+Neither the History panel nor the status bar's revision count walks the
+history per call. `path_history.go` keeps a `pathHistoryIndex` for one state
+of the repository's references: the first `GetFileHistory` or
+`GetCommitCount` walks every reference once, newest committer time first, and
+records for every path the revisions in which it differs from the parent (for
+a merge, from every parent), so a revision is listed whatever another branch
+has in front of it. Later calls answer from memory while the references are
 unchanged, and new single-parent commits on the current branch, which is what
 each save adds, are diffed alone for up to 256 revisions. Any other reference
 change, such as a branch, tag, merge or rewrite made with Git, drops the index
@@ -2829,8 +2847,13 @@ diagnostic word under the pointer. `spellingWordAt` finds that word by parsing
 only the paragraph around the pointer, which `spellingWordScope` bounds; one
 block-structure pass over the preceding text runs only when a code or HTML
 block may still be open there, and only a reference label or a possibly
-defined acronym falls back to the whole-note ranges. The first right-click in
-a language still builds its dictionary on the UI thread. Candidates must pass
+defined acronym falls back to the whole-note ranges. That is all the UI thread
+does: `spellingSuggestionRequest` describes the word, and the editor sends it
+through the injected `spelling.suggest` port (`writingAdapters.js`) to the
+spelling worker, whose `spellingWordSuggestions` loads the dictionary there
+and answers from the suggestion cache the review has filled when it can. The
+worker client's `lookup` runs beside the analysis queue without cancelling it.
+Without that port the menu shows no spelling items. Candidates must pass
 the active dictionary again and a conservative prose/edit-distance filter; ambiguous short typos
 produce no replacement rather than a menu of obscure entries. A chosen
 candidate dispatches one normal undoable editor change. Its inline marks use
@@ -3325,10 +3348,19 @@ a failed load, the guard remembers the refusal and fails the render with
 `vegaResourceRefusalMessage`, so the chart shows its error state. Mermaid
 stays at `securityLevel: 'loose'`, because `strict` removes every `<use>`
 element that draws the file and folder icons of tree-view diagrams. Instead
-`mermaidSvgWithoutScriptLinks` applies `mermaidSvgAttributeIsUnsafe` to the
-rendered SVG before it is cached or inserted, removing script elements,
-event-handler attributes, and `javascript:`, `vbscript:` or non-image `data:`
-addresses. An HTML label with a remote `<img>` still loads it.
+`safeMermaidSvg` applies `mermaidSvgAttributeIsUnsafe` to the rendered SVG
+before it is cached or inserted, removing script elements, event-handler
+attributes, and `javascript:`, `vbscript:` or non-image `data:` addresses.
+Mermaid also loads images by the Vega rule, and that has to hold while it
+draws into the live page, so `renderMermaidWithinVault` checks in four places,
+each deciding through a pure function of `core/diagramSecurityModel.js`:
+style statements in the source (`mermaidSourceResourceRefusal`), the parsed
+diagram's configuration and flowchart image shapes
+(`mermaidConfigResourceRefusal`, `mermaidResourceRefusal`) before drawing; each
+label as DOMPurify sanitizes it, through the Trusted Types policy passed in
+Mermaid's `dompurifyConfig` (`mermaidMarkupResourceRefusal`, `mermaidCssRefusal`),
+which a diagram's config cannot replace because it is in `secure`; and the
+finished SVG. A refusal fails the render with `mermaidResourceRefusalMessage`.
 
 The live adapter injects `usecases/diagramRenderQueue.js` and
 `usecases/diagramQuietScheduler.js`. The scheduler waits 120 ms after key/input,
@@ -3551,8 +3583,9 @@ calls the same rule. `internal/links` decides what is not a vault path at all
 with `isExternalMarkdownDestination`: `#`, `//`, a scheme followed by `//`, or
 a known opaque scheme such as `mailto:`. A colon alone is an ordinary filename
 character, so links to `Re: plan.md` are rewritten, resolved and converted.
-The PDF preview and print renderer are not aligned yet and still treat any
-`scheme:` prefix as a URL. Link-style conversion (`collectVaultLinkStyleRewrites`)
+`core/linkDestinationModel.js` applies the same rule in the PDF preview, the
+print renderer and the preview's image planner; a unit test keeps its scheme
+list equal to the Go one. Link-style conversion (`collectVaultLinkStyleRewrites`)
 admits notes by the index's rules and passes over one that is oversized,
 binary, not UTF-8 or unreadable, and `vault.WalkMarkdown` leaves out a note
 whose read fails with a permission or not-found error, so one such note does

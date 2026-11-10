@@ -2,6 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Figaro loads nothing from the internet on its own. Everything comes from
+         the application itself (Linux and macOS serve it as wails:, Windows as
+         http://wails.localhost) or is written into the page; the one outside
+         origin is the Draw.io editor's frame. Scripts stay inline-capable
+         (theme and locale bootstraps, the importmap) and Vega needs eval. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' wails: http://wails.localhost; script-src 'self' wails: http://wails.localhost 'unsafe-inline' 'unsafe-eval'; style-src 'self' wails: http://wails.localhost 'unsafe-inline'; img-src 'self' wails: http://wails.localhost data: blob:; font-src 'self' wails: http://wails.localhost data:; media-src 'self' wails: http://wails.localhost data: blob:; connect-src 'self' wails: http://wails.localhost data: blob:; worker-src 'self' wails: http://wails.localhost blob:; frame-src 'self' wails: http://wails.localhost https://embed.diagrams.net; object-src 'none'; base-uri 'self'; form-action 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Figaro</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">

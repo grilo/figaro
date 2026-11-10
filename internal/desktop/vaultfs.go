@@ -3,6 +3,7 @@ package desktop
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -114,13 +115,33 @@ type vaultMarkdownVisitor = vault.MarkdownVisitor
 type vaultMarkdownProgress = vault.MarkdownProgress
 type vaultMarkdownMetadataVisitor = vault.MarkdownMetadataVisitor
 
+// walkVaultMarkdown visits the notes Figaro would open as text, by the
+// admission rules of the vault index: a note over the editor limit is skipped
+// before it is read, and a binary or non-UTF-8 note after. A vault-wide
+// rewrite (a Kanban column renamed or deleted) therefore never reads a huge
+// file whole or rewrites one Figaro cannot edit.
 func (a *App) walkVaultMarkdown(visitor vaultMarkdownVisitor) error {
 	root, err := a.openVaultRoot()
 	if err != nil {
 		return err
 	}
 	defer root.Close()
-	return vault.WalkMarkdown(root, visitor)
+	return vault.WalkMarkdownMetadata(root, func(root *os.Root, rel string, info fs.FileInfo) error {
+		if vaultFileMetadataIssue(rel, info) != nil {
+			return nil
+		}
+		data, err := root.ReadFile(filepath.FromSlash(rel))
+		if err != nil {
+			if vault.IsSkippableWalkError(err) {
+				return nil
+			}
+			return fmt.Errorf("read vault path %q: %w", rel, err)
+		}
+		if vaultFileContentIssue(rel, data) != nil {
+			return nil
+		}
+		return visitor(root, rel, info, data)
+	})
 }
 
 func (a *App) walkVaultMarkdownWithProgress(visitor vaultMarkdownVisitor, progress vaultMarkdownProgress) error {

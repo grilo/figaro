@@ -24,6 +24,8 @@ export function createWritingAdapters(native) {
     };
     const spelling = (source, language) => spellingWorker.analyze(source, language);
     spelling.cancel = () => spellingWorker.cancel();
+    // Right-click suggestions for one word (spellcheck.js spellingWordSuggestions).
+    spelling.suggest = request => spellingWorker.lookup(request);
     let initialization = native.WritingInitialize();
     initialization.catch(() => {});
     const cancelled = new Set();

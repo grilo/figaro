@@ -442,7 +442,11 @@ bounded follow-up passes that add the pending replacements.
 reason from the analysis the author saw.
 `spellingWordAt.test.js` owns that the word under a right-click equals the
 whole-note scan while only its paragraph is parsed, and `spellcheck.test.js`
-owns that reopening the spelling menu reuses the loaded dictionary.
+owns that reopening the spelling menu reuses the loaded dictionary, that a
+right-click hands its word to the injected lookup without loading a dictionary,
+and that the worker answers it from the review's suggestion cache.
+`writingWorkerClient.test.js` owns that such a lookup neither waits for nor
+cancels an analysis.
 
 `writingPathContinuity` tests pending storage before/during rename, failure
 release and retry. `writingPathModel` coverage in the same suite distinguishes

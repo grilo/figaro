@@ -14,7 +14,9 @@ import { editableDiagramSpec } from './core/editableDiagramModel.js';
 import { createDOMPreviewCache } from './domPreviewCache.js';
 import {
     clearMarkdownImageSize,
+    MARKDOWN_IMAGE_OUTSIDE_VAULT_MESSAGE,
     markdownImageDisplaySize,
+    markdownImageSourceIsOutsideVault,
     markdownImageResizePlan,
     parseMarkdownImageSyntax,
     setMarkdownImageSize,
@@ -99,6 +101,14 @@ class MarkdownImageWidget extends WidgetType {
                 this.renderImage(container, prepared.node.src, prepared, prepared);
                 countEditorWork('dom.imagePreviewRestored');
             });
+            return container;
+        }
+        // Never request an image from the web or elsewhere on disk; say why
+        // instead. The address stays in the source and in the tooltip.
+        if (markdownImageSourceIsOutsideVault(this.data.src)) {
+            const error = this.renderError(container, MARKDOWN_IMAGE_OUTSIDE_VAULT_MESSAGE);
+            error.classList.add('cm-image-error--outside-vault');
+            error.title = String(this.data.src);
             return container;
         }
         const loading = document.createElement('div');
@@ -389,6 +399,7 @@ class MarkdownImageWidget extends WidgetType {
         message.textContent = text;
         error.append(icon, message);
         container.appendChild(error);
+        return error;
     }
 
     renderDiagramAction(container, target, initialAction) {

@@ -380,7 +380,7 @@ describe('live PDF preview', () => {
         dispatchBridgeMessage(frame, {
             type: 'link',
             token,
-            href: 'report.md#target',
+            href: './report.md#target',
         });
         expect(postedBridgeMessages(postMessage)).toContainEqual(expect.objectContaining({
             type: 'scroll-fragment',
@@ -504,6 +504,20 @@ describe('live PDF preview', () => {
             dispatchBridgeMessage(frame, { type: 'link', token, href: '../guide.md' });
             await new Promise(resolve => setTimeout(resolve, 0));
             expect(handleFileOpen).toHaveBeenCalledWith('guide.md');
+
+            // Links read as the editor reads them: a colon is part of a note
+            // name, "/" starts at the vault root, and a bare path is a vault path.
+            for (const [href, path] of [
+                ['Re:%20plan.md', 'Re: plan.md'],
+                ['/Archive/old.md', 'Archive/old.md'],
+                ['projects/plan.md', 'projects/plan.md'],
+                ['./sibling.md', 'notes/sibling.md'],
+            ]) {
+                handleFileOpen.mockClear();
+                dispatchBridgeMessage(frame, { type: 'link', token, href });
+                await new Promise(resolve => setTimeout(resolve, 0));
+                expect(handleFileOpen).toHaveBeenCalledWith(path);
+            }
 
             dispatchBridgeMessage(frame, { type: 'reference-missing', token, fragment: 'footnote-ref1' });
             expect(document.querySelector('.pdf-preview-status').textContent).toContain('footnote-ref1');

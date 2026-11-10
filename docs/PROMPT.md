@@ -666,7 +666,7 @@ ignores superseded list reads and reads completing after unmount.
 | **Create file** | Creates a `.md` file with a `# Title` header and incrementally adds it to discovery data. Before writing, a same-folder Markdown name that differs only by spacing, punctuation, or capitalization offers **Open existing**, **Create anyway**, or cancellation. An exact case-insensitive name offers no overwrite path. |
 | **Create directory** | Creates a new folder. |
 | **Delete** | After confirmation, saves dirty open files under the target, captures the exact current path in local Git history, durably registers it in `.config/recently-deleted.json`, then removes the target recursively without moving it to the system Trash. A dirty Draw.io editor or Excalidraw drawing that cannot be saved, failed archive, or failed recovery-record write leaves the target untouched. Successful deletion refreshes discovery data without stale cards, search results, backlinks, or dates and shows **Deleted “name” · Undo** for ten seconds. Restore publishes a complete staged reconstruction atomically, refuses to replace an occupied path, and removes only the restored recovery record. |
-| **Move** | Moves a file or folder to a target directory. The live status bar immediately names the item being moved, the file tree is marked busy, and another drag cannot start the same operation until it settles. It prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. A validated warm index limits rewrite planning and moved projections to affected paths; any stale snapshot selects the complete root-scoped scan/rebuild before correctness can be traded for speed. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. A folder moved onto the folder it is already in reports **The folder is already in this location** and offers no merge. A folder may be merged into an ancestor of the same name (`X/X` into `X`), except when it holds a folder that would land on the folder being merged (`X/X/X`); that merge is refused with a request to rename or move the inner folder first. |
+| **Move** | Moves a file or folder to a target directory. The live status bar immediately names the item being moved, the file tree is marked busy, and another drag cannot start the same operation until it settles. It prevents moving a folder into itself, judged by the folders themselves so a differently capitalized spelling of the same folder on macOS or Windows counts, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. A validated warm index limits rewrite planning and moved projections to affected paths; any stale snapshot selects the complete root-scoped scan/rebuild before correctness can be traded for speed. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. A folder moved onto the folder it is already in reports **The folder is already in this location** and offers no merge. A folder may be merged into an ancestor of the same name (`X/X` into `X`), except when it holds a folder that would land on the folder being merged (`X/X/X`); that merge is refused with a request to rename or move the inner folder first. |
 | **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. A current warm index and file-tree projection retain unrelated entries and add only the copied subtree, while exact watcher acknowledgements prevent a second refresh; unobserved external Markdown changes select the complete rebuild fallback. Copying a folder into itself or one of its descendants is refused because it would recurse. |
 | **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline and disables an unchanged rename. Create and rename refuse a name that starts with a dot, because Figaro hides dot-prefixed entries and the item could not be renamed back. A rename that changes only letter case (`todo.md` to `Todo.md`) succeeds on case-insensitive volumes, where both names are one entry. Recording Activity continuity never blocks a rename: a path the history format cannot hold (one containing `:`), or a full move history, is renamed without that record. After dirty source buffers are safely saved, Figaro previews exact incoming Markdown references. If any other notes reference the file, a second dialog reports their count and offers **Update references**, **Keep references unchanged**, or **Cancel rename**; no incoming references means no second question. The selected policy and filesystem rename are executed together before open-tab paths and affected notes refresh. A same-folder Markdown name variant still offers **Open existing**, **Rename anyway**, or cancellation before any open tab is saved or path is moved. Folder renames retain automatic link preservation. |
 
@@ -1050,7 +1050,8 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the
   default PDF viewer. A Chromium-family export loads images, fonts, and stylesheets only from the
   vault and its own export workspace, judged by each file's real location after symbolic links are
-  followed; nothing is loaded from the network. A file elsewhere on disk is left out, the PDF is
+  followed; nothing is loaded from the network. An image whose path starts with `/` is read from
+  the vault root, as in the editor. A file elsewhere on disk is left out, the PDF is
   still written, and a **Some files were left out of the PDF** message names the first few. A
   browser that cannot enforce this fails the export instead of printing unconfined. The Safari
   path is unchanged: it keeps WebKit's own read access to the vault folder and reports no left-out
@@ -1852,6 +1853,8 @@ horizontal rules, quotes, highlights, footnotes, callouts (6 types), code block 
 - **Delete column**: Confirms, then removes `#tag` from every line in vault, together with the
   spaces that follow it on that line. Line breaks are kept, so each tagged line stays its own line.
   System columns protected.
+- Rename and delete rewrite only notes Figaro opens as text: a note over the 50 MB editor limit is
+  not read, and a binary or non-UTF-8 note keeps its bytes.
 
 ### 6.6 Task Actions
 - **Click a card**: opens the source file in the editor, scrolled to the line containing the tag.
@@ -3171,8 +3174,8 @@ outside it, the browser debugging fallback is installed explicitly with the same
   (`https://…`, `obsidian://…`), or a scheme that is written without `//`, such as `mailto:`,
   `tel:`, `sms:`, `data:`, `javascript:`, `file:`, or `urn:`. A colon alone does not make a URL:
   `Re: plan.md` is a note, and links to it are resolved, converted, and rewritten on rename or
-  move like any other. PDF Preview and the print renderer are the exception: they still treat any
-  `scheme:` prefix as a URL.
+  move like any other. PDF Preview, its links and images, and the print renderer follow the same
+  rules.
 - Moving or renaming a file rewrites the links and image embeds that resolve to it. An image embed
   follows the image path rules in §26.2, so a bare `![…](photo.png)` names the file beside its note
   and is rewritten as a note-relative path; the same bare path in a note link names a vault path.
@@ -3985,7 +3988,9 @@ toggle: it records the current target contents before direct filesystem removal.
 - The version container is a labelled selection list. Its native option buttons use roving focus:
   Arrow Up/Down selects and previews an adjacent version, Home/End jumps to a boundary, and
   Enter/Space activates the focused version.
-- Sorted by modification time, most recent first.
+- Sorted by commit time, most recent first. A version is listed when the note differs from the
+  previous revision, across every branch in the vault's history, so autosaved versions stay listed
+  when another branch has newer commits.
 - **Click a version** → loads historical content into the editor in **read-only mode**:
   - Editor gets amber tint (`.history-mode` CSS class).
   - Banner at top identifies the read-only historical version; the selected entry in the right pane
@@ -4101,7 +4106,17 @@ toggle: it records the current target contents before direct filesystem removal.
 - **Same-directory** (`photo.png`) — resolved relative to the current note's directory via
   CodeMirror `Compartment` that dynamically reconfigures `imageField`'s `basePath` when switching
   files.
-- External URLs (`http://`/`https://`) and data URIs pass through unchanged.
+- Inline `data:image/…` and page-made `blob:` sources pass through unchanged.
+- **No external content.** An image addressed outside the vault — `http(s)://`, `//host`, `file:`,
+  or another URL scheme by the link rule of §13.1 (a colon alone, as in `Re: chart.png`, is a file
+  name) — is never requested. Its widget shows the image error state with "Image not shown: Figaro
+  only shows images stored in your vault and never loads content from the internet." and the
+  address as its tooltip (`markdownImageSourceIsOutsideVault`). The main window's content security
+  policy enforces the same rule for everything else: scripts, styles, images, fonts, media,
+  workers, and requests come only from the application (`'self'`, `wails:`,
+  `http://wails.localhost`) or inline `data:`/`blob:`, and the only outside frame is
+  `https://embed.diagrams.net` for Draw.io editing. Update checks stay native, opt-in requests;
+  links open in the system browser only when clicked.
 - PDF Preview applies the same containment rules before sandboxing, replacing
   local image sources with explicit encoded `/vault/…` URLs instead of relying
   on the opaque-origin frame to resolve a relative base URL.
@@ -4346,8 +4361,17 @@ diagrams in the editor.
   Before a rendered Mermaid SVG is cached or inserted, Figaro removes what the
   source could turn into script: script elements, event-handler attributes, and
   link addresses using `javascript:`, `vbscript:`, or `data:` outside an image.
-  Fragment, relative, web, and mail addresses stay. One gap remains: an HTML
-  label containing a remote `<img>` still loads that image.
+  Fragment, relative, web, and mail addresses stay.
+- A Mermaid diagram loads images only from the open vault, addressed as
+  `/vault/…` on the application's own origin, or from an inline
+  `data:image/…`, and this holds while Mermaid draws, not only in the finished
+  SVG. Label HTML (`<img>`, `srcset`, SVG `<image>`, media posters and sources,
+  `background`, and `url()` in a `style` attribute), image shapes
+  (`A@{ img: … }`), the diagram's own `themeCSS`, font and theme settings, and
+  `classDef` or `style` statements are all covered. A web, `file:` or
+  protocol-relative address, another application path, or any `@import` is
+  never requested; the diagram shows its error state, and the log names the
+  refused source. Links are not loads and keep the rule above.
 - A Vega or Vega-Lite chart loads data and images only from the open vault,
   addressed as `/vault/…` on the application's own origin, or from an inline
   `data:image/…`. A web address, a `file:` or protocol-relative address,

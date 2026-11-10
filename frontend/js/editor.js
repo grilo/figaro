@@ -217,6 +217,10 @@ const markdownDocumentLinter = createMarkdownDocumentLinter(validateMermaidSourc
 let markdownBlockGuidesRequested = true;
 let spellcheckRequested = false;
 let spellcheckLanguageRequested = 'en-US';
+// Looks up one word's replacements in the spelling worker (writingAdapters.js);
+// without it the context menu offers no spelling items rather than building a
+// dictionary on the UI thread.
+let spellingLookup = null;
 let spellingWords = [];
 let vimRequestId = 0;
 let vimModeCM = null;
@@ -3094,11 +3098,12 @@ function setMarkdownLint(enabled) {
 }
 
 /** The writing lens also owns right-click spelling suggestions. */
-function setSpellcheck({ enabled = false, language = 'en-US' } = {}) {
+function setSpellcheck({ enabled = false, language = 'en-US', suggest } = {}) {
     const nextLanguage = canonicalSpellcheckLanguage(language);
     if (spellcheckRequested !== Boolean(enabled) || spellcheckLanguageRequested !== nextLanguage) contextMenuRequestId++;
     spellcheckRequested = Boolean(enabled);
     spellcheckLanguageRequested = nextLanguage;
+    if (typeof suggest === 'function') spellingLookup = suggest;
 }
 export function setSpellingWords(words) {
     spellingWords = words;
@@ -3743,13 +3748,13 @@ function handleContextMenu(event, view) {
         showEditorContextMenu(menuEvent, view, suggestion);
     };
 
-    if (activeFileLanguage.kind !== 'markdown' || !spellcheckRequested || pos === null) {
+    if (activeFileLanguage.kind !== 'markdown' || !spellcheckRequested || !spellingLookup || pos === null) {
         showMenu(null);
         return true;
     }
 
     const source = view.state.doc.toString();
-    spellcheckSuggestionsAtPosition(source, pos, spellcheckLanguageRequested, undefined, spellingWords)
+    spellcheckSuggestionsAtPosition(source, pos, spellcheckLanguageRequested, undefined, spellingWords, spellingLookup)
         .then(showMenu)
         .catch(() => showMenu(null));
     return true;

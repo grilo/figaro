@@ -35,6 +35,7 @@ describe('live diagram preview', () => {
     beforeEach(() => {
         window.mermaid = {
             initialize: jest.fn(),
+            parse: jest.fn().mockResolvedValue({ diagramType: 'flowchart-v2' }),
             render: jest.fn().mockResolvedValue({ svg: '<svg data-diagram="mermaid"></svg>' }),
         };
     });
@@ -117,7 +118,7 @@ describe('live diagram preview', () => {
             for (const invalidate of [
                 () => document.documentElement.style.setProperty('--text-color', '#f03212'),
                 () => fonts.dispatchEvent(new Event('loadingdone')),
-                () => { window.mermaid = { initialize: jest.fn(), render: jest.fn().mockResolvedValue({ svg: '<svg data-engine="new"/>' }) }; },
+                () => { window.mermaid = { initialize: jest.fn(), parse: jest.fn().mockResolvedValue({}), render: jest.fn().mockResolvedValue({ svg: '<svg data-engine="new"/>' }) }; },
             ]) {
                 const previous = view.dom.querySelector('.cm-live-diagram-view svg');
                 fixture.reveal(); invalidate(); fixture.restore(); await jest.advanceTimersByTimeAsync(0);

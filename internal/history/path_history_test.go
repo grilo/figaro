@@ -1,6 +1,7 @@
 package history
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"os"
@@ -325,103 +326,222 @@ func (r *countRepository) tag(name string, hash plumbing.Hash) {
 	}
 }
 
-// assertCountsMatchLog is the differential check: for every path the test has
-// touched, and some it never did, CommitCount must equal the number of
-// revisions the unchanged GetFileHistory lists.
-func (r *countRepository) assertCountsMatchLog(step string) {
+// referenceWalk is the independent oracle the index is checked against. It
+// lists every revision reachable from HEAD and the references in the promised
+// order, picking by plain scans rather than a heap: among the revisions whose
+// child has been listed (or that a reference names), the latest committer
+// time first, the larger hash between equal times.
+func (r *countRepository) referenceWalk() []*object.Commit {
+	r.t.Helper()
+	frontier := map[plumbing.Hash]*object.Commit{}
+	listed := map[plumbing.Hash]bool{}
+	offer := func(hash plumbing.Hash) {
+		if listed[hash] || frontier[hash] != nil {
+			return
+		}
+		if commit, err := r.external.CommitObject(hash); err == nil {
+			frontier[hash] = commit
+		}
+	}
+	if head, err := r.external.Head(); err == nil {
+		offer(head.Hash())
+	}
+	references, err := r.external.Storer.IterReferences()
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	if err := references.ForEach(func(reference *plumbing.Reference) error {
+		if reference.Type() == plumbing.HashReference {
+			offer(reference.Hash())
+		}
+		return nil
+	}); err != nil {
+		r.t.Fatal(err)
+	}
+	var walk []*object.Commit
+	for len(frontier) > 0 {
+		var next *object.Commit
+		for _, candidate := range frontier {
+			if next == nil || candidate.Committer.When.After(next.Committer.When) ||
+				(candidate.Committer.When.Equal(next.Committer.When) && bytes.Compare(candidate.Hash[:], next.Hash[:]) > 0) {
+				next = candidate
+			}
+		}
+		delete(frontier, next.Hash)
+		listed[next.Hash] = true
+		walk = append(walk, next)
+		for _, parent := range next.ParentHashes {
+			offer(parent)
+		}
+	}
+	return walk
+}
+
+// referenceEntry is a path's file in one revision; a folder is no file.
+type referenceEntry struct {
+	exists bool
+	hash   plumbing.Hash
+	mode   filemode.FileMode
+}
+
+// referenceHistory decides membership by reading the path in each revision
+// and its parents, never by diffing trees: a revision belongs to the history
+// when the path differs from its parent (a root revision: when it exists),
+// and a merge when the path differs from every parent.
+func (r *countRepository) referenceHistory(walk []*object.Commit, path string) []*object.Commit {
+	r.t.Helper()
+	entry := func(hash plumbing.Hash) referenceEntry {
+		commit, err := r.external.CommitObject(hash)
+		if err != nil {
+			r.t.Fatal(err)
+		}
+		tree, err := commit.Tree()
+		if err != nil {
+			r.t.Fatal(err)
+		}
+		if path == "" {
+			return referenceEntry{}
+		}
+		found, err := tree.FindEntry(path)
+		if err != nil || found.Mode == filemode.Dir {
+			return referenceEntry{}
+		}
+		return referenceEntry{exists: true, hash: found.Hash, mode: found.Mode}
+	}
+	var history []*object.Commit
+	for _, commit := range walk {
+		own := entry(commit.Hash)
+		differs := own.exists
+		if len(commit.ParentHashes) > 0 {
+			differs = true
+			for _, parent := range commit.ParentHashes {
+				if entry(parent) == own {
+					differs = false
+				}
+			}
+		}
+		if differs {
+			history = append(history, commit)
+		}
+	}
+	return history
+}
+
+// assertHistoryMatchesReference is the differential check: for every path the
+// test has touched, and some it never did, GetFileHistory must list exactly
+// the reference's revisions in its order, and CommitCount must count them.
+func (r *countRepository) assertHistoryMatchesReference(step string) {
 	r.t.Helper()
 	paths := []string{"never-written.md", "notes", "notes/never.md", "", ".", "./a.md"}
 	for path := range r.paths {
 		paths = append(paths, path)
 	}
 	sort.Strings(paths)
+	walk := r.referenceWalk()
 	for _, path := range paths {
-		entries, historyErr := r.service.GetFileHistory(path)
-		count, countErr := r.service.CommitCount(path)
-		if (historyErr != nil) != (countErr != nil) {
-			r.t.Fatalf("%s: %q history error %v, count error %v", step, path, historyErr, countErr)
+		entries, err := r.service.GetFileHistory(path)
+		if err != nil {
+			r.t.Fatalf("%s: GetFileHistory(%q): %v", step, path, err)
 		}
-		if count != len(entries) {
-			r.t.Fatalf("%s: CommitCount(%q) = %d, but the log lists %d revision(s)", step, path, count, len(entries))
+		count, err := r.service.CommitCount(path)
+		if err != nil {
+			r.t.Fatalf("%s: CommitCount(%q): %v", step, path, err)
+		}
+		want := r.referenceHistory(walk, path)
+		if count != len(want) {
+			r.t.Fatalf("%s: CommitCount(%q) = %d, want %d", step, path, count, len(want))
+		}
+		if len(entries) != len(want) {
+			r.t.Fatalf("%s: GetFileHistory(%q) lists %d revision(s), want %d", step, path, len(entries), len(want))
+		}
+		for position, commit := range want {
+			expected := Entry{
+				Hash:      commit.Hash.String(),
+				Timestamp: float64(commit.Author.When.UnixNano()) / 1e9,
+				Message:   commit.Message,
+			}
+			if entries[position] != expected {
+				r.t.Fatalf("%s: GetFileHistory(%q)[%d] = %+v, want %+v", step, path, position, entries[position], expected)
+			}
 		}
 	}
 }
 
-func TestCommitCountMatchesTheFileLogThroughBranchesMergesAndRewrites(t *testing.T) {
+func TestPathHistoryMatchesTheReferenceThroughBranchesMergesAndRewrites(t *testing.T) {
 	r := newCountRepository(t)
-	r.assertCountsMatchLog("empty repository")
+	r.assertHistoryMatchesReference("empty repository")
 
 	r.figaro("a.md")
-	r.assertCountsMatchLog("first revision")
+	r.assertHistoryMatchesReference("first revision")
 	r.figaro("notes/b.md")
 	r.figaro("a.md")
 	r.figaro("a.md")
-	r.assertCountsMatchLog("autosaves of two notes")
+	r.assertHistoryMatchesReference("autosaves of two notes")
 	r.figaroDelete("notes/b.md")
-	r.assertCountsMatchLog("a note removed by Figaro")
+	r.assertHistoryMatchesReference("a note removed by Figaro")
 	r.figaro("notes/b.md")
-	r.assertCountsMatchLog("the removed note written again")
+	r.assertHistoryMatchesReference("the removed note written again")
 
 	base := r.commit([]string{"a.md", "notes/b.md", "c.md"}, nil, time.Hour)
-	r.assertCountsMatchLog("a user commit touching three files")
+	r.assertHistoryMatchesReference("a user commit touching three files")
 	r.commit([]string{"c.md"}, []string{"a.md"}, time.Hour)
-	r.assertCountsMatchLog("a user commit removing a note")
+	r.assertHistoryMatchesReference("a user commit removing a note")
 	// A file gives way to a folder of the same name, and back.
 	r.commit([]string{"swap"}, nil, time.Hour)
-	r.assertCountsMatchLog("a file named swap")
+	r.assertHistoryMatchesReference("a file named swap")
 	r.commit([]string{"swap/inner.md"}, nil, time.Hour)
-	r.assertCountsMatchLog("swap became a folder")
+	r.assertHistoryMatchesReference("swap became a folder")
 	r.commit([]string{"swap"}, nil, time.Hour)
-	r.assertCountsMatchLog("swap became a file again")
+	r.assertHistoryMatchesReference("swap became a file again")
 	// Commit times that tie or run backwards still follow parent order.
 	r.commit([]string{"c.md"}, nil, 0)
 	r.commit([]string{"a.md"}, nil, -3*time.Hour)
-	r.assertCountsMatchLog("commit times out of order")
+	r.assertHistoryMatchesReference("commit times out of order")
 	main := r.head()
 
 	r.tag("v1", base)
-	r.assertCountsMatchLog("a tag on an older revision")
+	r.assertHistoryMatchesReference("a tag on an older revision")
 
 	// A side branch from an older revision, left behind when HEAD returns.
 	r.branchAt("side", base)
 	r.commit([]string{"side.md", "a.md"}, nil, time.Hour)
 	side := r.commit([]string{"side.md"}, nil, time.Hour)
-	r.assertCountsMatchLog("on a side branch")
+	r.assertHistoryMatchesReference("on a side branch")
 	r.checkoutBranch("master")
-	r.assertCountsMatchLog("back on the main branch")
+	r.assertHistoryMatchesReference("back on the main branch")
 	r.figaro("a.md")
 	r.figaro("c.md")
-	r.assertCountsMatchLog("autosaves beside a side branch")
+	r.assertHistoryMatchesReference("autosaves beside a side branch")
 
 	// A branch ahead of HEAD puts its revisions before HEAD's in the walk.
 	r.branchAt("ahead", r.head())
 	r.commit([]string{"ahead.md", "c.md"}, nil, time.Hour)
 	r.checkoutBranch("master")
-	r.assertCountsMatchLog("a branch ahead of HEAD")
+	r.assertHistoryMatchesReference("a branch ahead of HEAD")
 	r.figaro("c.md")
-	r.assertCountsMatchLog("an autosave behind another branch's revisions")
+	r.assertHistoryMatchesReference("an autosave behind another branch's revisions")
 	r.figaro("a.md")
 	r.figaro("notes/b.md")
-	r.assertCountsMatchLog("more autosaves behind another branch")
+	r.assertHistoryMatchesReference("more autosaves behind another branch")
 
 	r.commit([]string{"merged.md"}, nil, time.Hour, side)
-	r.assertCountsMatchLog("a merge of the side branch")
+	r.assertHistoryMatchesReference("a merge of the side branch")
 	r.figaro("merged.md")
-	r.assertCountsMatchLog("an autosave after the merge")
+	r.assertHistoryMatchesReference("an autosave after the merge")
 
 	r.detach(main)
-	r.assertCountsMatchLog("a detached HEAD on an older revision")
+	r.assertHistoryMatchesReference("a detached HEAD on an older revision")
 	r.commit([]string{"detached.md", "a.md"}, nil, time.Hour)
-	r.assertCountsMatchLog("a commit on the detached HEAD")
+	r.assertHistoryMatchesReference("a commit on the detached HEAD")
 	r.figaro("detached.md")
-	r.assertCountsMatchLog("an autosave on the detached HEAD")
+	r.assertHistoryMatchesReference("an autosave on the detached HEAD")
 	r.checkoutBranch("master")
-	r.assertCountsMatchLog("the detached revisions left unreferenced")
+	r.assertHistoryMatchesReference("the detached revisions left unreferenced")
 
 	if err := r.external.Storer.RemoveReference(plumbing.NewBranchReferenceName("ahead")); err != nil {
 		t.Fatal(err)
 	}
-	r.assertCountsMatchLog("a branch deleted")
+	r.assertHistoryMatchesReference("a branch deleted")
 
 	// Figaro's archive-before-delete revision of a whole folder: one revision
 	// naming an edited note and a note never recorded before.
@@ -439,13 +559,13 @@ func TestCommitCountMatchesTheFileLogThroughBranchesMergesAndRewrites(t *testing
 	if r.head() == before {
 		t.Fatal("the archive recorded no revision")
 	}
-	r.assertCountsMatchLog("a folder archived before deletion")
+	r.assertHistoryMatchesReference("a folder archived before deletion")
 }
 
 // Random histories reach orderings no scripted scenario lists. Each step is
 // followed by the full differential check, so a wrong shortcut shows up at
 // the step that took it.
-func TestCommitCountMatchesTheFileLogOnRandomHistories(t *testing.T) {
+func TestPathHistoryMatchesTheReferenceOnRandomHistories(t *testing.T) {
 	files := []string{"a.md", "b.md", "notes/c.md", "notes/deep/d.md", "swap", "swap/inner.md"}
 	for seed := int64(1); seed <= 3; seed++ {
 		t.Run(fmt.Sprintf("seed %d", seed), func(t *testing.T) {
@@ -503,25 +623,26 @@ func TestCommitCountMatchesTheFileLogOnRandomHistories(t *testing.T) {
 					r.detach(r.commits[random.Intn(len(r.commits))])
 					label = "detached HEAD"
 				}
-				r.assertCountsMatchLog(fmt.Sprintf("step %d (%s)", step, label))
+				r.assertHistoryMatchesReference(fmt.Sprintf("step %d (%s)", step, label))
 			}
-			if r.service.commitCountAdvances == 0 || r.service.commitCountBuilds == 0 {
+			if r.service.pathHistoryAdvances == 0 || r.service.pathHistoryBuilds == 0 {
 				t.Fatalf("the history exercised %d full walk(s) and %d advance(s); both paths must be covered",
-					r.service.commitCountBuilds, r.service.commitCountAdvances)
+					r.service.pathHistoryBuilds, r.service.pathHistoryAdvances)
 			}
 		})
 	}
 }
 
-// The point of the retained counts: the status bar asks after every save, and
-// a save adds one revision. Only the first question walks the repository.
-func TestCommitCountWalksTheLogOnceAndThenFollowsNewRevisions(t *testing.T) {
+// The point of the retained index: the status bar asks after every save and
+// the History panel each time it opens, and a save adds one revision. Only the
+// first question walks the repository.
+func TestPathHistoryWalksOnceAndThenFollowsNewRevisions(t *testing.T) {
 	r := newCountRepository(t)
 	for index := 0; index < 6; index++ {
 		r.figaro("a.md")
 		r.figaro("b.md")
 	}
-	walks := func() [2]int { return [2]int{r.service.commitCountBuilds, r.service.commitCountAdvances} }
+	walks := func() [2]int { return [2]int{r.service.pathHistoryBuilds, r.service.pathHistoryAdvances} }
 
 	if count, err := r.service.CommitCount("a.md"); err != nil || count != 6 {
 		t.Fatalf("CommitCount(a.md) = %d, %v; want 6", count, err)
@@ -568,22 +689,105 @@ func TestCommitCountWalksTheLogOnceAndThenFollowsNewRevisions(t *testing.T) {
 	if got := walks(); got != [2]int{2, 4} {
 		t.Fatalf("after a tag: %v full walks and advances, want a second walk", got)
 	}
-	r.assertCountsMatchLog("after the scripted saves")
+	r.assertHistoryMatchesReference("after the scripted saves")
 }
 
-func TestCommitCountAdvanceGivesWayToAFullWalkBeyondItsLimit(t *testing.T) {
+// Opening the History panel again, or for another note, reads no revision.
+func TestFileHistoryDoesNotWalkAgainWhenNothingChanged(t *testing.T) {
+	r := newCountRepository(t)
+	for index := 0; index < 4; index++ {
+		r.figaro("a.md")
+		r.figaro("b.md")
+	}
+	walks := func() [2]int { return [2]int{r.service.pathHistoryBuilds, r.service.pathHistoryAdvances} }
+
+	first, err := r.service.GetFileHistory("a.md")
+	if err != nil || len(first) != 4 {
+		t.Fatalf("GetFileHistory(a.md) = %d entries, %v; want 4", len(first), err)
+	}
+	for _, path := range []string{"a.md", "b.md", "a.md"} {
+		if _, err := r.service.GetFileHistory(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if count, err := r.service.CommitCount("a.md"); err != nil || count != len(first) {
+		t.Fatalf("CommitCount(a.md) = %d, %v; want %d", count, err, len(first))
+	}
+	if got := walks(); got != [2]int{1, 0} {
+		t.Fatalf("repeated history requests: %v full walks and advances, want the single first walk", got)
+	}
+
+	r.figaro("a.md")
+	after, err := r.service.GetFileHistory("a.md")
+	if err != nil || len(after) != 5 || after[0].Hash != r.head().String() {
+		t.Fatalf("GetFileHistory(a.md) after a save = %+v, %v; want the new revision first", after, err)
+	}
+	if got := walks(); got != [2]int{1, 1} {
+		t.Fatalf("history after a save: %v full walks and advances, want one advance", got)
+	}
+}
+
+// A branch whose tip is newer than HEAD used to hide an autosave: the log
+// compared the oldest autosave with that branch's revision, which is not its
+// parent, and dropped it. Every autosave made on HEAD is listed.
+func TestFileHistoryListsAutosavesBehindANewerBranchTip(t *testing.T) {
+	r := newCountRepository(t)
+	r.figaro("a.md")
+	base := r.head()
+	r.branchAt("ahead", base)
+	r.clock = time.Now().Add(time.Hour)
+	ahead := r.commit([]string{"a.md", "b.md"}, nil, 0)
+	r.checkoutBranch("master")
+
+	var saves []plumbing.Hash
+	for index := 0; index < 3; index++ {
+		r.figaro("a.md")
+		saves = append(saves, r.head())
+		r.assertHistoryMatchesReference(fmt.Sprintf("autosave %d behind a newer branch", index+1))
+	}
+	entries, err := r.service.GetFileHistory("a.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed := map[string]bool{}
+	for _, entry := range entries {
+		listed[entry.Hash] = true
+	}
+	for _, hash := range append(saves, ahead, base) {
+		if !listed[hash.String()] {
+			t.Fatalf("GetFileHistory(a.md) = %+v; revision %s is missing", entries, hash)
+		}
+	}
+	if len(entries) != 5 {
+		t.Fatalf("GetFileHistory(a.md) lists %d revisions, want 5", len(entries))
+	}
+	if entries[0].Hash != ahead.String() {
+		t.Fatalf("GetFileHistory(a.md) starts with %s, want the newest revision %s", entries[0].Hash, ahead)
+	}
+}
+
+func TestPathHistoryAdvanceGivesWayToAFullWalkBeyondItsLimit(t *testing.T) {
 	r := newCountRepository(t)
 	r.figaro("a.md")
 	if _, err := r.service.CommitCount("a.md"); err != nil {
 		t.Fatal(err)
 	}
-	for index := 0; index <= commitCountChainLimit; index++ {
+	for index := 0; index < pathHistoryChainLimit; index++ {
 		r.commit([]string{"a.md"}, nil, time.Minute)
 	}
-	if count, err := r.service.CommitCount("a.md"); err != nil || count != commitCountChainLimit+2 {
-		t.Fatalf("CommitCount(a.md) = %d, %v; want %d", count, err, commitCountChainLimit+2)
+	if count, err := r.service.CommitCount("a.md"); err != nil || count != pathHistoryChainLimit+1 {
+		t.Fatalf("CommitCount(a.md) = %d, %v; want %d", count, err, pathHistoryChainLimit+1)
 	}
-	if r.service.commitCountBuilds != 2 || r.service.commitCountAdvances != 0 {
-		t.Fatalf("%d full walks and %d advances; want the long chain walked afresh", r.service.commitCountBuilds, r.service.commitCountAdvances)
+	if r.service.pathHistoryBuilds != 1 || r.service.pathHistoryAdvances != 1 {
+		t.Fatalf("%d full walks and %d advances; want a chain at the limit followed", r.service.pathHistoryBuilds, r.service.pathHistoryAdvances)
+	}
+	for index := 0; index <= pathHistoryChainLimit; index++ {
+		r.commit([]string{"a.md"}, nil, time.Minute)
+	}
+	if count, err := r.service.CommitCount("a.md"); err != nil || count != 2*pathHistoryChainLimit+2 {
+		t.Fatalf("CommitCount(a.md) = %d, %v; want %d", count, err, 2*pathHistoryChainLimit+2)
+	}
+	if r.service.pathHistoryBuilds != 2 || r.service.pathHistoryAdvances != 1 {
+		t.Fatalf("%d full walks and %d advances; want the long chain walked afresh", r.service.pathHistoryBuilds, r.service.pathHistoryAdvances)
 	}
 }

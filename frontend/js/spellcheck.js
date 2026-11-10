@@ -52,28 +52,85 @@ function suggestionContext(source, range) {
     return { sentenceStart: !/\p{Lu}/u.test(range.word) || spellingSentenceStart(source, range.from) };
 }
 
+/** One cache entry per word, language and sentence position: null for a word
+ * that is spelled correctly, otherwise its case-matched replacements. */
+function suggestionCacheKey(languages, sentenceStart, word) {
+    return `${languages.join(':')}:${sentenceStart ? '' : 'inside:'}${word}`;
+}
+
+function rememberSuggestions(cache, key, value) {
+    if (!cache) return;
+    cache.delete(key);
+    if (cache.size >= 4096) cache.delete(cache.keys().next().value);
+    cache.set(key, value);
+}
+
+/**
+ * The cheap half of a right-click: find the prose word under the position and
+ * describe the lookup it needs, or return null when there is nothing to check
+ * (spelling off, no word there, or a word the user has accepted). Only the
+ * block around the position is read; see `spellingWordAt`.
+ */
+export function spellingSuggestionRequest(source, position, defaultLanguage = 'en-US', acceptedWords = []) {
+    const config = resolveSpellcheckConfiguration(source, defaultLanguage);
+    const range = config.enabled ? spellcheckWordAtPosition(source, position) : null;
+    if (!range || acceptedSpelling(acceptedWords, config.languages[0])(range.word)) return null;
+    return {
+        range,
+        lookup: {
+            word: range.word,
+            languages: config.languages,
+            sentenceStart: suggestionContext(source, range).sentenceStart,
+            editable: range.editable !== false,
+        },
+    };
+}
+
+/**
+ * The expensive half: load the dictionaries, then check one word and generate
+ * its replacements. Building a Hunspell dictionary takes a noticeable moment
+ * and each replacement search about a tenth of a second, so the editor runs
+ * this in the spelling worker, whose `cache` the writing review has usually
+ * filled already. Resolves null for a correctly spelled word or when no
+ * dictionary loads.
+ */
+export async function spellingWordSuggestions({ word, languages, sentenceStart = true, editable = true }, getChecker = loadSpellchecker, cache = null) {
+    const key = suggestionCacheKey(languages, sentenceStart, word);
+    if (cache?.has(key)) {
+        const cached = cache.get(key);
+        rememberSuggestions(cache, key, cached);
+        return cached === null ? null : { suggestions: editable ? cached : [] };
+    }
+    let checkers;
+    try {
+        checkers = await Promise.all(languages.map(language => getChecker(language)));
+    } catch (_) {
+        return null;
+    }
+    if (isCorrectlySpelledProseWord(word, checkers, languages)) {
+        rememberSuggestions(cache, key, null);
+        return null;
+    }
+    if (!editable) return { suggestions: [] };
+    const suggestions = highConfidenceSuggestions(word, checkers, languages, { sentenceStart })
+        .map(suggestion => matchSuggestionCase(suggestion, word));
+    rememberSuggestions(cache, key, suggestions);
+    return { suggestions };
+}
+
 /**
  * Resolve local Hunspell replacements for an unknown prose word. This is kept
  * separate from diagnostics because context menus need the word and replacement
  * range, while the normal linter should remain a small, non-interactive mark.
+ * `lookup` performs `spellingWordSuggestions`; the editor passes one that runs
+ * in the spelling worker, and by default it runs here.
  */
-export async function spellcheckSuggestionsAtPosition(source, position, defaultLanguage = 'en-US', getChecker = loadSpellchecker, acceptedWords = []) {
-    const config = resolveSpellcheckConfiguration(source, defaultLanguage);
-    const wordRange = config.enabled ? spellcheckWordAtPosition(source, position) : null;
-    if (!wordRange) return null;
-    if (acceptedSpelling(acceptedWords, config.languages[0])(wordRange.word)) return null;
-
-    let checkers;
-    try {
-        checkers = await Promise.all(config.languages.map(language => getChecker(language)));
-    } catch (_) {
-        return null;
-    }
-    if (isCorrectlySpelledProseWord(wordRange.word, checkers, config.languages)) return null;
-
-    const suggestions = wordRange.editable === false ? [] : highConfidenceSuggestions(wordRange.word, checkers, config.languages, suggestionContext(source, wordRange))
-        .map(suggestion => matchSuggestionCase(suggestion, wordRange.word));
-    return { ...wordRange, suggestions };
+export async function spellcheckSuggestionsAtPosition(source, position, defaultLanguage = 'en-US', getChecker = loadSpellchecker, acceptedWords = [],
+    lookup = request => spellingWordSuggestions(request, getChecker)) {
+    const request = spellingSuggestionRequest(source, position, defaultLanguage, acceptedWords);
+    if (!request) return null;
+    const answer = await lookup(request.lookup);
+    return answer ? { ...request.range, suggestions: answer.suggestions } : null;
 }
 
 /**
@@ -128,12 +185,11 @@ export async function writingSpellingObservations(source, defaultLanguage, getCh
     if (!config.enabled) return [];
     const checkers = await Promise.all(config.languages.map(getChecker));
     const observations = [];
-    const languageKey = config.languages.join(':');
     let checked = 0, spent = 0;
     for (const range of spellcheckWordRanges(source)) {
         if (checked++ % 32 === 0) await checkpoint();
         const context = suggestionContext(source, range);
-        const key = `${languageKey}:${context.sentenceStart ? '' : 'inside:'}${range.word}`;
+        const key = suggestionCacheKey(config.languages, context.sentenceStart, range.word);
         let pending = false;
         if (!suggestions.has(key)) {
             let value = null;

@@ -7,6 +7,12 @@
  */
 
 import {
+    mermaidConfigResourceRefusal,
+    mermaidCssRefusal,
+    mermaidMarkupResourceRefusal,
+    mermaidResourceRefusal,
+    mermaidResourceRefusalMessage,
+    mermaidSourceResourceRefusal,
     mermaidSvgAttributeIsUnsafe,
     planMermaidSourceRender,
     planVegaResourceAccess,
@@ -69,8 +75,20 @@ function initialiseMermaid() {
         // sanitizer that also removes every <use>, which is how tree-view
         // diagrams draw their file and folder icons. Loose keeps them; what it
         // would let a note plant, a script link, is removed by
-        // mermaidSvgWithoutScriptLinks before the SVG reaches the page.
+        // safeMermaidSvg before the SVG reaches the page.
         securityLevel: 'loose',
+        // Mermaid passes every label through DOMPurify with this
+        // configuration before drawing it into the live page. DOMPurify hands
+        // its result to a Trusted Types policy's createHTML; this one removes
+        // whatever would load from outside the vault, so a label's image or
+        // CSS url() is never fetched. `style` stays forbidden, as in Mermaid's
+        // default, and a diagram's own config cannot replace any of it.
+        dompurifyConfig: {
+            FORBID_TAGS: ['style'],
+            RETURN_TRUSTED_TYPE: true,
+            TRUSTED_TYPES_POLICY: { createHTML: mermaidLabelHtmlWithinVault, createScriptURL: url => url },
+        },
+        secure: ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering', 'maxEdges', 'dompurifyConfig'],
     });
     diagramRenderCache.clear();
     pendingDiagramRenders.clear();
@@ -100,12 +118,101 @@ function writeCachedDiagram(key, entry) {
     }
 }
 
+function mermaidResourceRefusedError(uri) {
+    const error = new Error(mermaidResourceRefusalMessage(uri));
+    error.code = 'mermaid-resource-refused';
+    return error;
+}
+
+// Addresses the label policy removed during the current Mermaid job. Jobs are
+// serialized by withMermaid, so one list at a time is enough.
+let mermaidLabelRefusals = null;
+
+/**
+ * The Trusted Types createHTML that DOMPurify calls with each Mermaid label,
+ * before parsing it and again with the sanitized result. Removes every
+ * attribute or style element that would load from outside the vault and
+ * remembers the address, so the render can be refused with a reason.
+ */
+function mermaidLabelHtmlWithinVault(html) {
+    const text = String(html ?? '');
+    if (!text.includes('<')) return text;
+    const baseUrl = document.baseURI;
+    const host = document.createElement('template');
+    host.innerHTML = text;
+    let changed = false;
+    const refuse = address => {
+        mermaidLabelRefusals?.push(address);
+        changed = true;
+    };
+    for (const element of host.content.querySelectorAll('*')) {
+        if (element.localName === 'style') {
+            const refused = mermaidCssRefusal(element.textContent, { baseUrl });
+            if (refused !== null) {
+                element.remove();
+                refuse(refused);
+            }
+            continue;
+        }
+        for (const attribute of [...element.attributes]) {
+            const refused = mermaidMarkupResourceRefusal(element.localName, attribute.name, attribute.value, { baseUrl });
+            if (refused === null) continue;
+            element.removeAttributeNode(attribute);
+            refuse(refused);
+        }
+    }
+    return changed ? host.innerHTML : text;
+}
+
+/**
+ * Refuse, before Mermaid draws anything into the page, a diagram whose
+ * configuration, image shapes or style statements would load from outside the
+ * vault. Parsing alone fetches nothing; it also runs every flowchart label
+ * through the label policy above.
+ */
+async function assertMermaidResourcesAllowed(mermaid, code) {
+    const baseUrl = document.baseURI;
+    const fromSource = mermaidSourceResourceRefusal(code, { baseUrl });
+    if (fromSource !== null) throw mermaidResourceRefusedError(fromSource);
+    // A failed parse still applies the diagram's configuration to Mermaid's
+    // error drawing, so it is reported without drawing anything.
+    const parsed = await mermaid.parse(code);
+    const fromConfig = mermaidConfigResourceRefusal(parsed?.config, { baseUrl });
+    if (fromConfig !== null) throw mermaidResourceRefusedError(fromConfig);
+    // Only flowchart shape data (`A@{ img: … }`) gives a node an image.
+    if (String(parsed?.diagramType || '').startsWith('flowchart') && /@\s*\{/.test(code)) {
+        const getDiagram = mermaid.mermaidAPI?.getDiagramFromText;
+        if (typeof getDiagram !== 'function') throw new Error('Mermaid renderer is unavailable');
+        const diagram = await getDiagram(code);
+        for (const vertex of diagram?.db?.getVertices?.()?.values?.() || []) {
+            const refused = mermaidResourceRefusal(vertex?.img, { baseUrl });
+            if (refused !== null) throw mermaidResourceRefusedError(refused);
+        }
+    }
+    if (mermaidLabelRefusals?.length) throw mermaidResourceRefusedError(mermaidLabelRefusals[0]);
+}
+
+async function renderMermaidWithinVault(renderId, code) {
+    mermaidLabelRefusals = [];
+    try {
+        await assertMermaidResourcesAllowed(window.mermaid, code);
+        const result = await window.mermaid.render(renderId, code);
+        if (mermaidLabelRefusals.length) throw mermaidResourceRefusedError(mermaidLabelRefusals[0]);
+        return result;
+    } finally {
+        mermaidLabelRefusals = null;
+    }
+}
+
 /**
  * Drop what a diagram's own source could turn into script in the page: a
  * `click … href "javascript:…"` link, an event-handler attribute, a script
- * element. A drawing without any of them is returned exactly as rendered.
+ * element. Refuse the drawing if anything in it would still load from
+ * outside the vault once it joins the page. A drawing without any of them is
+ * returned exactly as rendered.
  */
-function mermaidSvgWithoutScriptLinks(svg) {
+function safeMermaidSvg(svg) {
+    const baseUrl = document.baseURI;
     const host = document.createElement('template');
     host.innerHTML = svg;
     let changed = false;
@@ -115,10 +222,18 @@ function mermaidSvgWithoutScriptLinks(svg) {
             changed = true;
             continue;
         }
+        if (element.localName === 'style') {
+            const refused = mermaidCssRefusal(element.textContent, { baseUrl });
+            if (refused !== null) throw mermaidResourceRefusedError(refused);
+        }
         for (const attribute of [...element.attributes]) {
-            if (!mermaidSvgAttributeIsUnsafe(element.localName, attribute.name, attribute.value)) continue;
-            element.removeAttributeNode(attribute);
-            changed = true;
+            if (mermaidSvgAttributeIsUnsafe(element.localName, attribute.name, attribute.value)) {
+                element.removeAttributeNode(attribute);
+                changed = true;
+                continue;
+            }
+            const refused = mermaidMarkupResourceRefusal(element.localName, attribute.name, attribute.value, { baseUrl });
+            if (refused !== null) throw mermaidResourceRefusedError(refused);
         }
     }
     return changed ? host.innerHTML : svg;
@@ -132,11 +247,11 @@ async function renderMermaidSVG(code, idPrefix, key) {
     let pending = key ? pendingDiagramRenders.get(key) : null;
     if (!pending) {
         const renderId = targetId;
-        pending = withMermaid(() => window.mermaid.render(renderId, code))
+        pending = withMermaid(() => renderMermaidWithinVault(renderId, code))
             .then(result => {
                 const rendered = typeof result?.svg === 'string' && result.svg ? result.svg : null;
                 if (!rendered) return null;
-                const entry = { svg: mermaidSvgWithoutScriptLinks(rendered), renderId };
+                const entry = { svg: safeMermaidSvg(rendered), renderId };
                 if (key) writeCachedDiagram(key, entry);
                 return entry;
             })

@@ -431,9 +431,19 @@ What a diagram may load or carry into the page:
   engines and the removal of script links from a rendered or cached Mermaid SVG.
 - `mermaidLinkSafety.test.js` owns that a `click` script address or callback
   never reaches the drawing through the vendored Mermaid engine, while
-  tree-view templates keep their file and folder icons.
+  tree-view templates keep their file and folder icons, and that a label image
+  from outside the vault is refused through the vendored engine.
+- `diagramSecurityModel.test.js` owns the Mermaid vault-only resource
+  decisions; `mermaidRenderer.spec.js` owns that drawing hostile diagrams
+  requests nothing outside the application's origin.
+- `markdownImageModel.test.js` owns which image sources are outside the vault;
+  `contentSecurityPolicy.test.js` owns that the main window's policy names no
+  outside host but the Draw.io frame; `noExternalContent.spec.js` owns that a
+  note with web images shows the notice and that the policy refuses an image
+  and a fetch to another host.
 - `drawioEditor.test.js` owns that a diagram renamed while its editor is open
-  marks and saves the renamed tab.
+  marks and saves the renamed tab, and that one renamed while it is opening
+  opens under its new name.
 
 The focused Mermaid and PDF browser
 regressions compare the computed live canvas/connector paint and prove that a

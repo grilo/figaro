@@ -13,6 +13,7 @@ import { sub } from '@mdit/plugin-sub';
 import { sup } from '@mdit/plugin-sup';
 import { tasklist } from '@mdit/plugin-tasklist';
 import { parseMarkdownImageAlt } from './core/markdownImageModel.js';
+import { isExternalLinkDestination } from './core/linkDestinationModel.js';
 
 // @mdit/plugin-anchor uses Object.hasOwn. Keep the bundle usable on older
 // WebKitGTK runtimes that predate that ES2022 convenience method.
@@ -58,7 +59,7 @@ function wikilinkPlugin(md) {
         const separator = body.indexOf('|');
         const target = (separator < 0 ? body : body.slice(0, separator)).trim();
         const label = (separator < 0 ? target.replace(/\.md(?=#|$)/i, '') : body.slice(separator + 1)).trim();
-        if (!target || !label || target.startsWith('/') || target.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(target)) {
+        if (!target || !label || target.startsWith('/') || isExternalLinkDestination(target)) {
             return false;
         }
         if (!silent) {

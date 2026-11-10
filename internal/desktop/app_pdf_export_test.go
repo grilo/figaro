@@ -95,6 +95,32 @@ func TestPrepareInteractivePDFDocumentRebasesPrintableWikilinksFromVaultRoot(t *
 	}
 }
 
+// A leading "/" starts at the vault root, as it does in the editor and the
+// live preview. The document's base is the note's folder, so without this the
+// export would look for the image at the root of the disk.
+func TestPrepareInteractivePDFDocumentResolvesRootImagesInTheVault(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "notes/report.md", "# Report")
+	html := `<p><img alt="a" src="/attachments/Chart%201.png?v=2"> <img src="/vault/attachments/b.png">` +
+		` <img src="//cdn.example.com/c.png"> <img src="/../outside.png"> <img src="local.png"></p>`
+
+	document, _, err := app.prepareInteractivePDFDocument("Report", html, "notes/report.md", "")
+	if err != nil {
+		t.Fatalf("prepareInteractivePDFDocument error: %v", err)
+	}
+	for _, want := range []string{
+		`<img alt="a" src="` + localFileURL(filepath.Join(vaultPath, "attachments", "Chart 1.png"), false) + `?v=2"`,
+		`<img src="` + localFileURL(filepath.Join(vaultPath, "attachments", "b.png"), false) + `"`,
+		`<img src="//cdn.example.com/c.png">`,
+		`<img src="/../outside.png">`,
+		`<img src="local.png">`,
+	} {
+		if !strings.Contains(document, want) {
+			t.Errorf("expected %q in %q", want, document)
+		}
+	}
+}
+
 func TestPrepareInteractivePDFDocumentRejectsInvalidRequestsAndStylesheets(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
