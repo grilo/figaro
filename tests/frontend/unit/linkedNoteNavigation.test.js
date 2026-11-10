@@ -27,6 +27,24 @@ describe('linked-note navigation use case', () => {
         expect(ports.read).not.toHaveBeenCalled();
     });
 
+    test('reads a note-relative Markdown link beside its note and a wikilink from the vault root', async () => {
+        const { ports, navigate } = setup({
+            read: jest.fn().mockResolvedValue({ mtime: 3 }),
+            getSourcePath: jest.fn(() => 'notes/daily/today.md'),
+        });
+        await navigate('./sibling.md', 'Sibling');
+        expect(ports.read).toHaveBeenLastCalledWith('notes/daily/sibling.md');
+        expect(ports.openTab).toHaveBeenLastCalledWith(
+            'notes/daily/sibling.md', 'sibling.md', 'file', { path: 'notes/daily/sibling.md', mtime: 3 },
+        );
+
+        await navigate('../week.md', 'Week');
+        expect(ports.read).toHaveBeenLastCalledWith('notes/week.md');
+
+        await navigate('./sibling.md', 'Sibling', false, null, 'wiki');
+        expect(ports.read).toHaveBeenLastCalledWith('./sibling.md');
+    });
+
     test('checks current tabs after the read and reuses a destination opened meanwhile', async () => {
         let resolveRead;
         const { ports, navigate } = setup({ read: jest.fn(() => new Promise(resolve => { resolveRead = resolve; })) });

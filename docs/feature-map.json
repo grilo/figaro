@@ -14,7 +14,8 @@
     ],
     "docs": [
       "docs/PROMPT.md#45-link-click-behavior",
-      "docs/testing/export.md#raw-text-preview-and-heading-link-regressions"
+      "docs/testing/export.md#raw-text-preview-and-heading-link-regressions",
+      "docs/PROMPT.md#131-markdown-links"
     ],
     "history": [
       "docs/EDITOR_PERFORMANCE.md#inline-cursor-navigation-follow-up"
@@ -30,12 +31,14 @@
       "tests/frontend/unit/markdownInteraction.test.js"
     ],
     "extraChecks": [
-      "Follow docs/testing/editor.md for pointer, selection, or cursor changes; navigation planning alone is covered below the browser layer."
+      "Follow docs/testing/editor.md for pointer, selection, or cursor changes; navigation planning alone is covered below the browser layer.",
+      "The Go rewriter and Vault Health apply the same destination rule: run go test ./internal/links for external destinations and notes with a colon in the name."
     ],
     "symbols": {
       "frontend/js/core/linkedNoteNavigationModel.js": [
         "linkedNoteNavigationPlan",
-        "linkedNoteCreationPlan"
+        "linkedNoteCreationPlan",
+        "vaultPathForNoteLink"
       ],
       "frontend/js/usecases/linkedNoteNavigation.js": [
         "createLinkedNoteNavigation"
@@ -111,7 +114,8 @@
       "frontend/styles/features/right-sidebar.css",
       "frontend/js/core/editorBlockActionLayoutModel.js",
       "frontend/js/core/markdownTableEditing.js",
-      "frontend/js/frontmatterCompletions.js"
+      "frontend/js/frontmatterCompletions.js",
+      "frontend/js/core/vimExModel.js"
     ],
     "docs": [
       "docs/LIVEPREVIEW.md#4-block-widget-geometry-contract",
@@ -125,7 +129,10 @@
       "docs/testing/writing.md#passage-activity-dates",
       "docs/testing/workspace.md#pure-mode-regressions",
       "docs/testing/editor.md#ux-recovery-and-narrow-writing-regressions",
-      "docs/WRITING.md#write-in-markdown"
+      "docs/WRITING.md#write-in-markdown",
+      "docs/LIVEPREVIEW.md#vertical-motion-carets-and-properties",
+      "docs/PROMPT.md#85-custom-ex-commands",
+      "docs/testing/editor.md#vim-ex-commands"
     ],
     "history": [
       "docs/EDITOR_PERFORMANCE.md",
@@ -187,10 +194,15 @@
       "tests/frontend/unit/markdownFormattingEditor.test.js",
       "tests/frontend/unit/markdownTableEditor.test.js",
       "tests/frontend/unit/rightSidebarLayout.test.js",
-      "tests/frontend/unit/editorBlockActionLayoutModel.test.js"
+      "tests/frontend/unit/editorBlockActionLayoutModel.test.js",
+      "tests/frontend/unit/frontmatterPresentationModel.test.js",
+      "tests/frontend/unit/frontmatter.test.js",
+      "tests/frontend/unit/vimExModel.test.js",
+      "tests/frontend/unit/vimCommands.test.js"
     ],
     "extraChecks": [
-      "Run the affected existing editorUX or vimVisualRows Playwright scenario for geometry changes and repeat in the packaged native webview."
+      "Run the affected existing editorUX or vimVisualRows Playwright scenario for geometry changes and repeat in the packaged native webview.",
+      "Run tests/e2e/frontmatterProperties.spec.js for typing in a note that is only Properties; it runs in Chromium and was also checked in the packaged Linux build (WebKitGTK), so WebView2 and WKWebView still need a native check."
     ],
     "symbols": {
       "frontend/js/core/verticalCursorModel.js": [
@@ -299,7 +311,9 @@
         "syncEditorGutterAccessibility"
       ],
       "frontend/js/core/frontmatterPresentationModel.js": [
-        "frontmatterEditNeedsParse"
+        "frontmatterEditNeedsParse",
+        "propertiesBlockEnd",
+        "propertiesBodyStartText"
       ],
       "frontend/js/frontmatterPlugin.js": [
         "createFrontmatterField"
@@ -347,6 +361,9 @@
       ],
       "frontend/js/frontmatterCompletions.js": [
         "createFrontmatterCompletionSource"
+      ],
+      "frontend/js/core/vimExModel.js": [
+        "vimEditTargetPath"
       ]
     }
   },
@@ -410,6 +427,12 @@
         "globalShortcutAction",
         "isSaveShortcut",
         "isCloseTabShortcut"
+      ],
+      "frontend/js/windowChrome.js": [
+        "requestApplicationExit",
+        "acknowledgeNativeCloseRequest",
+        "declineNativeCloseRequest",
+        "NATIVE_CLOSE_REQUESTED_EVENT"
       ]
     }
   },
@@ -801,7 +824,8 @@
       "docs/WRITING_ENGINE.md#editorial-scope-and-source-safety",
       "docs/WRITING_ENGINE.md#inline-review-and-personal-spelling-words",
       "docs/WRITING_CORPUS_FIXES.md#september-quality-follow-up",
-      "docs/WRITING_ENGINE.md#spelling-dictionary-policy"
+      "docs/WRITING_ENGINE.md#spelling-dictionary-policy",
+      "docs/testing/writing.md#writing-rename-continuity-and-long-note-analysis"
     ],
     "tests": [
       "tests/frontend/unit/writingSpelling.test.js",
@@ -813,7 +837,8 @@
       "tests/frontend/unit/writingCorpusSafety.test.js",
       "tests/frontend/unit/writingQuality.test.js",
       "tests/frontend/unit/spellingDictionarySettings.test.js",
-      "tests/frontend/unit/writingLenses.test.js"
+      "tests/frontend/unit/writingLenses.test.js",
+      "tests/frontend/unit/spellingWordAt.test.js"
     ],
     "extraChecks": [
       "Personal-word resolution and shared technical masking also need writing. Persistence changes need go test ./internal/settings ./internal/desktop -run SpellingDictionary. Package mapping changes need the existing productionBundle boundary."
@@ -822,7 +847,9 @@
       "frontend/js/core/spellingModel.js": [
         "spellingSource",
         "spellcheckWordRanges",
-        "spellingSentenceStart"
+        "spellingSentenceStart",
+        "spellingWordAt",
+        "spellingWordScope"
       ],
       "frontend/js/core/writingFootnoteModel.js": [
         "writingFootnoteRanges"
@@ -1044,7 +1071,12 @@
       "internal/desktop/app_dropped_files.go",
       "internal/desktop/vault_watcher_index.go",
       "internal/vault/root.go",
-      "internal/mutations/plan.go"
+      "internal/mutations/plan.go",
+      "frontend/js/usecases/noteMerge.js",
+      "internal/desktop/app_merge.go",
+      "internal/recovery/model.go",
+      "internal/desktop/external_path_grants.go",
+      "frontend/js/core/htmlEscape.js"
     ],
     "docs": [
       "docs/PROMPT.md#3-file-operations",
@@ -1055,7 +1087,9 @@
       "docs/GETTING_STARTED.md#save-history-and-recovery",
       "docs/NOTES_AND_PLANNING.md#organize-the-file-tree",
       "docs/testing/workspace.md#slow-disk-workspace-io-regressions",
-      "docs/GETTING_STARTED.md#bring-your-notes"
+      "docs/GETTING_STARTED.md#bring-your-notes",
+      "docs/PROMPT.md#34-multi-select-and-merge",
+      "docs/testing/workspace.md#file-tree-merge-and-name-regressions"
     ],
     "tests": [
       "tests/frontend/unit/fileTree.test.js",
@@ -1068,11 +1102,14 @@
       "tests/frontend/unit/gitStatus.test.js",
       "tests/frontend/unit/externalFiles.test.js",
       "tests/frontend/unit/externalFileModel.test.js",
-      "tests/frontend/unit/externalFileNotice.test.js"
+      "tests/frontend/unit/externalFileNotice.test.js",
+      "tests/frontend/unit/noteMerge.test.js",
+      "tests/frontend/unit/htmlEscape.test.js"
     ],
     "extraChecks": [
       "Run go test ./internal/desktop for backend changes, retaining real os.Root containment, collision, rollback, and CSS rename coverage. For Windows rename hangs, capture the packaged app's last progress stage and storage location; Linux checks do not establish native Windows completion. Include slow_history_test.go for save/path-lock ordering.",
-      "Run tests/e2e/desktopStartup.spec.js for the outside-the-vault notice position and a Markdown drop in the assembled app; native drops themselves need the packaged app."
+      "Run tests/e2e/desktopStartup.spec.js for the outside-the-vault notice position and a Markdown drop in the assembled app; native drops themselves need the packaged app.",
+      "Merge Notes archiving and refusals are in app_test.go (go test ./internal/desktop -run MergeNotes); folder-merge plans need go test ./internal/mutations and app_vaultfs_test.go (-run MergeDirectory); dropped-path grants are in external_path_grants_test.go (-run 'ExternalPathGrant|ExternalImport')."
     ],
     "symbols": {
       "frontend/js/core/fileTreeModel.js": [
@@ -1102,6 +1139,12 @@
       ],
       "frontend/js/externalFileNotice.js": [
         "initExternalFileNotice"
+      ],
+      "frontend/js/usecases/noteMerge.js": [
+        "createNoteMerge"
+      ],
+      "frontend/js/core/htmlEscape.js": [
+        "escapeHtml"
       ]
     }
   },
@@ -1137,7 +1180,8 @@
       "docs/testing/workspace.md#note-loading-search-and-recovery-regressions",
       "ARCHITECTURE.md#note-opening-and-recovery-ownership",
       "docs/testing/workspace.md#slow-disk-workspace-io-regressions",
-      "ARCHITECTURE.md#machine-local-application-state"
+      "ARCHITECTURE.md#machine-local-application-state",
+      "docs/PROMPT.md#24-exit-protection"
     ],
     "history": [
       "docs/EDITOR_PERFORMANCE.md#typing-source-reveal-and-navigation-work",
@@ -1205,7 +1249,8 @@
       ],
       "frontend/js/tabManager.js": [
         "activeFileContentSnapshot",
-        "updateTabsForMovedPath"
+        "updateTabsForMovedPath",
+        "prepareTabsForNoteMerge"
       ],
       "frontend/js/core/saveModel.js": [
         "saveContentSource",
@@ -1217,6 +1262,9 @@
       ],
       "frontend/js/usecases/documentSave.js": [
         "createDocumentSave"
+      ],
+      "frontend/js/usecases/editorSaveProtection.js": [
+        "installEditorSaveProtection"
       ]
     }
   },
@@ -1300,7 +1348,8 @@
       "internal/desktop/app_search.go",
       "internal/desktop/relationships.go",
       "frontend/js/core/relationshipModel.js",
-      "internal/desktop/vault_health.go"
+      "internal/desktop/vault_health.go",
+      "internal/desktop/link_style.go"
     ],
     "docs": [
       "docs/PROMPT.md#71-relationships-panel",
@@ -1316,7 +1365,8 @@
     ],
     "extraChecks": [
       "Relationship backend changes require go test ./internal/desktop; actual popup/windowing focus needs the existing browser boundary.",
-      "Run go test ./internal/links ./internal/desktop, including relationships_test.go and vault_index_test.go for wiki/alias/fragment, warm-save, and remapped-relative backlink coverage."
+      "Run go test ./internal/links ./internal/desktop, including relationships_test.go and vault_index_test.go for wiki/alias/fragment, warm-save, and remapped-relative backlink coverage.",
+      "Link-style conversion skips notes Figaro cannot read as text (backlink_rewrite_test.go, internal/vault/root_test.go); colon-named note links are in internal/links rewrite_test.go and convert_test.go."
     ],
     "symbols": {
       "frontend/js/backlinks.js": [
@@ -1410,7 +1460,9 @@
       "frontend/js/usecases/tabContent.js",
       "frontend/js/core/kanbanColumnRetentionModel.js",
       "internal/desktop/app_kanban.go",
-      "internal/desktop/app_preferences.go"
+      "internal/desktop/app_preferences.go",
+      "frontend/js/core/colorPaletteModel.js",
+      "frontend/js/core/ganttModel.js"
     ],
     "docs": [
       "docs/PROMPT.md#6-kanban-board",
@@ -1426,10 +1478,12 @@
       "tests/frontend/unit/calendarTimelineModel.test.js",
       "tests/frontend/unit/kanbanBufferModel.test.js",
       "tests/frontend/unit/calendarCache.test.js",
-      "tests/frontend/unit/kanbanColumnRetentionModel.test.js"
+      "tests/frontend/unit/kanbanColumnRetentionModel.test.js",
+      "tests/frontend/unit/colorPalettePicker.test.js",
+      "tests/frontend/unit/ganttModel.test.js"
     ],
     "extraChecks": [
-      "Run go test ./internal/taskschedule for task policy; use existing Kanban/calendar browser scenarios only for geometry and native events. Column and color persistence need go test ./internal/desktop -run Kanban; hashtag edits in any letter case and refused color-code column names are in kanban_tags_test.go (go test ./internal/desktop -run 'Hashtag|TaskTag|KanbanColumn')."
+      "Run go test ./internal/taskschedule for task policy; use existing Kanban/calendar browser scenarios only for geometry and native events. Column and color persistence, including the #rrggbb rule for stored colors, need go test ./internal/desktop -run 'Kanban|ColumnColor'; hashtag edits in any letter case and refused color-code column names are in kanban_tags_test.go (go test ./internal/desktop -run 'Hashtag|TaskTag|KanbanColumn')."
     ],
     "symbols": {
       "frontend/js/core/kanbanBufferModel.js": [
@@ -1448,6 +1502,9 @@
         "kanbanColumnsWithRetained",
         "kanbanColumnNameError",
         "kanbanColumnHashtag"
+      ],
+      "frontend/js/core/colorPaletteModel.js": [
+        "storedAccentColor"
       ]
     }
   },
@@ -1464,13 +1521,15 @@
       "frontend/js/editor.js",
       "frontend/js/core/editorPreviewModel.js",
       "internal/history/archive_plan.go",
-      "internal/activity/paths.go"
+      "internal/activity/paths.go",
+      "internal/history/commit_count.go"
     ],
     "docs": [
       "ARCHITECTURE.md#git-status-and-history-restoration",
       "docs/testing/workspace.md#file-revision-continuity",
       "ARCHITECTURE.md#editor-buffer-ownership-and-undo-history",
-      "docs/PROMPT.md#256-right-sidebar--history-panel"
+      "docs/PROMPT.md#256-right-sidebar--history-panel",
+      "ARCHITECTURE.md#note-merge-and-revision-counts"
     ],
     "tests": [
       "tests/frontend/unit/historyRestore.test.js",
@@ -1480,7 +1539,7 @@
       "tests/frontend/unit/editorPreviewModel.test.js"
     ],
     "extraChecks": [
-      "Run go test -race ./internal/history ./internal/desktop for Git/filesystem changes, including commit_plan_test.go, commit_file_test.go, archive_plan_test.go (delete staging against full worktree status), and desktop/slow_history_test.go; use actual temporary repositories."
+      "Run go test -race ./internal/history ./internal/desktop for Git/filesystem changes, including commit_plan_test.go, commit_file_test.go, archive_plan_test.go (delete staging against full worktree status), commit_count_test.go (retained revision counts against the file log), and desktop/slow_history_test.go; use actual temporary repositories."
     ],
     "symbols": {
       "frontend/js/editor.js": [
@@ -1501,7 +1560,10 @@
       "frontend/pdf/preview-frame.html",
       "internal/desktop/pdf_export.go",
       "frontend/js/printMarkdownRenderer.js",
-      "frontend/js/frontmatterPlugin.js"
+      "frontend/js/frontmatterPlugin.js",
+      "frontend/js/pdfExport.js",
+      "internal/pdfexport/cdp.go",
+      "internal/desktop/pdf_resources.go"
     ],
     "docs": [
       "docs/PDF_STYLING.md",
@@ -1516,10 +1578,12 @@
       "tests/frontend/unit/pdfPreview.test.js",
       "tests/frontend/unit/pdfPreviewFrame.test.js",
       "tests/frontend/unit/pdfPreviewImageModel.test.js",
-      "tests/frontend/unit/frontmatter.test.js"
+      "tests/frontend/unit/frontmatter.test.js",
+      "tests/frontend/unit/export.test.js"
     ],
     "extraChecks": [
-      "Run go test ./internal/pdfexport for export adapters; preserve consolidated preview/export browser coverage when rendering or frame wiring changes. Stylesheet status needs go test ./internal/desktop -run \"StarterVersion|PrintStylesheet\"; printable renderer changes need npm run vendor:markdown before Jest."
+      "Run go test ./internal/pdfexport for export adapters; preserve consolidated preview/export browser coverage when rendering or frame wiring changes. Stylesheet status needs go test ./internal/desktop -run \"StarterVersion|PrintStylesheet\"; printable renderer changes need npm run vendor:markdown before Jest.",
+      "Export resource confinement needs go test ./internal/pdfexport ./internal/desktop -run 'RenderPDFViaCDP|ChromiumPDFSession|PDFResource|LocalPathOfFileURL|PDFBlockedResource'; its two real-browser cases run only with FIGARO_BROWSER_PDF_EXECUTABLE set."
     ]
   },
   {
@@ -1567,7 +1631,8 @@
       "frontend/js/usecases/diagramQuietScheduler.js",
       "frontend/js/core/mermaidDiagramModel.js",
       "frontend/js/core/diagramSizeModel.js",
-      "frontend/js/adapters/diagramSizeMemory.js"
+      "frontend/js/adapters/diagramSizeMemory.js",
+      "frontend/js/core/diagramSecurityModel.js"
     ],
     "docs": [
       "docs/DIAGRAMS_AND_EXPORT.md#mermaid-diagrams",
@@ -1575,7 +1640,8 @@
       "docs/PROMPT.md#3033-mermaid-editor",
       "docs/LIVEPREVIEW.md#authored-and-content-sized-diagrams",
       "ARCHITECTURE.md#diagram-rendering-and-caching",
-      "ARCHITECTURE.md#live-diagram-geometry"
+      "ARCHITECTURE.md#live-diagram-geometry",
+      "docs/testing/editor.md#diagram-render-reuse-mermaid-sizing-and-properties"
     ],
     "history": [
       "docs/EDITOR_PERFORMANCE.md#consolidated-interaction-findings",
@@ -1594,7 +1660,9 @@
       "tests/frontend/unit/previewCache.test.js",
       "tests/frontend/unit/liveDiagramPlugin.test.js",
       "tests/frontend/unit/diagramSizeMemory.test.js",
-      "tests/frontend/unit/diagramPresentation.test.js"
+      "tests/frontend/unit/diagramPresentation.test.js",
+      "tests/frontend/unit/diagramSecurityModel.test.js",
+      "tests/frontend/unit/mermaidLinkSafety.test.js"
     ],
     "extraChecks": [
       "Run tests/e2e/mermaidEditor.spec.js for Mermaid drawing size, box height across source reveal, and the resize handle.",
@@ -1614,7 +1682,9 @@
       "frontend/js/diagramRenderer.js": [
         "validateMermaidSource",
         "diagramRenderIdentity",
-        "renderDiagramSVG"
+        "renderDiagramSVG",
+        "createVegaResourceGuard",
+        "mermaidSvgWithoutScriptLinks"
       ],
       "frontend/js/core/previewCache.js": [
         "createPreviewCache"
@@ -1642,6 +1712,12 @@
       "frontend/js/diagramPresentation.js": [
         "createDiagramPresentation",
         "diagramSourceBoxHeight"
+      ],
+      "frontend/js/core/diagramSecurityModel.js": [
+        "planVegaResourceAccess",
+        "vegaResourceRefusalMessage",
+        "VEGA_VAULT_ROUTE",
+        "mermaidSvgAttributeIsUnsafe"
       ]
     }
   },
@@ -1664,7 +1740,8 @@
     ],
     "extraChecks": [
       "Changes to graphic measurements or printable output need the existing chart and preview/export browser boundaries; use diagrams for shared scheduling.",
-      "Run tests/e2e/vegaLiteChartEditor.spec.js for chart SVG replacement, connected-container sizing, controls, resize and source-selection geometry."
+      "Run tests/e2e/vegaLiteChartEditor.spec.js for chart SVG replacement, connected-container sizing, controls, resize and source-selection geometry.",
+      "What a chart may load (vault files only) is owned by diagrams: core/diagramSecurityModel.js and the guarded loader in diagramRenderer.js."
     ],
     "symbols": {
       "frontend/js/vegaLiteChartEditor.js": [
@@ -1803,7 +1880,8 @@
       "frontend/styles/shell.css",
       "frontend/styles/features/settings.css",
       "frontend/js/settingsNavigation.js",
-      "frontend/js/writingLenses.js"
+      "frontend/js/writingLenses.js",
+      "internal/desktop/machine_settings.go"
     ],
     "docs": [
       "docs/PROMPT.md#21-settings-tab",
@@ -1854,22 +1932,27 @@
       "frontend/js/updateSettings.js",
       "frontend/js/core/updateModel.js",
       "scripts/package-desktop.sh",
-      "frontend/js/log.js"
+      "frontend/js/log.js",
+      "internal/desktop/window_close_gate.go",
+      "internal/desktop/update_download.go"
     ],
     "docs": [
       "ARCHITECTURE.md#wails-v3-bridge-asset-routes-and-updates",
       "docs/PROMPT.md#21-settings-tab",
-      "docs/testing/workspace.md#desktop-bridge-and-in-app-update-regressions"
+      "docs/testing/workspace.md#desktop-bridge-and-in-app-update-regressions",
+      "docs/PROMPT.md#24-exit-protection"
     ],
     "tests": [
       "tests/frontend/unit/wailsRuntime.test.js",
       "tests/frontend/unit/updateSettings.test.js",
-      "tests/frontend/unit/log.test.js"
+      "tests/frontend/unit/log.test.js",
+      "tests/frontend/unit/editorSaveProtection.test.js",
+      "tests/frontend/unit/windowChrome.test.js"
     ],
     "extraChecks": [
       "Run go test ./internal/desktop ./internal/updates ./internal/repositorycheck for the bridge guard, updater (including a fake GitHub API), and release-workflow contracts.",
       "Linux builds need GTK 4 and WebKitGTK 6.0 headers; launch packaged builds under xvfb-run and confirm no [security] refusals for Figaro's own bridge calls.",
-      "The restart swap, Windows and macOS packaging, and a real GitHub check are manual on packaged builds."
+      "The restart swap, Windows and macOS packaging, a real GitHub check, and a close the operating system asks for (Alt+F4, window-manager or taskbar close, the macOS close button, Quit) are manual on packaged builds; the close gate is unit-tested in window_close_gate_test.go, and the operating-system close was checked only in the packaged Linux build (WebKitGTK), so Windows and macOS still need it."
     ],
     "symbols": {
       "frontend/js/wailsRuntime.js": [

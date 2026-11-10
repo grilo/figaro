@@ -262,6 +262,30 @@ describe('markdown editor interactions', () => {
         expect(document.body.classList.contains('custom-modal-open')).toBe(false);
     });
 
+    test('the link hover preview shows a destination containing markup as text', async () => {
+        const { createEditorView, initEditor } = await import('../frontend/js/editor.js');
+        await initEditor();
+        view = createEditorView();
+
+        const destination = '<img src=x onerror=window.hoverInjected=1>';
+        const source = '[x](' + destination + ')';
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source }, selection: { anchor: 1 } });
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        view.posAtCoords = jest.fn(() => source.indexOf('img'));
+        view.contentDOM.querySelector('.cm-line').dispatchEvent(new MouseEvent('mouseover', {
+            bubbles: true, clientX: 20, clientY: 20,
+        }));
+
+        const preview = document.querySelector('.link-hover-preview');
+        expect(preview).toBeTruthy();
+        expect(preview.querySelector('img')).toBeNull();
+        expect(preview.querySelector('.lh-path').textContent).toBe(destination);
+        expect(preview.querySelector('.lh-type').textContent).toBe('File link');
+        expect(window.hoverInjected).toBeUndefined();
+        preview.remove();
+    });
+
     test('opens rendered and revealed external links in the system browser on Ctrl/Cmd-click and shows the shortcut hint', async () => {
         const originalRuntime = window.runtime;
         const originalOpen = window.open;

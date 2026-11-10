@@ -6,7 +6,12 @@
  * isolation.
  */
 
-import { planMermaidSourceRender } from './core/diagramSecurityModel.js';
+import {
+    mermaidSvgAttributeIsUnsafe,
+    planMermaidSourceRender,
+    planVegaResourceAccess,
+    vegaResourceRefusalMessage,
+} from './core/diagramSecurityModel.js';
 import {
     mermaidPaletteCount,
     mermaidSourceWithApplicationTheme,
@@ -60,6 +65,11 @@ function initialiseMermaid() {
     mermaid.initialize({
         startOnLoad: false,
         theme: 'default',
+        // Mermaid's `strict` level passes the finished SVG through a
+        // sanitizer that also removes every <use>, which is how tree-view
+        // diagrams draw their file and folder icons. Loose keeps them; what it
+        // would let a note plant, a script link, is removed by
+        // mermaidSvgWithoutScriptLinks before the SVG reaches the page.
         securityLevel: 'loose',
     });
     diagramRenderCache.clear();
@@ -90,6 +100,30 @@ function writeCachedDiagram(key, entry) {
     }
 }
 
+/**
+ * Drop what a diagram's own source could turn into script in the page: a
+ * `click … href "javascript:…"` link, an event-handler attribute, a script
+ * element. A drawing without any of them is returned exactly as rendered.
+ */
+function mermaidSvgWithoutScriptLinks(svg) {
+    const host = document.createElement('template');
+    host.innerHTML = svg;
+    let changed = false;
+    for (const element of host.content.querySelectorAll('*')) {
+        if (element.localName === 'script') {
+            element.remove();
+            changed = true;
+            continue;
+        }
+        for (const attribute of [...element.attributes]) {
+            if (!mermaidSvgAttributeIsUnsafe(element.localName, attribute.name, attribute.value)) continue;
+            element.removeAttributeNode(attribute);
+            changed = true;
+        }
+    }
+    return changed ? host.innerHTML : svg;
+}
+
 async function renderMermaidSVG(code, idPrefix, key) {
     const targetId = nextMermaidRenderId(idPrefix);
     const cached = key ? readCachedDiagram(key) : null;
@@ -100,9 +134,9 @@ async function renderMermaidSVG(code, idPrefix, key) {
         const renderId = targetId;
         pending = withMermaid(() => window.mermaid.render(renderId, code))
             .then(result => {
-                const svg = typeof result?.svg === 'string' && result.svg ? result.svg : null;
-                if (!svg) return null;
-                const entry = { svg, renderId };
+                const rendered = typeof result?.svg === 'string' && result.svg ? result.svg : null;
+                if (!rendered) return null;
+                const entry = { svg: mermaidSvgWithoutScriptLinks(rendered), renderId };
                 if (key) writeCachedDiagram(key, entry);
                 return entry;
             })
@@ -283,14 +317,63 @@ function diagramFontIdentity() {
         style.getPropertyValue('--font-editor').trim(), style.getPropertyValue('--font-ui').trim()];
 }
 
+/**
+ * The only way a chart reaches data, images and links. Vega asks its loader
+ * for all three, so every render gets one that follows the vault-only policy;
+ * a refused source is remembered because Vega itself only logs a failed load
+ * and would draw an empty chart.
+ */
+function createVegaResourceGuard() {
+    const refused = [];
+    const baseUrl = document.baseURI;
+    const allowed = (uri, context) => {
+        const decision = planVegaResourceAccess(uri, { context, baseUrl });
+        if (decision.action !== 'refuse') return decision.url;
+        // No `url` on the error: Vega writes a rejected image's `url` into the SVG.
+        const error = new Error(vegaResourceRefusalMessage(uri));
+        error.code = 'vega-resource-refused';
+        refused.push(error);
+        throw error;
+    };
+    const loader = {};
+    // A spec can carry embed options that are merged into the loader; the two
+    // functions Vega calls stay ours.
+    Object.defineProperties(loader, {
+        sanitize: {
+            enumerable: true,
+            value: async (uri, options) => {
+                if (options?.context !== 'href') return { href: allowed(uri, options?.context || 'dataflow') };
+                // Vega reads a link's attributes without checking for a refusal,
+                // so an unsafe link resolves to none and the mark is drawn unlinked.
+                const link = planVegaResourceAccess(uri, { context: 'href', baseUrl });
+                return link.action === 'link' ? { href: link.url } : {};
+            },
+        },
+        load: {
+            enumerable: true,
+            value: async (uri, options) => {
+                const url = allowed(uri, 'dataflow');
+                const response = await fetch(url, { credentials: 'same-origin' });
+                if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim());
+                const read = response[options?.response];
+                return typeof read === 'function' ? read.call(response) : response.text();
+            },
+        },
+    });
+    return { loader, assertNothingRefused() { if (refused.length) throw refused[0]; } };
+}
+
 async function renderVegaOutput({ language, spec, dimensions, embed }) {
     // Connected geometry is required for portable width: "container" in WebKit.
     const target = createVegaRenderTarget(dimensions);
+    const resources = createVegaResourceGuard();
     let result;
     try {
-        result = await embed(target, spec, { mode: language, actions: false, renderer: 'svg' });
+        result = await embed(target, spec, { mode: language, actions: false, renderer: 'svg', loader: resources.loader });
         if (typeof result?.view?.toSVG !== 'function') return null;
-        return assertRenderableVegaSVG(await result.view.toSVG());
+        const svg = await result.view.toSVG();
+        resources.assertNothingRefused();
+        return assertRenderableVegaSVG(svg);
     } finally {
         try { result?.view?.finalize?.(); } finally { target.remove(); }
     }

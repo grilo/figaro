@@ -120,6 +120,67 @@ describe('frontmatter Properties card', () => {
         expect(state.field(field)).toBe(initial);
     });
 
+    test('a note that is only Properties keeps a line to type on', () => {
+        const field = createFrontmatterField(StateField, StateEffect, EditorView, Decoration, WidgetType, null, () => []);
+        view = new EditorView({
+            state: EditorState.create({ doc: '---\ntitle: Report\n---\n', extensions: [field] }),
+            parent: document.body,
+        });
+        expect(view.contentDOM.querySelectorAll('.cm-block-widget--frontmatter')).toHaveLength(1);
+        expect(view.contentDOM.querySelectorAll('.cm-line')).toHaveLength(1);
+
+        // The body line is ordinary text: an edit there needs no special handling.
+        view.dispatch({ changes: { from: view.state.doc.length, insert: 'Body' }, userEvent: 'input.type' });
+        expect(view.state.doc.toString()).toBe('---\ntitle: Report\n---\nBody');
+        expect(view.state.field(field).frontmatter.entries).toEqual([expect.objectContaining({ key: 'title', value: 'Report' })]);
+        expect(view.contentDOM.querySelector('.cm-line').textContent).toBe('Body');
+    });
+
+    test('typing or pasting after a closing boundary with no line break starts the body instead of breaking the block', () => {
+        const field = createFrontmatterField(StateField, StateEffect, EditorView, Decoration, WidgetType, null, () => []);
+        const source = '---\ntitle: Report\n---';
+        const mount = () => {
+            view?.destroy();
+            view = new EditorView({
+                state: EditorState.create({ doc: source, selection: { anchor: source.length }, extensions: [field] }),
+                parent: document.body,
+            });
+        };
+
+        // The note has no line at all: a typed key is the only signal.
+        mount();
+        expect(view.contentDOM.querySelectorAll('.cm-line')).toHaveLength(0);
+        const key = new KeyboardEvent('keypress', { key: 'Z', bubbles: true, cancelable: true });
+        view.contentDOM.dispatchEvent(key);
+        expect(key.defaultPrevented).toBe(true);
+        expect(view.state.doc.toString()).toBe(source + '\nZ');
+        expect(view.state.selection.main.head).toBe(source.length + 2);
+        expect(view.state.field(field).frontmatter).toBeTruthy();
+
+        // A shortcut is not text, and a key elsewhere in the note is the editor's own business.
+        mount();
+        for (const init of [{ key: 's', ctrlKey: true }, { key: 's', metaKey: true }, { key: 'Enter' }]) {
+            const shortcut = new KeyboardEvent('keypress', { ...init, bubbles: true, cancelable: true });
+            view.contentDOM.dispatchEvent(shortcut);
+            expect(shortcut.defaultPrevented).toBe(false);
+        }
+        expect(view.state.doc.toString()).toBe(source);
+        // AltGr reports Ctrl+Alt and still types its character.
+        view.contentDOM.dispatchEvent(new KeyboardEvent('keypress', { key: '@', ctrlKey: true, altKey: true, bubbles: true, cancelable: true }));
+        expect(view.state.doc.toString()).toBe(source + '\n@');
+
+        mount();
+        view.dispatch({ changes: { from: source.length, insert: 'Pasted text' }, userEvent: 'input.paste' });
+        expect(view.state.doc.toString()).toBe(source + '\nPasted text');
+        expect(view.state.selection.main.head).toBe(view.state.doc.length);
+        expect(view.state.field(field).frontmatter).toBeTruthy();
+
+        // An edit that is not the author's input is applied exactly as given.
+        mount();
+        view.dispatch({ changes: { from: source.length, insert: 'x' } });
+        expect(view.state.doc.toString()).toBe(source + 'x');
+    });
+
     test('is collapsed initially, exposes friendly PDF controls, and keeps raw YAML available', () => {
         window.lucide = {
             icons: {

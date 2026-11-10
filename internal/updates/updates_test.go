@@ -1,6 +1,9 @@
 package updates
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestArchiveNamesMatchTheReleaseWorkflow(t *testing.T) {
 	cases := map[string]string{
@@ -68,6 +71,35 @@ func TestPublishedPlatformsMatchTheReleaseMatrix(t *testing.T) {
 	for _, platform := range [][2]string{{"linux", "arm64"}, {"windows", "arm64"}, {"freebsd", "amd64"}} {
 		if Published(platform[0], platform[1]) {
 			t.Errorf("%s/%s has no update archive", platform[0], platform[1])
+		}
+	}
+}
+
+func TestRequireChecksumRefusesAnArchiveTheManifestDoesNotVouchFor(t *testing.T) {
+	digest := make([]byte, 32)
+	if err := RequireChecksum("figaro-v1.47.0-linux-amd64-update.tar.gz", "sha256", digest); err != nil {
+		t.Fatalf("a SHA-256 digest was refused: %v", err)
+	}
+	for name, test := range map[string]struct {
+		algorithm string
+		digest    []byte
+		mention   string
+	}{
+		"no manifest or no entry": {algorithm: "", digest: nil, mention: "has no SHA-256 checksum"},
+		"empty digest":            {algorithm: "sha256", digest: []byte{}, mention: "has no SHA-256 checksum"},
+		"truncated digest":        {algorithm: "sha256", digest: make([]byte, 16), mention: "is not a SHA-256 digest"},
+		"another algorithm":       {algorithm: "sha512", digest: make([]byte, 64), mention: "is not a SHA-256 digest"},
+		"unnamed algorithm":       {algorithm: "", digest: digest, mention: "is not a SHA-256 digest"},
+	} {
+		err := RequireChecksum("figaro-v1.47.0-linux-amd64-update.tar.gz", test.algorithm, test.digest)
+		if err == nil {
+			t.Errorf("%s: the archive was accepted", name)
+			continue
+		}
+		for _, want := range []string{test.mention, "figaro-v1.47.0-linux-amd64-update.tar.gz", ChecksumAsset, "did not install it"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: refusal %q does not mention %q", name, err, want)
+			}
 		}
 	}
 }

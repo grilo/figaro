@@ -17,6 +17,7 @@ import {
     formatCalendarMonth,
 } from './calendarLocale.js';
 import { hideCalendarDayTooltip, wireCalendarDayTooltips } from './calendarDayTooltip.js';
+import { escapeHtml } from './core/htmlEscape.js';
 
 let activePicker = null;
 let configuredMonthDataLoader = null;
@@ -221,12 +222,6 @@ function positionPicker(picker, anchor, requestedRect = null) {
         : Math.max(margin, anchorRect.top - height - 6);
     picker.style.left = `${left}px`;
     picker.style.top = `${top}px`;
-}
-
-function escapeHtml(text) {
-    const element = document.createElement('div');
-    element.textContent = String(text || '');
-    return element.innerHTML;
 }
 
 function escapeAttr(text) {

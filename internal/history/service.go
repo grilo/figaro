@@ -56,6 +56,11 @@ type Service struct {
 	activityCache map[string]*activity.Document
 	commitHead    plumbing.Hash
 	commitEntries map[string]gitPathState
+	// commitCounts retains every path's revision count for one state of the
+	// references; the two counters record how it was kept current.
+	commitCounts        *commitCountIndex
+	commitCountBuilds   int
+	commitCountAdvances int
 }
 
 // New initializes or opens a Git repository in the vault directory.
@@ -550,15 +555,6 @@ func (h *Service) getFileVersionLocked(relPath string, hash string) (string, err
 		return "", fmt.Errorf("read blob content: %w", err)
 	}
 	return string(buffer), nil
-}
-
-// CommitCount returns the total number of commits for a file.
-func (h *Service) CommitCount(relPath string) (int, error) {
-	entries, err := h.GetFileHistory(relPath)
-	if err != nil {
-		return 0, err
-	}
-	return len(entries), nil
 }
 
 func (h *Service) lockVaultRead() {

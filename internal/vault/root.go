@@ -207,14 +207,31 @@ type markdownFile struct {
 
 // WalkMarkdown walks ordinary Markdown files below an already-open vault root.
 // It omits dot-directories and symlinks; Root protects all opens from races.
+// A note the user may not read, or one removed after it was listed, is left
+// out by the rule that leaves out an unreadable folder (IsSkippableWalkError):
+// one such note does not fail the walk for every other note.
 func WalkMarkdown(root *os.Root, visitor MarkdownVisitor) error {
 	return walkMarkdownFiles(root, func(file markdownFile) error {
-		data, err := root.ReadFile(file.rel)
-		if err != nil {
-			return fmt.Errorf("read vault path %q: %w", file.rel, err)
+		data, skip, err := readWalkedMarkdown(root, file)
+		if err != nil || skip {
+			return err
 		}
 		return visitor(root, filepath.ToSlash(file.rel), file.info, data)
 	})
+}
+
+// readWalkedMarkdown reads one listed note. skip is true when the note cannot
+// be read for a reason that should leave it out of the walk instead of ending
+// it.
+func readWalkedMarkdown(root *os.Root, file markdownFile) (data []byte, skip bool, err error) {
+	data, err = root.ReadFile(file.rel)
+	if err == nil {
+		return data, false, nil
+	}
+	if IsSkippableWalkError(err) {
+		return nil, true, nil
+	}
+	return nil, false, fmt.Errorf("read vault path %q: %w", file.rel, err)
 }
 
 // WalkMarkdownWithProgress discovers the complete Markdown workload before
@@ -234,12 +251,14 @@ func WalkMarkdownWithProgress(root *os.Root, visitor MarkdownVisitor, progress M
 		progress(0, len(files))
 	}
 	for index, file := range files {
-		data, err := root.ReadFile(file.rel)
+		data, skip, err := readWalkedMarkdown(root, file)
 		if err != nil {
-			return fmt.Errorf("read vault path %q: %w", file.rel, err)
-		}
-		if err := visitor(root, filepath.ToSlash(file.rel), file.info, data); err != nil {
 			return err
+		}
+		if !skip {
+			if err := visitor(root, filepath.ToSlash(file.rel), file.info, data); err != nil {
+				return err
+			}
 		}
 		if progress != nil {
 			progress(index+1, len(files))

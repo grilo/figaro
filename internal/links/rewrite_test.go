@@ -205,3 +205,98 @@ func TestWikiLinkTargetAlwaysNamesANoteFromTheVaultRoot(t *testing.T) {
 		t.Fatalf("link targets = %v, want only Real.md", targets)
 	}
 }
+
+// A colon is an ordinary filename character. Only a real URL, a "#heading" or
+// a protocol-relative address leaves the vault.
+func TestIsExternalMarkdownDestinationNeedsARealURLScheme(t *testing.T) {
+	for _, test := range []struct {
+		destination string
+		external    bool
+	}{
+		// Notes whose first path segment holds a colon.
+		{"a: note.md", false},
+		{"a:%20note.md", false},
+		{"Re: plan.md", false},
+		{"Re:%20plan.md", false},
+		{"v1.2:notes.md", false},
+		{"Standup-10:30.md", false},
+		{"todo:today.md", false},
+		{"Project: plan/Brief.md", false},
+		{"notes/a: note.md", false},
+		{"Meeting 10:30.md", false},
+		{"10:30 standup.md", false},
+		{":leading.md", false},
+		{"./Re: plan.md", false},
+		{"../a: note.md", false},
+		{"/Re: plan.md", false},
+		// Ordinary vault paths.
+		{"note.md", false},
+		{"docs/Guide Note.md", false},
+		{"docs/Guide%20Note.md", false},
+		{"image1.png", false},
+		{"", false},
+		// A scheme followed by an authority.
+		{"https://example.com/note.md", true},
+		{"http://example.com", true},
+		{"HTTPS://EXAMPLE.COM", true},
+		{"ftp://example.com/file.md", true},
+		{"file:///home/writer/note.md", true},
+		{"obsidian://open?vault=Notes&file=a", true},
+		{"zotero://select/items/1_ABC", true},
+		{"x-devonthink-item://4AB", true},
+		{"a://b", true},
+		// Schemes that never carry an authority.
+		{"mailto:hello@example.com", true},
+		{"MAILTO:hello@example.com", true},
+		{"tel:+15551234567", true},
+		{"sms:+15551234567", true},
+		{"data:image/png;base64,AAAA", true},
+		{"javascript:void(0)", true},
+		{"obsidian:open", true},
+		{"file:/home/writer/note.md", true},
+		{"urn:isbn:0451450523", true},
+		// The other forms that never name a vault file.
+		{"#heading", true},
+		{"//example.com/note.md", true},
+	} {
+		if got := isExternalMarkdownDestination(test.destination); got != test.external {
+			t.Errorf("isExternalMarkdownDestination(%q) = %v, want %v", test.destination, got, test.external)
+		}
+	}
+}
+
+func TestRewriteMarkdownLinksForMoveFollowsNotesWithAColonInTheName(t *testing.T) {
+	source := "[Plan](Re:%20plan.md#next)\n" +
+		"[Plan](<Re: plan.md>)\n" +
+		"[[Re: plan|Plan]]\n" +
+		"[[Re: plan#next]]\n" +
+		"[notes](v1.2:notes.md)\n" +
+		"[Mail](mailto:plan@example.com)\n" +
+		"[Web](https://example.com/Re:%20plan.md)\n"
+	got := RewriteMarkdownLinksForMove(source, "index.md", "index.md", "Re: plan.md", "archive/Re: plan.md")
+	got = RewriteMarkdownLinksForMove(got, "index.md", "index.md", "v1.2:notes.md", "archive/v1.2:notes.md")
+	want := "[Plan](archive/Re:%20plan.md#next)\n" +
+		"[Plan](<archive/Re:%20plan.md>)\n" +
+		"[[archive/Re: plan|Plan]]\n" +
+		"[[archive/Re: plan#next]]\n" +
+		"[notes](archive/v1.2:notes.md)\n" +
+		"[Mail](mailto:plan@example.com)\n" +
+		"[Web](https://example.com/Re:%20plan.md)\n"
+	if got != want {
+		t.Fatalf("rewritten links =\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestLinkTargetsResolveNotesWithAColonInTheName(t *testing.T) {
+	if target, ok := LinkDestinationTarget("Re:%20plan.md", "index.md", false); !ok || target != "Re: plan.md" {
+		t.Fatalf("LinkDestinationTarget = %q, %v; want the note", target, ok)
+	}
+	if target, ok := WikiLinkTarget("Re: plan|Plan"); !ok || target != "Re: plan.md" {
+		t.Fatalf("WikiLinkTarget = %q, %v; want the note", target, ok)
+	}
+	for _, body := range []string{"mailto:plan@example.com", "https://example.com/plan"} {
+		if target, ok := WikiLinkTarget(body); ok {
+			t.Fatalf("WikiLinkTarget(%q) = %q; a URL names no note", body, target)
+		}
+	}
+}

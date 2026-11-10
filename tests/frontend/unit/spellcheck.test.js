@@ -151,4 +151,28 @@ describe('offline Markdown spellcheck', () => {
             suggestions: ['spelling', 'spieling'],
         });
     });
+
+    test('opening the context menu again reuses the dictionary that is already loaded', async () => {
+        const previousFetch = global.fetch;
+        const files = { aff: 'SET UTF-8\nTRY esianrtolcdugmphbyfvkwz\n', dic: '3\nthe\nword\nanother\n' };
+        global.fetch = jest.fn(async url => ({ ok: true, text: async () => files[String(url).split('.').pop()] }));
+        try {
+            let spellcheck;
+            await jest.isolateModulesAsync(async () => { spellcheck = await import('../frontend/js/spellcheck.js'); });
+            const first = await spellcheck.spellcheckSuggestionsAtPosition('The mispelled word', 6);
+            const second = await spellcheck.spellcheckSuggestionsAtPosition('Another mispelled word', 10);
+
+            expect(first).toMatchObject({ from: 4, to: 13, word: 'mispelled' });
+            expect(second).toMatchObject({ from: 8, to: 17, word: 'mispelled' });
+            await expect(spellcheck.spellcheckSuggestionsAtPosition('The word', 5)).resolves.toBeNull();
+            expect(global.fetch.mock.calls.map(([url]) => url).sort())
+                .toEqual(['/vendored/spellcheck/en-US.aff', '/vendored/spellcheck/en-US.dic']);
+            const loaded = await spellcheck.loadSpellchecker('en-US');
+            const again = await spellcheck.loadSpellchecker('en-US');
+            expect(again).toBe(loaded);
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+        } finally {
+            if (previousFetch) global.fetch = previousFetch; else delete global.fetch;
+        }
+    });
 });

@@ -191,6 +191,11 @@ Figaro adds its built-in CSS first and links the selected vault stylesheet
 afterward. Normal CSS cascade rules therefore let your selectors override the
 defaults without `!important` in most cases.
 
+Keep everything a stylesheet loads inside the vault: `@import` targets,
+`@font-face` sources, and `url()` images. Export does not load web addresses,
+and a Chromium-family export leaves out a file stored elsewhere on disk and
+[says which files it left out](DIAGRAMS_AND_EXPORT.md#preview-and-generate-a-pdf).
+
 The Chromium export uses A4 by default and honors CSS page size settings. Use
 `@page` for paper size and margins:
 
@@ -349,7 +354,9 @@ Live and printable consumers share the bounded diagram renderer. Vega/Vega-Lite
 cache identity includes the effective specification, appearance, container size
 and font generation; cached SVG IDs and local references are unique per mount.
 Mermaid output also invalidates for changed font or renderer generations.
-External-data specifications bypass reuse. PDF preview and generated PDFs retain
+Specifications that load a vault file by URL bypass reuse; the
+[chart guide](DIAGRAMS_AND_EXPORT.md#charts) says what a chart may load. PDF
+preview and generated PDFs retain
 their existing authored appearance and sizing; the editor's typing/scroll quiet
 scheduler does not delay printable rendering. Editor-only retained code, math,
 table and image nodes do not enter printable documents; the shared table renderer

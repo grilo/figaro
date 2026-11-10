@@ -97,6 +97,63 @@ describe('draw.io editor protocol', () => {
         expect(refreshFileTree).toHaveBeenCalled();
     });
 
+    test('a diagram renamed while its editor is open marks and saves the renamed tab, never the old path', async () => {
+        const opened = 'Diagrams/flow.drawio.svg';
+        const renamed = 'Archive/renamed.drawio.svg';
+        const tab = { id: opened, path: opened, title: 'flow.drawio.svg', mtime: 0 };
+        refreshFileTree.mockResolvedValue(undefined);
+        panel.dataset.tabId = tab.id;
+        await renderDrawioTab(panel, tab);
+
+        let frame = panel.querySelector('.drawio-frame');
+        jest.spyOn(frame.contentWindow, 'postMessage').mockImplementation(() => {});
+        sendEditorMessage(frame, { event: 'init' });
+        sendEditorMessage(frame, { event: 'load' });
+
+        // What the tab owner does to a mounted Draw.io panel once the file has moved.
+        panel.dataset.tabId = renamed;
+        panel._drawioPath = renamed;
+
+        sendEditorMessage(frame, { event: 'autosave' });
+        expect(markTabDirty).toHaveBeenCalledTimes(1);
+        expect(markTabDirty).toHaveBeenCalledWith(renamed);
+
+        const savedSVG = '<svg xmlns="http://www.w3.org/2000/svg"><content>renamed</content></svg>';
+        sendEditorMessage(frame, { event: 'save', xml: '<mxGraphModel />', exit: true });
+        sendEditorMessage(frame, { event: 'export', data: savedSVG });
+        await flush();
+        await flush();
+
+        expect(saveFileSnapshot).toHaveBeenCalledTimes(1);
+        expect(saveFileSnapshot.mock.calls[0][0]).toEqual(expect.objectContaining({
+            id: renamed, path: renamed, title: 'renamed.drawio.svg',
+        }));
+
+        // Save and exit shows the preview; it and a reopened editor stay on the renamed file.
+        expect(panel._drawioPath).toBe(renamed);
+        expect(panel.querySelector('.drawio-title').textContent).toBe('renamed.drawio.svg');
+        panel.querySelector('.drawio-edit-button').click();
+        expect(panel._drawioPath).toBe(renamed);
+        frame = panel.querySelector('.drawio-frame');
+        const postMessage = jest.spyOn(frame.contentWindow, 'postMessage').mockImplementation(() => {});
+        sendEditorMessage(frame, { event: 'init' });
+        expect(JSON.parse(postMessage.mock.calls[0][0])).toEqual(expect.objectContaining({
+            action: 'load', title: 'renamed.drawio.svg',
+        }));
+        sendEditorMessage(frame, { event: 'save', xml: '<mxGraphModel />' });
+        sendEditorMessage(frame, { event: 'export', data: savedSVG });
+        await flush();
+        await flush();
+
+        expect(saveFileSnapshot).toHaveBeenCalledTimes(2);
+        for (const [savedTab] of saveFileSnapshot.mock.calls) {
+            expect(savedTab.path).toBe(renamed);
+            expect(savedTab.id).toBe(renamed);
+        }
+        expect(markTabDirty).not.toHaveBeenCalledWith(opened);
+        refreshFileTree.mockReset();
+    });
+
     test('keeps the themed loader until Draw.io finishes loading, edits dark, and exports light SVG', async () => {
         document.documentElement.style.setProperty('--bg-color', '#1a1816');
         const tab = { id: 'Diagrams/flow.drawio.svg', path: 'Diagrams/flow.drawio.svg', title: 'flow.drawio.svg', mtime: 0 };

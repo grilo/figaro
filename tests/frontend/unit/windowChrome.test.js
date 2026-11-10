@@ -1,4 +1,7 @@
-import { initWindowChrome, resetWindowChromeForTests } from '../frontend/js/windowChrome.js';
+import {
+    initWindowChrome, resetWindowChromeForTests, requestApplicationExit, setWindowCloseRequestHandler,
+    acknowledgeNativeCloseRequest, declineNativeCloseRequest,
+} from '../frontend/js/windowChrome.js';
 import { getState, setState } from '../frontend/js/state.js';
 
 describe('native window chrome', () => {
@@ -51,6 +54,27 @@ describe('native window chrome', () => {
         expect(window.go.desktop.App.WindowCaptureState).not.toHaveBeenCalled();
         jest.advanceTimersByTime(1);
         expect(window.go.desktop.App.WindowCaptureState).toHaveBeenCalledTimes(1);
+    });
+
+    test('leaving another way uses the installed exit flow and answers native close requests through the host', async () => {
+        const restart = jest.fn();
+        // Before startup installs the flow, leaving simply leaves.
+        await expect(requestApplicationExit(restart)).resolves.toBe(true);
+        expect(restart).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.WindowClose).not.toHaveBeenCalled();
+
+        const flow = jest.fn(async () => false);
+        setWindowCloseRequestHandler(flow);
+        await expect(requestApplicationExit(restart)).resolves.toBe(false);
+        expect(flow).toHaveBeenCalledWith(restart);
+        expect(restart).toHaveBeenCalledTimes(1);
+
+        window.go.desktop.App.WindowCloseAcknowledged = jest.fn();
+        window.go.desktop.App.WindowCloseDeclined = jest.fn();
+        await acknowledgeNativeCloseRequest();
+        await declineNativeCloseRequest();
+        expect(window.go.desktop.App.WindowCloseAcknowledged).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.WindowCloseDeclined).toHaveBeenCalledTimes(1);
     });
 
     test('keeps the browser and native window titles aligned with the active document', () => {

@@ -41,6 +41,8 @@ type App struct {
 	mu                  sync.RWMutex
 	desktopRuntime      *runtimeBridge
 	externalFiles       *externalFileRegistry
+	droppedPaths        *externalPathGrants
+	closeGate           *windowCloseGate
 	settingsMu          sync.RWMutex
 	writingStateMu      sync.RWMutex
 	taskProjectionMu    sync.Mutex
@@ -242,6 +244,8 @@ func NewApp(vaultPath string, bundledAssets ...AssetFS) *App {
 		kanbanColors:        make(map[string]string),
 		kanbanColumns:       append([]string{}, SystemColumns...),
 		externalFiles:       newExternalFileRegistry(),
+		droppedPaths:        newExternalPathGrants(externalPathGrantLimit),
+		closeGate:           newWindowCloseGate(nil),
 		internalVaultWrites: make(map[string]internalVaultWriteAck),
 		fileIssues:          make(map[string]VaultFileIssue),
 		windowState:         defaultWindowState(),
@@ -473,7 +477,7 @@ func (a *App) startup(ctx context.Context) {
 	a.desktopRuntime.start(ctx)
 	log.Println("[go] App.startup() — Wails context captured")
 	finishSettings := a.startupTrace.Begin("settings")
-	a.migrateLegacyPDFBrowserPreference()
+	a.discardLegacyPDFBrowserPreference()
 	a.ensureSettingsDefaults()
 	finishSettings(nil)
 

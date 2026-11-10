@@ -35,6 +35,11 @@ func PlanMove(
 		return MovePlan{Destination: destination, Error: "Cannot move a directory into itself"}
 	}
 	if destinationExists {
+		// A folder dropped on its own parent finds itself at the destination.
+		// That is not a second folder to merge with.
+		if sourceIsDirectory && samePath(source, destination, caseInsensitive) {
+			return MovePlan{Destination: destination, Error: SameFolderError}
+		}
 		if sourceIsDirectory && destinationIsDirectory {
 			return MovePlan{
 				Destination:    destination,
@@ -45,6 +50,118 @@ func PlanMove(
 		return MovePlan{Destination: destination, Error: "Destination exists"}
 	}
 	return MovePlan{Destination: destination}
+}
+
+// SameFolderError tells the user that a folder was moved or merged onto the
+// place it already occupies.
+const SameFolderError = "The folder is already in this location"
+
+// DirectoryMergeFacts is what the adapter established on disk about a folder
+// merge. The paths alone do not settle it: on a case-insensitive volume the
+// destination "Notes" of merging "notes/Notes" into the vault root is the
+// folder "notes" that holds the source. The adapter therefore reports which
+// directory entries the names reach; the plan combines that with the names.
+type DirectoryMergeFacts struct {
+	// CaseInsensitive compares the paths without regard to letter case.
+	CaseInsensitive bool
+	// DestinationIsSource is true when the destination name reaches the
+	// source folder's own directory entry.
+	DestinationIsSource bool
+	// TargetInsideSource is true when the target folder is the source itself
+	// or lies beneath it.
+	TargetInsideSource bool
+	// SourceBelowDestination is the source's path relative to the destination
+	// when the destination is one of the source's ancestors, and "" otherwise.
+	SourceBelowDestination string
+	// NamesakeIsDirectory is true when the source holds a folder at the path
+	// DirectoryMergeNamesake returns.
+	NamesakeIsDirectory bool
+}
+
+// DirectoryMergePlan is the decision for merging one folder into the
+// same-named folder of a target directory. A non-empty Error refuses the
+// merge; nothing may be written.
+type DirectoryMergePlan struct {
+	Destination string
+	Error       string
+}
+
+// DirectoryMergeNamesake returns the path inside source that a merge into one
+// of source's own ancestors maps onto source itself, or "" when the
+// destination is not an ancestor. Merging "X/X" into the vault root writes
+// "X/X/<name>" to "X/<name>", so the entry "X/X/X" lands on "X/X": the folder
+// being merged. If that entry is a folder its contents would be copied into
+// the source and deleted with it.
+func DirectoryMergeNamesake(source, targetDirectory string, facts DirectoryMergeFacts) string {
+	source = filepath.Clean(source)
+	below := filepath.Clean(facts.SourceBelowDestination)
+	if facts.SourceBelowDestination == "" {
+		var beneath bool
+		below, beneath = pathBelow(Destination(source, targetDirectory), source, facts.CaseInsensitive)
+		if !beneath {
+			return ""
+		}
+	}
+	if below == "." {
+		return ""
+	}
+	return filepath.Join(source, below)
+}
+
+// PlanDirectoryMerge decides whether source may be merged into the same-named
+// folder inside targetDirectory. It refuses a merge of a folder with itself,
+// a merge into the folder's own subtree, and a merge into an ancestor that
+// would write a folder over the source.
+func PlanDirectoryMerge(source, targetDirectory string, facts DirectoryMergeFacts) DirectoryMergePlan {
+	destination := Destination(source, targetDirectory)
+	if facts.DestinationIsSource || samePath(source, destination, facts.CaseInsensitive) {
+		return DirectoryMergePlan{Destination: destination, Error: SameFolderError}
+	}
+	if facts.TargetInsideSource || IsSameOrDescendant(source, targetDirectory, facts.CaseInsensitive) {
+		return DirectoryMergePlan{Destination: destination, Error: "Cannot move a directory into itself"}
+	}
+	if namesake := DirectoryMergeNamesake(source, targetDirectory, facts); namesake != "" && facts.NamesakeIsDirectory {
+		inner, _ := filepath.Rel(filepath.Clean(source), namesake)
+		return DirectoryMergePlan{
+			Destination: destination,
+			Error: fmt.Sprintf(
+				"Cannot merge %q into the folder that contains it, because the %q folder inside it would take the place of the folder being merged. Rename or move that inner folder first.",
+				filepath.Base(filepath.Clean(source)),
+				filepath.ToSlash(inner),
+			),
+		}
+	}
+	return DirectoryMergePlan{Destination: destination}
+}
+
+func samePath(first, second string, caseInsensitive bool) bool {
+	first = filepath.Clean(first)
+	second = filepath.Clean(second)
+	if caseInsensitive {
+		return strings.EqualFold(first, second)
+	}
+	return first == second
+}
+
+// pathBelow returns child's path relative to parent when child lies strictly
+// beneath parent. Names are compared one path segment at a time, and the
+// result keeps child's own spelling.
+func pathBelow(parent, child string, caseInsensitive bool) (string, bool) {
+	separator := string(filepath.Separator)
+	childParts := strings.Split(filepath.Clean(child), separator)
+	var parentParts []string
+	if parent = filepath.Clean(parent); parent != "." {
+		parentParts = strings.Split(parent, separator)
+	}
+	if len(childParts) <= len(parentParts) || childParts[0] == "." {
+		return "", false
+	}
+	for index, name := range parentParts {
+		if name != childParts[index] && !(caseInsensitive && strings.EqualFold(name, childParts[index])) {
+			return "", false
+		}
+	}
+	return filepath.Join(childParts[len(parentParts):]...), true
 }
 
 // IsCaseOnlyRename reports whether newPath gives oldPath's final name a

@@ -550,10 +550,8 @@ or another workspace panel must keep the writing edge stable from the first fram
   refresh work until it is activated. Unsaved editor text does not enter this saved-note projection
   until the normal save/index update succeeds, and Graph is intentionally not restored across
   launches.
-- **Exit protection**: Closing the native window with dirty file tabs offers **Save and exit**,
-  **Exit without saving**, or cancellation. **Save and exit** closes only after every requested
-  write succeeds and no newer edit remains dirty; a failed or conflicted save returns to the
-  blocking save-failure flow with the window and buffers intact.
+- **Exit protection**: Leaving Figaro with unsaved notes or drawings asks first; §2.4 owns that
+  flow.
 - **Overflow**: Tabs keep their compact responsive width and a hidden visual scrollbar. Opening,
   selecting, restoring, pinning, or choosing a tab from the overflow menu minimally scrolls the rail
   until that active tab is fully visible. Themed fades mark whichever edges contain more tabs, and
@@ -572,6 +570,22 @@ and owned dirty buffers retain their existing activation path.
   rather than stacking).
 - Switching tabs hides the previous view, shows the appropriate view for the new tab, and restores
   state (editor cursor, scroll position, etc.).
+
+### 2.4 Exit Protection
+
+- Every way of leaving runs one flow: the window's own close button, a close the operating system
+  asks for (**Alt+F4**, the window manager or taskbar, the macOS close button, and **Quit** from
+  the menu, dock, or session), and the restart that installs an update (§21).
+- With unsaved notes or Excalidraw drawings the flow offers **Save and exit**, **Keep editing**, or
+  **Exit without saving**. Without unsaved work it leaves at once.
+- **Save and exit** leaves only after every requested write succeeds and no newer edit remains
+  dirty; a failed or conflicted save returns to the blocking save-failure flow with the window and
+  buffers intact.
+- **Keep editing** leaves Figaro open, and a later close asks again.
+- The host holds an operating-system close until the page answers it. A close that arrives before
+  the page is ready proceeds, and so does a repeated close once the page has left an earlier one
+  unacknowledged for three seconds, so an unresponsive page cannot make the window impossible to
+  close.
 
 ---
 
@@ -624,6 +638,12 @@ and owned dirty buffers retain their existing activation path.
   their structure, and retain the current buffer. Collisions receive the normal non-overwriting copy
   names, while cancelling changes nothing. Such drops anywhere other than the editor or file tree do
   nothing.
+- Importing and opening act only on paths that were dropped onto the window in this run (the most
+  recent 4,096, with the newest drop always kept whole) or that are already registered as external
+  documents, such as a file the operating system opened with Figaro. An import that names any other
+  path is refused with a message asking to drop the item again, and copies nothing; such a path
+  among dropped Markdown files is skipped. See `ARCHITECTURE.md` for why this narrows the import
+  bindings without being a security boundary.
 - While an external tab is active, an info notice between the breadcrumb and the editor reads
   “Outside the vault. Edits save to the original file and are not kept in history.” with an
   **Import to vault** action. Importing first saves pending edits to the original, then copies it
@@ -646,7 +666,7 @@ ignores superseded list reads and reads completing after unmount.
 | **Create file** | Creates a `.md` file with a `# Title` header and incrementally adds it to discovery data. Before writing, a same-folder Markdown name that differs only by spacing, punctuation, or capitalization offers **Open existing**, **Create anyway**, or cancellation. An exact case-insensitive name offers no overwrite path. |
 | **Create directory** | Creates a new folder. |
 | **Delete** | After confirmation, saves dirty open files under the target, captures the exact current path in local Git history, durably registers it in `.config/recently-deleted.json`, then removes the target recursively without moving it to the system Trash. A dirty Draw.io editor or Excalidraw drawing that cannot be saved, failed archive, or failed recovery-record write leaves the target untouched. Successful deletion refreshes discovery data without stale cards, search results, backlinks, or dates and shows **Deleted “name” · Undo** for ten seconds. Restore publishes a complete staged reconstruction atomically, refuses to replace an occupied path, and removes only the restored recovery record. |
-| **Move** | Moves a file or folder to a target directory. The live status bar immediately names the item being moved, the file tree is marked busy, and another drag cannot start the same operation until it settles. It prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. A validated warm index limits rewrite planning and moved projections to affected paths; any stale snapshot selects the complete root-scoped scan/rebuild before correctness can be traded for speed. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. |
+| **Move** | Moves a file or folder to a target directory. The live status bar immediately names the item being moved, the file tree is marked busy, and another drag cannot start the same operation until it settles. It prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. A validated warm index limits rewrite planning and moved projections to affected paths; any stale snapshot selects the complete root-scoped scan/rebuild before correctness can be traded for speed. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. A folder moved onto the folder it is already in reports **The folder is already in this location** and offers no merge. A folder may be merged into an ancestor of the same name (`X/X` into `X`), except when it holds a folder that would land on the folder being merged (`X/X/X`); that merge is refused with a request to rename or move the inner folder first. |
 | **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. A current warm index and file-tree projection retain unrelated entries and add only the copied subtree, while exact watcher acknowledgements prevent a second refresh; unobserved external Markdown changes select the complete rebuild fallback. Copying a folder into itself or one of its descendants is refused because it would recurse. |
 | **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline and disables an unchanged rename. Create and rename refuse a name that starts with a dot, because Figaro hides dot-prefixed entries and the item could not be renamed back. A rename that changes only letter case (`todo.md` to `Todo.md`) succeeds on case-insensitive volumes, where both names are one entry. Recording Activity continuity never blocks a rename: a path the history format cannot hold (one containing `:`), or a full move history, is renamed without that record. After dirty source buffers are safely saved, Figaro previews exact incoming Markdown references. If any other notes reference the file, a second dialog reports their count and offers **Update references**, **Keep references unchanged**, or **Cancel rename**; no incoming references means no second question. The selected policy and filesystem rename are executed together before open-tab paths and affected notes refresh. A same-folder Markdown name variant still offers **Open existing**, **Rename anyway**, or cancellation before any open tab is saved or path is moved. Folder renames retain automatic link preservation. |
 
@@ -759,9 +779,16 @@ those workflows, and Figaro never merges notes automatically.
   candidates appear as source checkboxes. Checked sources are appended in that candidate order, with
   `---` between non-empty notes.
 - A styled confirmation dialog shows the destination note, a checkbox list of source notes, and a
-  warning about permanent deletion.
-- After merging, source files are deleted (with a fade-out animation), open tabs for deleted files
-  are closed, and the file tree refreshes.
+  warning that the selected sources are removed and can be restored from **Settings → Vault care →
+  Recently deleted** (§21).
+- Before merging, unsaved edits in any of the chosen notes are saved; a note that cannot be saved
+  stops the merge before anything changes. Each source is then archived in local history and
+  registered in **Recently deleted** before the destination is rewritten, so a merged-away note can
+  be restored exactly as it was. If local history or the recovery list is unavailable, nothing is
+  merged. A note chosen more than once, including the destination among its own sources, is
+  refused.
+- After merging, source files are removed (with a fade-out animation), their open tabs are closed,
+  the destination's open tab is reloaded from disk, and the file tree refreshes.
 
 ### 3.5 Drag & Drop (File Tree)
 - Any file or folder label can be dragged.
@@ -771,10 +798,11 @@ those workflows, and Figaro never merges notes automatically.
   `aria-busy="true"`; further internal drags are ignored until that operation completes. The item is
   moved and the tree refreshes. If any open tab referenced the moved path, its ID is updated. A
   same-named existing destination directory is never silently replaced: Figaro offers to merge it,
-  preserves both trees, and applies parenthesized copy names to file collisions. A native filesystem
-  drop first asks to import into the targeted folder or vault root; only confirmation starts a copy.
-  Native directory conflicts then use the same warning and merge rule while every external source
-  remains intact.
+  preserves both trees, and applies parenthesized copy names to file collisions. A folder dropped
+  on the folder it is already in is not offered a merge; the Move row in §3.2 owns that case and
+  the one refused merge. A native filesystem drop first asks to import into the targeted folder or
+  vault root; only confirmation starts a copy. Native directory conflicts then use the same warning
+  and merge rule while every external source remains intact.
 
 ### 3.6 File-Tree Context Menu
 | Menu item | Available on | Behavior |
@@ -975,6 +1003,10 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   its label uses `--text-muted`; hover or keyboard focus uses `--active-bg`, restores normal text
   color, and retains the shared focus halo. Activating either the icon or label exposes the same
   original portable frontmatter.
+- **Properties-only notes**: a note that contains only Properties keeps a body line to type on.
+  Text typed or pasted at its end starts the body on a new line and never extends the closing
+  `---`. [The live-preview contract](LIVEPREVIEW.md#vertical-motion-carets-and-properties) owns the
+  mechanics.
 
 #### 4.1.4 Raw text and PDF preview
 
@@ -1016,7 +1048,13 @@ whitespace-only selection unchanged. Empty cursors still insert paired markers.
   isolated CDP startup and `Browser.getVersion` request. It aborts with an installable-browser error
   if no viable engine is present instead of generating a PDF with dead links. Export writes
   `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the
-  default PDF viewer. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects
+  default PDF viewer. A Chromium-family export loads images, fonts, and stylesheets only from the
+  vault and its own export workspace, judged by each file's real location after symbolic links are
+  followed; nothing is loaded from the network. A file elsewhere on disk is left out, the PDF is
+  still written, and a **Some files were left out of the PDF** message names the first few. A
+  browser that cannot enforce this fails the export instead of printing unconfined. The Safari
+  path is unchanged: it keeps WebKit's own read access to the vault folder and reports no left-out
+  files. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects
   a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`;
   omitting it keeps the built-in style. `cover-page: true` generates a title page using `title`,
   `subtitle`/`description`, `author`, and `date`/`created`; `toc-depth: 0` disables the table of
@@ -1530,7 +1568,8 @@ default) and Wikilinks. Conventional Wikilinks are target-first:
 Markdown tabs, converts only destinations that resolve to existing vault Markdown files, and reloads
 affected open buffers. External URLs, `mailto:` links, images, code, malformed links, and unresolved
 targets remain byte-for-byte unchanged. Alias-free Wikilinks gain the filename without its extension
-as their alias.
+as their alias. A note Figaro cannot read as text (oversized, binary, not UTF-8, or unreadable) is
+left unchanged instead of failing the conversion; links that point at it are still converted.
 
 **Link autocomplete**: Typing `[` or `[[` followed by text triggers a dropdown of matching `.md`
 files. A typed query uses the native search index's link profile, ranking title and path most
@@ -1563,6 +1602,13 @@ inviting another attempt; it neither creates a note nor changes the current tab.
 
 Creating a missing linked note opens it and refreshes the file tree after successful
 creation. Cancellation and failed creation leave the existing files and tabs intact.
+
+A clicked Markdown destination is resolved by the rule in §13.1 before it is read, so
+`./sibling.md` and `../other.md` open relative to the linking note and `/Archive/x.md` opens from
+the vault root. A relative destination that climbs out of the vault keeps its spelling, so reading
+it fails visibly instead of opening some other note. A Wikilink target is always a path from the
+vault root.
+
 | Click | Tab exists? | Action |
 |-------|------------|--------|
 | **Left** | Yes | Switch to it |
@@ -1797,7 +1843,9 @@ horizontal rules, quotes, highlights, footnotes, callouts (6 types), code block 
   restarting keeps it, so reusing the hashtag later brings the color back. Only choosing "no color",
   renaming (which moves it) or deleting the column removes it; an emptied, still-visible column can
   also be colored, renamed or deleted. Choosing a color replaces the header's neutral palette icon
-  with that color's swatch, while choosing "no color" restores the neutral icon.
+  with that color's swatch, while choosing "no color" restores the neutral icon. A stored color is
+  a six-digit hex value (`#rrggbb`), as the palette writes it: any other value in the file,
+  including three-digit `#rgb`, is ignored when it is loaded, and setting one is refused.
 - **Rename column**: Prompts for new name; all occurrences of old `#tag` replaced across vault.
   A name of three or six hexadecimal digits (`bad`, `decade`) is refused with an explanation:
   Figaro reads such a hashtag as a color code, so the column's cards would disappear.
@@ -1951,14 +1999,13 @@ once at its earliest matching line, and save/move projections refresh targets.
   large and overlaps by at least 80 percent.
 - External URLs, `mailto:` links, fenced code, dot-directories, and symlinks are excluded. The scan
   never edits, moves, or deletes files.
-- A link is resolved as the editor opens it (§13.1, §26.2): a note link or wikilink names a path
-  from the vault root unless it starts with `./` or `../`, a leading `/` is the root, and an image
-  embed with a bare path names a file beside its note. There is no fallback to a same-named
-  sibling.
+- A link is resolved as the editor opens it: a note link or Wikilink by the rule in §13.1, and an
+  image embed by §26.2, where a bare path names a file beside its note. There is no fallback to a
+  same-named sibling.
 - Each finding carries a vault-relative source path and, where applicable, line number. Selecting a
   normal finding opens that source note at the finding; selecting a possible duplicate opens both
   notes for manual comparison. The existing merge command remains separate and retains its explicit
-  permanent-deletion warning.
+  warning that the merged-away notes are removed (§3.4).
 
 ### 7.3 Global Search
 - The left-sidebar search field searches Markdown note titles, headings, tags, paths, and bodies. It
@@ -2786,7 +2833,7 @@ control returns to Month; repeating Gantt returns to Board.
 | Command | Action |
 |---------|--------|
 | `:w` / `:write` | Save current file |
-| `:e <file>` / `:edit` | Open/create file relative to current file's directory |
+| `:e <file>` / `:edit` | Open the note of that name beside the active note, read from disk; `.md` is appended when missing. A name with no file behind it opens a new unsaved buffer |
 | `:q` / `:quit` | Close current tab |
 | `:wq` | Save the current buffer, wait for confirmed success, then close |
 | `:x` / `:xit` | Save the current buffer, wait for confirmed success, then close |
@@ -2956,8 +3003,9 @@ OS clipboard. Named and numbered Vim registers remain available normally.
 - Closing a dialog returns focus to its invoker unless the user has already moved into a newer menu
   or dialog; a deferred restoration never steals focus from that newer interaction.
 - Merge Notes identifies the destination, lists ordered checkbox sources, disables submission when
-  none are selected, warns that selected sources are deleted, and uses **Merge and delete sources**
-  as its final action.
+  none are selected, and uses **Merge and delete sources** as its final action. Its warning reads
+  “Selected source notes are removed after their content is appended. You can restore them from
+  Settings → Vault care → Recently deleted.”
 - PDF export recovery distinguishes a successfully saved PDF from export failure. Missing-browser
   recovery makes **Choose browser…** the primary action and **Not now** the cancel action, retaining
   inline chooser errors without closing the dialog.
@@ -3114,7 +3162,17 @@ outside it, the browser debugging fallback is installed explicitly with the same
 - Standard: `[Display Text](relative/path/to/file.md)`
 - Conventional Wikilink: `[[relative/path/to/file.md|Display Text]]` (target first, alias second).
 - Date links: `[YYYY-MM-DD](YYYY-MM-DD.md)` — treated specially by the calendar system.
-- Links are relative to the vault root.
+- A Markdown link destination names a vault path: a leading `/` starts at the vault root, `./` and
+  `../` are relative to the linking note, and anything else is a path from the vault root. A
+  Wikilink target always names a path from the vault root. Clicking a link, its hover preview,
+  rename and move rewriting, link-style conversion, and Vault Health resolve by this one rule.
+- When Figaro rewrites, converts, indexes, or checks links, a destination is external, and never
+  read as a vault path, only when it starts with `#`, `//`, a scheme followed by `//`
+  (`https://…`, `obsidian://…`), or a scheme that is written without `//`, such as `mailto:`,
+  `tel:`, `sms:`, `data:`, `javascript:`, `file:`, or `urn:`. A colon alone does not make a URL:
+  `Re: plan.md` is a note, and links to it are resolved, converted, and rewritten on rename or
+  move like any other. PDF Preview and the print renderer are the exception: they still treat any
+  `scheme:` prefix as a URL.
 - Moving or renaming a file rewrites the links and image embeds that resolve to it. An image embed
   follows the image path rules in §26.2, so a bare `![…](photo.png)` names the file beside its note
   and is rewritten as a note-relative path; the same bare path in a note link names a vault path.
@@ -3273,6 +3331,10 @@ letter. AltGr combinations always type their character.
   dirty in-memory copy.
 - All file paths are validated to stay within the vault root. Path traversal and symlink escapes are
   rejected, and vault walks omit symlinks.
+- Text that comes from the vault is displayed as text. File and folder names, link destinations,
+  and Kanban column names are escaped wherever Figaro writes them into its interface, and a stored
+  column color is used only as `#rrggbb`. A name containing quotation marks or markup can therefore
+  be selected, opened, renamed, and deleted like any other, and cannot run as script.
 - Writes use root-scoped, atomic file helpers. Saving over an existing file keeps exactly its
   permission bits. On Linux and macOS a colon is an ordinary filename character (`1:1 Alice.md`);
   only a drive form such as `C:` or `C:/…` is refused there, while Windows refuses every
@@ -3550,6 +3612,16 @@ Multiple layers prevent a white flash before CSS loads:
   matching action button. A release without an update archive for the platform reports an error
   instead of offering another download; platforms without published builds show the setting
   disabled.
+  - **Checksums are required.** A release with no `SHA256SUMS`, no line for the archive, or a value
+    that is not a SHA-256 digest is still reported as available, but its install is refused, with
+    the reason, before anything is downloaded. Releases are not signature-verified.
+  - **Slow downloads finish.** There is no limit on the whole download. Figaro gives up only on a
+    connection that stops: 15 seconds to connect, 15 seconds for the TLS handshake, 30 seconds for
+    response headers, and 60 seconds without receiving any of the body, which reports that the
+    download stalled. One install is bounded at six hours.
+  - **Restarting is leaving.** **Restart now** in the notice and **Restart to update** on the card
+    run the exit protection of §2.4 first. **Keep editing** leaves the update staged and **Restart
+    to update** still offered.
 - **About**: a read-only, themed value shows the exact packaged Figaro version
   from the embedded Wails product metadata. It displays **Unavailable** if that
   metadata cannot be supplied and never adds static information to the
@@ -3801,8 +3873,10 @@ Multiple layers prevent a white flash before CSS loads:
   commands and subject every result to the same DevTools validation. A selected or discovered
   `/snap/bin/<snap>[.<app>]` command must use `$HOME/snap/<snap>/common/figaro` for its ephemeral
   validation and export workspaces; remove each leaf workspace after the operation.
-- Migrate a legacy `pdf_browser_path` from vault settings once. Preserve an existing machine-local
-  preference; remove the vault key only after local storage succeeds or already contains a value.
+- Never adopt a `pdf_browser_path` found in a vault's `.config/settings.json`. A vault travels, and
+  export would start whatever executable that key names, so startup removes the legacy key and
+  leaves the machine-local preference as it is. If export then finds no browser, the user chooses
+  one again in Settings, where the selection is validated.
 
 ---
 
@@ -4150,9 +4224,11 @@ the file path and an existence check (✓ Exists / ✗ Not found).
 - Tooltip DOM combines `.ui-tooltip` with the `.link-hover-preview` content hook, is appended to
   `document.body`, and uses fixed positioning near the mouse cursor.
 - File links call the native Wails `ReadFile` binding to check existence.
-- Relative paths (`../../Archive/x.md`) are resolved against the current file's directory before
-  backend lookup.
+- The destination is resolved by the Markdown link rule in §13.1, exactly as a click resolves it,
+  before the backend lookup.
 - Percent-encoded URLs (`%20`) are decoded before display and backend calls.
+- The tooltip writes the type label, destination, and status as text nodes. A destination that
+  contains markup is shown as text and is never parsed as HTML.
 
 ### 28.3 CSS Classes
 - `.ui-tooltip` — the canonical tooltip surface
@@ -4231,15 +4307,16 @@ diagrams in the editor.
 - Code block replaced with a `DiagramWidget` — renders SVG via `mermaid.render()` or `vegaEmbed()`.
   Mermaid reuses a bounded source cache. Vega/Vega-Lite retain at most 64 outputs and 4,194,304
   UTF-16 code units of keys/SVG, keyed by effective appearance/data, container geometry and font
-  generation; external URLs and expressions reading time, randomness or window/screen state bypass
-  reuse. Concurrent identical requests coalesce; failures remain retryable. Each mount has unique
+  generation; specs that load a file by URL and expressions reading time, randomness or
+  window/screen state bypass reuse. Concurrent identical requests coalesce; failures remain
+  retryable. Each mount has unique
   SVG IDs and preserved local references. Prepared live SVG subtrees survive source reveal and
   viewport removal in a per-editor cache capped at 32 previews and 4 MiB estimated SVG/key/node
   data. Their renderer identity, source, appearance, fonts and responsive width must still match;
-  volatile/external-data charts bypass retention. Returning to a valid prepared preview reattaches
-  it before paint without SVG reparsing or the generation delay; controls and observers belong to
-  the new wrapper. Held-key bursts defer prepared Mermaid attachment until quiet; Vega restores
-  immediately. Active composition defers both, protecting its input region from SVG layout work.
+  volatile and file-loading charts bypass retention. Returning to a valid prepared preview
+  reattaches it before paint without SVG reparsing or the generation delay; controls and
+  observers belong to the new wrapper. Held-key bursts defer prepared Mermaid attachment until
+  quiet; Vega restores immediately. Active composition defers both, protecting its input region from SVG layout work.
   Source-height measurements separately retain up to 256 exact source/width/typography entries under
   a 1 MiB estimated-data cap, clearing on explicit typography or completed fonts. The live queue for
   new or invalidated output waits 120 ms after typing, composition or scrolling, then an idle
@@ -4264,7 +4341,19 @@ diagrams in the editor.
   diagram replacement decoration.
 - Mermaid is initialized during application startup with
   `securityLevel: 'loose'`; Vega and Vega-Lite availability is registered at
-  the same boundary.
+  the same boundary. The level stays `loose` because `strict` removes every
+  `<use>` element, which draws the file and folder icons of tree-view diagrams.
+  Before a rendered Mermaid SVG is cached or inserted, Figaro removes what the
+  source could turn into script: script elements, event-handler attributes, and
+  link addresses using `javascript:`, `vbscript:`, or `data:` outside an image.
+  Fragment, relative, web, and mail addresses stay. One gap remains: an HTML
+  label containing a remote `<img>` still loads that image.
+- A Vega or Vega-Lite chart loads data and images only from the open vault,
+  addressed as `/vault/…` on the application's own origin, or from an inline
+  `data:image/…`. A web address, a `file:` or protocol-relative address,
+  another application path, and a bare relative URL such as `data.csv` are
+  never requested; the chart shows its error state naming the refused source.
+  Chart links survive only as absolute `http(s)` or `mailto:` addresses.
 - The shared renderer applies Mermaid's 50,000-character ceiling before any
   frontmatter parsing and refuses `!!omap` or the equivalent full YAML tag.
   Rejected live diagrams show the existing recoverable error state and reveal
@@ -4565,6 +4654,9 @@ graph TD
 - Saving asks the hosted editor to export its current SVG state, then waits up to 30 seconds for the
   result. An export error or timeout clears its spinner, keeps the editor open, explains the
   failure, and leaves **Save** available for a retry; no partial file is written.
+- A Draw.io diagram renamed or moved while its editor is open saves to its new path. The open
+  editor resolves its tab at each save instead of keeping the path it was opened with, so the old
+  file is not recreated.
 - Excalidraw drawings use the `.excalidraw.svg` suffix, the `@excalidraw` macro (default name
   `drawing1`, alt text `Drawing`), the **New Excalidraw Drawing** File Tree action, and the same
   missing-image Create/Open actions and `excalidraw`/`editor` guide as Draw.io.

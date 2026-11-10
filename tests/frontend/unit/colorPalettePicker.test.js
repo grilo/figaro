@@ -1,4 +1,5 @@
 import { openColorPalettePicker } from '../../../frontend/js/colorPalettePicker.js';
+import { ACCENT_COLOR_PALETTE, storedAccentColor } from '../../../frontend/js/core/colorPaletteModel.js';
 
 describe('shared color palette picker', () => {
     beforeEach(() => {
@@ -19,6 +20,18 @@ describe('shared color palette picker', () => {
         document.querySelector('.kanban-color-picker')?.remove();
         jest.runOnlyPendingTimers();
         jest.useRealTimers();
+    });
+
+    test('a stored color is accepted only in the form the picker writes', () => {
+        const swatches = ACCENT_COLOR_PALETTE.filter(Boolean);
+        expect(swatches.length).toBeGreaterThan(0);
+        for (const color of swatches) expect(storedAccentColor(color)).toBe(color);
+        expect(storedAccentColor('#22C55E')).toBe('#22C55E');
+        for (const value of [
+            '', null, undefined, 42, {}, ['#22c55e'], Object, '#fff', '#22c55e80', '22c55e', ' #22c55e', '#22c55e ',
+            '#22c55e;color:red', 'red', 'var(--accent-color)', 'url(https://example.com/x)',
+            '#22c55e"><img src=x onerror=alert(1)>', '#22c55g', '#22c55e\n',
+        ]) expect(storedAccentColor(value)).toBe('');
     });
 
     test('reuses the Kanban palette, exposes selection state, and restores trigger focus', () => {

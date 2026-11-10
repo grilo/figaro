@@ -17,8 +17,11 @@ export function createLinkedNoteNavigation(ports) {
         await openTarget(path, path.split('/').pop(), 'file', { path, mtime: file?.mtime }, replaceCurrent);
     }
 
-    return async function navigate(target, label, replaceCurrent = false, linkEdit = null) {
-        const plan = linkedNoteNavigationPlan(target, label);
+    return async function navigate(target, label, replaceCurrent = false, linkEdit = null, kind = 'markdown') {
+        // A Markdown destination may be relative to the note it is written in;
+        // a wikilink never is.
+        const sourcePath = kind === 'wiki' || typeof ports.getSourcePath !== 'function' ? null : ports.getSourcePath();
+        const plan = linkedNoteNavigationPlan(target, label, sourcePath);
         if (plan.kind === 'heading') { ports.navigateHeading(plan.path); return true; }
         if (plan.kind === 'none') return true;
         if (plan.kind === 'calendar') {

@@ -2,7 +2,10 @@
 // Filesystem and Git effects remain in the desktop and history adapters.
 package recovery
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // Item identifies one path that Figaro archived immediately before deletion.
 type Item struct {
@@ -59,4 +62,22 @@ func Find(items []Item, id string) (Item, bool) {
 		}
 	}
 	return Item{}, false
+}
+
+// UniqueID returns id when no item uses it, and otherwise id with the lowest
+// "-N" suffix that is free. Identifiers are derived from the clock, so several
+// paths archived by one operation can be handed the same one; Add would then
+// keep only the last of them.
+func UniqueID(items []Item, id string) string {
+	used := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		used[item.ID] = struct{}{}
+	}
+	candidate := id
+	for suffix := 2; ; suffix++ {
+		if _, taken := used[candidate]; !taken {
+			return candidate
+		}
+		candidate = fmt.Sprintf("%s-%d", id, suffix)
+	}
 }

@@ -29,6 +29,7 @@ import {
 import { hideCalendarDayTooltip, wireCalendarDayTooltips } from './calendarDayTooltip.js';
 import { calendarWheelNavigationPlan } from './core/calendarWheelModel.js';
 import { createCalendarTimeline } from './calendarTimeline.js';
+import { escapeHtml } from './core/htmlEscape.js';
 
 let calendarRequestId = 0;
 let openWorkspaceTab = null;
@@ -610,15 +611,6 @@ function highlightMatch(text, query) {
  */
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Escape HTML
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 function escapeAttr(text) {

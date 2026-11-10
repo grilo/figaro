@@ -154,38 +154,29 @@ func (a *App) configuredPDFBrowserPath() string {
 	return path
 }
 
-// migrateLegacyPDFBrowserPreference moves the pre-machine-settings value out
-// of vault/.config/settings.json. The legacy key is removed only after the
-// local record is known to contain a value (or the user already has one).
-func (a *App) migrateLegacyPDFBrowserPreference() {
-	a.settingsMu.RLock()
-	settings, err := a.readSettingsFile()
-	legacyPath, exists := settings["pdf_browser_path"].(string)
-	a.settingsMu.RUnlock()
-	if err != nil || !exists {
-		return
-	}
+// legacyPDFBrowserSettingKey is the vault setting that named the PDF browser
+// before the preference became machine-local.
+const legacyPDFBrowserSettingKey = "pdf_browser_path"
 
-	localPath, localErr := a.loadPDFBrowserPath()
-	if localErr != nil {
-		log.Printf("[settings] Could not inspect machine-local browser preference: %v", localErr)
-	}
-	if strings.TrimSpace(localPath) == "" && strings.TrimSpace(legacyPath) != "" {
-		if err := a.storePDFBrowserPath(legacyPath); err != nil {
-			log.Printf("[settings] Could not migrate PDF browser preference: %v", err)
-			return
-		}
-	}
-
+// discardLegacyPDFBrowserPreference removes the pre-machine-settings browser
+// path from vault/.config/settings.json without adopting it. A vault travels:
+// one that was downloaded or shared could name any executable, and PDF export
+// starts the configured browser. The preference is therefore only ever set on
+// this machine, through Settings, where the chosen browser is validated.
+func (a *App) discardLegacyPDFBrowserPreference() {
 	a.settingsMu.Lock()
 	defer a.settingsMu.Unlock()
-	settings, err = a.readSettingsFile()
+	settings, err := a.readSettingsFile()
 	if err != nil {
-		log.Printf("[settings] Could not remove legacy PDF browser preference: %v", err)
 		return
 	}
-	delete(settings, "pdf_browser_path")
-	if err := a.writeSettingsFile(settings); err != nil {
-		log.Printf("[settings] Could not remove legacy PDF browser preference: %v", err)
+	if _, exists := settings[legacyPDFBrowserSettingKey]; !exists {
+		return
 	}
+	delete(settings, legacyPDFBrowserSettingKey)
+	if err := a.writeSettingsFile(settings); err != nil {
+		log.Printf("[settings] Could not remove the legacy PDF browser path from vault settings: %v", err)
+		return
+	}
+	log.Println("[settings] Removed the legacy PDF browser path from vault settings without adopting it; choose a browser in Settings if automatic discovery is not enough")
 }

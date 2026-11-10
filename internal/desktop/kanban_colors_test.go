@@ -88,3 +88,93 @@ func TestKanbanEmptiedColumnCanBeColoredRenamedAndDeleted(t *testing.T) {
 		}
 	}
 }
+
+func TestValidKanbanColorAdmitsOnlyHexColors(t *testing.T) {
+	for _, color := range []string{"#ef4444", "#EF4444", "#3b82f6", "#000000"} {
+		if !validKanbanColor(color) {
+			t.Errorf("validKanbanColor(%q) = false, want a hex color accepted", color)
+		}
+	}
+	for _, color := range []string{
+		"",
+		"red",
+		"ef4444",
+		"#ef444",
+		"#ef44444",
+		"#ef4444ff",
+		"#fff",
+		"#ggg",
+		" #ef4444",
+		"#ef4444 ",
+		"#ef4444;background:url(https://example.com/x)",
+		`#fff" onmouseover="alert(1)`,
+		`red"></span><img src=x onerror=alert(1)>`,
+		"var(--accent)",
+		"rgb(255, 0, 0)",
+		"url(javascript:alert(1))",
+		"#fff\n",
+	} {
+		if validKanbanColor(color) {
+			t.Errorf("validKanbanColor(%q) = true, want it refused", color)
+		}
+	}
+}
+
+// A vault's .config travels with it. A color the board could never have stored
+// must not reach the page, where it is written into a style attribute.
+func TestKanbanColorLoaderDropsValuesThatAreNotHexColors(t *testing.T) {
+	_, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, ".config/kanban-colors.json", `{
+  "urgent": "#ef4444",
+  "review": "#3B82F6",
+  "short": "#FFF",
+  "styled": "#fff;background:url(https://example.com/track)",
+  "markup": "red\"><img src=x onerror=alert(1)>",
+  "named": "rebeccapurple",
+  "token": "var(--accent)"
+}`)
+
+	restarted := OpenApp(vaultPath, testAssets)
+	columns, err := restarted.GetKanbanColumns()
+	if err != nil {
+		t.Fatal(err)
+	}
+	colors, _ := columns["colors"].(map[string]string)
+	if len(colors) != 2 || colors["urgent"] != "#ef4444" || colors["review"] != "#3B82F6" {
+		t.Fatalf("loaded colors = %v, want only the two six-digit hex colors", colors)
+	}
+}
+
+func TestSetColumnColorRejectsValuesThatAreNotHexColors(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	app.syncKanbanColumns()
+	if _, err := app.SetColumnColor("urgent", "#ef4444"); err != nil {
+		t.Fatal(err)
+	}
+	for _, color := range []string{"red", "#fff;color:red", `#fff" onclick="x`, "var(--accent)"} {
+		result, err := app.SetColumnColor("urgent", color)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if success, _ := result["success"].(bool); success {
+			t.Fatalf("SetColumnColor accepted %q", color)
+		}
+	}
+	columns, err := app.GetKanbanColumns()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if colors, _ := columns["colors"].(map[string]string); colors["urgent"] != "#ef4444" {
+		t.Fatalf("a refused color replaced the saved one: %v", colors)
+	}
+	// Clearing a color stays possible.
+	result, err := app.SetColumnColor("urgent", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if colors := kanbanColorsOf(t, result); colors["urgent"] != "" {
+		t.Fatalf("clearing the color left %v", colors)
+	}
+}

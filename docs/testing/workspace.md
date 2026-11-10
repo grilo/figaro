@@ -311,6 +311,11 @@ column names that read as hex colors; `kanbanColumnRetentionModel.test.js` owns
 the same refusal in the rename prompt. `kanban_order_test.go` owns manual order
 and task dates following a folder merge, and the linear ordering's agreement
 with the previous search.
+`kanban_colors_test.go` also owns that only a `#rrggbb` color is loaded from
+the vault file or accepted by `SetColumnColor`. `colorPalettePicker.test.js`
+owns the same rule for a stored color on the page, `ganttModel.test.js` its
+fallback to the theme accent, and `kanban.test.js` that stored colors and
+column names reach board markup only in that form and escaped.
 
 ## Kanban paint-continuity regressions
 
@@ -558,6 +563,37 @@ move while that promise is pending, then clear busy state and report the final
 path. Keep this sequencing in `tests/frontend/unit/fileTree.test.js`; it does
 not require a browser or a second filesystem matrix.
 
+### File-tree merge and name regressions
+
+- `internal/mutations/plan_test.go` owns the pure folder refusals: a folder
+  moved or merged onto itself, into its own subtree, and into an ancestor
+  where an inner namesake folder would land on the folder being merged.
+- `internal/desktop/app_vaultfs_test.go` (`TestMergeDirectory…`) owns the same
+  outcomes on a real vault, including flattening a folder into its ancestor
+  and folder identity on case-folding volumes.
+- `noteMerge.test.js` owns the Merge Notes order (save, merge, close, reload)
+  and that a failed save or refused merge changes nothing;
+  `tabManager.test.js` owns that only the notes being merged are saved first,
+  and `dialogs.test.js` owns the dialog's warning.
+- `internal/desktop/app_test.go` (`TestMergeNotes…`) owns archiving each source
+  to Recently deleted before the destination is rewritten, restoring a
+  merged-away note, refusing a note chosen twice, merging nothing when the
+  sources cannot be archived, and updating the index for the merged notes only.
+- `internal/recovery/model_test.go` owns distinct record IDs for several
+  sources archived in one operation.
+- `htmlEscape.test.js` owns the shared escaping rule; `fileTree.test.js` and
+  `tabManager.test.js` own that a name with quotation marks or markup stays
+  inside its row, tab and Relationships attributes and is still found; and
+  `markdownInteraction.test.js` owns that the link hover preview shows a
+  destination containing markup as text.
+- `internal/links/rewrite_test.go` owns which destinations are external and
+  that links to a note with a colon in its name are resolved and rewritten on
+  a move; `internal/links/convert_test.go` owns their conversion.
+- `backlink_rewrite_test.go`
+  (`TestChangeLinkStyleSkipsNotesFigaroCannotReadAsText`) owns that one
+  unreadable note does not fail a link-style conversion, and
+  `internal/vault/root_test.go` owns the walk that skips it.
+
 ## Search and shell accessibility regressions
 
 `topBar.test.js` parses the assembled shell markup and requires explicit
@@ -724,7 +760,11 @@ nothing. Markdown-only
 drops outside the tree must open without a dialog (`fileTree.test.js` drop
 routing, `externalFileModel.test.js` for the routing rule, and
 `app_dropped_files_test.go` for vault members, symlinks, reuse and saving to the
-original). `externalFileNotice.test.js`, `externalFiles.test.js` and
+original). `external_path_grants_test.go` owns that the copy, merge-import and
+dropped-Markdown bindings act only on paths dropped in this run or registered
+as external documents, and the ledger's 4,096-path limit with the newest drop
+kept whole; it cannot show that a drop is genuine, which the page can forge
+under Wails v3.1.0. `externalFileNotice.test.js`, `externalFiles.test.js` and
 `gitStatus.test.js` own the notice, its save-then-import order, and the absent
 history action; the native-binding startup case in `desktopStartup.spec.js`
 checks the notice's position and one drop in the assembled app. Other buffer drops
@@ -747,7 +787,7 @@ and import once to verify the folder hierarchy.
 Run the focused contract with:
 
 ```bash
-go test ./internal/desktop -run 'Test(LaunchExternalFile|MarkdownLaunchPaths|SingleInstance)'
+go test ./internal/desktop -run 'Test(LaunchExternalFile|MarkdownLaunchPaths|SingleInstance|ExternalPathGrant|ExternalImport|OpenDroppedMarkdownFiles)'
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/externalFileModel.test.js \
   tests/frontend/unit/externalFiles.test.js \
@@ -773,8 +813,21 @@ npx playwright test \
   request shapes WebKitGTK sends from Figaro's document pass, and the hosted
   Draw.io frame, the sandboxed PDF preview, look-alike hosts, and calls without
   the runtime client header are refused before Wails dispatches them.
+- `internal/desktop/window_close_gate_test.go` owns the gate for a close the
+  operating system asks for: forwarded to the page once, held while the page
+  answers, asked again after a decline, never trapped by a page that does not
+  acknowledge within the grace period, and allowed before the page is ready.
+- `tests/frontend/unit/editorSaveProtection.test.js` owns the one exit flow
+  behind the window button, a forwarded close, and any other way of leaving;
+  `tests/frontend/unit/windowChrome.test.js` owns the page's answers to the
+  host and `requestApplicationExit`.
 - `internal/updates/updates_test.go` owns update-archive names, asset matching,
-  published platforms, and version parsing.
+  published platforms, version parsing, and the refusal of an archive the
+  checksum manifest does not vouch for.
+- `internal/desktop/update_download_test.go` owns the update HTTP client (no
+  total timeout, a slow download that finishes, a stalled body or missing
+  response headers that end), the stalled-download message, and the refusal to
+  download an unverifiable release from a fake GitHub API.
 - `internal/desktop/app_updates_test.go` owns the opt-in default, the
   once-per-launch startup check, and each Settings state through a fake
   updater.
@@ -783,8 +836,9 @@ npx playwright test \
   archive, rejects a checksum mismatch, and reports a newer release without an
   update archive as an error.
 - `tests/frontend/unit/updateSettings.test.js` owns the Updates card, asking
-  for the startup check only once Figaro is ready, and the two consent prompts
-  before downloading and restarting.
+  for the startup check only once Figaro is ready, the two consent prompts
+  before downloading and restarting, and that both restarts leave through the
+  unsaved-changes flow, with **Keep editing** leaving the update staged.
 - The Settings test in `tests/e2e/editorUX.spec.js` owns that hidden
   Settings actions (**Use automatic**, the update action) stay hidden in a real
   browser, where `.ui-button` would otherwise override `[hidden]`.
@@ -792,6 +846,16 @@ npx playwright test \
 The restart swap itself, Windows and macOS packaging, and a check against the
 real GitHub API stay manual: run them on a packaged build before relying on an
 update path.
+
+Beyond its unit tests, the operating-system close path has been checked in
+the packaged Linux build (WebKitGTK) under Xvfb only. Windows and macOS still
+need the native check, and Linux needs it again when the path changes: with an
+unsaved note open, close with **Alt+F4**, the window manager or
+taskbar, the macOS close button, and **Quit** from the menu, dock, or session;
+confirm that each offers **Save and exit**, **Keep editing**, and **Exit
+without saving**, that **Keep editing** leaves the window open and a second
+close asks again, and that **Restart now** after a staged update does the
+same.
 
 ## File revision continuity
 
@@ -857,7 +921,10 @@ blob/tree/commit failure with index rollback and intact saved text, external
 index changes, ignored files, deletion, path containment, and a worktree adapter
 that rejects directory traversal. `internal/desktop/slow_history_test.go` checks
 that saving can proceed under the history path lock and that a waiting rename
-retains the newly saved text. Run these packages with `go test -race` as well as
+retains the newly saved text. `commit_count_test.go` owns that the retained
+revision counts equal the file log through branches, merges, rewrites and
+random histories, walk the log once, follow new revisions, and give way to a
+full walk beyond the chain limit. Run these packages with `go test -race` as well as
 the existing rooted filesystem, archive/recovery, and mutation regressions.
 These deterministic checks simulate slow Git I/O; responsiveness on the affected
 Windows/OneDrive/antivirus installation still requires a packaged native check.

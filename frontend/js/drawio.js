@@ -104,10 +104,25 @@ export function disposeDrawioTab(panel) {
     panel._drawioPath = null;
 }
 
-function mountDrawioEditor(panel, tab, sourceSVG) {
+/**
+ * The tab a mounted diagram belongs to now. Renaming or moving the file
+ * replaces the tab record, and tab ids follow the file path; the tab owner
+ * keeps the panel's id and path current across moves, so a session reads them
+ * instead of the record it was opened with and never saves to the old path.
+ */
+function currentDrawioTab(panel, tab) {
+    const id = panel.dataset.tabId || tab.id;
+    const path = panel._drawioPath || tab.path;
+    if (id === tab.id && path === tab.path) return tab;
+    return { ...tab, id, path, title: path.split('/').pop() || tab.title };
+}
+
+function mountDrawioEditor(panel, openedTab, sourceSVG) {
     const existing = panel._drawioSession;
     existing?.dispose?.();
     panel._drawioPreview = null;
+    const currentTab = () => currentDrawioTab(panel, openedTab);
+    const tab = currentTab();
     panel._drawioPath = tab.path;
     const darkTheme = isDrawioDarkTheme();
 
@@ -189,6 +204,7 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
             session.initialised = true;
             session.setStatus('Preparing diagram…');
             session.setLoading(true, 'Preparing editable canvas…');
+            const tab = currentTab();
             session.post({
                 action: 'load',
                 xml: encodeDrawioSVG(session.sourceSVG),
@@ -209,18 +225,18 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
 
         if (message.event === 'autosave') {
             if (!session.saving) {
-                workspace().markTabDirty(tab.id);
+                workspace().markTabDirty(currentTab().id);
             }
             return;
         }
 
         if (message.event === 'save') {
-            requestSVGExport(panel, tab, session, message.xml, Boolean(message.exit));
+            requestSVGExport(session, Boolean(message.exit));
             return;
         }
 
         if (message.event === 'export') {
-            persistExportedSVG(panel, tab, session, message.data);
+            persistExportedSVG(panel, currentTab, session, message.data);
             return;
         }
 
@@ -228,7 +244,7 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
             if (session.saving) {
                 session.exitAfterSave = true;
             } else {
-                showDiagramPreview(panel, tab, session.latestSVG);
+                showDiagramPreview(panel, currentTab(), session.latestSVG);
             }
             return;
         }
@@ -256,7 +272,7 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
     }, 12000);
 }
 
-function requestSVGExport(panel, tab, session, _xml, exitAfterSave) {
+function requestSVGExport(session, exitAfterSave) {
     if (session.disposed || session.saving) return;
     session.saving = true;
     session.exitAfterSave = exitAfterSave;
@@ -280,13 +296,15 @@ function requestSVGExport(panel, tab, session, _xml, exitAfterSave) {
     }, drawioExportTimeoutMs);
 }
 
-async function persistExportedSVG(panel, tab, session, data) {
+async function persistExportedSVG(panel, currentTab, session, data) {
     if (session.disposed || !session.saving) return;
     clearDrawioExportTimeout(session);
 
     try {
         const svg = decodeDrawioSVG(data);
         if (!/<svg[\s>]/i.test(svg)) throw new Error('Draw.io did not return SVG output');
+        // Resolved only now: the file may have been renamed since the editor opened.
+        const tab = currentTab();
         traceDrawio('persisting SVG', { bytes: svg.length, path: tab.path });
 
         const result = await workspace().saveFileSnapshot(tab, svg);
@@ -301,7 +319,7 @@ async function persistExportedSVG(panel, tab, session, data) {
         traceDrawio('saved SVG', { bytes: svg.length, path: tab.path });
         workspace().refreshFileTree().catch(() => {});
 
-        if (session.exitAfterSave) showDiagramPreview(panel, tab, svg);
+        if (session.exitAfterSave) showDiagramPreview(panel, currentTab(), svg);
     } catch (error) {
         await reportDrawioSaveFailure(session, error);
     }
@@ -403,10 +421,11 @@ function parseCSSColor(value) {
     return bytes.every(Number.isFinite) ? bytes : null;
 }
 
-function showDiagramPreview(panel, tab, svg) {
+function showDiagramPreview(panel, openedTab, svg) {
     const session = panel._drawioSession;
     session?.dispose?.();
     panel._drawioSession = null;
+    const tab = currentDrawioTab(panel, openedTab);
     panel._drawioPath = tab.path;
     panel._drawioPreview = svg;
 

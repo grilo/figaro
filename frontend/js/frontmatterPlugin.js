@@ -21,8 +21,11 @@ import {
     FRONTMATTER_UPWARD_REVEAL_USER_EVENT,
     frontmatterModeAfterSelection,
     frontmatterEditNeedsParse,
+    propertiesBlockEnd,
+    propertiesBodyStartText,
 } from './core/frontmatterPresentationModel.js';
 import { startCompletion } from '@codemirror/autocomplete';
+import { EditorState, Transaction } from '@codemirror/state';
 import { enhanceSettingsPicker } from './settingsPicker.js';
 import { mountFloatingMenu } from './floatingMenu.js';
 
@@ -803,10 +806,27 @@ export function createFrontmatterField(
         const widget = mode === 'panel'
             ? new PropertiesPanelWidget(frontmatter, isOpening)
             : new CollapsedPropertiesWidget(frontmatter);
+        const blockTo = propertiesBlockEnd({
+            to: frontmatter.to,
+            documentLength: state.doc.length,
+            lastLineEmpty: state.doc.line(state.doc.lines).length === 0,
+        });
         return Decoration.set([
-            Decoration.replace({ widget, block: true }).range(frontmatter.from, frontmatter.to),
+            Decoration.replace({ widget, block: true }).range(frontmatter.from, blockTo),
         ]);
     };
+
+    // What an insertion at the end of a Properties-only note should insert
+    // instead, or null. See propertiesBodyStartText.
+    const bodyStartText = (state, value, from, to, insert) => propertiesBodyStartText({
+        rendered: Boolean(value?.frontmatter) && value.mode !== 'source',
+        closedTo: value?.frontmatter?.to ?? null,
+        documentLength: state.doc.length,
+        lastLineEmpty: state.doc.line(state.doc.lines).length === 0,
+        from,
+        to,
+        insert,
+    });
 
     return StateField.define({
         create(state) {
@@ -887,6 +907,52 @@ export function createFrontmatterField(
                 ),
             };
         },
-        provide: field => EditorView.decorations.from(field, value => value.decorations),
+        provide: field => [
+            EditorView.decorations.from(field, value => value.decorations),
+            // Typed or pasted text at the end of a note that is only Properties
+            // starts the body on its own line instead of extending the boundary.
+            EditorState.transactionFilter.of(transaction => {
+                if (!transaction.docChanged || !transaction.isUserEvent('input')) return transaction;
+                const state = transaction.startState;
+                let edits = 0;
+                let edit = null;
+                transaction.changes.iterChanges((from, to, _nextFrom, _nextTo, inserted) => {
+                    edits += 1;
+                    edit = { from, to, insert: inserted.toString() };
+                });
+                if (edits !== 1) return transaction;
+                const text = bodyStartText(state, state.field(field, false), edit.from, edit.to, edit.insert);
+                if (text === null) return transaction;
+                return [{
+                    changes: { from: edit.from, insert: text },
+                    selection: { anchor: edit.from + text.length },
+                    annotations: Transaction.userEvent.of(transaction.annotation(Transaction.userEvent)),
+                    scrollIntoView: true,
+                }];
+            }),
+            // Such a note has no line for the browser to type into: Chromium
+            // sends no input event there, so a typed character would vanish.
+            // The key press itself is the only signal that text was typed.
+            EditorView.domEventHandlers({
+                keypress(event, view) {
+                    const typed = event.key || '';
+                    // AltGr reports Ctrl+Alt and still types a character.
+                    if ([...typed].length !== 1 || event.metaKey || (event.ctrlKey && !event.altKey)) return false;
+                    const { state } = view;
+                    const end = state.doc.length;
+                    const selection = state.selection.main;
+                    if (state.readOnly || !selection.empty || selection.head !== end) return false;
+                    if (bodyStartText(state, state.field(field, false), end, end, typed) === null) return false;
+                    event.preventDefault();
+                    view.dispatch({
+                        changes: { from: end, insert: typed },
+                        selection: { anchor: end + typed.length },
+                        userEvent: 'input.type',
+                        scrollIntoView: true,
+                    });
+                    return true;
+                },
+            }),
+        ],
     });
 }

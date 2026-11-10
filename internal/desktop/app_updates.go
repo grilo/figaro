@@ -132,7 +132,7 @@ func (a *App) UpdateInstall() (*UpdateStatus, error) {
 	if service == nil {
 		return &UpdateStatus{State: updateStateUnsupported, CurrentVersion: version}, nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), updateInstallCeiling)
 	defer cancel()
 	if err := service.Install(ctx); err != nil {
 		return &UpdateStatus{State: updateStateError, CurrentVersion: version, Error: describeUpdateError(err)}, nil
@@ -146,7 +146,11 @@ func (a *App) UpdateRestart() (*UpdateStatus, error) {
 	if service == nil {
 		return &UpdateStatus{State: updateStateUnsupported, CurrentVersion: version}, nil
 	}
+	// The page saved or asked about unsaved notes before calling this; the
+	// restart's own window close is not forwarded back to it.
+	a.closeGate.approve()
 	if err := service.Restart(context.Background()); err != nil {
+		a.closeGate.withdraw()
 		return &UpdateStatus{State: updateStateError, CurrentVersion: version, Error: describeUpdateError(err)}, nil
 	}
 	return &UpdateStatus{State: updateStateReady, CurrentVersion: version}, nil
@@ -215,10 +219,17 @@ func (a *App) configureUpdater(wailsApp *application.App, productVersion string)
 }
 
 // newGitHubUpdateProvider reads Figaro's releases and picks only the
-// platform's "-update" archive, verified against SHA256SUMS. baseURL and
-// client are empty in production and point at a fake API in tests.
-func newGitHubUpdateProvider(baseURL string, client *http.Client) (*github.Provider, error) {
-	return github.New(github.Config{
+// platform's "-update" archive, which must be vouched for by SHA256SUMS: a
+// release without a checksum for the archive is never downloaded. baseURL and
+// client are empty in production and point at a fake API in tests. The
+// production client bounds a stalled connection instead of the whole
+// download; the Wails default is a 30-second total timeout, which a slow link
+// can never meet.
+func newGitHubUpdateProvider(baseURL string, client *http.Client) (updater.Provider, error) {
+	if client == nil {
+		client = newUpdateHTTPClient(productionUpdateHTTPLimits)
+	}
+	provider, err := github.New(github.Config{
 		Repository:    updates.Repository,
 		BaseURL:       baseURL,
 		HTTPClient:    client,
@@ -231,6 +242,10 @@ func newGitHubUpdateProvider(baseURL string, client *http.Client) (*github.Provi
 			return updates.MatchAsset(request.Platform, request.Arch, names)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
+	return checksumRequiredProvider{Provider: provider}, nil
 }
 
 func initGitHubUpdater(engine *updater.Updater, version string, provider updater.Provider) error {
@@ -262,6 +277,9 @@ func (s wailsUpdateService) Check(ctx context.Context) (*updateRelease, error) {
 
 func (s wailsUpdateService) Install(ctx context.Context) error {
 	if err := s.updater.DownloadAndInstall(ctx); err != nil {
+		if errors.Is(err, errUpdateDownloadStalled) {
+			return fmt.Errorf("the download stalled: the server stopped sending data. Check the connection and try again")
+		}
 		if errors.Is(err, context.DeadlineExceeded) {
 			return fmt.Errorf("the download did not finish in time")
 		}

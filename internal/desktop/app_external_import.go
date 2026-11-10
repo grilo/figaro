@@ -92,16 +92,38 @@ func mergeExternalUnsupportedSourceMessage(name string, _ fs.FileMode) string {
 	return fmt.Sprintf("Cannot import unsupported path %q", name)
 }
 
-// CopyExternalPaths copies files or folders supplied by Wails' native file
-// drop channel into an existing vault directory. It preflights the complete
-// batch and only replaces existing entries after the frontend has received
-// their paths and obtained explicit user confirmation.
+// firstUngrantedExternalSource returns the first absolute source path that
+// Figaro was not handed by a file drop or an operating-system launch. A path
+// that is not absolute is left for inspectExternalCopySources to reject.
+func (a *App) firstUngrantedExternalSource(sourcePaths []string) (string, bool) {
+	for _, suppliedPath := range sourcePaths {
+		source := filepath.Clean(strings.TrimSpace(suppliedPath))
+		if source == "." || !filepath.IsAbs(source) {
+			continue
+		}
+		if !a.externalSourceGranted(source) {
+			return source, true
+		}
+	}
+	return "", false
+}
+
+// CopyExternalPaths copies files or folders supplied by a file drop into an
+// existing vault directory. The page passes the absolute source paths, so
+// each must be one Figaro was handed (externalPathGrants); any other path is
+// refused before it is inspected. It preflights the complete batch and only
+// replaces existing entries after the frontend has received their paths and
+// obtained explicit user confirmation.
 func (a *App) CopyExternalPaths(sourcePaths []string, targetDirRel string, replaceExisting bool) (*CopyExternalResult, error) {
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 
 	if len(sourcePaths) == 0 {
 		return &CopyExternalResult{Success: false, Error: "No files or folders were dropped"}, nil
+	}
+	if ungranted, found := a.firstUngrantedExternalSource(sourcePaths); found {
+		log.Printf("[file-drop] Refused to copy a path that was not dropped or opened: %q", ungranted)
+		return &CopyExternalResult{Success: false, Error: ungrantedExternalSourceError(ungranted)}, nil
 	}
 	targetClean, err := vaultRelativePath(targetDirRel)
 	if err != nil {
@@ -236,12 +258,18 @@ func (a *App) CopyExternalPaths(sourcePaths []string, targetDirRel string, repla
 // MergeExternalPaths imports native files and directories without replacing
 // anything already in the vault. Existing same-named directories merge
 // recursively; every other collision receives a parenthesized copy suffix.
+// Like CopyExternalPaths, it acts only on paths Figaro was handed by a file
+// drop or an operating-system launch.
 func (a *App) MergeExternalPaths(sourcePaths []string, targetDirRel string) (*CopyExternalResult, error) {
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 
 	if len(sourcePaths) == 0 {
 		return &CopyExternalResult{Success: false, Error: "No files or folders were dropped"}, nil
+	}
+	if ungranted, found := a.firstUngrantedExternalSource(sourcePaths); found {
+		log.Printf("[file-drop] Refused to import a path that was not dropped or opened: %q", ungranted)
+		return &CopyExternalResult{Success: false, Error: ungrantedExternalSourceError(ungranted)}, nil
 	}
 	targetClean, err := vaultRelativePath(targetDirRel)
 	if err != nil {
@@ -416,7 +444,7 @@ func copyExternalTree(root *os.Root, source, destination string) (bool, error) {
 	if !info.Mode().IsRegular() {
 		return false, fmt.Errorf("source is not a regular file")
 	}
-	input, err := os.Open(source) // #nosec G304 -- source is an absolute path explicitly supplied by the native desktop file-drop API.
+	input, err := os.Open(source) // #nosec G304 -- source is, or lies beneath, an absolute path granted by a file drop or an operating-system launch.
 	if err != nil {
 		return false, err
 	}

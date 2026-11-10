@@ -293,7 +293,7 @@ describe('New note dialog', () => {
         expect([...overlay.querySelectorAll('.merge-file-name')].map(element => element.textContent))
             .toEqual(['b.md', 'c.md']);
         expect(overlay.querySelector('.merge-warning').textContent)
-            .toContain('permanently deleted');
+            .toContain('restore them from Settings → Vault care → Recently deleted');
         expect(overlay.querySelector('.custom-modal-btn-cancel').textContent).toBe('Cancel');
         expect(confirm.textContent).toBe('Merge and delete sources');
 

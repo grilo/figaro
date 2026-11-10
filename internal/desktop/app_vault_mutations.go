@@ -87,6 +87,14 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 	if err := root.RemoveAll(cleanRel); err != nil {
 		return nil, err
 	}
+	a.forgetRemovedVaultPathLocked(cleanRel)
+	return &SaveFileResult{Success: true, DeletedID: deleted.ID}, nil
+}
+
+// forgetRemovedVaultPathLocked brings Figaro's in-memory and saved state in
+// line with a file or folder it has just removed from the vault. The caller
+// must hold vaultMu for writing.
+func (a *App) forgetRemovedVaultPathLocked(cleanRel string) {
 	a.removeFileTreeCachePathLocked(cleanRel)
 	if err := a.removeFileTreeStylePathsLocked(cleanRel); err != nil {
 		log.Printf("[file-tree] Could not remove styles for deleted path %q: %v", filepath.ToSlash(cleanRel), err)
@@ -100,7 +108,6 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 	// while both vault locks are held.
 	a.removeVaultFileIssuesBelow(cleanRel)
 	a.removeVaultIndexPathLocked(cleanRel)
-	return &SaveFileResult{Success: true, DeletedID: deleted.ID}, nil
 }
 
 // RenamePath renames/moves a file or folder.
@@ -389,6 +396,18 @@ func (a *App) MovePath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 		destinationIsDirectory,
 		goruntime.GOOS == "windows",
 	)
+	if plan.MergeAvailable {
+		// Offer the merge only when MergeDirectory would accept it: a folder
+		// is not merged with itself or onto itself.
+		mergePlan, err := planDirectoryMerge(root, sourceClean, targetClean)
+		if err != nil {
+			return nil, err
+		}
+		if mergePlan.Error != "" {
+			plan.Error = mergePlan.Error
+			plan.MergeAvailable = false
+		}
+	}
 	if plan.Error != "" {
 		return &SaveFileResult{
 			Success:        false,
@@ -399,6 +418,60 @@ func (a *App) MovePath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 		}, nil
 	}
 	return a.renamePathLocked(sourceClean, newRel, true)
+}
+
+// planDirectoryMerge observes how the destination of a folder merge relates to
+// its source on disk and asks the pure plan whether the merge may run. Both
+// folders must exist. Entries are compared by identity, not by name, so a case
+// or normalization variant of the source's own path is recognized on volumes
+// that fold names.
+func planDirectoryMerge(root *os.Root, source string, targetDirectory string) (mutations.DirectoryMergePlan, error) {
+	facts := mutations.DirectoryMergeFacts{CaseInsensitive: goruntime.GOOS == "windows"}
+	destination := mutations.Destination(source, targetDirectory)
+	sourceInfo, err := root.Lstat(source)
+	if err != nil {
+		return mutations.DirectoryMergePlan{}, err
+	}
+	destinationInfo, err := root.Lstat(destination)
+	if err != nil {
+		return mutations.DirectoryMergePlan{}, err
+	}
+	facts.DestinationIsSource = os.SameFile(sourceInfo, destinationInfo)
+
+	// The target is inside the source when the source is the target or one
+	// of the target's ancestors.
+	for current := filepath.Clean(targetDirectory); ; current = filepath.Dir(current) {
+		if info, err := root.Lstat(current); err == nil && os.SameFile(info, sourceInfo) {
+			facts.TargetInsideSource = true
+			break
+		}
+		if current == "." {
+			break
+		}
+	}
+	// The source is inside the destination when the destination is one of
+	// the source's ancestors; below is the path from that ancestor down.
+	below := filepath.Base(source)
+	for current := filepath.Dir(filepath.Clean(source)); ; current = filepath.Dir(current) {
+		if info, err := root.Lstat(current); err == nil && os.SameFile(info, destinationInfo) {
+			facts.SourceBelowDestination = below
+			break
+		}
+		if current == "." {
+			break
+		}
+		below = filepath.Join(filepath.Base(current), below)
+	}
+
+	if namesake := mutations.DirectoryMergeNamesake(source, targetDirectory, facts); namesake != "" {
+		info, err := root.Lstat(namesake)
+		if err == nil {
+			facts.NamesakeIsDirectory = info.IsDir()
+		} else if !os.IsNotExist(err) {
+			return mutations.DirectoryMergePlan{}, err
+		}
+	}
+	return mutations.PlanDirectoryMerge(source, targetDirectory, facts), nil
 }
 
 type directoryMergeRename struct {
@@ -455,6 +528,22 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 	}
 	if !sourceInfo.IsDir() || !destinationInfo.IsDir() {
 		return &SaveFileResult{Success: false, Error: "Both merge paths must be directories"}, nil
+	}
+	// The merge copies the source into the destination and then removes the
+	// source. It must never run when the two are one folder, when the
+	// destination is inside the source, or when a folder would be written
+	// over the source: each of those deletes what was just "merged".
+	mergePlan, err := planDirectoryMerge(root, sourceClean, targetClean)
+	if err != nil {
+		return nil, err
+	}
+	if mergePlan.Error != "" {
+		return &SaveFileResult{
+			Success: false,
+			Error:   mergePlan.Error,
+			OldPath: filepath.ToSlash(sourceClean),
+			Path:    filepath.ToSlash(destination),
+		}, nil
 	}
 
 	renames := make([]directoryMergeRename, 0)

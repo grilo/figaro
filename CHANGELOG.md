@@ -24,6 +24,21 @@ remain as originally published.
 - A large outside change, such as a `git pull` that rewrites hundreds of
   notes, now refreshes Figaro's index once instead of note by note, and a tool
   that writes into the vault continuously no longer holds back every update.
+- Closing Figaro from the operating system — **Alt+F4**, the taskbar or window
+  manager, the macOS close button or **Quit** — now asks about unsaved notes,
+  as the window's own close button does. **Restart now** after an update asks
+  too.
+- **Merge Notes** saves unsaved edits in the notes before merging and reloads
+  the merged note. The notes merged away go to **Recently deleted**, where
+  they can be restored, instead of being deleted for good.
+- Updates download on slow connections. The 30-second limit for the whole
+  download is gone; only a connection that stops making progress is given up
+  on.
+- A PDF export that leaves out an image, font or stylesheet stored outside the
+  vault now says which files were left out.
+- The version count in the status bar no longer re-reads the vault's whole
+  history after every save, and right-clicking a word in a long note opens the
+  spelling menu without re-reading the whole note.
 
 ### Fixed
 
@@ -96,6 +111,48 @@ remain as originally published.
   all of them instead of the first one only.
 - Writing lenses no longer stop working on a note with one extremely long
   paragraph, and a very long run of letters no longer freezes spelling.
+- A note that contains only Properties can be typed in straight away. Typed
+  characters used to disappear until you pressed **Enter**.
+- A file or folder whose name contains a quotation mark can be selected,
+  opened, renamed and deleted like any other. Deleting `"Draft".md` could
+  previously act on the folder it was in.
+- Clicking a link written relative to its note (`./sibling.md`,
+  `../other.md`) or from the vault root (`/Archive/x.md`) opens that note
+  instead of looking for it at the vault root or offering to create it.
+- Vim `:e name` works: it opens the note of that name beside the current one,
+  or starts a new note when there is none.
+- Dropping a folder onto the folder it is already in no longer offers to merge
+  it with itself, and merging a folder into a parent of the same name can no
+  longer delete an inner folder with that name.
+- **Merge Notes** refuses a note chosen twice instead of merging it into
+  itself.
+- Links to a note with a colon in its name, such as `Re: plan.md`, are updated
+  when that note is renamed or moved.
+- Changing the link style no longer fails because of one note Figaro cannot
+  read as text.
+- A Draw.io diagram renamed or moved while it is open saves to its new name
+  instead of recreating the old file.
+- A Kanban column named like a built-in word, such as `#constructor`, no
+  longer shows a broken badge.
+
+### Security
+
+- Text from your vault is always shown as text. A link destination, a file or
+  folder name, or a Kanban column name or color containing HTML could
+  previously run script inside Figaro when hovered or listed.
+- Charts load data and images only from the open vault. A chart that names a
+  web address or a file elsewhere on disk shows an error instead of fetching
+  it.
+- A Mermaid `click` link with a `javascript:` address is removed from the
+  rendered diagram.
+- PDF export loads images, fonts and stylesheets only from the vault.
+- A PDF browser path left in a vault's settings by an old version is no longer
+  adopted, because Figaro would run it at the next export. If export cannot
+  find a browser, choose one again in Settings.
+- Figaro copies into the vault only files and folders that were dropped on its
+  window or opened with it.
+- An update is installed only when the release's checksums vouch for it. A
+  release without them is reported but not installed.
 
 ## [1.47.0] - 2026-11-05
 

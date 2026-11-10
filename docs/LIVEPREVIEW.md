@@ -183,6 +183,11 @@ viewport-bound syntax tree parsing (`@lezer/markdown`):
   validated destination without requiring CodeMirror to resolve a source coordinate; native-webview
   replacement geometry therefore cannot suppress the action. Vault Markdown targets remain in
   Figaro. The external hover tooltip shows the URL and repeats the modifier-click shortcut.
+* **Vault destinations:** A click and the hover tooltip resolve a Markdown destination through the
+  same pure `vaultPathForNoteLink` rule, whose behavior the
+  [product specification](PROMPT.md#131-markdown-links) owns; a clicked Wikilink target is used as
+  written.
+  The tooltip writes the destination as a text node, so markup in it is never parsed.
 * **Same-document fragments:** Clicking either the rendered label or the label/fragment in revealed
   source for `[Jump](#section)` moves the editor selection to the heading with that stable slug. The
   destination is link syntax, never a Kanban hashtag, and a missing fragment reports the missing
@@ -631,9 +636,10 @@ Vega/Vega-Lite additionally bound retained source/output to 4,194,304 UTF-16 cod
 effective appearance,
 normalized container dimensions and font generation. Concurrent mounts have unique
 SVG IDs with local references preserved. Source edits and appearance/size/font
-changes invalidate pending widget results and refresh output. Vega specs reading external data,
-time, randomness or window/screen state
-bypass reuse so revisits fetch fresh data.
+changes invalidate pending widget results and refresh output. Vega specs that load a file by URL,
+or read time, randomness or window/screen state,
+bypass reuse so revisits read fresh data. A chart can load only vault files; the
+[product specification](PROMPT.md#3031-live-widgets-and-rendering) owns that rule.
 
 Prepared live SVG nodes are retained separately from generated SVG strings, under
 the bounded per-editor ownership contract above. Ordinary returns reattach them
@@ -863,6 +869,22 @@ must remain the pointer hit target; hover keeps the picker focused and clicking
 an option must not place the CodeMirror selection beneath it. Cover this with
 the focused frontmatter component and block-widget layout tests plus
 `tests/e2e/frontmatterProperties.spec.js`.
+
+A note that is only Properties must still offer a line to type on, in both of
+its shapes. When the note ends with the closing boundary's line break, the
+block replacement ends before that break (`propertiesBlockEnd`), so the empty
+last line stays a real CodeMirror line outside the widget. When the closing
+boundary is the last line and has no line break, text typed or pasted at the
+document end starts the body on a new line (`propertiesBodyStartText`) instead
+of extending `---`, which would unclose the block. A transaction filter applies
+that rule to user input, and a `keypress` handler inserts the typed character
+itself, because the browser sends no input event when the document has no line
+outside the replacement. Revealed raw source is edited as typed. Both pure
+rules live in `core/frontmatterPresentationModel.js`. The missing input event
+was observed in Chromium, and the fix was also checked in the packaged Linux
+build (WebKitGTK); the
+[testing contract](testing/editor.md#diagram-render-reuse-mermaid-sizing-and-properties)
+lists the native checks still needed for WebView2 and WKWebView.
 
 Inline diagnostic decorations, including spellcheck's dotted unknown-word
 marks, must remain source-length-preserving and must not introduce a widget,

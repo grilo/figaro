@@ -9,7 +9,7 @@ state continues to update independently of presentation.
 
 Vega/Vega-Lite output reuse is bounded to 64 entries and 4,194,304 UTF-16 code units of retained keys/output. Effective source/appearance and font identity
 participate in its key; responsive specs include container dimensions. Fixed-size
-charts reuse output across container changes. External data/images and expressions reading time, randomness or window/screen
+charts reuse output across container changes. Specs that load data or images by URL and expressions reading time, randomness or window/screen
 state bypass reuse. Per-mount SVG references, retryable failures,
 invalidation during rendering and disposal have focused regressions.
 

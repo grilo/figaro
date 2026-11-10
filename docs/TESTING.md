@@ -113,7 +113,8 @@ Tests should reflect the application dependency direction described in
   application module or native API.
 - Adapter tests use the real boundary whenever feasible. In particular,
   vault security, atomicity, permissions, and rollback require a temporary
-  `os.Root`; an in-memory filesystem is insufficient.
+  `os.Root`; an in-memory filesystem is insufficient. Desktop tests take that
+  vault from `newTestApp`, which removes it through `t.Cleanup`.
 - A thin integration test confirms each use case is wired to its production
   adapter. Full end-to-end duplication is unnecessary.
 
@@ -303,8 +304,9 @@ before the bridge resolves, the selected note is mounted and editable before
 keeps its full track height while the tree and index remain unfinished. That
 same scenario holds Vale, dictionary restoration, and Git while typing, saving,
 and exercising the native-close button. `editorSaveProtection.test.js` owns
-handler installation, interval restoration, cancellation, and failed-save
-behavior; `documentSave.test.js` proves disk → Git → index sequencing, later
+handler installation, interval restoration, cancellation, failed-save
+behavior, and the exit flow for a close the host forwards;
+`documentSave.test.js` proves disk → Git → index sequencing, later
 disk writes during held Git, and separate secondary failures. Its
 startup-hydration scenario deliberately holds every preference response and
 records intermediate animation frames. That browser-only harness proves the
@@ -883,8 +885,10 @@ See [External Markdown launch regressions](testing/workspace.md#external-markdow
 ## Desktop bridge and in-app update regressions
 
 See [Desktop bridge and in-app update regressions](testing/workspace.md#desktop-bridge-and-in-app-update-regressions)
-for which tests own the Wails v3 runtime adapter, the native-bridge guard, and
-the opt-in updater.
+for which tests own the Wails v3 runtime adapter, the native-bridge guard, the
+operating-system close gate and its remaining Windows and macOS native
+checks, and the opt-in
+updater.
 
 ## Editor buffer undo ownership
 

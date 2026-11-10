@@ -282,12 +282,80 @@ func splitMarkdownLinkSuffix(value string) (string, string) {
 	return value, ""
 }
 
+// isExternalMarkdownDestination reports whether a link destination leaves the
+// vault: a "#heading" in the same note, a protocol-relative "//host" address,
+// or a URL. A colon alone does not make a URL, because it is an ordinary
+// filename character: "Re: plan.md", "v1.2:notes.md" and "a: note.md" are
+// notes. A destination is a URL only when a scheme is followed by "//"
+// ("https://…", "obsidian://…") or is one of the schemes that never carry an
+// authority ("mailto:", "tel:", "data:").
 func isExternalMarkdownDestination(value string) bool {
 	if strings.HasPrefix(value, "#") || strings.HasPrefix(value, "//") {
 		return true
 	}
-	parsed, err := url.Parse(value)
-	return err == nil && parsed.IsAbs()
+	scheme, rest, found := splitURLScheme(value)
+	if !found {
+		return false
+	}
+	if strings.HasPrefix(rest, "//") {
+		return true
+	}
+	_, opaque := opaqueURLSchemes[strings.ToLower(scheme)]
+	return opaque
+}
+
+// splitURLScheme splits value at the colon ending an RFC 3986 scheme: an
+// ASCII letter followed by letters, digits, "+", "-" or ".". It reports false
+// when value does not start with one.
+func splitURLScheme(value string) (scheme string, rest string, found bool) {
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		switch {
+		case character >= 'a' && character <= 'z', character >= 'A' && character <= 'Z':
+		case index > 0 && (character >= '0' && character <= '9' || character == '+' || character == '-' || character == '.'):
+		case index > 0 && character == ':':
+			return value[:index], value[index+1:], true
+		default:
+			return "", "", false
+		}
+	}
+	return "", "", false
+}
+
+// opaqueURLSchemes are the schemes whose URLs are written without "//" and
+// therefore cannot be told from a filename by shape alone. A destination
+// starting with one of them is never read as a vault path.
+var opaqueURLSchemes = map[string]struct{}{
+	"about":          {},
+	"bitcoin":        {},
+	"blob":           {},
+	"callto":         {},
+	"cid":            {},
+	"data":           {},
+	"facetime":       {},
+	"facetime-audio": {},
+	"file":           {},
+	"geo":            {},
+	"im":             {},
+	"javascript":     {},
+	"magnet":         {},
+	"mailto":         {},
+	"maps":           {},
+	"message":        {},
+	"mid":            {},
+	"news":           {},
+	"obsidian":       {},
+	"sip":            {},
+	"sips":           {},
+	"skype":          {},
+	"sms":            {},
+	"smsto":          {},
+	"spotify":        {},
+	"tel":            {},
+	"urn":            {},
+	"vbscript":       {},
+	"view-source":    {},
+	"xmpp":           {},
 }
 
 func resolveMarkdownLinkTarget(sourceRel string, destination string, image bool) (string, markdownLinkPathStyle, bool) {

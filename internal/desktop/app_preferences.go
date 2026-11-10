@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	settingsmodel "figaro/internal/settings"
@@ -32,12 +33,32 @@ func (a *App) loadColors() {
 	// A color belongs to its hashtag, not to whether any task currently uses
 	// it: an emptied column that is reused later keeps its color. Only an
 	// explicit clear, rename or column delete removes one.
+	//
+	// The file travels with the vault, and the page writes each color into a
+	// style attribute, so only a hex color is admitted: anything else in a
+	// shared or hand-edited file is left out instead of reaching the page.
 	for name, color := range colors {
 		name = strings.ToLower(strings.TrimSpace(name))
-		if kanbanColumnNameRe.MatchString(name) && color != "" {
-			a.kanbanColors[name] = color
+		if !kanbanColumnNameRe.MatchString(name) || color == "" {
+			continue
 		}
+		if !validKanbanColor(color) {
+			log.Printf("[kanban] Ignoring the saved color of #%s: it is not a hex color", name)
+			continue
+		}
+		a.kanbanColors[name] = color
 	}
+}
+
+// kanbanColorRe is the only form a column color takes: the board's palette
+// stores "#rrggbb". The page applies the same rule (storedAccentColor), so a
+// color one side accepts is never dropped by the other.
+var kanbanColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// validKanbanColor reports whether color may be stored for a column and
+// returned to the page.
+func validKanbanColor(color string) bool {
+	return kanbanColorRe.MatchString(color)
 }
 
 func (a *App) saveColors() {

@@ -121,12 +121,31 @@ func browserWorkspaceParent(browser Browser, home string) (string, error) {
 	return filepath.Join(home, "snap", browser.SnapName, "common", "figaro"), nil
 }
 
+// ResourcePolicy decides whether the document being printed may load one URL.
+// It is asked about every request the page makes, in the browser's own
+// canonical spelling of the URL: the document itself, stylesheets, fonts and
+// images. A refused request fails in the page; the rest of the document still
+// prints.
+type ResourcePolicy func(requestURL string) bool
+
 // ChromiumPDFSession keeps one isolated browser process available for all
 // passes of a single export. Page-numbered contents need a provisional PDF and
 // a final PDF, but must not make the user pay browser startup twice.
 type ChromiumPDFSession struct {
 	ctx    context.Context
 	client *cdpClient
+	policy ResourcePolicy
+}
+
+// RestrictResources puts every later Render behind policy. The check runs at
+// the browser's network boundary through DevTools request interception, so it
+// sees the URL the browser is about to open, whatever markup, stylesheet rule
+// or relative path produced it. A browser that cannot intercept requests
+// fails the render instead of printing unconfined.
+func (session *ChromiumPDFSession) RestrictResources(policy ResourcePolicy) {
+	if session != nil {
+		session.policy = policy
+	}
 }
 
 // WithChromiumPDFSession owns the concrete browser process while the caller
@@ -192,7 +211,7 @@ func (session *ChromiumPDFSession) Render(inputHTMLPath string, outputPDFPath st
 	}
 	renderCtx, cancel := context.WithTimeout(session.ctx, browserRenderTimeout)
 	defer cancel()
-	return renderPDFViaCDP(renderCtx, session.client, fileURL(inputHTMLPath), outputPDFPath)
+	return renderPDFViaCDP(renderCtx, session.client, fileURL(inputHTMLPath), outputPDFPath, session.policy)
 }
 
 // RequirePageMarginBoxes rejects engines that would silently omit the CSS
@@ -427,6 +446,18 @@ type cdpClient struct {
 	connection *websocket.Conn
 	nextID     int
 	events     []cdpMessage
+	// intercept answers a browser event that cannot wait for the caller's
+	// next command. A paused request holds the page until it is answered, and
+	// the page is what the pending command is waiting for.
+	intercept func(ctx context.Context, event cdpMessage) (handled bool, err error)
+}
+
+// dispatch hands one received message to the interceptor, if any.
+func (client *cdpClient) dispatch(ctx context.Context, message cdpMessage) (bool, error) {
+	if client.intercept == nil || message.Method == "" {
+		return false, nil
+	}
+	return client.intercept(ctx, message)
 }
 
 func dialDevTools(ctx context.Context, endpoint string) (*cdpClient, error) {
@@ -454,6 +485,11 @@ func (client *cdpClient) call(ctx context.Context, method string, params any, se
 		message, err := client.read(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("read browser command %s: %w", method, err)
+		}
+		if handled, err := client.dispatch(ctx, message); err != nil {
+			return nil, fmt.Errorf("answer browser event during %s: %w", method, err)
+		} else if handled {
+			continue
 		}
 		if message.ID != id {
 			if message.Method != "" {
@@ -484,6 +520,11 @@ func (client *cdpClient) waitForEvent(ctx context.Context, method string, sessio
 		message, err := client.read(ctx)
 		if err != nil {
 			return cdpMessage{}, fmt.Errorf("wait for browser event %s: %w", method, err)
+		}
+		if handled, err := client.dispatch(ctx, message); err != nil {
+			return cdpMessage{}, fmt.Errorf("answer browser event while waiting for %s: %w", method, err)
+		} else if handled {
+			continue
 		}
 		if message.Method == method && (sessionID == "" || message.SessionID == sessionID) {
 			return message, nil
@@ -532,7 +573,41 @@ func marshalCDPParams(params any) json.RawMessage {
 	return data
 }
 
-func renderPDFViaCDP(ctx context.Context, client *cdpClient, inputURL string, outputPDFPath string) error {
+// restrictPageResources pauses every request of one page session and answers
+// each from policy for as long as the returned function has not been called.
+func restrictPageResources(ctx context.Context, client *cdpClient, sessionID string, policy ResourcePolicy) (func(), error) {
+	client.intercept = func(ctx context.Context, event cdpMessage) (bool, error) {
+		if event.Method != "Fetch.requestPaused" {
+			return false, nil
+		}
+		var paused struct {
+			RequestID string `json:"requestId"`
+			Request   struct {
+				URL string `json:"url"`
+			} `json:"request"`
+		}
+		if err := json.Unmarshal(event.Params, &paused); err != nil || paused.RequestID == "" {
+			return true, errors.New("browser paused a request without identifying it")
+		}
+		if policy(paused.Request.URL) {
+			return true, client.notify(ctx, "Fetch.continueRequest", map[string]any{"requestId": paused.RequestID}, event.SessionID)
+		}
+		return true, client.notify(ctx, "Fetch.failRequest", map[string]any{
+			"requestId":   paused.RequestID,
+			"errorReason": "AccessDenied",
+		}, event.SessionID)
+	}
+	release := func() { client.intercept = nil }
+	if _, err := client.call(ctx, "Fetch.enable", map[string]any{
+		"patterns": []map[string]any{{"urlPattern": "*"}},
+	}, sessionID); err != nil {
+		release()
+		return nil, fmt.Errorf("this browser cannot confine what a PDF loads: %w", err)
+	}
+	return release, nil
+}
+
+func renderPDFViaCDP(ctx context.Context, client *cdpClient, inputURL string, outputPDFPath string, policy ResourcePolicy) error {
 	createResult, err := client.call(ctx, "Target.createTarget", map[string]any{"url": "about:blank"}, "")
 	if err != nil {
 		return err
@@ -559,6 +634,14 @@ func renderPDFViaCDP(ctx context.Context, client *cdpClient, inputURL string, ou
 
 	if _, err := client.call(ctx, "Page.enable", nil, attachment.SessionID); err != nil {
 		return err
+	}
+	if policy != nil {
+		// Before the first navigation, so the document itself is checked too.
+		release, err := restrictPageResources(ctx, client, attachment.SessionID, policy)
+		if err != nil {
+			return err
+		}
+		defer release()
 	}
 	if _, err := client.call(ctx, "Emulation.setEmulatedMedia", map[string]any{"media": "print"}, attachment.SessionID); err != nil {
 		return err

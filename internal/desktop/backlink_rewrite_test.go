@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	goruntime "runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -453,5 +454,65 @@ func TestFullScanMoveSkipsNotesTheIndexWouldRecordAsFileIssues(t *testing.T) {
 	}
 	if got := readTestFile(t, vaultPath, "Broken/binary.md"); got != "[Spec](Projects/Spec.md)\x00binary" {
 		t.Fatalf("a binary note was rewritten: %q", got)
+	}
+}
+
+// One note Figaro cannot read as text (too large, binary, not UTF-8 or
+// unreadable) must not fail a link-style conversion for every other note. It
+// is left untouched, and still counts as a link target.
+func TestChangeLinkStyleSkipsNotesFigaroCannotReadAsText(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Projects/Spec.md", "# Specification\n")
+	writeTestFile(t, vaultPath, "index.md", "[Spec](Projects/Spec.md) [Huge](Broken/huge.md) [Sealed](sealed.md)\n")
+	writeUnindexableNotes(t, vaultPath, "Broken")
+	writeTestFile(t, vaultPath, "sealed.md", "[Spec](Projects/Spec.md)\n")
+	sealed := filepath.Join(vaultPath, "sealed.md")
+	sealedIsUnreadable := false
+	if goruntime.GOOS != "windows" {
+		if err := os.Chmod(sealed, 0); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(sealed, 0644) })
+		_, readErr := os.ReadFile(sealed)
+		sealedIsUnreadable = readErr != nil // false when running as root
+	}
+	binaryBefore := readTestFile(t, vaultPath, "Broken/binary.md")
+	latinBefore := readTestFile(t, vaultPath, "Broken/latin1.md")
+
+	result, err := app.ChangeLinkStyle("wikilink", true)
+	if err != nil || !result.Success {
+		t.Fatalf("ChangeLinkStyle beside unreadable notes = %#v, %v", result, err)
+	}
+	wantUpdated := []string{"index.md"}
+	if !sealedIsUnreadable {
+		wantUpdated = append(wantUpdated, "sealed.md")
+	}
+	if !reflect.DeepEqual(result.UpdatedLinks, wantUpdated) {
+		t.Fatalf("updated notes = %v, want %v", result.UpdatedLinks, wantUpdated)
+	}
+	if got, want := readTestFile(t, vaultPath, "index.md"), "[[Projects/Spec.md|Spec]] [[Broken/huge.md|Huge]] [[sealed.md|Sealed]]\n"; got != want {
+		t.Fatalf("converted note = %q, want %q", got, want)
+	}
+	if got := readTestFile(t, vaultPath, "Broken/binary.md"); got != binaryBefore {
+		t.Fatalf("binary note was rewritten: %q", got)
+	}
+	if got := readTestFile(t, vaultPath, "Broken/latin1.md"); got != latinBefore {
+		t.Fatalf("non-UTF-8 note was rewritten: %q", got)
+	}
+	if info, err := os.Stat(filepath.Join(vaultPath, "Broken", "huge.md")); err != nil || info.Size() != maxEditableFileBytes+1 {
+		t.Fatalf("oversized note changed: %v, %v", info, err)
+	}
+	if sealedIsUnreadable {
+		if err := os.Chmod(sealed, 0644); err != nil {
+			t.Fatal(err)
+		}
+		if got := readTestFile(t, vaultPath, "sealed.md"); got != "[Spec](Projects/Spec.md)\n" {
+			t.Fatalf("unreadable note was rewritten: %q", got)
+		}
+	}
+	if loaded, _ := app.LinkStyleLoad(); loaded["style"] != "wikilink" {
+		t.Fatalf("saved style = %#v, want wikilink", loaded)
 	}
 }

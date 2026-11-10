@@ -521,6 +521,62 @@ describe('live Kanban buffers and compact cards', () => {
         expect(selectedControl.getAttribute('aria-label')).toContain('selected color #22c55e');
     });
 
+    test('a column color from the vault file reaches badge and column markup only as a palette-shaped hex color', async () => {
+        const card = tag => ({ file: 'note.md', file_name: 'note.md', line: 1, text: `Task ${tag}`, tag });
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({
+            columns: ['todo', 'wip', 'constructor', 'done'],
+            colors: {
+                todo: 'red"><img src=x onerror="window.kanbanColorInjected=1">',
+                wip: '#22C55E',
+                done: 'url(https://example.com/pixel)',
+            },
+        });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [card('todo')], wip: [card('wip')], constructor: [card('constructor')], done: [card('done')],
+        });
+
+        await renderKanbanBoard('kanban-board-main');
+
+        const badges = document.getElementById('kanban-badges');
+        expect(badges.querySelector('img')).toBeNull();
+        expect(badges.innerHTML).not.toMatch(/onerror|example\.com|native code/);
+        // Only #wip has a usable color; a column named like an Object member has none.
+        const colored = [...badges.querySelectorAll('.ui-badge:not(.kanban-due-badge)')];
+        expect(colored).toHaveLength(1);
+        expect(colored[0].getAttribute('style')).toBe('background:#22C55E;color:var(--button-text)');
+        expect(document.querySelector('#kanban-board-main img')).toBeNull();
+        for (const column of ['todo', 'constructor', 'done']) {
+            const control = document.querySelector(`.color-col[data-column="${column}"]`);
+            expect(control.dataset.selectedColor).toBe('');
+            expect(control.querySelector('.kanban-column-color-indicator')).toBeNull();
+        }
+
+        document.querySelector('.color-col[data-column="todo"]').click();
+        expect(document.querySelector('.kanban-color-swatch.active').dataset.color).toBe('');
+    });
+
+    test('column names are escaped wherever the board writes them into markup', async () => {
+        const hostile = 'x"><img src=x onerror="window.kanbanColumnInjected=1">';
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: [hostile, 'todo', 'wip', 'done'], colors: {} });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            [hostile]: [{ file: 'note.md', file_name: 'note.md', line: '1" data-injected="yes', text: 'Task', tag: hostile }],
+            todo: [], wip: [], done: [],
+        });
+
+        await renderKanbanBoard('kanban-board-main');
+
+        const board = document.getElementById('kanban-board-main');
+        expect(board.querySelector('img')).toBeNull();
+        expect(board.querySelector('[data-injected]')).toBeNull();
+        const column = board.querySelector('.kanban-column');
+        expect(column.dataset.column).toBe(hostile);
+        expect(column.querySelector('.kanban-column-title').textContent).toBe(`#${hostile}`);
+        expect(column.querySelector('.kanban-column-cards').dataset.column).toBe(hostile);
+        expect([...column.querySelectorAll('.kanban-column-btn')].map(button => button.dataset.column))
+            .toEqual([hostile, hostile, hostile]);
+        expect(column.querySelector('.kanban-card').dataset.line).toBe('1" data-injected="yes');
+    });
+
     test('renders due-state chips and makes the Kanban navigation urgent for tasks due today', async () => {
         const today = localISODate();
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({

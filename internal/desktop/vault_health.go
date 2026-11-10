@@ -2,7 +2,6 @@ package desktop
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -205,39 +204,6 @@ func similarNoteNameIssues(index *vaultIndex) []VaultHealthIssue {
 		}
 	}
 	return issues
-}
-
-func visibleVaultFiles(root *os.Root) (map[string]struct{}, error) {
-	files := make(map[string]struct{})
-	err := fs.WalkDir(root.FS(), ".", func(rel string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return fmt.Errorf("walk vault path %q: %w", rel, walkErr)
-		}
-		if rel == "." {
-			return nil
-		}
-		if entry.Type()&fs.ModeSymlink != 0 {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return fmt.Errorf("inspect vault path %q: %w", rel, err)
-		}
-		if info.Mode()&fs.ModeSymlink != 0 {
-			return nil
-		}
-		if info.IsDir() {
-			if strings.HasPrefix(entry.Name(), ".") {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if info.Mode().IsRegular() {
-			files[filepath.ToSlash(rel)] = struct{}{}
-		}
-		return nil
-	})
-	return files, err
 }
 
 func inspectVaultLinks(sourcePath, content string, files map[string]struct{}, markdownFiles map[string]vaultIndexedFile) ([]VaultHealthIssue, map[string]struct{}) {

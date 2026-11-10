@@ -156,6 +156,60 @@ describe('Vim command behavior', () => {
         await toggleVim(false);
     });
 
+    test(':e reads an existing note from disk and starts a new buffer only for a missing name', async () => {
+        window.go.desktop.App.SaveSession.mockResolvedValue({ success: true });
+        installSelectionLayoutStubs();
+        document.body.innerHTML = `
+            <div id="tab-bar"><div id="tab-strip"></div></div>
+            <div id="tab-panels"></div>
+            <div id="editor-container"></div>
+            <span id="file-type"></span>
+            <span id="status-text"></span>
+            <span id="cursor-position"></span>
+            <span id="word-count"></span>
+            <span id="char-count"></span>
+            <span id="reading-time"></span>
+        `;
+
+        await import('../frontend/js/app.js');
+        const { initEditor, createEditorView, toggleVim, getEditorContent } = await import('../frontend/js/editor.js');
+        const { setState, getState } = await import('../frontend/js/state.js');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
+        await initEditor();
+        const view = createEditorView();
+        await toggleVim(true);
+        const fileTab = { id: 'notes/vim.md', path: 'notes/vim.md', title: 'vim.md', type: 'file', dirty: false, mtime: 10 };
+        setState('openTabs', [fileTab]);
+        setState('activeTabId', fileTab.id);
+        setState('pinnedTabs', []);
+        view.focus();
+        await new Promise(resolve => setTimeout(resolve, 130));
+        const cm = getCM(view);
+
+        window.go.desktop.App.ReadFile.mockImplementation(async path => (path === 'notes/other.md'
+            ? { content: 'Existing text\n', path, mtime: 5 }
+            : null));
+        Vim.handleEx(cm, 'e other');
+        const deadline = Date.now() + 1000;
+        while (getEditorContent() !== 'Existing text\n' && Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        }
+
+        expect(window.go.desktop.App.ReadFile).toHaveBeenCalledWith('notes/other.md');
+        expect(getState('activeTabId')).toBe('notes/other.md');
+        expect(getEditorContent()).toBe('Existing text\n');
+        const existing = getState('openTabs').find(tab => tab.id === 'notes/other.md');
+        expect(existing).toMatchObject({ isNew: false, mtime: 5 });
+
+        Vim.handleEx(cm, 'e fresh');
+        const newDeadline = Date.now() + 1000;
+        while (getState('activeTabId') !== 'notes/fresh.md' && Date.now() < newDeadline) {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        expect(getState('openTabs').find(tab => tab.id === 'notes/fresh.md')).toMatchObject({ isNew: true });
+        await toggleVim(false);
+    });
+
     test('repairs stalled or wrapping Vim display-row motions', async () => {
         installSelectionLayoutStubs();
         document.body.innerHTML = `

@@ -713,8 +713,12 @@ describe('Interactive PDF export', () => {
             styledMermaid
         );
         expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
-        expect(window.vegaEmbed.mock.calls[0][2]).toEqual({ mode: 'vega', actions: false, renderer: 'svg' });
-        expect(window.vegaEmbed.mock.calls[1][2]).toEqual({ mode: 'vega-lite', actions: false, renderer: 'svg' });
+        // Printable charts go through the same vault-only loader as the editor.
+        const loader = { load: expect.any(Function), sanitize: expect.any(Function) };
+        expect(window.vegaEmbed.mock.calls[0][2]).toEqual({ mode: 'vega', actions: false, renderer: 'svg', loader });
+        expect(window.vegaEmbed.mock.calls[1][2]).toEqual({ mode: 'vega-lite', actions: false, renderer: 'svg', loader });
+        await expect(window.vegaEmbed.mock.calls[0][2].loader.load('https://example.com/data.csv')).rejects
+            .toMatchObject({ code: 'vega-resource-refused' });
         expect(vegaViews).toHaveLength(2);
         vegaViews.forEach(view => {
             expect(view.toSVG).toHaveBeenCalledTimes(1);
@@ -901,6 +905,21 @@ describe('Interactive PDF export', () => {
 
         await expect(pending).resolves.toMatchObject({ success: true, viewerError: 'xdg-open is unavailable' });
         expect(statusBar.set).toHaveBeenCalledWith('PDF exported beside the note — open it manually');
+    });
+
+    test('tells the author when files outside the vault were left out of the PDF', async () => {
+        const warning = 'The PDF was exported without a file that the note references outside the vault (“logo.png”). Copy them into the vault to include them.';
+        window.go.desktop.App.ExportPDF.mockResolvedValueOnce({ success: true, path: 'notes/report.pdf', engine: 'chromium', warning });
+
+        const pending = exportMarkdownToPDF({ path: 'notes/report.md', title: 'report.md', content: '# Report' });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const dialog = document.querySelector('.custom-modal-overlay, .custom-modal');
+        expect(document.body.textContent).toContain('Some files were left out of the PDF');
+        expect(document.body.textContent).toContain('logo.png');
+        (dialog || document).querySelector('.custom-modal-btn-confirm').click();
+
+        await expect(pending).resolves.toMatchObject({ success: true, warning });
+        expect(statusBar.set).toHaveBeenCalledWith('PDF exported beside the note — opened with your default viewer');
     });
 
     test('rejects non-Markdown exports and surfaces interactive-export failures', async () => {

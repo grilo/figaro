@@ -4,9 +4,12 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
+
+	"figaro/internal/mutations"
 )
 
 const tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
@@ -419,6 +422,7 @@ func TestCopyExternalPathsCopiesFilesAndFoldersWithoutRemovingSources(t *testing
 		t.Fatal(err)
 	}
 
+	dropFilesForTest(app, fileSource, folderSource)
 	result, err := app.CopyExternalPaths([]string{fileSource, folderSource}, "Imported", false)
 	if err != nil {
 		t.Fatalf("CopyExternalPaths: %v", err)
@@ -457,6 +461,7 @@ func TestExternalCopyModesRejectDuplicateBatchNamesBeforeWriting(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	dropFilesForTest(app, first, second)
 	modes := map[string]func() (*CopyExternalResult, error){
 		"copy": func() (*CopyExternalResult, error) {
 			return app.CopyExternalPaths([]string{first, second}, "Imported", false)
@@ -504,6 +509,7 @@ func TestMergeExternalPathsMergesDirectoriesAndKeepsCollisionCopies(t *testing.T
 		t.Fatal(err)
 	}
 
+	dropFilesForTest(app, source)
 	preflight, err := app.CopyExternalPaths([]string{source}, "Imported", false)
 	if err != nil {
 		t.Fatalf("CopyExternalPaths preflight: %v", err)
@@ -549,6 +555,7 @@ func TestCopyExternalPathsPreflightsConflictsBeforeWritingAnything(t *testing.T)
 		t.Fatal(err)
 	}
 
+	dropFilesForTest(app, newSource, existingSource)
 	result, err := app.CopyExternalPaths([]string{newSource, existingSource}, "Imported", false)
 	if err != nil {
 		t.Fatalf("CopyExternalPaths: %v", err)
@@ -574,6 +581,7 @@ func TestCopyExternalPathsReplacesOnlyAfterConfirmation(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	dropFilesForTest(app, source)
 	preflight, err := app.CopyExternalPaths([]string{source}, "Imported", false)
 	if err != nil {
 		t.Fatalf("CopyExternalPaths preflight: %v", err)
@@ -622,6 +630,7 @@ func TestCopyExternalPathsReplacesAConflictingFolderAsOneItem(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	dropFilesForTest(app, source)
 	preflight, err := app.CopyExternalPaths([]string{source}, "Imported", false)
 	if err != nil || preflight.Success || len(preflight.Conflicts) != 1 {
 		t.Fatalf("unexpected folder preflight: result=%+v err=%v", preflight, err)
@@ -650,6 +659,7 @@ func TestCopyExternalPathsRejectsSymlinks(t *testing.T) {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 
+	dropFilesForTest(app, link)
 	result, err := app.CopyExternalPaths([]string{link}, ".", false)
 	if err != nil {
 		t.Fatalf("CopyExternalPaths: %v", err)
@@ -811,5 +821,188 @@ func TestEnsureWelcomeNoteGreetsOnlyAVaultWithoutAnyNote(t *testing.T) {
 		if welcomeCreated(t, func(vaultPath string) { writeTestFile(t, vaultPath, note, "# Mine\n") }) {
 			t.Errorf("%s: Welcome.md was created in a vault that already holds %s", name, note)
 		}
+	}
+}
+
+// vaultUserFiles reads every file outside the vault's dot-folders, keyed by
+// slash-separated path, so a test can prove an operation lost nothing.
+func vaultUserFiles(t *testing.T, vaultPath string) map[string]string {
+	t.Helper()
+	files := make(map[string]string)
+	err := filepath.WalkDir(vaultPath, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if path != vaultPath && strings.HasPrefix(entry.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		relative, err := filepath.Rel(vaultPath, path)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		files[filepath.ToSlash(relative)] = string(data)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("read vault files: %v", err)
+	}
+	return files
+}
+
+// A folder dropped on its own parent finds itself at the destination. Merging
+// it "into" that folder copied it onto itself and then removed it.
+func TestMergeDirectoryRefusesToMergeAFolderWithItself(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "Projects/Drafts/report.md", "report")
+	writeTestFile(t, vaultPath, "Projects/Drafts/nested/plan.md", "plan")
+	writeTestFile(t, vaultPath, "Projects/index.md", "[Report](Drafts/report.md)\n")
+	before := vaultUserFiles(t, vaultPath)
+
+	for _, move := range [][2]string{{"Projects/Drafts", "Projects"}, {"Projects", ""}} {
+		preflight, err := app.MovePath(move[0], move[1])
+		if err != nil {
+			t.Fatalf("MovePath(%q, %q): %v", move[0], move[1], err)
+		}
+		if preflight.Success || preflight.MergeAvailable || preflight.Error != mutations.SameFolderError {
+			t.Fatalf("MovePath(%q, %q) = %+v, want the folder reported as already there with no merge offer", move[0], move[1], preflight)
+		}
+		merged, err := app.MergeDirectory(move[0], move[1])
+		if err != nil {
+			t.Fatalf("MergeDirectory(%q, %q): %v", move[0], move[1], err)
+		}
+		if merged.Success || merged.Error != mutations.SameFolderError {
+			t.Fatalf("MergeDirectory(%q, %q) = %+v, want it refused", move[0], move[1], merged)
+		}
+		if after := vaultUserFiles(t, vaultPath); !reflect.DeepEqual(after, before) {
+			t.Fatalf("refused merge of %q changed the vault:\n got %v\nwant %v", move[0], after, before)
+		}
+	}
+}
+
+// Merging "X/X" into the vault root has the destination "X", the folder that
+// holds the source. The inner "X/X/X" then maps onto "X/X" itself: its notes
+// were copied into the folder being merged and deleted with it.
+func TestMergeDirectoryIntoItsOwnAncestorNeverLosesAnInnerNamesakeFolder(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "X/keep.md", "outer")
+	writeTestFile(t, vaultPath, "X/X/a.md", "middle")
+	writeTestFile(t, vaultPath, "X/X/X/deep.md", "inner")
+	writeTestFile(t, vaultPath, "X/X/X/more/deeper.md", "innermost")
+	writeTestFile(t, vaultPath, "index.md", "[Deep](X/X/X/deep.md)\n")
+	before := vaultUserFiles(t, vaultPath)
+
+	preflight, err := app.MovePath("X/X", "")
+	if err != nil {
+		t.Fatalf("MovePath: %v", err)
+	}
+	if preflight.Success || preflight.MergeAvailable || !strings.Contains(preflight.Error, `the "X" folder inside it`) {
+		t.Fatalf("MovePath offered a merge that overwrites its own source: %+v", preflight)
+	}
+	merged, err := app.MergeDirectory("X/X", "")
+	if err != nil {
+		t.Fatalf("MergeDirectory: %v", err)
+	}
+	if merged.Success || merged.Error != preflight.Error {
+		t.Fatalf("MergeDirectory = %+v, want it refused with %q", merged, preflight.Error)
+	}
+	if after := vaultUserFiles(t, vaultPath); !reflect.DeepEqual(after, before) {
+		t.Fatalf("refused merge changed the vault:\n got %v\nwant %v", after, before)
+	}
+
+	// The same layout one level down: "Area/X/sub/X" merged into "Area".
+	writeTestFile(t, vaultPath, "Area/X/sub/X/note.md", "source")
+	writeTestFile(t, vaultPath, "Area/X/sub/X/sub/X/lost.md", "would be lost")
+	before = vaultUserFiles(t, vaultPath)
+	merged, err = app.MergeDirectory("Area/X/sub/X", "Area")
+	if err != nil {
+		t.Fatalf("MergeDirectory nested: %v", err)
+	}
+	if merged.Success || !strings.Contains(merged.Error, `the "sub/X" folder inside it`) {
+		t.Fatalf("nested MergeDirectory = %+v, want it refused", merged)
+	}
+	if after := vaultUserFiles(t, vaultPath); !reflect.DeepEqual(after, before) {
+		t.Fatalf("refused nested merge changed the vault:\n got %v\nwant %v", after, before)
+	}
+}
+
+// Flattening a doubled folder is a real merge and stays available: only an
+// inner namesake folder makes it unsafe. An inner namesake file collides with
+// the folder being merged and is kept under a copy name.
+func TestMergeDirectoryFlattensAFolderIntoItsOwnAncestor(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "X/keep.md", "outer keep")
+	writeTestFile(t, vaultPath, "X/sub/outer.md", "outer nested")
+	writeTestFile(t, vaultPath, "X/X/keep.md", "inner keep")
+	writeTestFile(t, vaultPath, "X/X/a.md", "inner note")
+	writeTestFile(t, vaultPath, "X/X/sub/inner.md", "inner nested")
+	writeTestFile(t, vaultPath, "X/X/X", "a file named like the folder")
+	writeTestFile(t, vaultPath, "index.md", "[A](X/X/a.md)\n")
+
+	preflight, err := app.MovePath("X/X", "")
+	if err != nil || preflight.Success || !preflight.MergeAvailable {
+		t.Fatalf("MovePath = %+v, %v; want the merge offered", preflight, err)
+	}
+	merged, err := app.MergeDirectory("X/X", "")
+	if err != nil || !merged.Success {
+		t.Fatalf("MergeDirectory = %+v, %v", merged, err)
+	}
+	want := map[string]string{
+		"X/keep.md":        "outer keep",
+		"X/keep (copy).md": "inner keep",
+		"X/a.md":           "inner note",
+		"X/sub/outer.md":   "outer nested",
+		"X/sub/inner.md":   "inner nested",
+		"X/X (copy)":       "a file named like the folder",
+		"index.md":         "[A](X/a.md)\n",
+	}
+	if got := vaultUserFiles(t, vaultPath); !reflect.DeepEqual(got, want) {
+		t.Fatalf("flattened vault:\n got %v\nwant %v", got, want)
+	}
+}
+
+// On a volume that folds letter case, a case variant of the source's own path
+// reaches the source or its parent. Names alone do not show that.
+func TestMergeDirectoryRecognizesItsOwnFoldersByIdentityOnCaseFoldingVolumes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	if !vaultFoldsLetterCase(t, vaultPath) {
+		t.Skip("the temporary filesystem is case-sensitive, so a case variant is a separate folder")
+	}
+	writeTestFile(t, vaultPath, "notes/keep.md", "outer")
+	writeTestFile(t, vaultPath, "notes/Notes/a.md", "middle")
+	writeTestFile(t, vaultPath, "notes/Notes/Notes/deep.md", "inner")
+	before := vaultUserFiles(t, vaultPath)
+
+	// "Notes" in the vault root is the folder "notes" that holds the source.
+	merged, err := app.MergeDirectory("notes/Notes", "")
+	if err != nil {
+		t.Fatalf("MergeDirectory: %v", err)
+	}
+	if merged.Success || !strings.Contains(merged.Error, "folder inside it") {
+		t.Fatalf("MergeDirectory = %+v, want the self-overwriting merge refused", merged)
+	}
+	// "NOTES/Notes" is the source itself.
+	preflight, err := app.MovePath("notes/Notes", "NOTES")
+	if err != nil {
+		t.Fatalf("MovePath: %v", err)
+	}
+	if preflight.Success || preflight.MergeAvailable || preflight.Error != mutations.SameFolderError {
+		t.Fatalf("MovePath = %+v, want the folder reported as already there", preflight)
+	}
+	if merged, err := app.MergeDirectory("notes/Notes", "NOTES"); err != nil || merged.Success || merged.Error != mutations.SameFolderError {
+		t.Fatalf("MergeDirectory onto a case variant of itself = %+v, %v", merged, err)
+	}
+	if after := vaultUserFiles(t, vaultPath); !reflect.DeepEqual(after, before) {
+		t.Fatalf("refused merges changed the vault:\n got %v\nwant %v", after, before)
 	}
 }

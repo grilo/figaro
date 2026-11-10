@@ -513,7 +513,10 @@ appearance therefore does not silently change the vault's portable output. The
 frontend gives that handoff a 30-second deadline. A protocol error or missing
 export clears the iframe spinner, reports a retryable failure, and never starts
 a filesystem write, so a service-side interruption cannot leave a diagram tab
-permanently locked in Saving state.
+permanently locked in Saving state. An open session never keeps the tab record
+it was mounted with: renaming or moving the file replaces that record, and the
+tab owner keeps the panel's id and path current, so `drawio.js` resolves the
+tab from the panel at each use and a later save writes to the new path.
 
 `core/editableDiagramModel.js` is the registry of editable SVG kinds: Draw.io
 (`.drawio.svg`) and Excalidraw (`.excalidraw.svg`). Each kind's id is also its
@@ -670,6 +673,18 @@ discovery requires the complete surface, and an architecture test compares the
 inventory with every exported Go `*App` method so either side fails immediately
 when the bridge contract drifts.
 
+Strings from the vault reach markup through one pure helper. `escapeHtml` in
+`core/htmlEscape.js` escapes `&`, `<`, `>`, both quotation marks and the
+backtick, so the same function is safe for text and for quoted attribute
+values. `fileTree.js`, `tabManager.js`, `backlinks.js`, `calendar.js`,
+`datePicker.js`, `dialogs.js`, `home.js` and `pdfExport.js` import it instead
+of keeping their own DOM-based copies, which left quotation marks as they
+were. Tab lookups by path use `CSS.escape`. Kanban column names are escaped
+wherever the board writes them, and a stored column color reaches markup only
+as `#rrggbb`: `storedAccentColor` in `core/colorPaletteModel.js` and Go's
+`validKanbanColor` apply the same six-digit rule, on load and in
+`SetColumnColor`.
+
 The Go executable keeps a deliberately thin root `main.go` to embed the
 root-owned `frontend/` tree and `wails.json`. Its production-only asset guard
 also lives at this boundary; the repository check rejects function declarations,
@@ -703,10 +718,36 @@ real effect boundaries; pure functions do not need wrapper interfaces.
 handles the updater's helper-process mode inside `application.New`. It then
 registers the bound `App` and a lifecycle service whose startup and shutdown
 hooks call `App.startup` and `App.shutdown`; the window's runtime-ready event
-calls `domReady`. Native file drops arrive as a window event that `Run`
-re-emits to the frontend as `native:files-dropped`; `<body>` is the only drop
-target. `wailsWindowRuntime` adapts window state, script execution, and the
-file chooser for the App's `windowRuntime` port.
+calls `domReady`. Native file drops arrive as a window event; `Run` records
+the dropped paths in `externalPathGrants`, whose limits the external-document
+paragraph under [Implemented refactoring order](#implemented-refactoring-order)
+describes, and then re-emits the drop to the frontend as
+`native:files-dropped`; `<body>` is the only drop target.
+`wailsWindowRuntime` adapts window state, script execution, and the file
+chooser for the App's `windowRuntime` port.
+
+A close the operating system asks for does not end the process. `Run` installs
+a `WindowClosing` hook, which runs before the Wails listener that destroys the
+window, and the application's `ShouldQuit`; both call `App.holdNativeClose`.
+`window_close_gate.go` keeps the decision pure:
+`nextWindowCloseDecision(state, pageReady, now)` answers proceed, ask, or hold.
+The first request emits `native:close-requested` and holds; the page answers
+through the `WindowCloseAcknowledged` and `WindowCloseDeclined` bindings. A
+close proceeds when the page is not ready yet, when the page has approved its
+own exit, or when it is requested again after a forwarded request has stayed
+unacknowledged for the 3-second `windowCloseAnswerGrace`, so a page that never
+answers cannot trap the window. Once acknowledged, a request holds until the
+page declines it, which lets the next close ask again, or approves its exit.
+`WindowClose` and `UpdateRestart` approve the gate before they leave, so the
+teardown's own close event is not forwarded back; a restart that fails
+withdraws the approval. On the page, `usecases/editorSaveProtection.js` owns
+the single `requestExit(exit)` flow behind the window button, the forwarded
+close (its optional `nativeClose` port: listen, acknowledge, decline), and the
+update restart, which `updateSettings.js` reaches through
+`requestApplicationExit` in `windowChrome.js`. Beyond its unit coverage, the
+path has been checked in the packaged Linux build (WebKitGTK) only; the native
+checks still needed on Windows and macOS are listed in
+[the testing contract](docs/testing/workspace.md#desktop-bridge-and-in-app-update-regressions).
 
 Asset middleware in `asset_routes.go` runs before Wails' own routes.
 `vaultRouteMiddleware` serves `/vault/` from the vault root.
@@ -719,13 +760,30 @@ client header. WebKitGTK omits Origin only on same-origin requests, so the
 hosted Draw.io frame and the sandboxed PDF preview are refused by origin.
 
 `internal/updates` owns the pure release decisions: published platforms, the
-`figaro-<tag>-<platform>-update` archive name and matcher, and version parsing.
-`app_updates.go` coordinates the opt-in setting, the startup check, and the
-Settings states through a narrow `updateService` port; `wailsUpdateService`
-adapts the Wails updater and its GitHub provider, which verifies each download
-against the release's `SHA256SUMS` before it is staged. Each update archive
+`figaro-<tag>-<platform>-update` archive name and matcher, version parsing,
+and the checksum requirement. `app_updates.go` coordinates the opt-in setting,
+the startup check, and the Settings states through a narrow `updateService`
+port; `wailsUpdateService` adapts the Wails updater and its GitHub provider,
+which verifies a download against the release's `SHA256SUMS` before it is
+staged. Each update archive
 holds exactly one entry (the executable, or `figaro.app`) so the updater
 can swap it in place.
+
+Verification is mandatory. The Wails provider attaches a digest only when the
+release has a `SHA256SUMS` line for the chosen archive and would otherwise
+install the download unverified, so `update_download.go` wraps it in
+`checksumRequiredProvider`. The pure `updates.RequireChecksum` refuses a
+missing manifest, a missing line, and a value that is not a SHA-256 digest;
+the wrapper still reports such a release from `Check` and refuses it in
+`Download`, before any byte is fetched. There is no signature verification:
+the checksum file comes from the same release as the archive.
+
+`newUpdateHTTPClient` replaces the Wails default client, whose 30-second total
+timeout a slow link could never meet. It sets no total timeout. The limits are
+15 seconds to dial, 15 seconds for the TLS handshake, 30 seconds for response
+headers, and, through `stallGuardTransport`, 60 seconds without body bytes;
+the stall timer runs only while a read waits, so a slow disk is not mistaken
+for a quiet server. `updateInstallCeiling` bounds one install at six hours.
 
 ### Applying the boundary to future work
 
@@ -891,9 +949,18 @@ documents under process-local opaque IDs; the frontend can read, save, open, or 
 cannot turn it into arbitrary filesystem access. The one webview-supplied path that becomes such a
 capability is a dropped Markdown file: `OpenDroppedMarkdownFiles` accepts only absolute paths to
 regular `.md`/`.markdown` files that are not symbolic links, returns vault members by their relative
-path instead, and reuses the existing ID for a repeated path. Wails v3 reports native drops as a
-window event that Go re-emits as an ordinary frontend event, so these rules, not the drop itself, bound what the
-editor can write outside the vault. The pure `externalDropAction` routes each drop by target (the
+path instead, and reuses the existing ID for a repeated path. `CopyExternalPaths`,
+`MergeExternalPaths` and `OpenDroppedMarkdownFiles` all take absolute source paths from the page,
+and act only on a path Figaro was handed: one recorded in `externalPathGrants` by the
+`WindowFilesDropped` handler before the page hears about the drop, or one already registered in
+`externalFileRegistry`. The ledger keeps the most recent 4,096 dropped paths and always keeps the
+newest drop whole. Any other path is refused with a message before it is inspected, or skipped
+among dropped Markdown files, so the page cannot probe for files. This is defence in depth, not a
+security boundary: under Wails v3.1.0 every platform's native drop handler passes the file names to
+the page, and only the runtime call the page sends back raises `WindowFilesDropped`, so a script
+already running in the window can forge a drop. The file-type, symbolic-link and containment rules
+above, not the drop itself, bound what the editor can write outside the vault. The pure
+`externalDropAction` routes each drop by target (the
 tree imports, Markdown elsewhere opens, other files ask only over the editor), and
 `externalFileNotice.js` renders the approved info notice for the active external tab. The initial capability snapshot closes the race
 when a second launch arrives before the webview event subscriber is ready, and frontend ID claiming
@@ -1433,6 +1500,32 @@ row; long unchanged stretches collapse to one separator. Small revisions use
 a line LCS; large revision pairs preserve their shared prefix/suffix and cap
 changed-line output so inspecting history cannot create an unbounded UI
 allocation.
+
+### Note merge and revision counts
+
+Merge Notes removes its sources by the same rule as deletion: nothing is
+removed that was not first archived. `usecases/noteMerge.js`
+(`createNoteMerge`) sequences four injected ports: save unsaved edits in the
+chosen notes (`prepareTabsForNoteMerge`; a note that cannot be saved stops the
+merge), call the backend, close the merged-away notes' tabs, and reload the
+surviving note's open tab from disk, because a stale buffer would replace the
+merged file on its next save. `MergeNotes` in `app_merge.go` compares the
+chosen notes by file identity and refuses one chosen twice. It archives every
+source in local history and registers each in the recovery list, with
+`recovery.UniqueID` keeping record IDs distinct, before the master is
+rewritten; unavailable history or an unreadable or unwritable list merges
+nothing. Records are withdrawn again for sources a failed write or removal
+left in the vault. The result carries `deleted_ids` beside `deleted`, and the
+shared index is updated for the affected notes only.
+
+The status bar's revision count does not walk the history per call.
+`commit_count.go` keeps a `commitCountIndex` for one state of the repository's
+references: the first `GetCommitCount` walks the log once and records the
+count of every path, later calls answer from memory while the references are
+unchanged, and new single-parent commits on the current branch, which is what
+each save adds, are diffed alone for up to 256 revisions. Any other reference
+change, such as a branch, tag, merge or rewrite made with Git, drops the index
+and walks again.
 
 ## Writing lenses and prose analysis
 
@@ -2732,8 +2825,13 @@ is accepted when every component is recognized by the same active dictionary,
 so terms such as `faster-than-usual` remain unmarked despite dictionary
 compound gaps. A right-click resolves
 replacement suggestions from those same cached dictionaries only for the
-diagnostic word under the pointer. Candidates must pass the active dictionary
-again and a conservative prose/edit-distance filter; ambiguous short typos
+diagnostic word under the pointer. `spellingWordAt` finds that word by parsing
+only the paragraph around the pointer, which `spellingWordScope` bounds; one
+block-structure pass over the preceding text runs only when a code or HTML
+block may still be open there, and only a reference label or a possibly
+defined acronym falls back to the whole-note ranges. The first right-click in
+a language still builds its dictionary on the UI thread. Candidates must pass
+the active dictionary again and a conservative prose/edit-distance filter; ambiguous short typos
 produce no replacement rather than a menu of obscure entries. A chosen
 candidate dispatches one normal undoable editor change. Its inline marks use
 the theme link accent and never add block height or change cursor geometry.
@@ -2852,15 +2950,19 @@ never `vault/.config/settings.json`. Its platform locations are:
 | macOS | `$HOME/Library/Application Support/figaro/machine-settings.json` |
 | Windows | `%LocalAppData%\figaro\machine-settings.json` |
 
-Schema version `1` has one optional `pdf_browser_path` field. Choosing a browser
+Schema version `1` has an optional `pdf_browser_path` field beside the
+`check_for_updates` opt-in. Choosing a browser
 does not trust the filename or a `--version` subprocess: Figaro launches the
 selected executable with the same isolated profile and Chrome DevTools
 Protocol path used by export, calls `Browser.getVersion`, and persists the path
 only when that succeeds. Clearing the setting removes the field and restores
-automatic discovery. An old vault-scoped `pdf_browser_path` is copied to the
-machine record once and then removed from the vault; an already configured
-machine-local value wins. If migration cannot safely write the local record,
-the legacy value is left in place for a later attempt.
+automatic discovery. An old vault-scoped `pdf_browser_path` is never adopted.
+A vault travels, and export starts the configured browser, so a shared or
+downloaded vault could otherwise name any executable. At startup
+`discardLegacyPDFBrowserPreference` removes the key from the vault's
+`.config/settings.json` and leaves the machine record untouched; the
+preference is only ever set on this machine, through the validated Settings
+choice.
 
 ## Theme identity and generated assets
 
@@ -3122,6 +3224,23 @@ Before **Generate PDF**, Figaro saves the exact in-memory Markdown and selected
 stylesheet snapshots used by the preview. This avoids a race where an edit is
 visible in the pane but an older on-disk version is exported.
 
+A Chromium export is confined at the browser boundary, not in markup: the
+printable HTML carries authored paths, and a `file:` URL or enough `../`
+reaches any file the user can read. `ChromiumPDFSession.RestrictResources`
+installs a `ResourcePolicy`; `restrictPageResources` enables DevTools request
+interception before the first navigation and answers every paused request,
+the document itself included, from that policy. The desktop adapter supplies
+`pdfResourceGuard`, built over the vault and the export workspace with both
+folders resolved once. The pure `pdfResourceDecision` permits inline `data:`
+and `about:blank`, permits a `file:` URL only when its real location, after
+symbolic links are followed, lies in one of those folders, and refuses the
+rest, including network URLs and files on another host. Existing files outside
+both folders, and `file:` URLs naming another host, are remembered, and
+`pdfBlockedResourceWarning` turns them into the export result's `warning`, which `pdfExport.js` shows as **Some
+files were left out of the PDF**. A browser that cannot intercept requests
+fails the render instead of printing unconfined. The Safari path is unchanged:
+it keeps WebKit's own read access to the vault folder and reports no warning.
+
 Chromium-family discovery validates capability through the same startup path
 as export: an isolated temporary profile, remote debugging endpoint, WebSocket
 connection, and `Browser.getVersion` request. A separate `--headless --version`
@@ -3185,13 +3304,31 @@ identity. Vega/Vega-Lite use `usecases/diagramOutputReuse.js`, with an
 injected renderer, a 64-entry LRU and a budget of 4,194,304 UTF-16 code units for retained
 keys and SVGs (about 8 MiB of UTF-16 payload). Pending-key retention is also bounded.
 Vega keys include effective source/configuration, normalized container dimensions,
-and font identity/loading generation. External URLs/images and expressions reading time, randomness
-or window/screen
+and font identity/loading generation. Specs with `url` or `href` entries and expressions reading
+time, randomness or window/screen
 state bypass reuse; failures and empty output are retryable. Font completion
 or a replaced engine clears entries and prevents earlier work from repopulating
 them. The DOM adapter rewrites generated SVG IDs and local references per mount,
 without replacing label text or external links. Printable and live callers share
 this renderer, with separate effective appearance/geometry inputs.
+
+Opening a note must not contact the network or read the disk through a
+diagram. `core/diagramSecurityModel.js` holds both pure policies. For Vega and
+Vega-Lite, every render receives the loader built by `createVegaResourceGuard`
+in `diagramRenderer.js`, the only way a chart reaches data, images and links;
+embed options merged from the spec cannot replace its two functions.
+`planVegaResourceAccess` lets data and image marks name only a file under
+`VEGA_VAULT_ROUTE` (`/vault/…`) on the application's own origin, plus an
+inline `data:image/…`, and keeps a link only as an absolute `http(s)` or
+`mailto:` address. A refused source is never requested; because Vega only logs
+a failed load, the guard remembers the refusal and fails the render with
+`vegaResourceRefusalMessage`, so the chart shows its error state. Mermaid
+stays at `securityLevel: 'loose'`, because `strict` removes every `<use>`
+element that draws the file and folder icons of tree-view diagrams. Instead
+`mermaidSvgWithoutScriptLinks` applies `mermaidSvgAttributeIsUnsafe` to the
+rendered SVG before it is cached or inserted, removing script elements,
+event-handler attributes, and `javascript:`, `vbscript:` or non-image `data:`
+addresses. An HTML label with a remote `<img>` still loads it.
 
 The live adapter injects `usecases/diagramRenderQueue.js` and
 `usecases/diagramQuietScheduler.js`. The scheduler waits 120 ms after key/input,
@@ -3210,8 +3347,8 @@ mount and are recreated. `diagramRenderIdentity` uses the renderer's own
 source/appearance/font/engine/width and volatile-input policy to validate a
 retained subtree after its new wrapper connects. Valid previews return in a
 microtask before paint, bypassing generation and SVG reparsing. Source changes,
-failed/missing output, font loading and external/ambient Vega data cannot return
-a stale preview. A capture-phase key listener detects active repeat bursts;
+failed/missing output, font loading and file-loading or ambient Vega data cannot
+return a stale preview. A capture-phase key listener detects active repeat bursts;
 prepared Mermaid restoration waits through those bursts, while Vega restores
 immediately. Active composition routes both through the quiet slot. This keeps
 Mermaid attachment/layout out of continuous keyboard input. Removing the
@@ -3404,6 +3541,23 @@ review and never turns a rejected read or create collision into an overwrite.
 Mouse/source mapping and CodeMirror selection remain in `editor.js`. Both new
 modules are statically imported and included in the existing eager bundle.
 
+The pure `vaultPathForNoteLink` in that model is the frontend's copy of the
+destination rule the Go rewriter and Vault Health apply
+(`resolveMarkdownLinkTarget`): a leading `/` is the vault root, `./` and `../`
+are relative to the linking note, and anything else is a vault path. The use
+case reads the linking note through its `getSourcePath` port and takes the
+link `kind`, because a Wikilink always names a vault path; the hover preview
+calls the same rule. `internal/links` decides what is not a vault path at all
+with `isExternalMarkdownDestination`: `#`, `//`, a scheme followed by `//`, or
+a known opaque scheme such as `mailto:`. A colon alone is an ordinary filename
+character, so links to `Re: plan.md` are rewritten, resolved and converted.
+The PDF preview and print renderer are not aligned yet and still treat any
+`scheme:` prefix as a URL. Link-style conversion (`collectVaultLinkStyleRewrites`)
+admits notes by the index's rules and passes over one that is oversized,
+binary, not UTF-8 or unreadable, and `vault.WalkMarkdown` leaves out a note
+whose read fails with a permission or not-found error, so one such note does
+not fail the operation for the rest of the vault.
+
 File-tree rename is more than a filesystem move. For files, the frontend first
 saves dirty buffers, then asks the vault layer for a read-only preview of the
 exact Markdown rewrites already planned by `internal/links`. The pure
@@ -3422,6 +3576,16 @@ buffer saves, reference preview, writing-data barrier, native mutation, and open
 file refresh. Reporting a phase does not cancel or time out the native mutation;
 completion still depends on its authoritative result. CSS assets follow the
 same preview contract and skip the choice dialog when no incoming links exist.
+
+Folder moves and merges keep the plan/adapter split. `mutations.PlanMove`
+reports a folder moved onto the place it already occupies as `SameFolderError`
+instead of proposing a merge. `mutations.PlanDirectoryMerge` decides a merge
+from `DirectoryMergeFacts`, which the `planDirectoryMerge` adapter in
+`app_vault_mutations.go` observes on disk because names alone do not settle
+the question on a case-insensitive volume. It refuses a folder merged with
+itself, into its own subtree, and into an ancestor when the source holds a
+folder at the path that would land on the source (`X/X/X` when `X/X` merges
+into `X`); flattening `X/X` into `X` otherwise proceeds.
 
 ## Linux desktop integration
 

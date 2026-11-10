@@ -13,6 +13,7 @@ import { setState, getState } from './state.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
+import { storedAccentColor } from './core/colorPaletteModel.js';
 import { openColorPalettePicker } from './colorPalettePicker.js';
 import { openDatePicker } from './datePicker.js';
 import { mountFloatingMenu } from './floatingMenu.js';
@@ -585,6 +586,11 @@ function applyKanbanColumns(result) {
     setState('kanbanCompletionColumns', [...savedKanbanColumns]);
 }
 
+/** kanban-colors.json travels with the vault: only a palette-shaped color reaches markup. */
+function columnColor(column) {
+    return Object.hasOwn(kanbanColors, column) ? storedAccentColor(kanbanColors[column]) : '';
+}
+
 function renderKanbanBadges(boardData) {
     const container = document.getElementById('kanban-badges');
     if (!container) return;
@@ -592,7 +598,7 @@ function renderKanbanBadges(boardData) {
     let html = '';
     for (const column of kanbanColumns) {
         const count = (boardData[column] || []).length;
-        const color = kanbanColors[column];
+        const color = columnColor(column);
         if (color && count > 0) {
             html += `<span class="ui-badge badge" style="background:${color};color:var(--button-text)">${count}</span>`;
         }
@@ -700,7 +706,8 @@ function renderColumns(container, boardData, focusCol) {
         renderState.layouts.set(column, layout);
         const isSystem = ['todo', 'wip', 'done'].includes(column);
         const isFocused = column === focusCol;
-        const selectedColor = ACCENT_COLOR_PALETTE.includes(kanbanColors[column]) ? kanbanColors[column] : '';
+        const selectedColor = ACCENT_COLOR_PALETTE.includes(columnColor(column)) ? columnColor(column) : '';
+        const columnAttribute = escapeAttribute(column);
         const colorLabel = selectedColor
             ? `Change color for #${column}; selected color ${selectedColor}`
             : `Set color for #${column}; no color selected`;
@@ -708,24 +715,24 @@ function renderColumns(container, boardData, focusCol) {
             ? `<span class="kanban-column-color-indicator" style="--kanban-column-color:${selectedColor}" aria-hidden="true"></span>`
             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 0 20"></path><path d="M2 12h20"></path></svg>';
         html += `
-            <div class="kanban-column ${isFocused ? 'focused' : ''}" data-column="${column}">
+            <div class="kanban-column ${isFocused ? 'focused' : ''}" data-column="${columnAttribute}">
                 <div class="kanban-column-header">
-                    <span class="kanban-column-title">#${column}</span>
+                    <span class="kanban-column-title">#${escapeHtml(column)}</span>
                     <div class="kanban-column-actions">
-                        <button class="ui-icon-button ui-icon-button--small kanban-column-btn color-col" title="${escapeAttribute(colorLabel)}" aria-label="${escapeAttribute(colorLabel)}" data-column="${column}" data-selected-color="${selectedColor}">
+                        <button class="ui-icon-button ui-icon-button--small kanban-column-btn color-col" title="${escapeAttribute(colorLabel)}" aria-label="${escapeAttribute(colorLabel)}" data-column="${columnAttribute}" data-selected-color="${selectedColor}">
                             ${colorIndicator}
                         </button>
                         ${!isSystem ? `
-                            <button class="ui-icon-button ui-icon-button--small kanban-column-btn rename-col" title="Rename column" data-column="${column}">
+                            <button class="ui-icon-button ui-icon-button--small kanban-column-btn rename-col" title="Rename column" data-column="${columnAttribute}">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             </button>
-                            <button class="ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-column-btn delete-col" title="Delete column" data-column="${column}">
+                            <button class="ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-column-btn delete-col" title="Delete column" data-column="${columnAttribute}">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                             </button>
                         ` : ''}
                     </div>
                 </div>
-                <div class="kanban-column-cards" data-column="${column}">
+                <div class="kanban-column-cards" data-column="${columnAttribute}">
                     ${renderCards(tasks, range, layout)}
                 </div>
             </div>
@@ -873,7 +880,7 @@ function openKanbanCardMenu(anchor, card) {
  */
 function showColorPicker(anchorBtn, columnName) {
     return openColorPalettePicker(anchorBtn, {
-        currentColor: kanbanColors[columnName] || '',
+        currentColor: columnColor(columnName),
         emptyLabel: 'No color',
         label: `Choose color for #${columnName}`,
         onSelect: color => setColumnColor(columnName, color),
@@ -923,7 +930,7 @@ function renderCard(task, index, cardCount) {
          aria-posinset="${index + 1}" aria-setsize="${cardCount}"
          draggable="true"
          data-file="${escapeAttribute(task.file)}"
-         data-line="${task.line}"
+         data-line="${escapeAttribute(task.line)}"
          data-tag="${escapeAttribute(task.tag)}"
          data-card-index="${index}"
          data-start-date="${escapeAttribute(startDate)}"

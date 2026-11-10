@@ -27,7 +27,10 @@ type PDFExportResult struct {
 	Path        string `json:"path,omitempty"`
 	Engine      string `json:"engine,omitempty"`
 	ViewerError string `json:"viewerError,omitempty"`
-	Error       string `json:"error,omitempty"`
+	// Warning describes files outside the vault that a successful export
+	// left out of the PDF.
+	Warning string `json:"warning,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 const starterPrintStylesheetAsset = "frontend/pdf/starter-pdf.css"
@@ -346,12 +349,20 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 	}
 	temporaryPDF := filepath.Join(workspace, "export.pdf")
 
+	var resources *pdfResourceGuard
 	if browser.Engine == pdfexport.EngineSafari {
 		err = renderSafariPDF(ctx, inputHTML, temporaryPDF, a.vaultPath)
 	} else {
 		profileDir := filepath.Join(workspace, "browser-profile")
-		if err = os.MkdirAll(profileDir, 0700); err == nil {
+		// The document may load files from the vault and from this export's
+		// workspace (the document itself and the KaTeX assets), nothing else.
+		resources, err = newPDFResourceGuard(a.vaultPath, workspace)
+		if err == nil {
+			err = os.MkdirAll(profileDir, 0700)
+		}
+		if err == nil {
 			err = pdfexport.WithChromiumPDFSession(ctx, browser, profileDir, func(session *pdfexport.ChromiumPDFSession) error {
+				session.RestrictResources(resources.allow)
 				if pageNumbers {
 					if capabilityErr := session.RequirePageMarginBoxes(); capabilityErr != nil {
 						return capabilityErr
@@ -385,6 +396,12 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 		Success: true,
 		Path:    outputPath,
 		Engine:  string(browser.Engine),
+	}
+	if resources != nil {
+		if blocked := resources.blockedResources(); len(blocked) > 0 {
+			log.Printf("[pdf-export] Left out %d file(s) outside the vault, first %q", len(blocked), blocked[0])
+			result.Warning = pdfBlockedResourceWarning(blocked)
+		}
 	}
 	// Wails' BrowserOpenURL deliberately routes URLs to the default web
 	// browser. A PDF is a file, not a web URL: use the platform file handler so

@@ -52,6 +52,13 @@ Choose **Not now** or **Later** to keep working; the update stays available in
 Settings. On a platform without published release builds, the setting is
 unavailable.
 
+A slow connection is fine: Figaro gives up on a download only when it stops
+making progress, and you can try again. Restarting into the new version asks
+about unsaved notes, as closing Figaro does; choose **Keep editing** and the
+update waits under **Restart to update** in Settings. A release published
+without checksums is reported but not installed. Download it from the release
+page instead.
+
 ## Bring your notes
 
 Copy or drop files and folders into the file tree to import them. Figaro asks
@@ -82,7 +89,10 @@ Collapse the sidebar with **Ctrl/Cmd+Shift+B** to enter Pure mode. Expand it to
 restore the surrounding workspace and any previously open details pane.
 
 Keep several notes open in tabs; middle-click a tab to close it. Figaro asks
-before discarding unsaved changes.
+before discarding unsaved changes. Closing Figaro asks too, whether you use
+its own close button or the operating system's: **Alt+F4**, the taskbar or
+window manager, the macOS close button, or **Quit**. Choose **Save and exit**,
+**Keep editing**, or **Exit without saving**.
 
 The buttons beside the document open Outline, Raw Text Preview, PDF Preview,
 or Writing lenses, and keep your cursor in the editor so you can carry on
@@ -100,7 +110,9 @@ Vault preferences live in `.config/` inside the vault and can be tracked in
 Git. Machine preferences live in the operating system's application-data
 directory. These include open tabs and cursor positions, window geometry, and
 the selected PDF browser, so a synchronized vault never carries one
-computer's workspace to another.
+computer's workspace to another. Figaro does not take a PDF browser from a
+vault's settings; if export cannot find one, choose it under **Settings → PDF
+Export** on that computer.
 Keep the whole vault, including `.config/`, when backing up your workspace.
 
 ## Save, history, and recovery
@@ -131,7 +143,8 @@ Figaro selects the most recently used remaining tab, or Home when none remain.
 Use the status bar's **Undo** within ten seconds after deletion, or open
 **Settings → Vault care → Recently deleted** later. Restore refuses to overwrite
 an item that now occupies the original path. The list refreshes after deleting or
-restoring an item, including when Settings stays open.
+restoring an item, including when Settings stays open. Notes merged away by
+[Merge Notes](NOTES_AND_PLANNING.md#organize-the-file-tree) are listed there too.
 
 If a save fails, keep Figaro open and use **Retry**, **Copy unsaved text**, or
 **Keep editing**. The unsaved buffer remains in memory. File warnings in the

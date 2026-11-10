@@ -89,6 +89,7 @@ import {
     contextMenuAnchorPoint,
     dismissContextMenu,
 } from './contextMenu.js';
+import { escapeHtml } from './core/htmlEscape.js';
 
 /**
  * View Manager — shows either the editor or tab panels, never both.
@@ -371,7 +372,7 @@ function getTabDropDestination(tabStrip, event) {
     if (!visibleTabs.length) return null;
 
     const tabElements = visibleTabs
-        .map(tab => tabStrip.querySelector(`.tab[data-tab-id="${tab.id}"]`))
+        .map(tab => tabStrip.querySelector(`.tab[data-tab-id="${CSS.escape(tab.id)}"]`))
         .filter(Boolean);
     if (!tabElements.length) return null;
 
@@ -984,7 +985,7 @@ async function renderTabContent(
         setView('panels');
         const panelsContainer = document.getElementById('tab-panels');
         
-        let panel = panelsContainer.querySelector(`[data-tab-id="${tab.id}"]`);
+        let panel = panelsContainer.querySelector(`[data-tab-id="${CSS.escape(tab.id)}"]`);
         if (!panel) {
             panel = document.createElement('div');
             panel.className = 'tab-panel';
@@ -1197,7 +1198,7 @@ function renderWorkspaceHome(panel) {
 }
 
 function renderCalendarTab(panel, tab) {
-    panel.innerHTML = `<div class="calendar-view-wrapper"><div class="calendar-view-header"><h2>Mention of Date: [[${tab.dateStr}]]</h2></div><div class="results-list" id="calendar-results-${tab.dateStr}"></div></div>`;
+    panel.innerHTML = `<div class="calendar-view-wrapper"><div class="calendar-view-header"><h2>Mention of Date: [[${escapeHtml(tab.dateStr)}]]</h2></div><div class="results-list" id="${escapeHtml(`calendar-results-${tab.dateStr}`)}"></div></div>`;
     loadCalendarResults(tab.dateStr, `calendar-results-${tab.dateStr}`);
 }
 
@@ -1213,7 +1214,7 @@ function renderCalendarWorkspaceTab(panel) {
 
 function renderBacklinksTab(panel, tab) {
     const fileName = tab.targetPath.split('/').pop().replace('.md', '');
-    panel.innerHTML = `<div class="backlinks-view-wrapper"><div class="backlinks-view-header"><h2>Relationships for [[${fileName}]]</h2><p class="backlinks-subtitle">Linked notes and plain-text mentions across your vault.</p></div><div class="results-list" id="backlinks-results-${tab.id}"></div></div>`;
+    panel.innerHTML = `<div class="backlinks-view-wrapper"><div class="backlinks-view-header"><h2>Relationships for [[${escapeHtml(fileName)}]]</h2><p class="backlinks-subtitle">Linked notes and plain-text mentions across your vault.</p></div><div class="results-list" id="${escapeHtml(`backlinks-results-${tab.id}`)}"></div></div>`;
     loadBacklinksResults(tab.targetPath, `backlinks-results-${tab.id}`);
 }
 
@@ -1307,7 +1308,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         if (!shouldClose) return false;
     }
     
-    const panel = document.querySelector(`.tab-panel[data-tab-id="${tabId}"]`);
+    const panel = document.querySelector(`.tab-panel[data-tab-id="${CSS.escape(tabId)}"]`);
     if (panel) {
         if (animate && getState('activeTabId') === tabId && tab.type === 'settings') {
             await playExitAnimation(panel);
@@ -1491,6 +1492,16 @@ export async function prepareTabsForPathCopy(path) {
     const affected = getState('openTabs').filter(tab => isFileBackedTab(tab) &&
         (normalizeTabPath(tab.path) === normalized || normalizeTabPath(tab.path).startsWith(normalized + '/')));
     return persistTabsBeforePathOperation(affected, 'copying');
+}
+
+/**
+ * Persist dirty tabs of the notes about to be merged. The merge reads every
+ * note from disk, so text that exists only in an editor would be left out.
+ */
+export async function prepareTabsForNoteMerge(paths) {
+    const merging = new Set((Array.isArray(paths) ? paths : []).map(normalizeTabPath).filter(Boolean));
+    const affected = getState('openTabs').filter(tab => isFileBackedTab(tab) && merging.has(normalizeTabPath(tab.path)));
+    return persistTabsBeforePathOperation(affected, 'merging');
 }
 
 /** Persist dirty file-backed tabs before their current disk contents are archived and deleted. */
@@ -1796,7 +1807,7 @@ export function renderTabBar() {
         const tooltip = `${tab.path || tab.title}${tab.dirty ? ' (unsaved)' : ''}${isPinned ? ' (pinned)' : ''}`;
         return `
         <div class="${tabClasses}"
-                data-tab-id="${tab.id}"
+                data-tab-id="${escapeHtml(tab.id)}"
                 role="tab"
                 tabindex="${tab.id === keyboardTabId ? '0' : '-1'}"
                 aria-selected="${isActive}"
@@ -2195,16 +2206,10 @@ function renderAllTabsDropdown(dropdown) {
         const active = t.id === activeId ? ' active' : '';
         const dirty = t.dirty ? ' dirty' : '';
         const location = tabLocationLabel(t);
-        return `<button type="button" role="menuitem" class="ui-menu-item all-tabs-item${active}${dirty}" data-tab-id="${t.id}" aria-current="${t.id === activeId}" aria-label="${escapeHtml(tabAccessibleLabel(t))}" title="${escapeHtml(t.path || t.title || t.id)}" tabindex="${t.id === activeId ? '0' : '-1'}">
+        return `<button type="button" role="menuitem" class="ui-menu-item all-tabs-item${active}${dirty}" data-tab-id="${escapeHtml(t.id)}" aria-current="${t.id === activeId}" aria-label="${escapeHtml(tabAccessibleLabel(t))}" title="${escapeHtml(t.path || t.title || t.id)}" tabindex="${t.id === activeId ? '0' : '-1'}">
             <span class="all-tabs-item-copy"><span class="all-tabs-item-title">${escapeHtml(t.title || t.id)}</span>${location ? `<span class="all-tabs-item-location">${escapeHtml(location)}</span>` : ''}</span>
         </button>`;
     }).join('');
-}
-
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
 }
 
 function renderSettingsTab(panel, _tab) {

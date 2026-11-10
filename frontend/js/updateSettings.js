@@ -9,6 +9,7 @@
 import { backend as defaultBackend } from './backend.js';
 import { confirmDialog as defaultConfirm } from './dialogs.js';
 import { describeUpdateStatus, updateActionLabel } from './core/updateModel.js';
+import { requestApplicationExit } from './windowChrome.js';
 
 let notificationsInitialized = false;
 
@@ -21,7 +22,7 @@ function isActive(root) {
 }
 
 /** Bind the Updates settings card to the native updater. */
-export async function initUpdateSettings(root = document, { backend = defaultBackend } = {}) {
+export async function initUpdateSettings(root = document, { backend = defaultBackend, requestExit = requestApplicationExit } = {}) {
     const toggle = findIn(root, '#update-checks-toggle');
     const status = findIn(root, '#update-status');
     const check = findIn(root, '#update-check');
@@ -29,7 +30,9 @@ export async function initUpdateSettings(root = document, { backend = defaultBac
     if (!toggle || !status || !check || !action) return false;
 
     let pendingAction = null;
+    let shown = {};
     const render = (update) => {
+        shown = update;
         const description = describeUpdateStatus(update);
         status.dataset.kind = description.kind;
         status.textContent = description.message;
@@ -98,8 +101,17 @@ export async function initUpdateSettings(root = document, { backend = defaultBac
         const next = pendingAction;
         if (!next) return;
         busy(next === 'install' ? 'Downloading and verifying the update…' : 'Restarting Figaro…');
+        const staged = shown;
         try {
-            const result = next === 'install' ? await backend().UpdateInstall() : await backend().UpdateRestart();
+            let result;
+            if (next === 'install') {
+                result = await backend().UpdateInstall();
+            } else {
+                // Restarting is leaving: unsaved notes are saved or the author
+                // is asked first. Keeping on editing leaves the update staged.
+                const exiting = await requestExit(async () => { result = await backend().UpdateRestart(); });
+                if (!exiting) result = staged;
+            }
             if (isActive(root)) render(result);
         } catch (error) {
             if (isActive(root)) render({ state: 'error', error: error?.message || 'The update could not be completed.' });
@@ -118,6 +130,7 @@ export async function initUpdateSettings(root = document, { backend = defaultBac
 export async function initUpdateNotifications({
     backend = defaultBackend,
     confirm = defaultConfirm,
+    requestExit = requestApplicationExit,
 } = {}) {
     if (notificationsInitialized) return false;
     notificationsInitialized = true;
@@ -149,7 +162,8 @@ export async function initUpdateNotifications({
             : { confirmLabel: 'OK', cancelLabel: 'Close', tone: 'warning' },
     );
     if (restart === 'confirm' && description.action === 'restart') {
-        await backend().UpdateRestart();
+        // The restart goes through the same unsaved-changes flow as closing.
+        await requestExit(() => backend().UpdateRestart());
     }
     return true;
 }

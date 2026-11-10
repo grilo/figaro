@@ -13,7 +13,7 @@ function harness(overrides = {}) {
         close: jest.fn(), saveSession: jest.fn(), ...overrides,
     };
     const ready = installEditorSaveProtection(ports);
-    return { ports, handlers, ready, close: () => requestClose(), release: value => releaseSettings(value), tab };
+    return { ports, handlers, ready, close: () => requestClose(), closeWith: exit => requestClose(exit), release: value => releaseSettings(value), tab };
 }
 
 test('installs close protection before startup settings or optional services settle', async () => {
@@ -70,4 +70,75 @@ test('quitting with an unsaved drawing asks first and saves it through its edito
     expect(saveDrawing).toHaveBeenCalledWith(drawing, { failurePrompt: 'always' });
     expect(h.ports.save).not.toHaveBeenCalled();
     expect(h.ports.close).toHaveBeenCalled();
+});
+
+describe('a close the operating system asks for', () => {
+    function native(overrides = {}) {
+        let request;
+        const nativeClose = { listen: handler => { request = handler; }, acknowledge: jest.fn(), decline: jest.fn() };
+        const h = harness({ nativeClose, ...overrides });
+        return { ...h, nativeClose, request: () => request() };
+    }
+
+    test('is acknowledged at once, then asks about unsaved notes and saves before closing', async () => {
+        let answer;
+        const h = native({ confirmClose: jest.fn(() => new Promise(resolve => { answer = resolve; })) });
+        const closing = h.request();
+        await Promise.resolve();
+        expect(h.nativeClose.acknowledge).toHaveBeenCalledTimes(1);
+        expect(h.ports.close).not.toHaveBeenCalled();
+
+        answer('confirm');
+        await closing;
+        expect(h.ports.save).toHaveBeenCalledWith(h.tab, 'latest text', { failurePrompt: 'always' });
+        expect(h.ports.close).toHaveBeenCalledTimes(1);
+        expect(h.nativeClose.decline).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        ['keeping on editing', { confirmClose: async () => false }],
+        ['a save that fails', { save: async () => { throw new Error('disk full'); } }],
+    ])('%s keeps the window open and lets the next request ask again', async (_name, overrides) => {
+        const h = native(overrides);
+        await h.request();
+        expect(h.ports.close).not.toHaveBeenCalled();
+        expect(h.nativeClose.decline).toHaveBeenCalledTimes(1);
+        expect(h.tab.dirty).toBe(true);
+    });
+
+    test('a flow that fails releases the host instead of holding every later close', async () => {
+        const h = native({ confirmClose: async () => { throw new Error('dialog unavailable'); } });
+        await h.request();
+        expect(h.ports.close).not.toHaveBeenCalled();
+        expect(h.nativeClose.decline).toHaveBeenCalledTimes(1);
+    });
+
+    test('a second request while the prompt is open is acknowledged without declining the first', async () => {
+        let answer;
+        const h = native({ confirmClose: jest.fn(() => new Promise(resolve => { answer = resolve; })) });
+        const first = h.request();
+        await Promise.resolve();
+        await h.request();
+        expect(h.nativeClose.acknowledge).toHaveBeenCalledTimes(2);
+        expect(h.nativeClose.decline).not.toHaveBeenCalled();
+        expect(h.ports.confirmClose).toHaveBeenCalledTimes(1);
+
+        answer('extra');
+        await first;
+        expect(h.ports.close).toHaveBeenCalledTimes(1);
+    });
+});
+
+test('another way of leaving runs the same flow and reports whether Figaro is exiting', async () => {
+    const restart = jest.fn();
+    const kept = harness({ confirmClose: async () => false });
+    await expect(kept.closeWith(restart)).resolves.toBe(false);
+    expect(restart).not.toHaveBeenCalled();
+
+    const leaving = harness();
+    await expect(leaving.closeWith(restart)).resolves.toBe(true);
+    expect(leaving.ports.save).toHaveBeenCalled();
+    expect(leaving.ports.saveSession).toHaveBeenCalledTimes(1);
+    expect(restart).toHaveBeenCalledTimes(1);
+    expect(leaving.ports.close).not.toHaveBeenCalled();
 });

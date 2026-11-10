@@ -1,3 +1,4 @@
+import { storedAccentColor } from './colorPaletteModel.js';
 import { isISODate, localISODate, shiftISODate } from './dueDateModel.js';
 import { CALENDAR_TIMELINE_DAY_COUNT } from './timelineModel.js';
 
@@ -32,7 +33,7 @@ export function ganttTasks(board, schedules = [], colors = {}) {
             const schedule = scheduleForTask(card, scheduleIndex);
             const end = schedule ? schedule.end : card.due_date || '';
             unique.set(key, {
-                ...card, key, column, color: /^#[\da-f]{6}$/i.test(colors[column] || '') ? colors[column] : '',
+                ...card, key, column, color: storedAccentColor(colors[column]),
                 done: column === 'done' || Boolean(card.completed),
                 start: schedule ? schedule.start : card.start_date || '', end, scheduleID: schedule?.id || '',
             });

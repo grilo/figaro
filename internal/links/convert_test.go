@@ -70,3 +70,16 @@ func TestConvertVaultLinksResolvesExplicitRelativeMarkdownTargets(t *testing.T) 
 		t.Fatalf("relative conversion = %q, %d; want %q, 1", got, count, want)
 	}
 }
+
+func TestConvertVaultLinksConvertsNotesWithAColonInTheName(t *testing.T) {
+	exists := noteSet("Re: plan.md")
+	source := "[Plan](Re:%20plan.md) [Mail](mailto:plan@example.com)"
+	wiki, count := ConvertVaultLinks(source, "index.md", WikiLinkStyle, exists)
+	if want := "[[Re: plan.md|Plan]] [Mail](mailto:plan@example.com)"; wiki != want || count != 1 {
+		t.Fatalf("wiki conversion = %q, %d; want %q, 1", wiki, count, want)
+	}
+	markdown, count := ConvertVaultLinks(wiki, "index.md", MarkdownLinkStyle, exists)
+	if markdown != source || count != 1 {
+		t.Fatalf("Markdown round trip = %q, %d; want %q, 1", markdown, count, source)
+	}
+}

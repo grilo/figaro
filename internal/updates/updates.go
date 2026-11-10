@@ -8,6 +8,8 @@
 package updates
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"strings"
 )
 
@@ -77,4 +79,29 @@ func CurrentVersion(productVersion string) (string, bool) {
 		return "", false
 	}
 	return version, true
+}
+
+// RequireChecksum decides whether a release archive may be installed, given
+// what the release's checksum manifest said about it. Verification is
+// mandatory: an archive the manifest does not vouch for with a SHA-256 digest
+// is refused, whether the manifest is missing, has no line for the archive,
+// or holds something that is not a SHA-256 digest. A mismatch between this
+// digest and the downloaded bytes is the updater engine's check.
+func RequireChecksum(asset, algorithm string, digest []byte) error {
+	if strings.TrimSpace(asset) == "" {
+		asset = "the update archive"
+	}
+	if len(digest) == 0 {
+		return fmt.Errorf(
+			"this release has no SHA-256 checksum for %s in %s, so Figaro cannot verify the download and did not install it. Download the release from its GitHub page instead",
+			asset, ChecksumAsset,
+		)
+	}
+	if algorithm != "sha256" || len(digest) != sha256.Size {
+		return fmt.Errorf(
+			"the checksum published for %s in %s is not a SHA-256 digest, so Figaro cannot verify the download and did not install it",
+			asset, ChecksumAsset,
+		)
+	}
+	return nil
 }

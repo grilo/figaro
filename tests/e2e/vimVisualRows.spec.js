@@ -420,6 +420,17 @@ test('moves Vim Normal-mode j/k and arrows by visual rows without changing opera
         const view = window.__vimVisualRowsView; view.dispatch({ selection: { anchor: 0 }, scrollIntoView: true });
     });
     await expect(page.locator('.cm-live-diagram svg')).toBeVisible();
+    // The cursor left a revealed fence. Its widget is rebuilt at a provisional
+    // height and settles a frame later, while the preview stays visible
+    // throughout, so coordinates below the diagram are read only once they
+    // have stopped moving. Reading them earlier depends on runner speed.
+    await expect.poll(() => page.evaluate(async () => {
+        const view = window.__vimVisualRowsView;
+        const top = () => view.coordsAtPos(view.state.doc.line(6).from + 2).top;
+        const before = top();
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return top() === before;
+    })).toBe(true);
     for (const reverse of [false, true]) {
         const points = await page.evaluate(() => {
             const view = window.__vimVisualRowsView;

@@ -37,6 +37,7 @@ import {
     refreshTabsForUpdatedLinks,
     replaceActiveFileTab,
     closeTabsForDeletedPath,
+    prepareTabsForNoteMerge,
     prepareTabsForPathCopy,
     prepareTabsForPathDelete,
     prepareTabsForPathMove,
@@ -73,7 +74,10 @@ import { registerVaultChangeEvents } from './vaultEvents.js';
 import { initUpdateNotifications } from './updateSettings.js';
 import { configureLinkStyleWorkspace, initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitEnabled } from './automation.js';
-import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
+import {
+    initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler,
+    NATIVE_CLOSE_REQUESTED_EVENT, acknowledgeNativeCloseRequest, declineNativeCloseRequest,
+} from './windowChrome.js';
 import { initEditorBreadcrumb } from './editorBreadcrumb.js';
 import { initPureEditingChrome } from './pureEditingChrome.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
@@ -142,6 +146,7 @@ configureFileTreeWorkspace({
     closeTabsForDeletedPath,
     openFile: handleFileOpen,
     openTab,
+    prepareTabsForNoteMerge,
     prepareTabsForPathCopy,
     prepareTabsForPathDelete,
     prepareTabsForPathMove,
@@ -531,7 +536,7 @@ export function initKeyboardShortcuts() {
 /**
  * Handle file opening from file tree
  */
-export async function handleFileOpen(filePath) {
+export async function handleFileOpen(filePath, options) {
     try {
         const result = await backend().ReadFile(filePath);
         if (result) {
@@ -559,6 +564,12 @@ export async function handleFileOpen(filePath) {
                 mtime: result.mtime,
                 preparedFile: result,
             });
+            return true;
+        }
+        // No file has this name. Only a request that names a note to start
+        // (Vim :e) gets an unsaved buffer for it.
+        if (options?.createMissing === true) {
+            openTab(filePath, filePath.split('/').pop() || filePath, 'file', { path: filePath, isNew: true });
             return true;
         }
         return false;
@@ -631,6 +642,13 @@ function installStartupSaveProtection() {
     return installEditorSaveProtection({
         listen: (name, handler) => window.addEventListener(name, handler),
         registerClose: setWindowCloseRequestHandler,
+        // Alt+F4, the window manager, the macOS close button and Quit reach
+        // the host first; it forwards them here instead of closing.
+        nativeClose: {
+            listen: handler => window.runtime?.EventsOn?.(NATIVE_CLOSE_REQUESTED_EVENT, () => { void handler(); }),
+            acknowledge: acknowledgeNativeCloseRequest,
+            decline: declineNativeCloseRequest,
+        },
         loadInterval: () => backend().AutoSaveLoad(),
         configureInterval: configureAutoSave,
         tabs: () => getState('openTabs'),

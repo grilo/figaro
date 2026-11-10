@@ -9,6 +9,7 @@ import { fileIcon, folderIcon } from './icons.js';
 import { homeCollections, todayPresentation } from './core/homeModel.js';
 import { createOpenTodayNote } from './usecases/openTodayNote.js';
 import { dueDatePresentation, localISODate, sortTasksByDue } from './core/dueDateModel.js';
+import { escapeHtml } from './core/htmlEscape.js';
 
 export const homeTaskLimit = 6;
 export const homeCollectionLimit = 5;
@@ -346,12 +347,6 @@ function revealDirectory(path) {
 
 async function openFile(path, title, line, mtime) {
     openTab(path, title || path.split('/').pop(), 'file', { path, line, mtime });
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = String(text || '');
-    return div.innerHTML;
 }
 
 function escapeAttr(text) {

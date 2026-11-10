@@ -93,6 +93,39 @@ describe('Updates settings card', () => {
         expect(native.UpdateRestart).toHaveBeenCalledTimes(1);
     });
 
+    test('restarting to update leaves through the unsaved-changes flow and stays staged when the author keeps editing', async () => {
+        const root = settingsMarkup();
+        const native = {
+            UpdateSettingsLoad: jest.fn().mockResolvedValue({ success: true, enabled: true, supported: true }),
+            UpdateCheck: jest.fn().mockResolvedValue({ state: 'available', version: '1.47.0', currentVersion: '1.46.0' }),
+            UpdateInstall: jest.fn().mockResolvedValue({ state: 'ready' }),
+            UpdateRestart: jest.fn().mockResolvedValue({ state: 'ready' }),
+        };
+        // First the author keeps editing, then lets the restart go ahead.
+        const requestExit = jest.fn()
+            .mockImplementationOnce(async () => false)
+            .mockImplementationOnce(async exit => { await exit(); return true; });
+        await initUpdateSettings(root, { backend: () => native, requestExit });
+        const action = root.querySelector('#update-action');
+        root.querySelector('#update-check').click();
+        await flush();
+        action.click();
+        await flush();
+        expect(action.textContent).toBe('Restart to update');
+
+        action.click();
+        await flush();
+        expect(requestExit).toHaveBeenCalledTimes(1);
+        expect(native.UpdateRestart).not.toHaveBeenCalled();
+        expect(action.hidden).toBe(false);
+        expect(action.disabled).toBe(false);
+        expect(action.textContent).toBe('Restart to update');
+
+        action.click();
+        await flush();
+        expect(native.UpdateRestart).toHaveBeenCalledTimes(1);
+    });
+
     test('disables checks on builds that cannot update themselves', async () => {
         const root = settingsMarkup();
         const native = {
@@ -120,6 +153,24 @@ describe('startup update notice', () => {
         expect(confirm.mock.calls[0][0]).toBe('Figaro 1.47.0 is available');
         expect(native.UpdateInstall).toHaveBeenCalledTimes(1);
         expect(native.UpdateRestart).not.toHaveBeenCalled();
+    });
+
+    test('the startup notice restarts through the unsaved-changes flow', async () => {
+        const native = {
+            UpdateStartupCheck: jest.fn().mockResolvedValue({ state: 'available', version: '1.47.0', currentVersion: '1.46.0' }),
+            UpdateInstall: jest.fn().mockResolvedValue({ state: 'ready' }),
+            UpdateRestart: jest.fn().mockResolvedValue({ state: 'ready' }),
+        };
+        const confirm = jest.fn().mockResolvedValue('confirm');
+        const requestExit = jest.fn(async () => false);
+
+        await initUpdateNotifications({ backend: () => native, confirm, requestExit });
+        expect(requestExit).toHaveBeenCalledTimes(1);
+        // The author kept editing: nothing restarted behind the prompt.
+        expect(native.UpdateRestart).not.toHaveBeenCalled();
+
+        await requestExit.mock.calls[0][0]();
+        expect(native.UpdateRestart).toHaveBeenCalledTimes(1);
     });
 
     test('leaves the release alone when the user declines', async () => {

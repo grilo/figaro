@@ -18,7 +18,10 @@ Graph explores the connections between notes. **Ctrl/Cmd+Shift+F** reveals searc
 from a collapsed sidebar; failed searches offer **Retry**, and pending queries
 do not open old results.
 
-A conventional Markdown link can target a note or a heading within one.
+A conventional Markdown link can target a note or a heading within one. Write
+the destination as a path from the vault root (`Archive/plan.md`, or
+`/Archive/plan.md`), or relative to the note you are writing in
+(`./sibling.md`, `../other.md`). Clicking the link opens that note.
 Ctrl/Cmd-click an external HTTP or HTTPS link to open it in your default browser.
 A bare `[label]` is ordinary text unless a matching reference definition exists.
 
@@ -38,11 +41,19 @@ editing, saving, and closing the remaining notes normally.
 
 When renaming a referenced note, Figaro asks what to do with incoming Markdown
 links. Update them, keep their authored destinations, or cancel. Folder moves
-preserve links. **Merge Notes** needs at least two Markdown notes selected in
-the tree. Copying and importing preserve existing files when names collide.
+preserve links. Copying and importing preserve existing files when names collide.
 Rename progress shows the current save, reference-check, writing-data, rename,
 or refresh step. A CSS file without incoming Markdown links needs no reference
 question.
+
+**Merge Notes** needs at least two Markdown notes selected in the tree. Choose
+which notes to append to the destination, then **Merge and delete sources**.
+Figaro saves unsaved edits in those notes first and reloads the merged note.
+The notes merged away go to **Recently deleted**, where you can restore them.
+
+Dropping a folder onto a folder that already holds one of the same name offers
+to merge the two without replacing files. A folder dropped where it already is
+stays as it is.
 
 **Settings → Vault care** offers checks for similar notes and repeated
 filenames. Its **Recently deleted** list restores archived items without

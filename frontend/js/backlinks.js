@@ -9,6 +9,7 @@ import { getLinkStylePreference } from './linkStyle.js';
 import { errorDialog } from './dialogs.js';
 import { statusBar } from './statusBar.js';
 import { relationshipPage, relationshipWindow } from './core/relationshipModel.js';
+import { escapeHtml } from './core/htmlEscape.js';
 
 let backlinksRequestId = 0;
 const backlinksResultsRequestIds = new Map();
@@ -186,7 +187,7 @@ export async function loadBacklinksResults(targetPath, containerId, { keepView =
                 const activeTab = tabs.find(t => t.id === activeId);
                 if (activeTab && activeTab.type === 'file') {
                     const newTabs = tabs.filter(t => t.id !== activeId);
-                    const panel = document.querySelector(`.tab-panel[data-tab-id="${activeId}"]`);
+                    const panel = document.querySelector(`.tab-panel[data-tab-id="${CSS.escape(activeId)}"]`);
                     if (panel) panel.remove();
                     setState('openTabs', newTabs);
                 }
@@ -473,15 +474,6 @@ function highlightMatch(text, query) {
  */
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Escape HTML
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 /**

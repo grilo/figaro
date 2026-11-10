@@ -14,6 +14,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"figaro/internal/recovery"
 	"figaro/internal/taskschedule"
 )
 
@@ -33,6 +34,9 @@ func newTestApp(t *testing.T) (*App, string) {
 		_ = os.RemoveAll(tmpDir)
 		t.Fatalf("failed to resolve temp dir: %v", err)
 	}
+	// Many tests remove the vault themselves; this covers the ones that do
+	// not, so a full run leaves nothing in the temporary directory.
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 	app := OpenApp(resolvedDir, testAssets)
 	return app, resolvedDir
 }
@@ -1933,6 +1937,190 @@ func TestMergeNotes_TooFew(t *testing.T) {
 	}
 	if result.Success {
 		t.Fatal("expected failure with single file")
+	}
+}
+
+// Merge Notes removes its sources. Like any other delete, each one is first
+// committed to local history and registered in Recently deleted.
+func TestMergeNotesArchivesEachSourceAndRegistersItAsRecentlyDeleted(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "master.md", "# Master\n")
+	writeTestFile(t, vaultPath, "Inbox/first.md", "# First\nnever committed before\n")
+	writeTestFile(t, vaultPath, "second.md", "# Second, as last committed\n")
+	if err := app.history.CommitFile("second.md"); err != nil {
+		t.Fatalf("commit second.md: %v", err)
+	}
+	// A later edit that autosave has not committed yet must be archived too.
+	writeTestFile(t, vaultPath, "second.md", "# Second, edited since\n")
+
+	result, err := app.MergeNotes([]string{"master.md", "Inbox/first.md", "second.md"})
+	if err != nil || !result.Success {
+		t.Fatalf("MergeNotes = %+v, %v", result, err)
+	}
+	if !reflect.DeepEqual(result.Deleted, []string{"Inbox/first.md", "second.md"}) || len(result.DeletedIDs) != 2 || result.DeletedIDs[0] == result.DeletedIDs[1] {
+		t.Fatalf("merge result = %+v, want both sources with distinct recovery records", result)
+	}
+	want := "# Master\n\n\n---\n\n# First\nnever committed before\n\n---\n\n# Second, edited since"
+	if got := readTestFile(t, vaultPath, "master.md"); got != want {
+		t.Fatalf("merged master = %q, want %q", got, want)
+	}
+
+	sources := map[string]string{
+		"Inbox/first.md": "# First\nnever committed before\n",
+		"second.md":      "# Second, edited since\n",
+	}
+	for path, content := range sources {
+		if _, err := os.Stat(filepath.Join(vaultPath, filepath.FromSlash(path))); !os.IsNotExist(err) {
+			t.Fatalf("%s should be removed after the merge (stat error %v)", path, err)
+		}
+		entries, err := app.GetFileHistory(path)
+		if err != nil || len(entries) == 0 {
+			t.Fatalf("history of merged-away %s = %#v, %v; want an archive revision", path, entries, err)
+		}
+		archived, err := app.GetFileVersion(path, entries[0].Hash)
+		if err != nil || archived != content {
+			t.Fatalf("archive of %s = %q, %v; want its exact content before the merge", path, archived, err)
+		}
+	}
+
+	// The records survive a restart and restore each note where it was.
+	reopened := OpenApp(vaultPath, testAssets)
+	items, err := reopened.GetRecentlyDeleted()
+	if err != nil || len(items) != 2 {
+		t.Fatalf("GetRecentlyDeleted = %#v, %v; want both merged-away notes", items, err)
+	}
+	for index, path := range result.Deleted {
+		item, found := recovery.Find(items, result.DeletedIDs[index])
+		if !found || item.Path != path || item.Kind != "file" || item.Snapshot == "" {
+			t.Fatalf("recovery record of %s = %#v (found %v)", path, item, found)
+		}
+		restored, err := reopened.RestoreRecentlyDeleted(item.ID)
+		if err != nil || !restored.Success {
+			t.Fatalf("RestoreRecentlyDeleted(%s) = %+v, %v", path, restored, err)
+		}
+		if got := readTestFile(t, vaultPath, path); got != sources[path] {
+			t.Fatalf("restored %s = %q, want %q", path, got, sources[path])
+		}
+	}
+	if got := readTestFile(t, vaultPath, "master.md"); got != want {
+		t.Fatalf("restoring the sources changed the merged master: %q", got)
+	}
+}
+
+func TestMergeNotesRefusesANoteChosenMoreThanOnce(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+
+	writeTestFile(t, vaultPath, "master.md", "# Master\n")
+	writeTestFile(t, vaultPath, "other.md", "# Other\n")
+
+	for name, paths := range map[string][]string{
+		"the destination among its sources": {"master.md", "other.md", "./master.md"},
+		"a source listed twice":             {"master.md", "other.md", "other.md"},
+	} {
+		result, err := app.MergeNotes(paths)
+		if err != nil || result.Success || !strings.Contains(result.Error, "chosen more than once") {
+			t.Fatalf("%s: MergeNotes = %+v, %v; want a refusal", name, result, err)
+		}
+		if got := readTestFile(t, vaultPath, "master.md"); got != "# Master\n" {
+			t.Fatalf("%s: master.md = %q, want it untouched", name, got)
+		}
+		if got := readTestFile(t, vaultPath, "other.md"); got != "# Other\n" {
+			t.Fatalf("%s: other.md = %q, want it untouched", name, got)
+		}
+		items, err := app.GetRecentlyDeleted()
+		if err != nil || len(items) != 0 {
+			t.Fatalf("%s: recently deleted = %#v, %v; want nothing recorded", name, items, err)
+		}
+	}
+}
+
+func TestMergeNotesLeavesEveryNoteUntouchedWhenItCannotArchiveTheSources(t *testing.T) {
+	for name, breakRecovery := range map[string]func(t *testing.T, app *App, vaultPath string){
+		"history unavailable": func(_ *testing.T, app *App, _ string) { app.history = nil },
+		"recovery list unreadable": func(t *testing.T, _ *App, vaultPath string) {
+			writeTestFile(t, vaultPath, recentlyDeletedRegistryPath, "not json")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			app, vaultPath := newTestApp(t)
+			defer os.RemoveAll(vaultPath)
+			writeTestFile(t, vaultPath, "master.md", "master")
+			writeTestFile(t, vaultPath, "source.md", "source")
+			breakRecovery(t, app, vaultPath)
+
+			result, err := app.MergeNotes([]string{"master.md", "source.md"})
+			if err != nil {
+				t.Fatalf("MergeNotes error: %v", err)
+			}
+			if result.Success || !strings.Contains(result.Error, "Nothing was merged") {
+				t.Fatalf("MergeNotes = %+v; want a non-destructive refusal", result)
+			}
+			if readTestFile(t, vaultPath, "master.md") != "master" || readTestFile(t, vaultPath, "source.md") != "source" {
+				t.Fatal("a refused merge changed a note")
+			}
+		})
+	}
+}
+
+// A merge changes one note and removes known others. The index, file issues
+// and cached tree are edited for exactly those, as DeletePath does, instead
+// of re-reading the vault.
+func TestMergeNotesUpdatesTheIndexIssuesAndTreeForOnlyTheMergedNotes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "master.md", "- [ ] Master task #todo\n")
+	writeTestFile(t, vaultPath, "source.md", "- [ ] Source task #solo\n")
+	writeTestFile(t, vaultPath, "legacy.md", "caf\xe9 note\n")
+	writeTestFile(t, vaultPath, "Other/keep.md", "- [ ] Kept #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	if _, err := app.GetFileTree(); err != nil {
+		t.Fatalf("initial GetFileTree: %v", err)
+	}
+	warm := app.vaultIndex
+	if issues := app.GetVaultFileIssues(); len(issues) != 1 || issues[0].Path != "legacy.md" {
+		t.Fatalf("file issues before the merge = %#v", issues)
+	}
+
+	result, err := app.MergeNotes([]string{"master.md", "source.md"})
+	if err != nil || !result.Success {
+		t.Fatalf("MergeNotes = %+v, %v", result, err)
+	}
+	if app.vaultIndex != warm {
+		t.Fatal("merging two notes rebuilt the vault index")
+	}
+	if app.fileTreeEntries == nil {
+		t.Fatal("merging two notes discarded the cached file tree")
+	}
+	if got := app.vaultIndex.paths; !reflect.DeepEqual(got, []string{"Other/keep.md", "master.md"}) {
+		t.Fatalf("indexed notes after the merge = %v", got)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["todo"]) != 2 || len(board["solo"]) != 1 || board["solo"][0].File != "master.md" {
+		t.Fatalf("board after the merge = %#v, err=%v", board, err)
+	}
+	if _, cached := app.fileTreeEntries["source.md"]; cached {
+		t.Fatal("the cached file tree still lists the merged-away note")
+	}
+	response, err := app.SearchNotes("Source task", NoteSearchRequest{})
+	if err != nil || len(response.Results) != 1 || response.Results[0].Path != "master.md" {
+		t.Fatalf("search after the merge = %+v, err=%v; want only the master", response, err)
+	}
+
+	// Merging away a note that had a file issue drops the issue with it; the
+	// master, now holding its bytes, is the note with the issue.
+	result, err = app.MergeNotes([]string{"master.md", "legacy.md"})
+	if err != nil || !result.Success {
+		t.Fatalf("MergeNotes with a non-UTF-8 source = %+v, %v", result, err)
+	}
+	if issues := app.GetVaultFileIssues(); len(issues) != 1 || issues[0].Path != "master.md" {
+		t.Fatalf("file issues after merging the flagged note away = %#v", issues)
+	}
+	if got := app.vaultIndex.paths; !reflect.DeepEqual(got, []string{"Other/keep.md"}) {
+		t.Fatalf("indexed notes after the master stopped being text = %v", got)
 	}
 }
 

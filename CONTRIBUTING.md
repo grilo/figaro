@@ -959,7 +959,8 @@ the assembled webview rather than one JavaScript package in isolation.
   refreshes, Escape must close it before the dialog, and closing the dialog
   must clean it up.
 - Changes to diagram performance must preserve bounded source/output reuse,
-  external-data refresh, per-mount SVG references, font/theme/size invalidation,
+  a fresh read for charts that load a vault file, per-mount SVG references,
+  font/theme/size invalidation,
   and cancellation during typing or composition. Put work-count and injected
   scheduling assertions below the browser. Keep tab text/caret publications
   independent of tab DOM reconstruction and overflow measurements. Repeat

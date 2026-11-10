@@ -122,6 +122,8 @@ export const BACKEND_METHODS = Object.freeze([
     'VimVisualRowsSave',
     'WindowCaptureState',
     'WindowClose',
+    'WindowCloseAcknowledged',
+    'WindowCloseDeclined',
     'WindowGetPosition',
     'WindowGetSize',
     'WindowMaximize',

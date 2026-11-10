@@ -464,3 +464,67 @@ func TestMarkdownWalksStopOnVisitorFailureWithoutReportingFalseProgress(t *testi
 		t.Fatalf("content walk error = %v, want visitor failure", err)
 	}
 }
+
+// makeUnreadableFile creates a note the test process cannot open, or skips
+// when the platform or user cannot be denied (Windows, root).
+func makeUnreadableFile(t *testing.T, path string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits do not deny reading a file on Windows")
+	}
+	if err := os.WriteFile(path, []byte("sealed"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0644) })
+	if _, err := os.ReadFile(path); err == nil {
+		t.Skip("this user can read a mode-000 file (running as root)")
+	}
+}
+
+func TestWalkMarkdownSkipsAnUnreadableNoteAndStillVisitsTheRest(t *testing.T) {
+	rootDir := t.TempDir()
+	for _, name := range []string{"alpha.md", "zulu.md"} {
+		if err := os.WriteFile(filepath.Join(rootDir, name), []byte(name), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	makeUnreadableFile(t, filepath.Join(rootDir, "sealed.md"))
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		t.Fatalf("open root: %v", err)
+	}
+	t.Cleanup(func() { _ = root.Close() })
+
+	var paths []string
+	if err := WalkMarkdown(root, func(_ *os.Root, rel string, _ fs.FileInfo, data []byte) error {
+		if string(data) != rel {
+			t.Fatalf("visited %q with content %q", rel, data)
+		}
+		paths = append(paths, rel)
+		return nil
+	}); err != nil {
+		t.Fatalf("WalkMarkdown failed on one unreadable note: %v", err)
+	}
+	if want := []string{"alpha.md", "zulu.md"}; !reflect.DeepEqual(paths, want) {
+		t.Fatalf("visited paths = %v, want %v", paths, want)
+	}
+
+	// The progress walk leaves the same note out and still reaches its total.
+	paths = nil
+	var progress [][2]int
+	if err := WalkMarkdownWithProgress(root, func(_ *os.Root, rel string, _ fs.FileInfo, _ []byte) error {
+		paths = append(paths, rel)
+		return nil
+	}, func(visited, total int) { progress = append(progress, [2]int{visited, total}) }); err != nil {
+		t.Fatalf("WalkMarkdownWithProgress failed on one unreadable note: %v", err)
+	}
+	if want := []string{"alpha.md", "zulu.md"}; !reflect.DeepEqual(paths, want) {
+		t.Fatalf("progress walk visited %v, want %v", paths, want)
+	}
+	if want := [][2]int{{0, 3}, {1, 3}, {2, 3}, {3, 3}}; !reflect.DeepEqual(progress, want) {
+		t.Fatalf("progress = %v, want %v", progress, want)
+	}
+}

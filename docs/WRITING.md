@@ -40,7 +40,10 @@ the complete source, including Properties, and can copy it to the clipboard.
 
 **Settings → Editor** includes optional Vim editing, relative line numbers,
 and Tab Size. With Vim **Move by visual rows**, Up/Down and `j`/`k` move through
-wrapped lines before entering an adjacent diagram or code block. Tab Size defaults to four spaces and accepts values from two to
+wrapped lines before entering an adjacent diagram or code block. In Vim mode,
+`:w` saves, `:q` closes the tab, and `:e name` opens the note of that name
+beside the current one, or starts a new note when there is none. Tab Size
+defaults to four spaces and accepts values from two to
 eight; it does not rewrite existing indentation. Press Escape, then Tab or
 Shift+Tab, to move keyboard focus out of the document editor.
 

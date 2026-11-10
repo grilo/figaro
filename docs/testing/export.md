@@ -50,6 +50,21 @@ otherwise temporary PDF for `pdfinfo`, `pdftotext`, and `pdftoppm` inspection.
 Ordinary and release CI supply Playwright's pinned Chromium executable and run
 this boundary; an unconfigured local `go test` continues to skip it.
 
+What an export may load:
+
+- `internal/pdfexport/browser_test.go` owns that every paused request is
+  answered from the session's resource policy, that a session without a policy
+  intercepts nothing, and that a browser unable to intercept fails the render.
+- `internal/desktop/pdf_resources_test.go` owns the pure decision for one
+  request, symbolic links followed on disk, and the left-out-files warning.
+- `tests/frontend/unit/export.test.js` owns the **Some files were left out of
+  the PDF** message and that printable charts use the vault-only loader.
+- `TestChromiumPDFSessionConfinesFileRequestsAgainstOptInBrowser`
+  (`internal/pdfexport`) and
+  `TestExportPDFLeavesOutFilesOutsideTheVaultAgainstOptInBrowser`
+  (`internal/desktop`, Linux) own the real-browser boundary and run only with
+  `FIGARO_BROWSER_PDF_EXECUTABLE` set.
+
 ## PDF browser discovery and Snap confinement regressions
 
 Keep Linux browser discovery deterministic by injecting the `/snap/bin`
@@ -58,6 +73,9 @@ contract must prove that unsupported Snap commands are ignored, browser-engine
 priority is preserved, and a `/snap/bin/<snap>[.<app>]` command maps only to an
 ephemeral workspace below `$HOME/snap/<snap>/common/figaro`. Path validation
 must reject traversal and malformed Snap names.
+`internal/desktop/machine_settings_test.go` owns that a legacy
+`pdf_browser_path` in vault settings is removed at startup and never adopted
+or allowed to replace the machine preference.
 
 For a workstation with Snap Chromium installed, run both opt-in boundaries.
 The first exercises automatic discovery plus an actual isolated DevTools
@@ -83,7 +101,11 @@ missing-note creation plans live in `core/linkedNoteNavigationModel.js` and its
 plain-input tests. `usecases/linkedNoteNavigation.js` owns read/review/create/open
 sequencing through injected ports; `linkedNoteNavigation.test.js` covers current-tab
 reuse after an awaited read, cancellation, similar-note reuse, stale targets,
-unavailable files, backend collisions, and failure reporting. `editor.test.js`
+unavailable files, backend collisions, and failure reporting.
+`linkedNoteNavigationModel.test.js` owns the vault path a Markdown destination
+addresses (root, note-relative, vault path, and one that leaves the vault), and
+`linkedNoteNavigation.test.js` owns that a Markdown link is read relative to its
+note while a Wikilink is read from the vault root. `editor.test.js`
 retains assembled click-to-navigation, new-note creation followed by file-tree
 refresh, and source replacement coverage. The creation case uses the real editor
 composition, so omitting the refresh port fails even if a use-case fake supplies

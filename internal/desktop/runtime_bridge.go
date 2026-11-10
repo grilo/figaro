@@ -44,6 +44,16 @@ func (r *runtimeBridge) start(ctx context.Context) {
 	}
 }
 
+// isReady reports whether the page can receive events.
+func (r *runtimeBridge) isReady() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.ready && r.ctx != nil
+}
+
 func (r *runtimeBridge) context() context.Context {
 	if r == nil {
 		return nil

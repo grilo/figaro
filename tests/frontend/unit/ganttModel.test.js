@@ -7,6 +7,12 @@ describe('Gantt schedule projection and gestures', () => {
         expect(rows).toHaveLength(1);
         expect(rows[0]).toMatchObject({ done: true, color: '#12ab34', end: '2026-09-01' });
     });
+    test('a column color that is not a palette-shaped hex color leaves the bar on the theme accent', () => {
+        for (const color of ['red;--x:url(https://example.com)', '"><img src=x>', '#fff', 42, null]) {
+            expect(ganttTasks({ todo: [task] }, [], { todo: color })[0].color).toBe('');
+        }
+        expect(ganttTasks({ constructor: [{ ...task, tag: 'constructor' }] }, [], {})[0].color).toBe('');
+    });
     test('fresh metadata overrides stale board dates, including explicitly unscheduled tasks', () => {
         const entries = [{ id: '1', task, start: '', end: '' }];
         expect(ganttTasks({ todo: [task] }, entries)[0]).toMatchObject({ end: '', scheduleID: '1' });

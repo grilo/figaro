@@ -190,6 +190,9 @@ func (a *App) SetColumnColor(name string, color string) (map[string]interface{},
 	if !kanbanColumnNameRe.MatchString(name) {
 		return map[string]interface{}{"success": false, "error": "Invalid column name"}, nil
 	}
+	if color != "" && !validKanbanColor(color) {
+		return map[string]interface{}{"success": false, "error": "A column color must be a hex color such as #3b82f6"}, nil
+	}
 	if color == "" {
 		delete(a.kanbanColors, name)
 	} else {

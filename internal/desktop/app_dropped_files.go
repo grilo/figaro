@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,9 +24,19 @@ func isDroppedMarkdownName(name string) bool {
 }
 
 // OpenDroppedMarkdownFiles accepts only absolute paths to regular Markdown
-// files. Symbolic links and anything else are reported as skipped rather than
-// opened. A drop reaches Wails through the same message channel page scripts
-// use, so these rules, not the drop itself, bound what the editor may write.
+// files that a file drop delivered (externalPathGrants) or that are already
+// registered as external documents. Symbolic links and anything else are
+// reported as skipped rather than opened; a path Figaro was never handed is
+// skipped before it is inspected, so the page cannot probe for files.
+//
+// The grant narrows this binding to dropped paths, but it is not a boundary
+// against a script running in the window. In Wails v3.1.0 every platform's
+// native drop handler passes the file names to the page
+// (window._wails.handlePlatformFileDrop), and the page sends them back in a
+// Window.FilesDropped runtime call; only that call raises WindowFilesDropped.
+// A drop therefore reaches Go through the same message channel page scripts
+// use, and a script can send the call itself. These rules, not the drop,
+// bound what the editor may write.
 func (a *App) OpenDroppedMarkdownFiles(paths []string) (*DroppedMarkdownFiles, error) {
 	result := &DroppedMarkdownFiles{VaultPaths: []string{}, External: []*ExternalLaunchFile{}, Skipped: []string{}}
 	vaultRoot, err := filepath.EvalSymlinks(a.vaultPath)
@@ -37,6 +48,11 @@ func (a *App) OpenDroppedMarkdownFiles(paths []string) (*DroppedMarkdownFiles, e
 	for _, supplied := range paths {
 		clean := filepath.Clean(strings.TrimSpace(supplied))
 		if clean == "." || !filepath.IsAbs(clean) || !isDroppedMarkdownName(clean) {
+			result.Skipped = append(result.Skipped, supplied)
+			continue
+		}
+		if !a.externalSourceGranted(clean) {
+			log.Printf("[file-drop] Refused to open a path that was not dropped or opened: %q", clean)
 			result.Skipped = append(result.Skipped, supplied)
 			continue
 		}

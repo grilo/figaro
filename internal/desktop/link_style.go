@@ -3,11 +3,12 @@ package desktop
 import (
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"figaro/internal/links"
+	"figaro/internal/vault"
 )
 
 // LinkStyleResult reports the preference and every open buffer the frontend
@@ -113,46 +114,36 @@ type vaultMarkdownDocument struct {
 	mode    os.FileMode
 }
 
+// collectVaultLinkStyleRewrites plans the conversion of every note Figaro can
+// edit. It admits notes by the index's own rules, like the move rewrite: a
+// note that is too large, unreadable, binary or not UTF-8 holds no links
+// Figaro can rewrite, so it is passed over instead of being read whole or
+// failing the conversion for every other note. Such a note still exists as a
+// link target, and links pointing at it are converted.
 func collectVaultLinkStyleRewrites(root *os.Root, style links.LinkStyle) ([]vaultLinkRewrite, int, error) {
 	var documents []vaultMarkdownDocument
 	notes := make(map[string]bool)
-	err := fs.WalkDir(root.FS(), ".", func(rel string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return fmt.Errorf("walk vault path %q: %w", rel, walkErr)
-		}
-		if rel == "." {
-			return nil
-		}
-		if entry.Type()&fs.ModeSymlink != 0 {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return fmt.Errorf("inspect vault path %q: %w", rel, err)
-		}
-		if info.Mode()&fs.ModeSymlink != 0 {
-			return nil
-		}
-		if info.IsDir() {
-			if strings.HasPrefix(entry.Name(), ".") {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
-			return nil
-		}
-		data, err := root.ReadFile(rel)
-		if err != nil {
-			return fmt.Errorf("read vault path %q: %w", rel, err)
-		}
+	skipped := 0
+	err := vault.WalkMarkdownMetadata(root, func(root *os.Root, rel string, info fs.FileInfo) error {
 		path := links.NormalizeVaultPath(rel)
 		notes[path] = true
+		if vaultFileMetadataIssue(rel, info) != nil {
+			skipped++
+			return nil
+		}
+		data, err := root.ReadFile(filepath.FromSlash(rel))
+		if err != nil || vaultFileContentIssue(rel, data) != nil {
+			skipped++
+			return nil
+		}
 		documents = append(documents, vaultMarkdownDocument{path: path, content: data, mode: info.Mode().Perm()})
 		return nil
 	})
 	if err != nil {
 		return nil, 0, err
+	}
+	if skipped > 0 {
+		log.Printf("[links] Link-style conversion left %d note(s) unchanged that Figaro cannot read as text", skipped)
 	}
 
 	exists := func(path string) bool { return notes[links.NormalizeVaultPath(path)] }

@@ -49,6 +49,9 @@ the diagram's lower edge to change its height; the width follows its
 proportions, and Figaro records the height in a Mermaid comment that PDF
 output honors.
 
+A Mermaid `click` link keeps a web, mail, relative, or `#fragment` address. A
+`javascript:` address is removed from the rendered diagram.
+
 ## Charts
 
 Use **chart** beside a rendered table to open the Chart Editor. Choose
@@ -59,12 +62,19 @@ confirmation. Unsupported manual changes to chart JSON remain untouched.
 
 Vega and Vega-Lite code blocks also render directly in notes and PDFs.
 
+A chart loads data and images only from the open vault. Name the file by its
+vault path after `/vault/`, for example `"url": "/vault/data/sales.csv"`; an
+image may also be an inline `data:image/…`. A web address, a file elsewhere on
+disk, or a bare name such as `data.csv` is never fetched: the chart shows an
+error naming that source. Links in a chart work only as full `http(s)` or
+`mailto:` addresses.
+
 Returning to a prepared Mermaid, Vega or Vega-Lite preview restores the finished
 diagram without the rendering delay. A bounded cache retains these previews
 while navigating through source or away from the viewport. New or invalidated
 diagrams wait for a pause in typing or scrolling. Changing source, appearance,
-fonts or responsive width refreshes the output. Charts that load external data
-fetch it again when rendered rather than reusing an old snapshot.
+fonts or responsive width refreshes the output. Charts that load a vault file
+read it again when rendered rather than reusing an old snapshot.
 During held-key navigation, prepared Mermaid previews wait for the pause while
 Vega previews return immediately. Text composition defers both until quiet,
 keeping their layout work out of the active input region.
@@ -79,7 +89,8 @@ These editor caches do not alter PDF rendering or export.
 Type `@drawio` to create a named `.drawio.svg` beside the note, insert an image
 reference, and open the Draw.io Editor. Editing uses the hosted diagrams.net
 service; saved SVG output stays local and can be viewed offline. Closing an
-unsaved blank diagram leaves its empty local file available to reopen.
+unsaved blank diagram leaves its empty local file available to reopen. A
+diagram renamed or moved while its editor is open saves under its new name.
 
 Type `@excalidraw` for a hand-drawn `.excalidraw.svg` sketch instead. The
 Excalidraw editor is bundled with Figaro and works offline. Its toolbar and
@@ -121,3 +132,10 @@ The [PDF styling guide](PDF_STYLING.md) covers setup, Properties, and examples.
 then writes the PDF beside the source note. Final pagination depends on the
 browser engine; inspect the generated PDF before distributing it. Export needs
 Chrome, Chromium, Brave, or Edge, or the built-in WebKit engine on macOS.
+
+A PDF includes images, fonts, and stylesheets only from the vault. If a note
+or its stylesheet references a file elsewhere on disk, the PDF is still
+written and a **Some files were left out of the PDF** message names the first
+few. Copy those files into the vault and export again to include them. The
+message comes from Chrome, Chromium, Brave, and Edge exports; the built-in
+WebKit engine on macOS does not show it.

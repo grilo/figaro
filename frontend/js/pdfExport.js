@@ -7,7 +7,7 @@ import { getState } from './state.js';
 import { statusBar } from './statusBar.js';
 import { getFrontmatterValue, getPrintStylesheet, stripLeadingFrontmatter } from './frontmatter.js';
 import { isDiagramLanguage, renderDiagramSVG } from './diagramRenderer.js';
-import { pdfExportErrorDialog } from './dialogs.js';
+import { messageDialog, pdfExportErrorDialog } from './dialogs.js';
 import { createPrintMarkdownRenderer } from '../vendored/markdown-it-plugins/index.js';
 import { highlightCode } from '../vendored/codemirror-live-markdown/index.js';
 import { planPrintableCodeHighlight } from './core/printableCodeHighlight.js';
@@ -19,6 +19,7 @@ import {
 import { getEditorContent } from './editor.js';
 import { authoredMermaidDiagramHeight, mermaidDiagramDisplaySize } from './core/mermaidDiagramModel.js';
 import { svgViewBoxSize } from './core/diagramSizeModel.js';
+import { escapeHtml } from './core/htmlEscape.js';
 
 const defaultPrintCSS = `
   @page { margin: 18mm; }
@@ -382,6 +383,11 @@ export async function exportMarkdownToPDF({ path, title, content }) {
         setTimeout(() => statusBar.set('Ready'), 3000);
         throw error;
     }
+    // The PDF exists, but files the note references outside the vault were
+    // left out of it. Say so: a missing image is otherwise only found later.
+    if (result?.warning) {
+        await messageDialog('Some files were left out of the PDF', result.warning, { tone: 'warning' });
+    }
     if (result?.viewerError) {
         statusBar.set('PDF exported beside the note — open it manually');
         await pdfExportErrorDialog(new Error(result.viewerError), { exportedPath: result.path });
@@ -406,8 +412,3 @@ export async function exportFileToPDF(path, title) {
     return exportMarkdownToPDF({ path, title: title || path.split('/').pop(), content: file.content });
 }
 
-function escapeHtml(value) {
-    const element = document.createElement('div');
-    element.textContent = String(value || '');
-    return element.innerHTML;
-}

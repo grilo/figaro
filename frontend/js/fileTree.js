@@ -62,6 +62,8 @@ import {
 } from './core/fileTreeTransferModel.js';
 import { createFileTreeTransfer } from './usecases/fileTreeTransfer.js';
 import { fileIssueIndex, fileIssueTreeDescription } from './core/fileIssueModel.js';
+import { escapeHtml } from './core/htmlEscape.js';
+import { createNoteMerge } from './usecases/noteMerge.js';
 
 
 let dragSourceNode = null;
@@ -100,6 +102,7 @@ export function configureFileTreeWorkspace(ports) {
         'openTab',
         'prepareTabsForPathCopy',
         'prepareTabsForPathDelete',
+        'prepareTabsForNoteMerge',
         'prepareTabsForPathMove',
         'refreshTabsForUpdatedLinks',
         'updateTabsForMovedPath',
@@ -2321,12 +2324,14 @@ async function mergeSelectedNotes() {
     }
 
     try {
-        const result = await backend().MergeNotes(mergePaths);
+        const result = await createNoteMerge({
+            prepareTabs: paths => workspace().prepareTabsForNoteMerge(paths),
+            merge: paths => backend().MergeNotes(paths),
+            closeDeletedTabs: path => closeTabsForDeletedPath(path),
+            reloadTabs: paths => refreshTabsForUpdatedLinks(paths),
+        })(mergePaths);
         if (result.success) {
             setState('selectedTreePaths', []);
-            for (const p of mergePaths.slice(1)) {
-                closeTabsForDeletedPath(p);
-            }
             setTimeout(async () => {
                 await refreshFileTree();
                 setState('selectedFilePath', mergePaths[0]);
@@ -2723,11 +2728,3 @@ function validateTreeItemName(value) {
     return vaultItemNameError(value);
 }
 
-/**
- * Escape HTML
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}

@@ -125,6 +125,9 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 		Description:    "Local Markdown Knowledge Base",
 		Icon:           linuxWindowIcon,
 		SingleInstance: figaroSingleInstanceLock(func() *App { return app }),
+		// Quit from the application menu, the dock or the session. The window
+		// button reaches the same exit flow through the page itself.
+		ShouldQuit: func() bool { return app == nil || !app.holdNativeClose() },
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(frontendAssets),
 			Middleware: application.ChainMiddleware(
@@ -220,11 +223,20 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
 		app.domReady(context.Background())
 	})
+	// A close the operating system asks for runs the page's unsaved-changes
+	// flow instead of ending the process. The hook runs before Wails' own
+	// listener, which is the one that destroys the window.
+	window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		if app.holdNativeClose() {
+			event.Cancel()
+		}
+	})
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
 		drop := nativeFileDrop{Paths: event.Context().DroppedFiles()}
 		if details := event.Context().DropTargetDetails(); details != nil {
 			drop.X, drop.Y = details.X, details.Y
 		}
+		app.grantDroppedPaths(drop.Paths)
 		app.emitRuntimeEventData(nativeFilesDroppedEventName, drop)
 	})
 	app.configureUpdater(wailsApp, applicationVersion)

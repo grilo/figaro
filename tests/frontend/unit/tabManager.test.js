@@ -129,6 +129,7 @@ import {
     movedTabPath,
     replaceActiveFileTab,
     updateTabsForMovedPath,
+    prepareTabsForNoteMerge,
     prepareTabsForPathCopy,
     prepareTabsForPathDelete,
     prepareTabsForPathMove,
@@ -411,6 +412,24 @@ describe('Tab Manager', () => {
             expect(reused).toBe(tab);
             expect(reused.focusCol).toBe('done');
             expect(getState('openTabs').filter(candidate => candidate.type === 'kanban')).toHaveLength(1);
+        });
+
+        test('a Relationships tab shows a file name with markup as text and finds its own panel', async () => {
+            const targetPath = 'notes/<img src=x onerror="window.injected=1"> "q".md';
+            const id = 'backlinks-' + targetPath;
+            openTab(id, 'Relationships', 'backlinks', { targetPath });
+            await testUtils.waitFor(0);
+
+            const panels = [...document.querySelectorAll('#tab-panels .tab-panel')];
+            const panel = panels.find(candidate => candidate.dataset.tabId === id);
+            expect(panel).toBeTruthy();
+            expect(panel.querySelector('img')).toBeNull();
+            expect(panel.querySelector('h2').textContent).toBe('Relationships for [[<img src=x onerror="window.injected=1"> "q"]]');
+            expect(panel.querySelector('.results-list').id).toBe('backlinks-results-' + id);
+            // Opening it again reuses the panel instead of failing to select it.
+            await switchTab(id);
+            expect([...document.querySelectorAll('#tab-panels .tab-panel')]
+                .filter(candidate => candidate.dataset.tabId === id)).toHaveLength(1);
         });
 
         test('reactivates the mounted Kanban workspace without replacing its first paint', async () => {
@@ -1358,6 +1377,23 @@ describe('Tab Manager', () => {
             expect(mockState.openTabs[1].dirty).toBe(true);
         });
 
+        test('saves the unsaved notes being merged, and only those, before the merge reads them from disk', async () => {
+            mockState.openTabs = [
+                { id: 'keep.md', title: 'Keep', type: 'file', path: 'keep.md', dirty: true, mtime: 10 },
+                { id: 'notes/a.md', title: 'A', type: 'file', path: 'notes/a.md', dirty: true, mtime: 20, _content: 'unsaved source text' },
+                { id: 'outside.md', title: 'Outside', type: 'file', path: 'outside.md', dirty: true, mtime: 30, _content: 'unrelated dirty content' },
+            ];
+            mockState.activeTabId = 'keep.md';
+            getEditorContent.mockReturnValueOnce('latest visible master');
+
+            await expect(prepareTabsForNoteMerge(['keep.md', 'notes/a.md', 'notes/closed.md'])).resolves.toEqual({ success: true });
+
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(2);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('keep.md', 'latest visible master', 10);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('notes/a.md', 'unsaved source text', 20);
+            expect(mockState.openTabs.map(tab => tab.dirty)).toEqual([false, false, true]);
+        });
+
         test('saves dirty source content before deletion so the archive sees the visible editor version', async () => {
             mockState.openTabs = [
                 { id: 'Projects/plan.md', title: 'Plan', type: 'file', path: 'Projects/plan.md', dirty: true, mtime: 10 },
@@ -1843,6 +1879,22 @@ describe('Tab Manager', () => {
     });
 
     describe('renderTabBar', () => {
+        test('a file name with quotes or markup stays inside its tab attributes', () => {
+            initTabManager();
+            const publish = subscribe.mock.calls.find(([key]) => key === 'tabPresentation')[1];
+            const id = 'Projects/"Draft" onmouseover="alert(1)" <b>.md';
+            mockState.openTabs = [{ id, type: 'file', title: '"Draft" onmouseover="alert(1)" <b>.md', path: id, dirty: false }];
+            mockState.activeTabId = id;
+            publish();
+
+            const tab = document.querySelector('#tab-strip .tab');
+            expect(tab.dataset.tabId).toBe(id);
+            expect(document.querySelector('#tab-strip [onmouseover]')).toBeNull();
+            expect(document.querySelector('#tab-strip b')).toBeNull();
+            expect(tab.title).toBe(id);
+            expect(tab.querySelector('.tab-close').getAttribute('aria-label')).toBe('Close "Draft" onmouseover="alert(1)" <b>.md');
+        });
+
         test('text and caret publications preserve tab nodes and avoid overflow reads after the dirty transition', () => {
             initTabManager();
             const publish = subscribe.mock.calls.find(([key]) => key === 'tabPresentation')[1];

@@ -7,27 +7,40 @@ import { writingFootnoteRanges } from './writingFootnoteModel.js';
 import { writingAcronymDefinitions } from './writingTextlintModel.js';
 
 const markdown = parser.configure(GFM);
+// Where a top-level block starts does not depend on inline syntax, so finding
+// one needs a fraction of the work of the full parse.
+const markdownBlocks = markdown.configure({ remove: [
+    'Escape', 'Entity', 'InlineCode', 'HTMLTag', 'Emphasis', 'HardBreak', 'Link', 'Image', 'LinkEnd', 'Strikethrough', 'Autolink',
+] });
 const excludedNodes = new Set(['CodeBlock', 'FencedCode', 'InlineCode', 'LinkReference', 'LinkLabel', 'URL', 'LinkTitle', 'HTMLBlock', 'HTMLTag']);
 const wordPattern = /[\p{L}\p{M}\p{N}]+(?:['’-][\p{L}\p{M}\p{N}]+)*(?:['’](?![\p{L}\p{M}\p{N}]))?/gu;
 const mask = value => value.replace(/[^\r\n]/g, ' ');
 const referenceKey = value => value.trim().replace(/\s+/gu, ' ').toLowerCase();
 
-/** Source ranges remain UTF-16; parsing never runs in a typing handler. */
-export function spellingSource(source) {
-    const text = String(source || ''), frontmatter = getFrontmatterRegion(text);
-    const footnotes = writingFootnoteRanges(text);
-    let parsed = frontmatter ? mask(text.slice(0, frontmatter.to)) + text.slice(frontmatter.to) : text;
-    // Lezer's CommonMark parser would swallow a footnote body as a link
-    // definition. Neutralize its opening bracket without shifting offsets or
-    // adding indentation; the original marker is excluded from spelling below.
-    if (footnotes.length) {
-        const parts = []; let from = 0;
-        for (const range of footnotes) {
-            if (frontmatter && range.from < frontmatter.to) continue;
-            parts.push(parsed.slice(from, range.from), 'x'); from = range.from + 1;
-        }
-        parts.push(parsed.slice(from)); parsed = parts.join('');
+// Lezer's CommonMark parser would swallow a footnote body as a link
+// definition. Neutralize its opening bracket without shifting offsets or
+// adding indentation; the original marker is excluded from spelling.
+function withoutFootnoteBrackets(parsed, footnotes, floor = 0) {
+    if (!footnotes.length) return parsed;
+    const parts = []; let from = 0;
+    for (const range of footnotes) {
+        if (range.from < floor) continue;
+        parts.push(parsed.slice(from, range.from), 'x'); from = range.from + 1;
     }
+    parts.push(parsed.slice(from));
+    return parts.join('');
+}
+
+/**
+ * Mask everything that is not prose in `text`, which must start where no
+ * Markdown block is open. `labels` are the implicit reference labels
+ * (`[label]`, `[label][]`); whether one is read-only depends on the
+ * definitions of the whole note, of which `references` holds those in `text`.
+ */
+function proseProjection(text, frontmatter) {
+    const footnotes = writingFootnoteRanges(text);
+    const parsed = withoutFootnoteBrackets(
+        frontmatter ? mask(text.slice(0, frontmatter.to)) + text.slice(frontmatter.to) : text, footnotes, frontmatter?.to);
     const hidden = frontmatter ? [frontmatter] : [], references = new Set(), implicit = [], delimiters = [];
     const wiki = wikiLinkRanges(text);
     appendAll(hidden, footnotes);
@@ -47,8 +60,7 @@ export function spellingSource(source) {
         }
     } });
     for (const link of wiki) hidden.push({ from: link.from, to: link.aliasFrom }, { from: Math.max(link.aliasFrom, link.aliasTo), to: link.to });
-    const readOnly = implicit.filter(range => references.has(range.reference)
-        && !wiki.some(link => link.from <= range.from && link.to >= range.to));
+    const labels = implicit.filter(range => !wiki.some(link => link.from <= range.from && link.to >= range.to));
     // Markdown underscores are delimiters, not parts of a filename. Mask them
     // before looking for identifiers, without changing any source offsets.
     const syntax = text.split('');
@@ -63,8 +75,12 @@ export function spellingSource(source) {
         pieces.push(mask(text.slice(Math.max(end, range.from), range.to))); end = range.to;
     }
     pieces.push(text.slice(end));
+    return { prose: pieces.join(''), hidden, delimiters, labels, references };
+}
+
+/** Words of masked prose. Quote state restarts at every blank line. */
+function proseWords(prose) {
     const words = [];
-    const prose = pieces.join('');
     const closingQuotes = new Set();
     let opening = null;
     for (let at = 0; at < prose.length; at++) {
@@ -80,10 +96,20 @@ export function spellingSource(source) {
         if (/\p{N}/u.test(word) || prose[match.index + word.length] === '-') continue;
         if (/['’]$/u.test(word) && (closingQuotes.has(match.index + word.length - 1) || !/s['’]$/iu.test(word))) word = word.slice(0, -1);
         if (word.replace(/[’'-]/g, '').length < 2) continue;
-        const range = { from: match.index, to: match.index + word.length, word };
-        if (readOnly.some(label => label.from < range.to && label.to > range.from)) range.editable = false;
-        words.push(range);
+        words.push({ from: match.index, to: match.index + word.length, word });
     }
+    return words;
+}
+
+const overlaps = (a, b) => a.from < b.to && a.to > b.from;
+
+/** Source ranges remain UTF-16; parsing never runs in a typing handler. */
+export function spellingSource(source) {
+    const text = String(source || ''), frontmatter = getFrontmatterRegion(text);
+    const { prose, hidden, delimiters, labels, references } = proseProjection(text, frontmatter);
+    const readOnly = labels.filter(range => references.has(range.reference));
+    const words = proseWords(prose);
+    for (const range of words) if (readOnly.some(label => overlaps(label, range))) range.editable = false;
     // Use this note's visible prose, never the cross-document dictionary cache.
     // Definitions cannot bridge a paragraph or a masked Markdown/code range.
     const defined = new Set();
@@ -99,6 +125,86 @@ export function spellingSource(source) {
 }
 
 export function spellcheckWordRanges(source) { return spellingSource(source).words; }
+
+// A fenced code block and the HTML blocks that end at a closing marker are the
+// only blocks that stay open across an empty line followed by an unindented
+// line. Without one of these openers before it, such a line starts a new
+// top-level block.
+const openEndedBlockOpener = /```|~~~|<(?:[!?]|script|pre|style|textarea)/i;
+
+/** The last unindented line start at or before `at` that follows an empty line. */
+function emptyLineBoundaryBefore(text, at, floor) {
+    for (let search = at - 2; search >= floor;) {
+        const empty = text.lastIndexOf('\n\n', search);
+        if (empty < floor) break;
+        const next = text[empty + 2];
+        if (next !== undefined && !/[ \t\r\n]/.test(next)) return empty + 2;
+        search = empty - 1;
+    }
+    return floor;
+}
+
+/** The same boundary, taken from the block structure of the text before `at`. */
+function topLevelBlockBoundaryBefore(text, at, floor, to) {
+    const slice = text.slice(floor, to);
+    const blocks = markdownBlocks.parse(withoutFootnoteBrackets(slice, writingFootnoteRanges(slice)));
+    for (let node = blocks.topNode.lastChild; node; node = node.prevSibling) {
+        const start = Math.max(floor, text.lastIndexOf('\n', floor + node.from - 1) + 1);
+        if (start > at) continue;
+        if (start === floor || (text[start - 1] === '\n' && text[start - 2] === '\n')) return start;
+    }
+    return floor;
+}
+
+/**
+ * The stretch of a note that decides which prose word, if any, is at
+ * `position`: from a line where no Markdown block is open and quote pairing
+ * restarts, to the end of the paragraph or block around the position. Parsing
+ * it alone gives the ranges the whole note gives there. `basis` is 'local'
+ * when the start follows from the surrounding lines alone and 'blocks' when a
+ * possible code or HTML block before it made the block structure of the
+ * preceding text necessary. Null inside frontmatter and outside the note.
+ */
+export function spellingWordScope(source, position) {
+    const text = String(source || ''), point = Number(position);
+    if (!Number.isFinite(point) || point < 0 || point > text.length) return null;
+    const frontmatter = getFrontmatterRegion(text);
+    if (frontmatter && point < frontmatter.to) return null;
+    const floor = frontmatter ? frontmatter.to : 0, at = Math.floor(point);
+    const empty = text.indexOf('\n\n', at);
+    const to = empty < 0 ? text.length : empty + 1;
+    const from = emptyLineBoundaryBefore(text, at, floor);
+    return openEndedBlockOpener.test(text.slice(floor, from))
+        ? { from: topLevelBlockBoundaryBefore(text, at, floor, to), to, basis: 'blocks' }
+        : { from, to, basis: 'local' };
+}
+
+/** A definition of `word` as an acronym, anywhere in the note, would remove it from the spelling targets. */
+function acronymMayBeDefined(text, word) {
+    if (!/^[A-Z]{3,5}$/u.test(word)) return false;
+    return text.includes(`(${word})`) || text.includes(`(${word}s)`) || new RegExp(`${word}s?[ \\t\\n*_~]+\\(`, 'u').test(text);
+}
+
+/**
+ * The prose word at one position, as `spellcheckWordRanges` reports it, found
+ * from the surrounding block instead of the whole note. Two rules depend on
+ * text elsewhere: a reference label is read-only when its definition exists,
+ * and a defined acronym is not a spelling target. Only a word they could
+ * apply to is resolved against the whole note.
+ */
+export function spellingWordAt(source, position) {
+    const text = String(source || ''), point = Number(position);
+    const scope = spellingWordScope(text, point);
+    if (!scope) return null;
+    const { prose, labels } = proseProjection(text.slice(scope.from, scope.to), null);
+    const local = point - scope.from;
+    const found = proseWords(prose).find(range => local >= range.from && local <= range.to);
+    if (!found) return null;
+    if (labels.some(label => overlaps(label, found)) || acronymMayBeDefined(text, found.word)) {
+        return spellingSource(text).words.find(range => point >= range.from && point <= range.to) || null;
+    }
+    return { from: found.from + scope.from, to: found.to + scope.from, word: found.word };
+}
 
 /** English suffixes are grammatical structure, not interchangeable spelling. */
 export function spellingPossessive(word, languages) {
@@ -124,7 +230,9 @@ export function spellingSentenceStart(source, from) {
     const lead = blockLead.exec(prefix);
     if (!lead) return sentenceEnd.test(prefix.replace(/[ \t"'“‘«([*_~`]+$/u, ''));
     if (lead[2] || lineStart === 0) return true;
-    const previous = text.slice(0, Math.max(0, lineStart - 1)).replace(/[ \t\r]+$/u, '');
-    const line = previous.slice(previous.lastIndexOf('\n') + 1);
+    // Only the previous line matters; read it without copying the text before it.
+    let end = Math.max(0, lineStart - 1);
+    while (end > 0 && /[ \t\r]/.test(text[end - 1])) end--;
+    const line = end > 0 ? text.slice(text.lastIndexOf('\n', end - 1) + 1, end) : '';
     return !line.trim() || /^[ \t>]*#{1,6}[ \t]/u.test(line) || sentenceEnd.test(line);
 }

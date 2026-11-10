@@ -60,6 +60,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
     openTab: jest.fn(),
     closeTab: jest.fn().mockResolvedValue(true),
     closeTabsForDeletedPath: jest.fn(),
+    prepareTabsForNoteMerge: jest.fn().mockResolvedValue({ success: true }),
     prepareTabsForPathCopy: jest.fn().mockResolvedValue({ success: true }),
     prepareTabsForPathDelete: jest.fn().mockResolvedValue({ success: true }),
     prepareTabsForPathMove: jest.fn().mockResolvedValue({ success: true }),
@@ -75,7 +76,7 @@ import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from '../frontend/js/dialogs.js';
-import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
+import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForNoteMerge, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 import { focusEditor } from '../frontend/js/editor.js';
 
@@ -114,6 +115,7 @@ describe('File Tree', () => {
             closeTabsForDeletedPath,
             openFile: handleFileOpen,
             openTab,
+            prepareTabsForNoteMerge,
             prepareTabsForPathCopy,
             prepareTabsForPathDelete,
             prepareTabsForPathMove,
@@ -187,6 +189,19 @@ describe('File Tree', () => {
             
             expect(html).toContain('expanded');
             expect(html).toContain('<svg');
+        });
+
+        test('keeps a file name with quotes inside its row attributes', () => {
+            const path = 'Projects/"Draft" onmouseover="alert(1)".md';
+            const items = [{ name: '"Draft" onmouseover="alert(1)".md', path, type: 'file', mtime: 1000 }];
+
+            const surface = document.createElement('div');
+            surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, null);
+
+            const row = surface.querySelector('.file-tree-item');
+            expect(row.dataset.path).toBe(path);
+            expect(surface.querySelector('[onmouseover]')).toBeNull();
+            expect(row.querySelector('.node-name').textContent).toBe('"Draft" onmouseover="alert(1)".md');
         });
 
         test('marks the active file current without turning it into tree selection', () => {

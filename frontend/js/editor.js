@@ -6,6 +6,7 @@ import { publishEditorUpdate } from './editorUpdates.js';
 import { editorUpdateReasons } from './core/editorUpdateContract.js';
 import { editorDiagnostics, editorInputTrace, countEditorWork, traceEditorWork, deferEditorWork, readEditorDocument } from './editorDiagnostics.js';
 import { createLinkedNoteNavigation } from './usecases/linkedNoteNavigation.js';
+import { vaultPathForNoteLink } from './core/linkedNoteNavigationModel.js';
 import { backend } from './backend.js';
 import { wikiLinkRanges } from './core/noteLinks.js';
 import { taskDueMetadataPlan } from './core/taskDueMetadataModel.js';
@@ -154,6 +155,7 @@ import {
     vimPasteKeys,
     vimPasteReplayKeys,
 } from './core/vimClipboardModel.js';
+import { vimEditTargetPath } from './core/vimExModel.js';
 import { markdownLinkPastePlan } from './core/markdownLinkPasteModel.js';
 import { emptyBlockquoteExitPlan } from './core/markdownStructuralEditing.js';
 import { codeBlockScrollbarGuardExtension } from './codeBlockInteraction.js';
@@ -1491,40 +1493,19 @@ async function initEditor() {
     // CodeMirror dependencies are statically initialized with this module.
 }
 
+/** The note that links in the mounted document are written in. */
+function linkSourcePath() {
+    const activeId = getState('activeTabId');
+    return (getState('openTabs') || []).find(tab => tab.id === activeId)?.path || '';
+}
+
 /**
- * Resolve a relative markdown link URL against the current file's directory.
- * Only resolves paths starting with ../ or ./. Other relative paths
- * (e.g. "Archive/file.md") are passed through as vault-relative.
- * E.g. "../../Archive/x.md" + current file "notes/daily/2025.md"
- *   → "Archive/x.md"
+ * The vault path a hovered Markdown destination addresses. Clicking the link
+ * resolves it by the same rule (core/linkedNoteNavigationModel.js).
  */
 function resolveRelativeUrl(url) {
-    if (!url || url.startsWith('/') || /^https?:/.test(url)) return url;
-
-    // Only resolve paths that explicitly navigate with ../ or ./
-    if (!url.startsWith('../') && !url.startsWith('./')) return url;
-
-    try {
-        const tabs = getState('openTabs');
-        const activeId = getState('activeTabId');
-        const activeTab = tabs.find(t => t.id === activeId);
-        if (!activeTab || !activeTab.path) return url;
-
-        const dir = activeTab.path.substring(0, activeTab.path.lastIndexOf('/'));
-        if (!dir) return url;
-
-        const parts = dir.split('/');
-        for (const seg of url.split('/')) {
-            if (seg === '..') {
-                if (parts.length > 0) parts.pop();
-            } else if (seg !== '.' && seg !== '') {
-                parts.push(seg);
-            }
-        }
-        return parts.join('/');
-    } catch (_) {
-        return url;
-    }
+    if (!url || /^https?:/.test(url)) return url;
+    return vaultPathForNoteLink(url, linkSourcePath()) ?? url;
 }
 
 /**
@@ -1663,8 +1644,18 @@ function linkPreview() {
                 dom.append(type, destination, hint);
             } else {
                 const displayUrl = (() => { try { return decodeURI(url); } catch (_) { return url; } })();
-                dom.innerHTML = '<span class="lh-type">File link</span><span class="lh-path">' + displayUrl + '</span><span class="lh-status lh-checking">...</span>';
-                const statusEl = dom.querySelector('.lh-status');
+                // The destination is the note's own text: it is shown as text,
+                // never parsed as markup.
+                const type = document.createElement('span');
+                type.className = 'lh-type';
+                type.textContent = 'File link';
+                const path = document.createElement('span');
+                path.className = 'lh-path';
+                path.textContent = displayUrl;
+                const statusEl = document.createElement('span');
+                statusEl.className = 'lh-status lh-checking';
+                statusEl.textContent = '...';
+                dom.append(type, path, statusEl);
                 const resolvedUrl = resolveRelativeUrl(displayUrl);
                 fetchLinkPreviewFile(resolvedUrl).then(r => {
                     if (!dom.isConnected) return;
@@ -2100,7 +2091,7 @@ function createEditorView() {
         livePreviewPlugin,
         editorTheme,
         linkPlugin({
-            onWikiLinkClick: target => handleLinkClick(normalizeWikiLinkTarget(target), target, true),
+            onWikiLinkClick: target => handleLinkClick(normalizeWikiLinkTarget(target), target, true, null, 'wiki'),
         }),
         referenceLinkPlugin(),
         linkPreview(),
@@ -3342,7 +3333,7 @@ function handleMouseDown(event, view) {
                 if (position !== null) {
                     const line = view.state.doc.lineAt(position);
                     const wiki = wikiLinkAtPosition(line.text, position - line.from);
-                    if (wiki) handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, false);
+                    if (wiki) handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, false, null, 'wiki');
                 }
             }
         } else {
@@ -3409,7 +3400,7 @@ function handleMouseDown(event, view) {
     const wiki = wikiLinkAtPosition(lt, col);
     if (wiki) {
         event.preventDefault();
-        handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, replaceCurrent);
+        handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, replaceCurrent, null, 'wiki');
         return true;
     }
 }
@@ -3953,6 +3944,7 @@ const handleLinkClick = createLinkedNoteNavigation({
     refreshTree: refreshFileTree,
     getTabs: () => getState('openTabs'),
     getTree: () => getState('fileTreeData'),
+    getSourcePath: linkSourcePath,
     openTab: (...args) => openTab(...args),
     replaceTab: (...args) => replaceActiveFileTab(...args),
     confirm: (...args) => confirmWorkspaceAction(...args),
@@ -4035,18 +4027,15 @@ function registerVimExCommands(Vim) {
         saveActiveFile().catch(error => log.warn('Vim :write failed:', error));
     });
 
-    Vim.defineEx('edit', 'e', (_cm, args) => {
-        const fname = args?.trim();
-        if (!fname) return;
-        const tab = getActiveTab();
-        let dir = '';
-        if (tab && tab.type === 'file' && tab.path) {
-            const idx = tab.path.lastIndexOf('/');
-            if (idx >= 0) dir = tab.path.substring(0, idx + 1);
-        }
-        const relPath = fname.endsWith('.md') ? fname : fname + '.md';
-        const path = dir + relPath;
-        openTab(path, path.split('/').pop(), 'file', { path, isNew: true });
+    Vim.defineEx('edit', 'e', (_cm, params) => {
+        // The adapter passes the parsed command; the name is its argument text.
+        const path = vimEditTargetPath(params?.argString, getActiveTab());
+        if (!path) return;
+        // An existing note is read from disk. Only a name with no file behind
+        // it opens as a new, unsaved buffer: a blank buffer for an existing
+        // note would replace that note on the next :w.
+        Promise.resolve(handleFileOpen(path, { createMissing: true }))
+            .catch(error => log.warn('Vim :edit failed:', error));
     });
 
     Vim.defineEx('quit', 'q', () => {

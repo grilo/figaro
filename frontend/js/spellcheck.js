@@ -6,7 +6,7 @@
  */
 
 import nspell from 'nspell';
-import { spellcheckWordRanges, spellingSentenceStart } from './core/spellingModel.js';
+import { spellcheckWordRanges, spellingSentenceStart, spellingWordAt } from './core/spellingModel.js';
 import { matchSuggestionCase, isCorrectlySpelledProseWord, highConfidenceSuggestions, reviewedSpellingCorrection } from './core/spellingSuggestionsModel.js';
 import { canonicalSpellcheckLanguage, spellcheckLanguages } from './spellcheckPreference.js';
 import { filterAcceptedSpelling, acceptedSpelling } from './core/spellingDictionaryModel.js';
@@ -24,14 +24,14 @@ export function resolveSpellcheckConfiguration(_source, language = 'en-US') {
 }
 
 /**
- * Find a prose word at a CodeMirror document position. The range source is
+ * Find a prose word at a CodeMirror document position. The range rules are
  * shared with diagnostics, so right-click suggestions cannot appear in
  * frontmatter, code, URLs, or other deliberately ignored Markdown regions.
+ * A context menu runs on the UI thread, so only the block around the position
+ * is read; see `spellingWordAt`.
  */
 export function spellcheckWordAtPosition(source, position) {
-    const point = Number(position);
-    if (!Number.isFinite(point)) return null;
-    return spellcheckWordRanges(source).find(range => point >= range.from && point <= range.to) || null;
+    return spellingWordAt(source, position);
 }
 
 export async function loadSpellchecker(language) {

@@ -184,7 +184,8 @@ and invalidate for changed width/source, font completion and loading fonts.
 and one-time transfer. `liveDiagramPlugin.test.js` requires the same SVG nodes
 and local references after repeated source entry/exit and mapped edits without
 advancing the quiet timer. It invalidates retained output for changed source,
-appearance, fonts, engine and responsive width, and rejects external-data reuse.
+appearance, fonts, engine and responsive width, and rejects reuse for a chart
+that loads a file.
 Mermaid held-key and both renderers’ composition cases must defer attachment,
 then restore the same SVG without another generation after quiet; cancelling a mount must leave retained
 output available for the next valid return.
@@ -403,7 +404,7 @@ leave source and history untouched.
 
 Diagram virtualization has a separate performance contract.
 `diagramRenderCacheModel.test.js` covers source, geometry/font/appearance keys,
-external/volatile-data bypass and local SVG references. `diagramOutputReuse.test.js`
+file-loading/volatile-data bypass and local SVG references. `diagramOutputReuse.test.js`
 counts unchanged revisits and genuine edits, bounds completed/pending retention,
 and rejects cache publication after invalidation. `diagramRenderQueue.test.js`
 proves serialization/cancellation; `diagramQuietScheduler.test.js` injects timers,
@@ -421,6 +422,18 @@ available before paint.
 `tabPresentationModel.test.js` covers displayed-state projection; `tabManager.test.js`
 proves text/caret publications preserve DOM/focus and avoid overflow reads while
 state remains current, and exercises genuine resize, dirty/save and tab changes.
+
+What a diagram may load or carry into the page:
+
+- `diagramSecurityModel.test.js` owns the vault-only rule for chart data,
+  images and links, and which attributes of a rendered Mermaid SVG are unsafe.
+- `diagramRenderer.test.js` owns the guarded loader through the vendored Vega
+  engines and the removal of script links from a rendered or cached Mermaid SVG.
+- `mermaidLinkSafety.test.js` owns that a `click` script address or callback
+  never reaches the drawing through the vendored Mermaid engine, while
+  tree-view templates keep their file and folder icons.
+- `drawioEditor.test.js` owns that a diagram renamed while its editor is open
+  marks and saves the renamed tab.
 
 The focused Mermaid and PDF browser
 regressions compare the computed live canvas/connector paint and prove that a
@@ -473,7 +486,15 @@ surface plus muted text at rest, and restores tonal hover paint and the shared
 keyboard-focus halo. It also proves Home/document
 start and Vim `gg` preserve Properties, Arrow Up / Vim `k` reveal raw YAML,
 Arrow Down exits it, and bidirectional mouse selection leaves the replacement
-rendered. Keep this focused regression when
+rendered. For a note that is only Properties,
+`frontmatterPresentationModel.test.js` owns where the block ends and what text
+entered at the document end becomes, `frontmatter.test.js` owns that typed and
+pasted text starts the body in a mounted editor, and the
+`frontmatterProperties.spec.js` case “typing in a note that is only Properties
+starts its body” owns the key press that arrives without an input event. That
+case runs in Chromium; typing in a Properties-only note was also checked in the
+packaged Linux build (WebKitGTK) under Xvfb, and WebView2 and WKWebView still
+need a native check. Keep this focused regression when
 changing frontmatter animation, block-widget stacking, or
 CodeMirror line positioning:
 
@@ -1258,7 +1279,9 @@ enable **Merge Notes** only for an operation selection containing at least two
 Markdown notes (never one selected note plus another open buffer),
 omit tree-level Raw Text/PDF preview, and pair only real keyboard commands
 with faded shortcut hints; F2 and Delete dispatch the same validated workflows
-as their menu items.
+as their menu items. Merge Notes itself and names containing quotation marks
+or markup are owned by the
+[file-tree contract](workspace.md#file-tree-merge-and-name-regressions).
 
 Deletion recovery requires three layers. Pure `internal/recovery` tests own
 newest-first record ordering and identity removal. Root-scoped desktop/history
@@ -1412,6 +1435,12 @@ npm run test:unit -- --runTestsByPath \
 go test ./internal/desktop -run 'Test(Vim|MarkdownLint|WritingLenses|WritingLensCombinations|SpellingDictionary)'
 npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownTables.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawioLoading.spec.js tests/e2e/drawio.spec.js
 ```
+
+### Vim ex commands
+
+`vimExModel.test.js` owns the path `:e name` addresses, and
+`vimCommands.test.js` owns, through the real Vim adapter, that `:e` reads an
+existing note from disk and starts a new buffer only for a missing name.
 
 ### Full typing inventory regressions
 

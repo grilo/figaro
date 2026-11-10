@@ -37,6 +37,9 @@ func (a *App) WindowClose() {
 		// native teardown has begun on Linux, where querying state would emit
 		// gtk_widget_get_window / gdk_window_get_state critical assertions.
 		a.captureWindowState(ctx)
+		// The page ran its exit flow before calling this, so a close event
+		// raised by the teardown itself is not forwarded back to it.
+		a.closeGate.approve()
 		a.windowRuntime.Quit(ctx)
 	}
 }

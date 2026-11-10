@@ -88,51 +88,68 @@ func TestMachineSettingsSaveLoadAndRepair(t *testing.T) {
 	}
 }
 
-func TestLegacyVaultBrowserPreferenceMigratesOnceToMachineSettings(t *testing.T) {
+// writeLegacyVaultBrowserPreference stores the pre-machine-settings key the
+// way an old Figaro, or the author of a shared vault, would have left it.
+func writeLegacyVaultBrowserPreference(t *testing.T, app *App, value any) {
+	t.Helper()
+	app.settingsMu.Lock()
+	defer app.settingsMu.Unlock()
+	settings := settingsmodel.Defaults()
+	settings["pdf_browser_path"] = value
+	if err := app.writeSettingsFile(settings); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func vaultSettingsForTest(t *testing.T, app *App) map[string]any {
+	t.Helper()
+	app.settingsMu.RLock()
+	defer app.settingsMu.RUnlock()
+	settings, err := app.readSettingsFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return settings
+}
+
+// A vault can be downloaded or shared, and PDF export starts the configured
+// browser. A browser path found in vault settings is therefore removed, never
+// adopted as this machine's preference.
+func TestLegacyVaultBrowserPreferenceIsRemovedWithoutBeingAdopted(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
 	machinePath := machineSettingsPath(t.TempDir())
 	app.configureMachineSettings(machinePath)
 	legacyPath := filepath.Join(vaultPath, "browser", "chrome.exe")
+	writeLegacyVaultBrowserPreference(t, app, legacyPath)
 
-	app.settingsMu.Lock()
-	settings := settingsmodel.Defaults()
-	settings["pdf_browser_path"] = legacyPath
-	if err := app.writeSettingsFile(settings); err != nil {
-		app.settingsMu.Unlock()
-		t.Fatal(err)
-	}
-	app.settingsMu.Unlock()
+	app.discardLegacyPDFBrowserPreference()
 
-	app.migrateLegacyPDFBrowserPreference()
-	if got := app.configuredPDFBrowserPath(); got != legacyPath {
-		t.Fatalf("migrated browser path = %q, want %q", got, legacyPath)
+	if got := app.configuredPDFBrowserPath(); got != "" {
+		t.Fatalf("the vault's browser path %q became this machine's PDF browser", got)
 	}
-
-	app.settingsMu.RLock()
-	vaultSettings, err := app.readSettingsFile()
-	app.settingsMu.RUnlock()
-	if err != nil {
-		t.Fatal(err)
+	if _, err := os.Stat(machinePath); !os.IsNotExist(err) {
+		t.Fatalf("discarding the legacy path wrote machine settings (stat error %v)", err)
 	}
+	vaultSettings := vaultSettingsForTest(t, app)
 	if _, exists := vaultSettings["pdf_browser_path"]; exists {
 		t.Fatalf("legacy browser path remains in vault settings: %#v", vaultSettings)
 	}
-
-	data, err := os.ReadFile(machinePath)
+	// Every other vault setting survives the removal.
+	encoded, err := json.Marshal(settingsmodel.Defaults())
 	if err != nil {
 		t.Fatal(err)
 	}
-	var record map[string]any
-	if err := json.Unmarshal(data, &record); err != nil {
+	var defaults map[string]any
+	if err := json.Unmarshal(encoded, &defaults); err != nil {
 		t.Fatal(err)
 	}
-	if record["pdf_browser_path"] != legacyPath {
-		t.Fatalf("machine record did not receive legacy path: %#v", record)
+	if !reflect.DeepEqual(vaultSettings, defaults) {
+		t.Fatalf("vault settings = %#v, want the other settings kept as %#v", vaultSettings, defaults)
 	}
 }
 
-func TestMigrationKeepsExistingMachineBrowserPreference(t *testing.T) {
+func TestLegacyVaultBrowserPreferenceNeverReplacesTheMachinePreference(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
 	machinePath := machineSettingsPath(t.TempDir())
@@ -140,44 +157,30 @@ func TestMigrationKeepsExistingMachineBrowserPreference(t *testing.T) {
 	if err := app.storePDFBrowserPath("/machine/chrome"); err != nil {
 		t.Fatal(err)
 	}
+	writeLegacyVaultBrowserPreference(t, app, "/vault/chrome")
 
-	app.settingsMu.Lock()
-	settings := settingsmodel.Defaults()
-	settings["pdf_browser_path"] = "/vault/chrome"
-	if err := app.writeSettingsFile(settings); err != nil {
-		app.settingsMu.Unlock()
-		t.Fatal(err)
-	}
-	app.settingsMu.Unlock()
+	app.discardLegacyPDFBrowserPreference()
 
-	app.migrateLegacyPDFBrowserPreference()
 	if got := app.configuredPDFBrowserPath(); got != "/machine/chrome" {
-		t.Fatalf("migration overwrote machine preference with %q", got)
+		t.Fatalf("machine preference = %q, want it untouched", got)
+	}
+	if _, exists := vaultSettingsForTest(t, app)["pdf_browser_path"]; exists {
+		t.Fatal("legacy browser path remains in vault settings")
 	}
 }
 
-func TestMigrationRetainsLegacyPreferenceWhenMachineStorageIsUnavailable(t *testing.T) {
-	app, vaultPath := newTestApp(t)
-	defer os.RemoveAll(vaultPath)
-	legacyPath := "/vault/chrome"
+// The key is dropped whatever it holds and whether or not machine-local
+// storage is available: nothing is waiting to receive it.
+func TestLegacyVaultBrowserPreferenceIsRemovedWithoutMachineStorageOrAStringValue(t *testing.T) {
+	for _, value := range []any{"/vault/chrome", "", 42.0, []any{"/vault/chrome"}} {
+		app, vaultPath := newTestApp(t)
+		writeLegacyVaultBrowserPreference(t, app, value)
 
-	app.settingsMu.Lock()
-	settings := settingsmodel.Defaults()
-	settings["pdf_browser_path"] = legacyPath
-	if err := app.writeSettingsFile(settings); err != nil {
-		app.settingsMu.Unlock()
-		t.Fatal(err)
-	}
-	app.settingsMu.Unlock()
+		app.discardLegacyPDFBrowserPreference()
 
-	app.migrateLegacyPDFBrowserPreference()
-	app.settingsMu.RLock()
-	vaultSettings, err := app.readSettingsFile()
-	app.settingsMu.RUnlock()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := vaultSettings["pdf_browser_path"]; got != legacyPath {
-		t.Fatalf("legacy preference = %#v, want %q retained for a later migration", got, legacyPath)
+		if got, exists := vaultSettingsForTest(t, app)["pdf_browser_path"]; exists {
+			t.Fatalf("legacy value %#v remains in vault settings as %#v", value, got)
+		}
+		os.RemoveAll(vaultPath)
 	}
 }

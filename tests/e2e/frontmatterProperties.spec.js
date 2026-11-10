@@ -304,3 +304,53 @@ test('generates rendered Properties first and reuses one disclosure across curso
     await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(2);
     await expect(collapsedCard).toHaveCount(0);
 });
+
+test('typing in a note that is only Properties starts its body', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const collapsedCard = page.locator('.cm-frontmatter');
+    const content = page.locator('.cm-content');
+    const mountAtEnd = source => page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        await editor.setEditorContent(text);
+        const view = editor.getEditorView();
+        view.dispatch({ selection: { anchor: view.state.doc.length } });
+        view.focus();
+        window.__frontmatterView = view;
+    }, source);
+    const source = () => page.evaluate(() => window.__frontmatterView.state.doc.toString());
+
+    // The note ends with the closing boundary's line break: that empty line is
+    // the body, and a real key press has to land on it.
+    await mountAtEnd('---\ntitle: Report\n---\n');
+    await expect(collapsedCard).toBeVisible();
+    await expect(page.locator('.cm-content > .cm-line')).toHaveCount(1);
+    await page.keyboard.type('Body');
+    expect(await source()).toBe('---\ntitle: Report\n---\nBody');
+
+    // The body line behaves like any first body line: a click places the caret
+    // on it, ArrowUp reveals the YAML and ArrowDown returns to the card.
+    const bodyLine = page.locator('.cm-content > .cm-line').first();
+    await bodyLine.click();
+    await expect(collapsedCard).toBeVisible();
+    expect(await page.evaluate(() => {
+        const view = window.__frontmatterView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(4);
+    await content.press('ArrowUp');
+    await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(2);
+    await content.press('ArrowDown');
+    await expect(collapsedCard).toBeVisible();
+    await page.keyboard.type('!');
+    // The caret column follows the YAML line it visited; only the body changed.
+    const edited = await source();
+    expect(edited.startsWith('---\ntitle: Report\n---\n')).toBe(true);
+    expect(edited.slice('---\ntitle: Report\n---\n'.length).replace('!', '')).toBe('Body');
+
+    // No line follows the closing boundary: the first typed character starts
+    // the body on a new line instead of vanishing or joining the boundary.
+    await mountAtEnd('---\ntitle: Report\n---');
+    await expect(collapsedCard).toBeVisible();
+    await page.keyboard.type('Body');
+    expect(await source()).toBe('---\ntitle: Report\n---\nBody');
+    await expect(collapsedCard).toBeVisible();
+});

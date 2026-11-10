@@ -12,7 +12,9 @@ import { getState, subscribe } from './state.js';
 import { windowTitleForTab } from './core/windowTitleModel.js';
 
 let initialized = false;
-let closeRequestHandler = () => callNative('WindowClose');
+// Until startup installs the save-protecting flow, leaving simply leaves.
+const leaveDirectly = async exit => { await (typeof exit === 'function' ? exit() : callNative('WindowClose')); return true; };
+let closeRequestHandler = leaveDirectly;
 let titleSubscriptions = [];
 let nativeTitle = null;
 
@@ -29,8 +31,30 @@ export function closeNativeWindow() {
     return callNative('WindowClose');
 }
 
+/** The native event the host sends when it holds a close for this page to answer. */
+export const NATIVE_CLOSE_REQUESTED_EVENT = 'native:close-requested';
+
+/** Tell the host this page received its close request and is answering it. */
+export function acknowledgeNativeCloseRequest() {
+    return callNative('WindowCloseAcknowledged');
+}
+
+/** Tell the host the author chose to keep working, so a later request asks again. */
+export function declineNativeCloseRequest() {
+    return callNative('WindowCloseDeclined');
+}
+
 export function setWindowCloseRequestHandler(handler) {
-    closeRequestHandler = typeof handler === 'function' ? handler : () => closeNativeWindow();
+    closeRequestHandler = typeof handler === 'function' ? handler : leaveDirectly;
+}
+
+/**
+ * Leave through the unsaved-changes flow, finishing with `exit` instead of
+ * closing the window (the restart that installs an update). Resolves true
+ * only when Figaro is exiting.
+ */
+export async function requestApplicationExit(exit) {
+    return await closeRequestHandler(exit) === true;
 }
 
 function isInteractiveTitlebarTarget(target) {
@@ -139,5 +163,5 @@ export function resetWindowChromeForTests() {
     titleSubscriptions = [];
     nativeTitle = null;
     initialized = false;
-    closeRequestHandler = () => closeNativeWindow();
+    closeRequestHandler = leaveDirectly;
 }

@@ -1,6 +1,9 @@
 import {
     MAX_MERMAID_SOURCE_LENGTH,
+    mermaidSvgAttributeIsUnsafe,
     planMermaidSourceRender,
+    planVegaResourceAccess,
+    vegaResourceRefusalMessage,
 } from '../frontend/js/core/diagramSecurityModel.js';
 
 describe('Mermaid pre-parse security policy', () => {
@@ -38,5 +41,129 @@ describe('Mermaid pre-parse security policy', () => {
 
     test('does not mistake ordinary diagram text for YAML frontmatter', () => {
         expect(planMermaidSourceRender('flowchart TD\n  A[!!omap documentation] --> B').action).toBe('render');
+    });
+});
+
+describe('rendered Mermaid SVG attributes', () => {
+    test('an event handler is unsafe on any element, whatever its value', () => {
+        for (const name of ['onclick', 'ONLOAD', 'onmouseover', 'onbegin', 'onanimationend']) {
+            expect(mermaidSvgAttributeIsUnsafe('g', name, '')).toBe(true);
+        }
+        for (const name of ['class', 'id', 'd', 'style', 'target', 'transform', 'opacity', 'orient', 'offset', 'data-on']) {
+            expect(mermaidSvgAttributeIsUnsafe('g', name, 'javascript:alert(1)')).toBe(false);
+        }
+    });
+
+    test.each(['href', 'xlink:href', 'XLINK:HREF', 'src', 'action', 'formaction'])('a script address in %s is unsafe however it is disguised', name => {
+        for (const value of [
+            'javascript:alert(1)', 'JaVaScRiPt:alert(1)', '  javascript:alert(1)', 'java\tscript:alert(1)', 'java\nscript:alert(1)',
+            '\u0001javascript:alert(1)', 'javascript\u0000:alert(1)', 'vbscript:msgbox(1)', 'VBScript:x', '\ufeffjavascript:x',
+        ]) {
+            expect(mermaidSvgAttributeIsUnsafe('a', name, value)).toBe(true);
+            expect(mermaidSvgAttributeIsUnsafe('image', name, value)).toBe(true);
+        }
+    });
+
+    test('ordinary link, fragment and image addresses are kept', () => {
+        for (const value of [
+            'https://example.com/docs', 'http://example.com', 'mailto:someone@example.com', '#marker-1', 'notes/other.md',
+            '../a%20b.md', '/vault/a.png', 'about:blank', '', 'javascript', 'java/script:x', 'x?next=javascript:alert(1)',
+        ]) {
+            expect(mermaidSvgAttributeIsUnsafe('a', 'href', value)).toBe(false);
+            expect(mermaidSvgAttributeIsUnsafe('use', 'xlink:href', value)).toBe(false);
+        }
+        expect(mermaidSvgAttributeIsUnsafe('a', 'href', null)).toBe(false);
+        expect(mermaidSvgAttributeIsUnsafe('a', 'href', undefined)).toBe(false);
+    });
+
+    test('a data: address is kept only where it is an image', () => {
+        const pixel = 'data:image/png;base64,iVBORw0KGgo=';
+        expect(mermaidSvgAttributeIsUnsafe('image', 'href', pixel)).toBe(false);
+        expect(mermaidSvgAttributeIsUnsafe('IMAGE', 'xlink:href', pixel)).toBe(false);
+        expect(mermaidSvgAttributeIsUnsafe('img', 'src', pixel)).toBe(false);
+        for (const element of ['a', 'use', 'feImage', 'iframe', 'form', undefined]) {
+            expect(mermaidSvgAttributeIsUnsafe(element, 'href', pixel)).toBe(true);
+            expect(mermaidSvgAttributeIsUnsafe(element, 'href', ' DATA:text/html,<script>alert(1)</script>')).toBe(true);
+        }
+    });
+});
+
+describe('Vega resource policy', () => {
+    // The desktop origins (wails://localhost, and http://wails.localhost on Windows) and the dev server.
+    const bases = ['wails://localhost/', 'http://wails.localhost/index.html', 'http://127.0.0.1:34115/'];
+
+    test.each(bases)('data and images load only from the vault route of %s', baseUrl => {
+        for (const context of ['dataflow', 'image', undefined]) {
+            const plan = uri => planVegaResourceAccess(uri, { context, baseUrl });
+            expect(plan('/vault/data/sales.csv')).toEqual({ action: 'load', reason: null, url: '/vault/data/sales.csv' });
+            expect(plan('vault/data/sales.csv').url).toBe('/vault/data/sales.csv');
+            expect(plan('  /vault/a%20b.json?v=2  ').url).toBe('/vault/a%20b.json?v=2');
+            expect(plan('/vault/notes/../data.csv').url).toBe('/vault/data.csv');
+            expect(plan(new URL('/vault/data.csv', baseUrl).href).url).toBe('/vault/data.csv');
+        }
+    });
+
+    test.each(bases)('nothing outside the vault route of %s is loaded', baseUrl => {
+        const plan = (uri, context = 'dataflow') => planVegaResourceAccess(uri, { context, baseUrl });
+        for (const uri of [
+            'https://example.com/data.csv', 'http://example.com/vault/data.csv', '//example.com/vault/data.csv',
+            'file:///etc/passwd', 'ftp://example.com/vault/x', 'blob:https://example.com/1', 'data:text/csv,a,b',
+            'javascript:alert(1)', ' java\tscript:alert(1)',
+        ]) {
+            expect(plan(uri)).toEqual({ action: 'refuse', reason: 'remote', url: '' });
+            expect(plan(uri, 'image').action).toBe('refuse');
+        }
+        for (const uri of [
+            'data.csv', './data.csv', '/data.csv', '/vault', '/vault/', '/vaults/data.csv', '/js/app.js',
+            '/wails/runtime', '/vault/../wails/runtime', '/vault/%2e%2e/wails/runtime', '/vault/./../index.html',
+        ]) {
+            expect(plan(uri)).toEqual({ action: 'refuse', reason: 'outside-vault', url: '' });
+            expect(plan(uri, 'image').action).toBe('refuse');
+        }
+        for (const uri of ['', '   ', null, undefined, 42, {}, ['/vault/data.csv']]) {
+            expect(plan(uri)).toEqual({ action: 'refuse', reason: 'invalid', url: '' });
+        }
+    });
+
+    test('credentials, a missing base and a foreign host with the same scheme are refused', () => {
+        expect(planVegaResourceAccess('http://user:secret@wails.localhost/vault/a.csv', { baseUrl: 'http://wails.localhost/' }).action).toBe('refuse');
+        expect(planVegaResourceAccess('wails://elsewhere/vault/a.csv', { baseUrl: 'wails://localhost/' }).reason).toBe('remote');
+        expect(planVegaResourceAccess('http://wails.localhost:8080/vault/a.csv', { baseUrl: 'http://wails.localhost/' }).reason).toBe('remote');
+        expect(planVegaResourceAccess('/vault/a.csv', { baseUrl: '' }).reason).toBe('invalid');
+        expect(planVegaResourceAccess('/vault/a.csv').reason).toBe('invalid');
+        expect(planVegaResourceAccess('/vault/a.csv', { baseUrl: 'about:blank' }).action).toBe('refuse');
+    });
+
+    test('an image may also be inlined, but only as an image', () => {
+        const baseUrl = 'wails://localhost/';
+        const pixel = 'data:image/png;base64,iVBORw0KGgo=';
+        expect(planVegaResourceAccess(pixel, { context: 'image', baseUrl })).toEqual({ action: 'load', reason: null, url: pixel });
+        expect(planVegaResourceAccess('DATA:IMAGE/SVG+XML,%3Csvg/%3E', { context: 'image', baseUrl }).action).toBe('load');
+        expect(planVegaResourceAccess('data:text/html,<script>1</script>', { context: 'image', baseUrl }).action).toBe('refuse');
+        expect(planVegaResourceAccess(pixel, { context: 'dataflow', baseUrl }).action).toBe('refuse');
+    });
+
+    test('a hyperlink is kept only as an absolute web or mail address', () => {
+        const plan = uri => planVegaResourceAccess(uri, { context: 'href', baseUrl: 'wails://localhost/' });
+        expect(plan('https://example.com/a?b=1#c')).toEqual({ action: 'link', reason: null, url: 'https://example.com/a?b=1#c' });
+        expect(plan('http://example.com').url).toBe('http://example.com/');
+        expect(plan('mailto:someone@example.com').url).toBe('mailto:someone@example.com');
+        for (const uri of [
+            'javascript:alert(1)', 'JaVaScRiPt:alert(1)', ' java\nscript:alert(1)', 'vbscript:msgbox(1)',
+            'data:text/html,<script>alert(1)</script>', 'file:///etc/passwd', 'wails://localhost/vault/a.md',
+            '/vault/a.md', 'notes/a.md', '#section', '//example.com/a', '',
+        ]) {
+            expect(plan(uri).action).toBe('refuse');
+        }
+    });
+
+    test('the refusal message names the source, shortened, and where files may come from', () => {
+        expect(vegaResourceRefusalMessage('https://example.com/data.csv')).toBe(
+            'This chart asks for “https://example.com/data.csv”. Charts only load data and images from this vault, '
+            + 'never from the network or elsewhere on this computer. Use a /vault/… path.');
+        const long = vegaResourceRefusalMessage(`https://example.com/${'a'.repeat(200)}`);
+        expect(long).toContain('…”');
+        expect(long.length).toBeLessThan(260);
+        expect(vegaResourceRefusalMessage(null)).toContain('an empty address');
     });
 });

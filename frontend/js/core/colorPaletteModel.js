@@ -5,4 +5,13 @@ export const ACCENT_COLOR_PALETTE = [
     '#a855f7', '#ec4899', '#6b7280',
 ];
 
+/**
+ * A color read back from a vault file, or '' when it is not one the palette
+ * could have stored. Every palette entry is "#rrggbb", so nothing else is
+ * allowed to reach markup or a style: the file travels with a shared vault.
+ */
+export function storedAccentColor(value) {
+    return typeof value === 'string' && /^#[\da-f]{6}$/i.test(value) ? value : '';
+}
+
 export default ACCENT_COLOR_PALETTE;

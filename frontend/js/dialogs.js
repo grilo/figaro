@@ -13,6 +13,7 @@ import { lucideIconLabel, renderLucideIcon, searchLucideIcons } from './lucideIc
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import { isDiskFullError } from './core/saveModel.js';
 import { vaultItemNameError } from './core/fileTreeModel.js';
+import { escapeHtml } from './core/htmlEscape.js';
 
 let activeModal = null;
 let activeModalDismiss = null;
@@ -670,7 +671,7 @@ export function mergeNotesDialog(destinationPath, sourcePaths) {
                     <span class="merge-dest-name">${escapeHtml(destinationName)}</span>
                 </div>
                 <fieldset class="merge-sources"><legend>Sources to append</legend>${sourceRows}</fieldset>
-                <div class="ui-notice ui-notice--warning custom-modal-notice custom-modal-notice--warning merge-warning">${iconSVG('warning')}<span>Selected source notes will be permanently deleted after their content is appended.</span></div>
+                <div class="ui-notice ui-notice--warning custom-modal-notice custom-modal-notice--warning merge-warning">${iconSVG('warning')}<span>Selected source notes are removed after their content is appended. You can restore them from Settings → Vault care → Recently deleted.</span></div>
             `,
             footer: `
                 <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
@@ -948,8 +949,3 @@ function closeActiveModal(restoreFocus = true) {
     }
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = String(text ?? '');
-    return div.innerHTML;
-}
