@@ -51,6 +51,9 @@ remain as originally published.
 
 ### Fixed
 
+- Figaro is now built with Go 1.26.11, which fixes a crash in the Go
+  standard library's HTTP server. Building from source now requires Go
+  1.26.11 or newer.
 - On Windows, letting go after dragging the bottom-right resize corner now
   ends the resize. Before, the window kept resizing as the mouse moved until
   you clicked again.

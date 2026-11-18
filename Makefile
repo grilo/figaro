@@ -1,6 +1,6 @@
 # figaro — desktop build targets
 #
-# Requires Go 1.26.10+. Wails v3 compiles with plain `go build`; the wails3 tool
+# Requires Go 1.26.11+. Wails v3 compiles with plain `go build`; the wails3 tool
 # pinned by go.mod runs through `go run` only to generate Windows resources and
 # macOS bundle metadata. Linux builds require GCC, pkg-config, GTK4, and
 # WebKitGTK 6.0. The Windows target uses Wails' pure-Go WebView2 path and needs
@@ -79,13 +79,13 @@ help:
 
 check-go:
 	@if ! command -v go >/dev/null 2>&1; then \
-		echo "Go 1.26.10 or newer is required."; \
+		echo "Go 1.26.11 or newer is required."; \
 		echo "Install Go from: https://go.dev/dl/"; \
 		exit 1; \
 	fi
 	@set -- $$(go version 2>/dev/null | sed -nE 's/^go version go([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 \2 \3/p'); \
-	if [ "$$#" -ne 3 ] || [ "$$1" -lt 1 ] || { [ "$$1" -eq 1 ] && { [ "$$2" -lt 26 ] || { [ "$$2" -eq 26 ] && [ "$$3" -lt 10 ]; }; }; }; then \
-		echo "Figaro requires Go 1.26.10 or newer; found $$(go version 2>/dev/null || echo unknown)."; \
+	if [ "$$#" -ne 3 ] || [ "$$1" -lt 1 ] || { [ "$$1" -eq 1 ] && { [ "$$2" -lt 26 ] || { [ "$$2" -eq 26 ] && [ "$$3" -lt 11 ]; }; }; }; then \
+		echo "Figaro requires Go 1.26.11 or newer; found $$(go version 2>/dev/null || echo unknown)."; \
 		echo "Install Go from: https://go.dev/dl/"; \
 		exit 1; \
 	fi
