@@ -5,3 +5,5 @@ const unavailable = () => Promise.reject(new Error('Wails runtime is not availab
 export const Call = { ByName: unavailable };
 export const Events = { On: () => () => {} };
 export const Browser = { OpenURL: unavailable };
+export const Flags = { GetFlag: () => undefined };
+export const System = { IsWindows: () => false, IsLinux: () => false, invoke: () => {} };

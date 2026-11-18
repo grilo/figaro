@@ -51,6 +51,9 @@ remain as originally published.
 
 ### Fixed
 
+- On Windows, letting go after dragging the bottom-right resize corner now
+  ends the resize. Before, the window kept resizing as the mouse moved until
+  you clicked again.
 - Renaming or moving the note you are editing no longer detaches it from its
   tab. Text typed afterwards is saved again, and **Ctrl/Cmd+S** can no longer
   replace the note with an empty or outdated file.

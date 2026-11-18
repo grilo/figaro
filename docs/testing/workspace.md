@@ -15,7 +15,10 @@ on every side, the same radius as `#app`, and a slightly stronger top color.
 Keep `tests/e2e/windowChrome.spec.js` focused on those computed properties so
 the browser build and packaged webview do not drift back to separate border
 implementations. It also owns that the desktop-only right and bottom resize
-strips are the topmost hit target in the 5px border zones. After changing the outline, title bar, drag region, or window
+strips are the topmost hit target in the 5px border zones.
+`windowChrome.test.js` owns that the resize grip hands a held press to the
+native corner resize once and never resizes on later moves, and that its
+script fallback ends on the first move without the primary button. After changing the outline, title bar, drag region, or window
 controls, also exercise native edge resizing and maximize/restore in the
 packaged application on each affected desktop platform.
 

@@ -1984,7 +1984,8 @@
       "frontend/js/wailsRuntime.js": [
         "installWailsRuntime",
         "createNativeApp",
-        "createNativeRuntime"
+        "createNativeRuntime",
+        "createNativeFramelessResize"
       ],
       "frontend/js/updateSettings.js": [
         "initUpdateSettings",

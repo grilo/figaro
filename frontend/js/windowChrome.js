@@ -61,40 +61,75 @@ function isInteractiveTitlebarTarget(target) {
     return Boolean(target?.closest?.('button, input, textarea, select, a, [role="tab"], [contenteditable="true"]'));
 }
 
+const PRIMARY_BUTTON = 1;
+const MINIMUM_WINDOW_WIDTH = 800;
+const MINIMUM_WINDOW_HEIGHT = 500;
+
+function startNativeCornerResize() {
+    try {
+        return window.runtime?.WindowStartNativeResize?.('se-resize') === true;
+    } catch (_) {
+        return false;
+    }
+}
+
+/**
+ * The grip resizes from the bottom-right corner. Where the operating system
+ * can resize the frameless window itself (Windows, Linux), the first move of a
+ * held press hands the gesture to it; a second resize loop in the page would
+ * outlive the native one, because Windows swallows the release that ends it.
+ * Elsewhere the page resizes the window, and any move without the primary
+ * button down ends that resize.
+ */
 function installResizeGrip() {
     const grip = document.getElementById('resize-grip');
     if (!grip || grip.dataset.nativeResizeBound) return;
     grip.dataset.nativeResizeBound = 'true';
 
-    let resizing = false;
-    let startX = 0;
-    let startY = 0;
-    let startW = 800;
-    let startH = 600;
+    let gesture = null;
+    const end = event => {
+        if (!gesture || (event && event.pointerId !== gesture.pointerId)) return;
+        gesture = null;
+    };
 
-    grip.addEventListener('mousedown', event => {
+    grip.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || event.isPrimary === false) return;
+        // Cancelling the press withholds its compatibility mouse events, so
+        // the Wails runtime's own border zone cannot start a second resize.
         event.preventDefault();
         event.stopPropagation();
-        resizing = true;
-        startX = event.screenX;
-        startY = event.screenY;
-        callNative('WindowGetSize').then(size => {
-            if (!size) return;
-            startW = Number(size.w) || startW;
-            startH = Number(size.h) || startH;
-        });
+        try { grip.setPointerCapture?.(event.pointerId); } catch (_) { /* pointer already gone */ }
+        gesture = { pointerId: event.pointerId, startX: event.screenX, startY: event.screenY, mode: 'armed', size: null };
     });
 
-    window.addEventListener('mousemove', event => {
-        if (!resizing) return;
-        const width = Math.max(800, startW + event.screenX - startX);
-        const height = Math.max(500, startH + event.screenY - startY);
+    grip.addEventListener('pointermove', event => {
+        if (!gesture || event.pointerId !== gesture.pointerId) return;
+        if ((event.buttons & PRIMARY_BUTTON) === 0) {
+            gesture = null;
+            return;
+        }
+        if (gesture.mode === 'armed') {
+            if (startNativeCornerResize()) {
+                gesture = null;
+                return;
+            }
+            const current = gesture;
+            current.mode = 'script';
+            callNative('WindowGetSize').then(size => {
+                if (gesture !== current) return;
+                current.size = { w: Number(size?.w) || MINIMUM_WINDOW_WIDTH, h: Number(size?.h) || MINIMUM_WINDOW_HEIGHT };
+            });
+        }
+        // Moves before the starting size is known only count toward the delta.
+        if (!gesture.size) return;
+        const width = Math.max(MINIMUM_WINDOW_WIDTH, gesture.size.w + event.screenX - gesture.startX);
+        const height = Math.max(MINIMUM_WINDOW_HEIGHT, gesture.size.h + event.screenY - gesture.startY);
         callNative('WindowSetSize', width, height);
     });
 
-    window.addEventListener('mouseup', () => {
-        resizing = false;
-    });
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+        grip.addEventListener(type, end);
+    }
 }
 
 function installTitleBarDoubleClick() {

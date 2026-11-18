@@ -4,12 +4,13 @@
  * Wails v3 no longer publishes `window.go` or `window.runtime`; bound methods
  * and events come from the @wailsio/runtime module instead. Figaro's
  * frontend, and its tests, consume one small native surface: the bound App
- * facade plus EventsOn, BrowserOpenURL, LogDebug and OnFileDrop. This adapter
+ * facade plus EventsOn, BrowserOpenURL, LogDebug, OnFileDrop and
+ * WindowStartNativeResize. This adapter
  * rebuilds exactly that surface on top of the v3 runtime when Figaro runs in
  * its desktop webview, so browser-only debugging keeps its explicit mock.
  */
 
-import { Browser, Call, Events } from '@wailsio/runtime';
+import { Browser, Call, Events, Flags, System } from '@wailsio/runtime';
 import { BACKEND_METHODS } from './backendContract.js';
 
 /** Fully qualified Go name of the bound App service. */
@@ -31,11 +32,28 @@ export function createNativeApp(call = Call.ByName) {
     return Object.freeze(app);
 }
 
+/**
+ * Hand a press to the operating system's own frameless-window resize, the one
+ * the Wails runtime starts from a press within its window-border zone. Wails
+ * offers it on Windows, and on Linux for a frameless window; elsewhere this
+ * returns false and the caller keeps the gesture.
+ */
+export function createNativeFramelessResize(system = System, flags = Flags) {
+    return edge => {
+        let frameless = false;
+        try { frameless = Boolean(flags.GetFlag('frameless')); } catch (_) { /* flags not published yet */ }
+        if (!system.IsWindows() && !(system.IsLinux() && frameless)) return false;
+        system.invoke(`wails:resize:${edge}`);
+        return true;
+    };
+}
+
 export function createNativeRuntime({
     on = Events.On,
     openURL = Browser.OpenURL,
     // log.js already writes to the console; v3 has no Go-side JS logger.
     debug = () => {},
+    startResize = createNativeFramelessResize(),
 } = {}) {
     return Object.freeze({
         EventsOn(name, callback) {
@@ -46,6 +64,10 @@ export function createNativeRuntime({
         },
         LogDebug(message) {
             debug(message);
+        },
+        // Edges use the Wails names: 'se-resize' is the bottom-right corner.
+        WindowStartNativeResize(edge) {
+            return startResize(edge) === true;
         },
         // The second argument mirrors the Wails v2 drop-target switch. Figaro
         // routes every drop itself, so the document body is the only target.

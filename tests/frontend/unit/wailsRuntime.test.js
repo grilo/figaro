@@ -3,6 +3,7 @@ import {
     NATIVE_APP_SERVICE,
     NATIVE_FILES_DROPPED_EVENT,
     createNativeApp,
+    createNativeFramelessResize,
     createNativeRuntime,
     installWailsRuntime,
     isDesktopWebview,
@@ -48,6 +49,28 @@ describe('Wails v3 runtime adapter', () => {
         listeners.get(NATIVE_FILES_DROPPED_EVENT)({ data: {} });
         expect(dropped).toHaveBeenNthCalledWith(1, 40, 12, ['/tmp/a.md']);
         expect(dropped).toHaveBeenNthCalledWith(2, 0, 0, []);
+    });
+
+    test('starts the native frameless resize only where Wails offers one', () => {
+        const system = os => ({ IsWindows: () => os === 'windows', IsLinux: () => os === 'linux', invoke: jest.fn() });
+        const frameless = { GetFlag: key => key === 'frameless' };
+
+        const windows = system('windows');
+        expect(createNativeFramelessResize(windows, { GetFlag: () => { throw new Error('no flags'); } })('se-resize')).toBe(true);
+        expect(windows.invoke).toHaveBeenCalledWith('wails:resize:se-resize');
+
+        const linux = system('linux');
+        expect(createNativeFramelessResize(linux, frameless)('se-resize')).toBe(true);
+        expect(createNativeFramelessResize(linux, { GetFlag: () => false })('se-resize')).toBe(false);
+        expect(linux.invoke).toHaveBeenCalledTimes(1);
+
+        const mac = system('darwin');
+        expect(createNativeFramelessResize(mac, frameless)('se-resize')).toBe(false);
+        expect(mac.invoke).not.toHaveBeenCalled();
+
+        const startResize = jest.fn(() => true);
+        expect(createNativeRuntime({ on: jest.fn(), startResize }).WindowStartNativeResize('se-resize')).toBe(true);
+        expect(startResize).toHaveBeenCalledWith('se-resize');
     });
 
     test('opens external links through the native browser bridge', () => {

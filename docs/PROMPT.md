@@ -3816,8 +3816,11 @@ Multiple layers prevent a white flash before CSS loads:
 - Window controls (minimize, maximize, close) in the top bar, routed through the native Wails `App`
   binding.
 - Resize grip at the physical window bottom-right, independent of the buffer-status width: drag to
-  resize, calls `WindowSetSize` via the Go backend. It stays visible outside Pure mode and is hidden
-  in Pure mode.
+  resize. On Windows and Linux the first move of a held press hands the gesture to the operating
+  system's frameless resize, the same one the Wails border zone starts, so releasing the button
+  always ends it. Elsewhere the page resizes through `WindowSetSize`, starting from the real window
+  size, and any move without the primary button down ends the resize. It stays visible outside Pure
+  mode and is hidden in Pure mode.
 - `WindowStartResize(direction)` for programmatic edge resizing (N/S/E/W/NE/NW/SE/SW).
 - On Linux and Windows the Wails runtime resizes a frameless window when a press lands within 5px
   of its border. In the desktop webview, invisible strips cover the right and bottom 5px above every

@@ -56,6 +56,62 @@ describe('native window chrome', () => {
         expect(window.go.desktop.App.WindowCaptureState).toHaveBeenCalledTimes(1);
     });
 
+    function pointer(type, { buttons = 1, x = 0, y = 0 } = {}) {
+        const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, buttons, screenX: x, screenY: y });
+        Object.defineProperty(event, 'pointerId', { value: 1 });
+        Object.defineProperty(event, 'isPrimary', { value: true });
+        document.getElementById('resize-grip').dispatchEvent(event);
+        return event;
+    }
+
+    test('the resize grip hands a held press to the native corner resize and then lets go', () => {
+        const startNative = jest.fn(() => true);
+        window.runtime = { WindowStartNativeResize: startNative };
+        try {
+            initWindowChrome();
+            const press = pointer('pointerdown', { x: 100, y: 100 });
+            expect(press.defaultPrevented).toBe(true);
+            expect(startNative).not.toHaveBeenCalled();
+
+            pointer('pointermove', { x: 104, y: 103 });
+            expect(startNative).toHaveBeenCalledTimes(1);
+            expect(startNative).toHaveBeenCalledWith('se-resize');
+
+            // Windows swallows the release that ends its resize; later moves,
+            // held or not, must not keep resizing the window.
+            pointer('pointermove', { buttons: 0, x: 300, y: 300 });
+            pointer('pointermove', { buttons: 1, x: 320, y: 320 });
+            expect(startNative).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.WindowSetSize).not.toHaveBeenCalled();
+        } finally {
+            delete window.runtime;
+        }
+    });
+
+    test('without a native resize the grip resizes from the real size and stops when the button is up', async () => {
+        const app = window.go.desktop.App;
+        initWindowChrome();
+        pointer('pointerdown', { x: 100, y: 100 });
+        pointer('pointermove', { x: 110, y: 105 });
+        expect(app.WindowGetSize).toHaveBeenCalledTimes(1);
+        expect(app.WindowSetSize).not.toHaveBeenCalled();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        pointer('pointermove', { x: 150, y: 120 });
+        expect(app.WindowSetSize).toHaveBeenLastCalledWith(1050, 720);
+
+        // A release the page never saw: the first move without the button ends it.
+        pointer('pointermove', { buttons: 0, x: 400, y: 400 });
+        pointer('pointermove', { buttons: 1, x: 420, y: 420 });
+        expect(app.WindowSetSize).toHaveBeenCalledTimes(1);
+
+        pointer('pointerdown', { x: 100, y: 100 });
+        pointer('pointerup', { buttons: 0, x: 100, y: 100 });
+        pointer('pointermove', { x: 200, y: 200 });
+        expect(app.WindowGetSize).toHaveBeenCalledTimes(1);
+    });
+
     test('leaving another way uses the installed exit flow and answers native close requests through the host', async () => {
         const restart = jest.fn();
         // Before startup installs the flow, leaving simply leaves.
